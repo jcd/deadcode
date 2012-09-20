@@ -1,0 +1,35 @@
+﻿<Properties>
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="ded\keybinding.d">
+    <Files>
+      <File FileName="ded\main.d" Line="112" Column="22" />
+      <File FileName="ded\editor.d" Line="53" Column="52" />
+      <File FileName="ded\gui.d" Line="672" Column="49" />
+      <File FileName="ded\graphics.d" Line="394" Column="36" />
+      <File FileName="ded\font.d" Line="45" Column="19" />
+      <File FileName="ded\math.d" Line="22" Column="4" />
+      <File FileName="ded\smallvector.d" Line="102" Column="1" />
+      <File FileName="ded\smallmatrix.d" Line="181" Column="1" />
+      <File FileName="ded\dbg.d" Line="3" Column="18" />
+      <File FileName="ded\behavior\emacs.d" Line="11" Column="64" />
+      <File FileName="ded\behavior\behavior.d" Line="10" Column="2" />
+      <File FileName="ded\text.d" Line="121" Column="5" />
+      <File FileName="ded\command.d" Line="23" Column="2" />
+      <File FileName="ded\keybinding.d" Line="3" Column="1" />
+    </Files>
+    <Pads>
+      <Pad Id="ProjectPad">
+        <State expanded="True">
+          <Node name="ded" expanded="True">
+            <Node name="behavior" expanded="True" />
+            <Node name="keybinding.d" selected="True" />
+          </Node>
+        </State>
+      </Pad>
+    </Pads>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>

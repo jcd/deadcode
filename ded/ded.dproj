@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="3.5" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>9.0.21022</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{F706A620-CFE0-4012-B329-0CF4BBEE7112}</ProjectGuid>
+    <Target>Executable</Target>
+    <IncrementalLinking>true</IncrementalLinking>
+    <UseDefaultCompiler>true</UseDefaultCompiler>
+    <PreferOneStepBuild>true</PreferOneStepBuild>
+    <Compiler>DMD</Compiler>
+    <Includes>
+      <Includes>
+        <Path>C:\Users\jonasd\Documents\Projects\Derelict3\import</Path>
+      </Includes>
+    </Includes>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Debug</OutputPath>
+    <ObjectsDirectory>obj\Debug</ObjectsDirectory>
+    <OutputName>ded</OutputName>
+    <Libs>
+      <Libs>
+        <Lib>C:\Users\jonasd\Documents\Projects\Derelict3\lib\DerelictGL3.lib</Lib>
+        <Lib>C:\Users\jonasd\Documents\Projects\Derelict3\lib\DerelictUtil.lib</Lib>
+        <Lib>C:\Users\jonasd\Documents\Projects\Derelict3\lib\DerelictSDL2.lib</Lib>
+      </Libs>
+    </Libs>
+    <ExtraCompilerArguments>-property -unittest</ExtraCompilerArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>bin\Release</OutputPath>
+    <ObjectsDirectory>obj\Release</ObjectsDirectory>
+    <OutputName>ded</OutputName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Unittest</OutputPath>
+    <ObjectsDirectory>obj\Unittest</ObjectsDirectory>
+    <ExtraCompilerArguments>-unittest </ExtraCompilerArguments>
+    <OutputName>ded</OutputName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="main.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\main.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="gui.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\gui.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="graphics.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\graphics.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="math.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\math.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="text.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\text.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="editor.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\editor.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="font.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\font.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="smallvector.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\smallvector.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="smallmatrix.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\smallmatrix.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="dbg.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\dbg.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="behavior\emacs.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\emacs.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="behavior\behavior.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\behavior.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="command.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\command.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="keybinding.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\keybinding.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="editorcommands.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\editorcommands.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="render.d" />
+  </ItemGroup>
+</Project>

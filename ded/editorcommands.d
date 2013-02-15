@@ -1,15 +1,15 @@
 module editorcommands;
 
 import command;
-import editor;
-import text;
+import buffer;
+import bufferview;
 
 import std.variant;
 
 string createCmd(string name, string desc)
 {
 	string res = `cmgr.create("editor.` ~ name ~ `", "Move cursor to beginning of current line", delegate(Variant data) {
-		EditorController.current.` ~ name ~ `();
+		BufferView.current.` ~ name ~ `();
 	});`;
 	return res;
 }
@@ -21,8 +21,7 @@ void register()
 	
 	cmgr.create("editor.clearBuffer", "Scroll editor window one page down", delegate(Variant data) {
 		auto dl = "Hello world I am fine right now"d;
-		EditorController.current.buffer = new TextGapBuffer(dl, 20);
-		EditorController.current.view.buffer = EditorController.current.buffer; // TODO: fix
+		BufferView.current.buffer = new TextGapBuffer(dl, 20);
 	});
 
 	mixin(createCmd("cursorToBeginningOfLine", "Move cursor to beginning of current line"));
@@ -36,44 +35,45 @@ void register()
 
 	
 	cmgr.create("editor.cursorToCharBefore", "Move cursor to char before cursor", delegate(Variant data) {
-		EditorController.current.cursorLeft(1);
+		BufferView.current.cursorLeft(1);
 	});
 
 	cmgr.create("editor.cursorToCharAfter", "Move cursor to char after cursor", delegate(Variant data) {
-		EditorController.current.cursorRight(1);
+		BufferView.current.cursorRight(1);
 	});
 
 	cmgr.create("editor.cursorToCharAbove", "Move cursor to char before cursor", delegate(Variant data) {
-		auto ctrl = EditorController.current;
+		auto ctrl = BufferView.current;
 		ctrl.cursorUp(1);
-		uint lineNum = ctrl.buffer.lineNumber(ctrl.view.cursorPoint);
-		if (lineNum < ctrl.view.lineOffset)
+		uint lineNum = ctrl.buffer.lineNumber(ctrl.cursorPoint);
+		std.stdio.writeln("key down ", lineNum, " ", ctrl.lineOffset," ", ctrl.visibleLineCount, " ", ctrl.buffer.lineCount);
+		if (lineNum < ctrl.lineOffset)
 			ctrl.scrollUp();
 	});
 
 	cmgr.create("editor.cursorToCharBelow", "Move cursor to char after cursor", delegate(Variant data) {
-		auto ctrl = EditorController.current;
+		auto ctrl = BufferView.current;
 		ctrl.cursorDown();
-		uint lineNum = ctrl.buffer.lineNumber(ctrl.view.cursorPoint);
-		if (lineNum > (ctrl.view.lineOffset + ctrl.view.rectLines))
+		uint lineNum = ctrl.buffer.lineNumber(ctrl.cursorPoint);
+		if (lineNum > (ctrl.lineOffset + ctrl.visibleLineCount))
 			ctrl.scrollDown();
 	});
 
 	cmgr.create("editor.deleteCharBefore", "Delete character before cursor", delegate(Variant data) {
-		EditorController.current.remove(-1);
+		BufferView.current.remove(-1);
 	});
 
 	cmgr.create("editor.deleteCharAfter", "Delete character after cursor", delegate(Variant data) {
-		EditorController.current.remove(1);
+		BufferView.current.remove(1);
 	});
 
 	cmgr.create("editor.insertNewline", "Insert a newline at cursor", delegate(Variant data) {
-		EditorController.current.insert('\n');
+		BufferView.current.insert('\n');
 	});
 	
 	cmgr.create("editor.scrollPageDown", "Scroll view one page down", delegate(Variant data) {
-		auto ctrl = EditorController.current;
-		for (int i = 0; i < ctrl.view.rectLines; i++)
+		auto ctrl = BufferView.current;
+		for (int i = 0; i < ctrl.visibleLineCount; i++)
 		{
 			ctrl.cursorDown();
 			ctrl.scrollDown();
@@ -81,8 +81,8 @@ void register()
 	});
 	
 	cmgr.create("editor.scrollPageUp", "Scroll view one page up", delegate(Variant data) {
-		auto ctrl = EditorController.current;
-		for (int i = 0; i < ctrl.view.rectLines; i++)
+		auto ctrl = BufferView.current;
+		for (int i = 0; i < ctrl.visibleLineCount; i++)
 		{
 			ctrl.cursorUp();
 			ctrl.scrollUp();
@@ -90,8 +90,8 @@ void register()
 	});
 
 	cmgr.create("editor.scrollPagedUp", "Open file", delegate(Variant data) {
-		auto ctrl = EditorController.current;
-		for (int i = 0; i < ctrl.view.rectLines; i++)
+		auto ctrl = BufferView.current;
+		for (int i = 0; i < ctrl.visibleLineCount; i++)
 		{
 			ctrl.cursorUp();
 			ctrl.scrollUp();

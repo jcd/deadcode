@@ -113,7 +113,14 @@ alias Vec3!(float) Vec3f;
 
 struct Rect(T)
 {
-	static immutable Rectf unit = Rectf(0,0,1,1);
+	static immutable Rect!T unit;
+	static immutable Rect!T zero;
+	
+	static this()
+	{
+		unit = Rect!T(0, 0, 1, 1);
+		zero = Rect!T(0, 0, 0, 0);
+	}
 	
 	Vec2!T pos; 
 	Vec2!T size;		

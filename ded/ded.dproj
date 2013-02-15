@@ -10,7 +10,7 @@
     <IncrementalLinking>true</IncrementalLinking>
     <UseDefaultCompiler>true</UseDefaultCompiler>
     <PreferOneStepBuild>true</PreferOneStepBuild>
-    <Compiler>DMD</Compiler>
+    <Compiler>DMD2</Compiler>
     <Includes>
       <Includes>
         <Path>C:\Users\jonasd\Documents\Projects\Derelict3\import</Path>
@@ -30,11 +30,17 @@
       </Libs>
     </Libs>
     <ExtraCompilerArguments>-property -unittest</ExtraCompilerArguments>
+    <UnittestMode>False</UnittestMode>
+    <DebugLevel>0</DebugLevel>
+    <ConsolePause>false</ConsolePause>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>
     <ObjectsDirectory>obj\Release</ObjectsDirectory>
     <OutputName>ded</OutputName>
+    <Externalconsole>true</Externalconsole>
+    <UnittestMode>False</UnittestMode>
+    <DebugLevel>0</DebugLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -42,6 +48,9 @@
     <ObjectsDirectory>obj\Unittest</ObjectsDirectory>
     <ExtraCompilerArguments>-unittest </ExtraCompilerArguments>
     <OutputName>ded</OutputName>
+    <Externalconsole>true</Externalconsole>
+    <UnittestMode>False</UnittestMode>
+    <DebugLevel>0</DebugLevel>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="main.d">
@@ -55,9 +64,6 @@
     </Compile>
     <Compile Include="math.d">
       <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\math.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="text.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\text.obj</LastGenOutput>
     </Compile>
     <Compile Include="editor.d">
       <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\editor.obj</LastGenOutput>
@@ -89,6 +95,19 @@
     <Compile Include="editorcommands.d">
       <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\editorcommands.obj</LastGenOutput>
     </Compile>
-    <Compile Include="render.d" />
+    <Compile Include="render.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\render.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="widget.d" />
+    <Compile Include="widgetfeature.d" />
+    <Compile Include="color.d" />
+    <Compile Include="style.d" />
+    <Compile Include="region.d" />
+    <Compile Include="buffer.d">
+      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\text.obj</LastGenOutput>
+    </Compile>
+    <Compile Include="bufferview.d" />
+    <Compile Include="models.d" />
+    <Compile Include="styledtext.d" />
   </ItemGroup>
 </Project>

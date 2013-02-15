@@ -117,3 +117,42 @@ class CommandManager
 		return null;
 	}
 }
+
+// TODO: fix	
+/* API:
+View	 		TextView  
+RegionSet		RegionSet
+Region			Region
+Edit			N/A
+Window 			Window
+Settings		N/A
+
+Base Classes:
+
+EventListener
+ApplicationCommand
+WindowCommand
+TextCommand
+*/
+
+
+	
+/// Plugin:
+
+// Application wide command. One instance for the application.
+class ApplicationCommand : Command
+{
+	this(string name, string desc) { super(name, desc); }
+}
+
+// Window wide command. One instance per window.
+class WindowCommand : Command
+{
+	this(string name, string desc) { super(name, desc); }
+}
+
+// Editor wide command. One instance per editor.
+class EditorCommand : Command
+{
+	this(string name, string desc) { super(name, desc); }
+}

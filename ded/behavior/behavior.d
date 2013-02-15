@@ -1,8 +1,8 @@
 module behavior.behavior;
 
-public import editor;
 public import graphics;
-public import text;
+public import buffer;
+import bufferview;
 
 class EditorBehavior
 {
@@ -12,7 +12,11 @@ class EditorBehavior
 	static @property EditorBehavior current()
 	{
 		if (_current is null)
+		{
+			import std.stdio;
+			writeln("Falling back to the null editor behavior");
 			_current = editorBehaviors["null"];
+		}
 		return _current;
 	}
 
@@ -26,7 +30,7 @@ class EditorBehavior
 		_current = editorBehaviors[name];
 	}
 
-	abstract void onEvent(Event event, EditorController controller);
+	abstract void onEvent(Event event, BufferView view);
 }
 
 class NullBehavior : EditorBehavior
@@ -37,7 +41,7 @@ class NullBehavior : EditorBehavior
 		EditorBehavior.editorBehaviors["null"] = new NullBehavior();
 	}
 	
-	void onEvent(Event event, EditorController controller)
+	void onEvent(Event event, BufferView controller)
 	{
 		std.stdio.writeln("NullBehavior ", event);
 	}

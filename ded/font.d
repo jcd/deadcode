@@ -1,6 +1,5 @@
 module font;
 
-
 import graphics;
 import math;
 
@@ -9,6 +8,13 @@ import std.conv;
 
 import derelict.sdl2.sdl; 
 import derelict.sdl2.ttf;
+
+Font inheritFont;
+static this()
+{
+	// Special font to signal that a style should use parent styles font
+	 inheritFont = new Font();
+}
 
 class Font
 {
@@ -47,6 +53,10 @@ class Font
 	Texture fontMap;
 	size_t size;
 	
+	private this()
+	{
+	}
+	
 	this(const(char)[] path, size_t size)
 	{
 		this.size = size;
@@ -54,7 +64,7 @@ class Font
 		SDL_ClearError();
 		ttfFont = TTF_OpenFont(cast(char*)path, size);
 		enforceEx!Exception(ttfFont !is null, text("Error loading font ", path));
-		
+		TTF_SetFontHinting(ttfFont, TTF_HINTING_LIGHT);
 		uint begin = cast(uint) '!';
 		uint end = cast(uint) '~';
 		glyphInfoASCII.length = end - begin + 1;		
@@ -209,7 +219,9 @@ private int nextPowerOfTwo(int i) nothrow
 			area.y = lastY;
 			area.w = gi.advance;
 			area.h = fontHeight;
-		
+			//area.w = cast(int)glyphSize.x;
+			//area.h = cast(int)glyphSize.y;
+			
 			//std.stdio.writeln("ras ", gi.ch, " ", s.w, " ", s.h, " ", gi.advance, " ", fontHeight, " ", fontMap.width, " ", fontMap.height,
 //				" ", lastX, " ", lastY, " ", gi.minX, " ", gi.minY, " ", gi.maxY);
 
@@ -232,6 +244,9 @@ private int nextPowerOfTwo(int i) nothrow
 						text("Error measuring text size: ", TTF_GetError()));
 	}	
 }
+
+
+
 
 /*
 Model createWindowFontMapTestQuad(Rectf windowRect)

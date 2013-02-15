@@ -412,6 +412,7 @@ string keyCodeToString(SDL_Keycode c)
 	return keyCodeToStringMap[c];
 }
 
+// TODO: add pointer to active widget in here ie. refactor this struct to new file
 struct Event
 {
 	enum Type
@@ -645,7 +646,6 @@ struct Window
 				ev.scroll = Vec2f(e.wheel.x, e.wheel.y);
 				break;
 			case SDL_KEYDOWN:
-				//import std.c.string;
 				if (e.key.keysym.sym == SDLK_ESCAPE)
 						running = false;
 				ev.type = Event.Type.KeyDown;
@@ -655,7 +655,6 @@ struct Window
 				//std.stdio.writeln("got text " , SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))], " ", e.key.repeat, " ",e.key.state);
 				break;
 			case SDL_KEYUP:
-				//import std.c.string;
 				if (e.key.keysym.sym == SDLK_ESCAPE)
 						running = false;
 				ev.type = Event.Type.KeyUp;
@@ -944,7 +943,6 @@ final class Shader
       		char[] error=new char[len]; 
       		glGetShaderInfoLog(fshad, len, null, cast(char*)error); 
 
-			import std.stdio;
       		writeln(error); 
       		return false; 
    		}
@@ -1250,7 +1248,6 @@ final class Buffer
 	{
 		Buffer b = new Buffer();
 		glGenBuffers(1, &(b.glBufferID));
-		import std.range;		
 		if (!data.empty)
 			b.setData(data);
 		return b;
@@ -1260,6 +1257,7 @@ final class Buffer
 	{
 		length = data.length;
 		glBindBuffer(GL_ARRAY_BUFFER, glBufferID);
+		// Copy the data to gl buffer. Static draw: modify once, use many
 		glBufferData(GL_ARRAY_BUFFER, data.length * GL_FLOAT.sizeof, data.ptr, GL_STATIC_DRAW);       
    		glBindBuffer(GL_ARRAY_BUFFER, 0); 	
 	}
@@ -1343,65 +1341,79 @@ final class Material
 	}
 }
 
-final class Model
+final class Model(SubModelKey)
 {
-	Mesh mesh;
-	Material material;
-	Mat4f transform;
-	
-	this()
+	final static class SubModel
 	{
-		transform = Mat4f.IDENTITY;
+		Mesh mesh;
+		Material material;
+		
+		@property valid() const
+		{
+			return material.texture !is null;
+		}
+		void draw(Mat4f transform)
+		{
+			//material.shader.setUniform("colMap", 0);
+			glEnable (GL_BLEND);
+			glBlendFunc (GL_ONE, GL_ONE);
+			material.shader.setUniform("MVP", Window.active.MVP * transform);
+			material.bind();
+			mesh.bind();
+	//		material.shader.setUniform("MVP", Window.active.MVP * transform);
+			mesh.draw();
+	      	material.unbind();
+	      	glBindVertexArray(0);
+	      	glUseProgram(0);
+		}
 	}
-	
-	@property valid() const
-	{
-		return material.texture !is null;
-	}
-	
-	void draw()
-	{
-		//material.shader.setUniform("colMap", 0);
-		glEnable (GL_BLEND);
-		glBlendFunc (GL_ONE, GL_ONE);
-		material.shader.setUniform("MVP", Window.active.MVP * transform);
-		material.bind();
-		mesh.bind();
-//		material.shader.setUniform("MVP", Window.active.MVP * transform);
-		mesh.draw();
-      	material.unbind();
-      	glBindVertexArray(0); 
-      	glUseProgram(0); 
-	}
-}
- 
-Model createTriangle()
-{
-	float[] v = [   -0.75f, -0.75f, 0.0f, 
-                  0.75f, 0.75f, 0.0f, 
-                  -0.75f, 0.75f, 0.0f]; 
-	float[] c = [   0.0f, 0.0f, 
-                  1.0f, 1.0f, 
-                  0.0f, 1.0f]; 
-	float[] cols = new float[v.length];
-	std.algorithm.fill(cols, 1.0f);
-	
-	Buffer vertexBuf = Buffer.create(v);
-	Buffer colorBuf = Buffer.create(c);
-	Buffer vertCols = Buffer.create(cols);	
-	
-	Mesh mesh = Mesh.create();
-	mesh.setBuffer(vertexBuf, 3, 0);
-	mesh.setBuffer(colorBuf, 2, 1);
-	mesh.setBuffer(colorBuf, 3, 2);
- 
-	Model m = new Model();
-	m.mesh = mesh;
-	m.material = Material.builtIn;
-	
-	return m;
-}
 
+	SubModel subModels[SubModelKey];
+			
+	SubModel addSubModel(SubModelKey key)
+	{
+		auto sm = new SubModel();
+		subModels[key] = sm;
+		return sm;
+	}
+	
+	// Mesh of the first SubModel 
+	@property 
+	{
+		Mesh mesh()
+		{
+			return subModels.values().front.mesh; 
+		}
+
+		void mesh(Mesh m)
+		{
+			subModels[subModels.keys().front].mesh = m;
+		}
+	
+		Material material()
+		{
+			return subModels.values().front.material; 
+		}
+
+		void material(Material m)
+		{
+			subModels[subModels.keys().front].material = m;
+		}
+		
+		@property valid() const
+		{
+			return subModels.values().front.valid;
+		}
+	}
+	
+	void draw(Mat4f transform)
+	{
+		foreach (m; subModels)
+		{
+			m.draw(transform);
+		}
+	}
+}
 
 
 /**
@@ -1413,70 +1425,6 @@ void generateUVsPixelScale(Vec2f texSize)
 {
 	
 }
-
-float[] quadVertices(Rectf r)
-{
-	float[] verts = [ 
-		r.x,  r.y,  0f,
-		r.x,  r.y2, 0f,
-		r.x2, r.y2, 0f, 
-		r.x,  r.y,  0f,
-		r.x2, r.y2, 0f,
-		r.x2, r.y,  0f ];			
-	return verts;	
-}
-
-float[] quadUVs(Rectf rect, Material mat, Window win)
-{
-	float windowMaxU = win.width / mat.texture.width;
-	float windowMaxV = win.height / mat.texture.height;
-	float u = (0.5f * rect.w) * windowMaxU;
-	float v = (0.5f * rect.h) * windowMaxV;
-	float[] c = [
-		0f, 1f,
-		0f, v + 1f,
-		u,  v + 1f,
-		0f, 1f,
-		u,  v + 1f,
-		u,  1f];
-	/*float[] c = [
-		0f, v,
-		0f, 0f,
-		u, 0f,
-		0f, v,
-		u, 0f,
-		u, v ];*/
-	return c;
-}
-
-Model createWindowQuad(Rectf windowRect, Material mat)
-{
-	Rectf rect = Window.active.windowToWorld(windowRect);
-	Model m = new Model();
-	m.transform = Mat4f.makeTranslate(Vec3f(rect.pos.x, rect.pos.y, 0f));
-	
-	rect.pos = Vec2f(0,0);
-	
-	float[] vert = quadVertices(rect);
-	float[] uv = quadUVs(rect, mat, Window.active);
-	float[] cols = new float[vert.length];
-	std.algorithm.fill(cols, 1.0f);
-	Buffer vertexBuf = Buffer.create(vert);
-	Buffer colorBuf = Buffer.create(uv);
-	Buffer vertCols = Buffer.create(cols);
-	
-	Mesh mesh = Mesh.create();
-	mesh.setBuffer(vertexBuf, 3, 0);	
-	mesh.setBuffer(colorBuf, 2, 1);	
-	mesh.setBuffer(vertCols, 3, 2);	
-
-	m.mesh = mesh;
-	m.material = mat;
-	
-	return m;
-}
-
-
 
 final class GFont
 {

@@ -3,7 +3,7 @@ module behavior.emacs;
 import keybinding;
 import command;
 import graphics;
-import editor;
+import bufferview;
 
 public import behavior.behavior : EditorBehavior;
 
@@ -59,7 +59,7 @@ class EmacsBehavior : EditorBehavior
 		currentKeySequence = new KeySequence("");
 	}
 	
-	void onEvent(Event event, EditorController controller)
+	void onEvent(Event event, BufferView view)
 	{
 		if (event.type == Event.Type.KeyDown)
 		{
@@ -100,12 +100,12 @@ class EmacsBehavior : EditorBehavior
 			if (d < 0)
 			{
 				foreach (i; 0..-d)
-					controller.scrollDown();
+					view.scrollDown();
 			}
 			else
 			{
 				foreach (i; 0..d)
-					controller.scrollUp();
+					view.scrollUp();
 			}
 		}
 		else if (event.type == Event.Type.MouseClick)
@@ -117,7 +117,7 @@ class EmacsBehavior : EditorBehavior
 		switch (event.type)
 		{
 		case Event.Type.Text:
-			controller.insert(event.ch);
+			view.insert(event.ch);
 			//std.stdio.writeln(event.ch, " ", std.conv.to!string(event.mod));
 			break;
 		case Event.Type.KeyDown:

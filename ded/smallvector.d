@@ -97,33 +97,33 @@ nothrow:
             }
         }
 
-        this(U)(U x) pure nothrow
+        this(U)(U u) pure nothrow
         {
-            opAssign!U(x);
+            opAssign!U(u);
         }
 
         // assign with compatible type
-        void opAssign(U)(U x) pure nothrow if (is(U: T))
+        void opAssign(U)(U u) pure nothrow if (is(U: T))
         {
-            v[] = x; // copy to each component
+            v[] = u; // copy to each component
         }
 
         // assign with a static array type
-        void opAssign(U)(U x) pure nothrow if ((isStaticArray!(U) && is(typeof(x[0]) : T) && (x.length == N)))
+        void opAssign(U)(U u) pure nothrow if ((isStaticArray!(U) && is(typeof(u[0]) : T) && (u.length == N)))
         {
             for (size_t i = 0; i < N; ++i)
             {
-                v[i] = x[i];
+                v[i] = u[i];
             }
         }
 
         // assign with a dynamic array (check size)
-        void opAssign(U)(U x) pure nothrow if (isDynamicArray!(U) && is(typeof(x[0]) : T))
+        void opAssign(U)(U u) pure nothrow if (isDynamicArray!(U) && is(typeof(u[0]) : T))
         {
-            assert(x.length == N);
+            assert(u.length == N);
             for (size_t i = 0; i < N; ++i)
             {
-                v[i] = x[i];
+                v[i] = u[i];
             }
         }
 
@@ -141,20 +141,20 @@ nothrow:
             {
                 for (size_t i = 0; i < N; ++i)
                 {
-                    v[i] = x.v[i];
+                    v[i] = u.v[i];
                 }
             }
         }
 
         // other small vectors (same size, compatible type)
-        void opAssign(U)(U x) pure nothrow if (is(typeof(U._isSmallVector))
+        void opAssign(U)(U u) pure nothrow if (is(typeof(U._isSmallVector))
                                             && is(U._T : T)
                                              && (!is(U: SmallVector))
                                              && (U._N == _N))
         {
             for (size_t i = 0; i < N; ++i)
             {
-                v[i] = x.v[i];
+                v[i] = u.v[i];
             }
         }
 
@@ -234,9 +234,9 @@ nothrow:
             return v[i];
         }*/
 
-        T opIndexAssign(U : T)(U x, size_t i) pure nothrow
+        T opIndexAssign(U : T)(U u, size_t i) pure nothrow
         {
-            return v[i] = x;
+            return v[i] = u;
         }
     /+
         T opIndexOpAssign(string op, U)(size_t i, U x) if (is(U : T))

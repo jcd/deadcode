@@ -35,7 +35,7 @@ class DelegateCommand : Command
 		this.del = del;
 	}
 	
-	void execute(Variant data)
+	override void execute(Variant data)
 	{
 		del(data);
 	}
@@ -49,7 +49,7 @@ class CommandHello : Command
 		super("test.hello", "Echo \"Hello\" to stdout");
 	}
 	
-	void execute(Variant data)
+	override void execute(Variant data)
 	{
 		std.stdio.writeln("Hello");
 	}

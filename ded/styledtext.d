@@ -1,15 +1,43 @@
 module styledtext;
 import region;
 import style;
+import std.container;
+
+class TextStyler(Text)
+{
+	void update(RegionSet rset, Text text)
+	{
+	}
+}
+
+class DSourceStyler(Text) : TextStyler!Text
+{
+	override void update(RegionSet rset, Text text)
+	{
+		rset.clear();
+		rset.add(0, text.length, 0);
+		return;
+		// just cycle the first three styles
+		foreach (i; 1 .. text.length)
+		{
+			if (i % 3 == 0)
+			{
+				rset.add(i - 3, i, (i / 3) % 3);
+			}
+		}
+	}
+}
 
 class StyledText(Text)
 {
+	private TextStyler!Text textStyler;
 	public RegionSet regionSet;
 	StyleSet styleSet;
 	public Text text;
 	
-	this(Text text, RegionSet regionSet, StyleSet styleSet = StyleSet.base)
+	this(TextStyler!Text styler, Text text, RegionSet regionSet, StyleSet styleSet = StyleSet.base)
 	{
+		this.textStyler = styler;
 		this.text = text;
 		this.styleSet = styleSet;
 		this.regionSet = regionSet;
@@ -43,16 +71,19 @@ class StyledText(Text)
 				Array!StyledRegion stack_;
 				StyledRegion curRegion_;
 				uint to_;
-						
+				StyleSet styleSet_;
+				RegionSet regionSet_;
 			}
 				
-			this(uint f, uint t)
+			this(uint f, uint t, StyleSet sset, RegionSet rset)
 			{
+				styleSet_ = sset;
+				regionSet_ = rset;
 				curRegion_.a = f;
 				curRegion_.b = t;
-				stack.insertBack(curRegion_);
+				stack_.insertBack(curRegion_);
 				
-				regionSetRange = regionSet[];
+				regionSetRange = regionSet_.regions[];
 				
 				while (!regionSetRange.empty)
 				{
@@ -77,24 +108,26 @@ class StyledText(Text)
 					else if (r.b > f) // implicit r.a < f 
 					{
 						// Region r overlaps f 
-						StyleFields sf = curRegion_.styleFields.overlay(styleSet[region.id].computedFields);
+						StyleFields sf = curRegion_.styleFields.overlay(styleSet_.styles[r.id].computedFields);
 						stack_.insertBack(StyledRegion(r.a, r.b, sf));
 						curRegion_.styleFields = sf;
 						curRegion_.b = r.b;
 					}
 					
-					regionsSetRange.popFront();						
+//t					regionsSetRange.popFront();						
 				}
-				
+/*t				
 				if (_curRegion.b >= t)
 				{
 					// No regions
 					stack_.clear();
 				}
+*/
 			}
 			
 			void popFront()
 			{
+/*t
 				assert(!empty);
 				
 				uint curEnd = curRegion_.b;	
@@ -132,28 +165,32 @@ class StyledText(Text)
 					curRegion_.b =  r.a;
 				}
 				curRegion_.styleFields = stack_.back().styleFields;
+*/
 			}
 						
 			@property 
 			{
-				@safe bool empty() const nothrow
+				bool empty() const 
 				{
 					return stack_.empty;
 				}
 				
-				@safe StyledRegion front() const nothrow
+				@safe StyledRegion front() nothrow
 				{
-					assert(!empty);
+//t					assert(!empty);
 					return curRegion_;
 				}
 			}
 		}
 			
-		return Range(from, to);
+		return Range(from, to, styleSet, regionSet);
 	}
 	
 	void update(StyleSet styleSet)
 	{
+		textStyler.update(regionSet, text);
+
+		/*t
 		if (styledRegionSets.length != 0) return; // TODO: fix
 		
 		// TODO: parse text and set styles
@@ -161,13 +198,13 @@ class StyledText(Text)
 		auto r = Region(0, uint.max);
 		regionSet.add(r);
 		styledRegionSets[StyleSet.base[""]] = regionSet;
-	}
+*/	}
 }
 
 unittest
 {
-	std.stdio.writeln("Styles white %x, black %x, yellow %x", &white, &black, &yellow); 
-	
+//t	std.stdio.writeln("Styles white %x, black %x, yellow %x", &white, &black, &yellow); 
+/*t	
 	auto text = new StyledText!dchar("yellow white      black yellow"d);
 	auto rs = new RegionSet();
 	
@@ -187,5 +224,6 @@ unittest
 	{
 		std.stdio.writeln("Range %i %i: %s", sr.a, sr.b, sr.styleFields);
 	}			
+*/
 }
 	

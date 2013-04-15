@@ -2,6 +2,11 @@ module bufferview;
 
 import buffer; // : TextGapBuffer;
 
+
+// TODO:
+//	* Set preferred colum doesn't work
+//  * Cannot page down until out after buffer length. Think buffer.startOfLine/endOfLine are guilty
+
 /** A BufferView is used as a view to he contents of a buffer. 
  * Several BufferViews may display the same buffer.
  * The selection, cursor position etc. is distinct for each BufferView.
@@ -21,6 +26,7 @@ class BufferView
 			_current = c;
 		}
 	}	
+	string name;
 	TextGapBuffer buffer; // This should be changeable to something else if wanted
 	// BufferInfo bufferInfo;
 	bool dirty;
@@ -57,7 +63,11 @@ class BufferView
 		}
 		void visibleLineCount(uint c)
 		{
-			_visibleLineCount = c;
+			if (_visibleLineCount != c)
+			{
+				_visibleLineCount = c;
+				dirty = true;
+			}
 		}
 
 		uint length() const nothrow
@@ -93,7 +103,11 @@ class BufferView
 	
 	@property void linesVisible(uint lines)
 	{
-		_visibleLineCount = lines;
+		if (_visibleLineCount != lines)
+		{
+			_visibleLineCount = lines;
+			dirty = true;
+		}
 	}
 
 	/** Step history when doing redo/undo
@@ -172,27 +186,33 @@ class BufferView
 	void cursorUp(uint c = 1) 
 	{
 		_cursorPoint = buffer.linesOffset(_cursorPoint, -c, _preferredCursorColumn);
-		std.stdio.writeln("cu ", _cursorPoint);
 	}
 	
 	void cursorDown(uint c = 1)
 	{
 		_cursorPoint = buffer.linesOffset(_cursorPoint, c, _preferredCursorColumn);
-		std.stdio.writeln("cd ", _cursorPoint);
 	}
 	
 	void scrollUp()
 	{
 		bufferOffset = buffer.startOfLine(buffer.endOfPreviousLine(bufferOffset));
 		if (_lineOffset > 0)
-			_lineOffset -= 1;
+			_lineOffset--;
+		dirty = true;
 	}
 
 	void scrollDown()
 	{
-		bufferOffset = buffer.startOfNextLine(bufferOffset);
 		if (_lineOffset < (buffer.lineCount - _visibleLineCount))
-			_lineOffset += 1;
+		{
+			_lineOffset++;
+			auto newbo = buffer.startOfNextLine(bufferOffset);
+			if (newbo == bufferOffset)
+				_lineOffset++;
+			else
+				bufferOffset = newbo;
+			dirty = true;
+		}
 	}
 
 	void cursorToBeginningOfLine()

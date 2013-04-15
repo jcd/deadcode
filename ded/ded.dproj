@@ -7,9 +7,9 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{F706A620-CFE0-4012-B329-0CF4BBEE7112}</ProjectGuid>
     <Target>Executable</Target>
-    <IncrementalLinking>true</IncrementalLinking>
-    <UseDefaultCompiler>true</UseDefaultCompiler>
-    <PreferOneStepBuild>true</PreferOneStepBuild>
+    <IncrementalLinking>True</IncrementalLinking>
+    <UseDefaultCompiler>True</UseDefaultCompiler>
+    <PreferOneStepBuild>True</PreferOneStepBuild>
     <Compiler>DMD2</Compiler>
     <Includes>
       <Includes>
@@ -18,7 +18,7 @@
     </Includes>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
+    <DebugSymbols>True</DebugSymbols>
     <OutputPath>bin\Debug</OutputPath>
     <ObjectsDirectory>obj\Debug</ObjectsDirectory>
     <OutputName>ded</OutputName>
@@ -32,82 +32,57 @@
     <ExtraCompilerArguments>-property -unittest</ExtraCompilerArguments>
     <UnittestMode>False</UnittestMode>
     <DebugLevel>0</DebugLevel>
-    <ConsolePause>false</ConsolePause>
+    <ConsolePause>False</ConsolePause>
+    <Externalconsole>True</Externalconsole>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>
     <ObjectsDirectory>obj\Release</ObjectsDirectory>
     <OutputName>ded</OutputName>
-    <Externalconsole>true</Externalconsole>
+    <Externalconsole>True</Externalconsole>
     <UnittestMode>False</UnittestMode>
     <DebugLevel>0</DebugLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
+    <DebugSymbols>True</DebugSymbols>
     <OutputPath>bin\Unittest</OutputPath>
     <ObjectsDirectory>obj\Unittest</ObjectsDirectory>
     <ExtraCompilerArguments>-unittest </ExtraCompilerArguments>
     <OutputName>ded</OutputName>
-    <Externalconsole>true</Externalconsole>
+    <Externalconsole>True</Externalconsole>
     <UnittestMode>False</UnittestMode>
     <DebugLevel>0</DebugLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="main.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\main.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="gui.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\gui.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="graphics.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\graphics.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="math.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\math.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="editor.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\editor.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="font.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\font.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="smallvector.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\smallvector.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="smallmatrix.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\smallmatrix.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="dbg.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\dbg.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="behavior\emacs.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\emacs.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="behavior\behavior.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\behavior.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="command.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\command.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="keybinding.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\keybinding.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="editorcommands.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\editorcommands.obj</LastGenOutput>
-    </Compile>
-    <Compile Include="render.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\render.obj</LastGenOutput>
-    </Compile>
+    <Compile Include="main.d" />
+    <Compile Include="gui.d" />
+    <Compile Include="graphics.d" />
+    <Compile Include="math.d" />
+    <Compile Include="editor.d" />
+    <Compile Include="font.d" />
+    <Compile Include="smallvector.d" />
+    <Compile Include="smallmatrix.d" />
+    <Compile Include="dbg.d" />
+    <Compile Include="behavior\emacs.d" />
+    <Compile Include="behavior\behavior.d" />
+    <Compile Include="command.d" />
+    <Compile Include="keybinding.d" />
+    <Compile Include="editorcommands.d" />
+    <Compile Include="render.d" />
     <Compile Include="widget.d" />
     <Compile Include="widgetfeature.d" />
     <Compile Include="color.d" />
     <Compile Include="style.d" />
     <Compile Include="region.d" />
-    <Compile Include="buffer.d">
-      <LastGenOutput>C:\Users\jonasd\Documents\Projects\dteam\ded\obj\Debug\text.obj</LastGenOutput>
-    </Compile>
+    <Compile Include="buffer.d" />
     <Compile Include="bufferview.d" />
     <Compile Include="models.d" />
     <Compile Include="styledtext.d" />
+    <Compile Include="system.d" />
+    <Compile Include="build.d" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="extensions\" />
+    <Folder Include="controls\" />
   </ItemGroup>
 </Project>

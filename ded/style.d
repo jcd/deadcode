@@ -5,6 +5,8 @@ import math;
 import font; // : Font;
 import graphics; // : Material;
 
+import std.math;
+
 struct StyleFields
 {
 	// ref types
@@ -25,20 +27,20 @@ struct StyleFields
 	StyleFields overlay(StyleFields sf)
 	{
 		if (sf._font is null)
-			st._font = _font;
+			sf._font = _font;
 		if (sf._background is null)
 			sf._background = _background;
-		if (isNan(sf._color.r))
+		if (isNaN(sf._color.r))
 			sf._color = _color;
 		if (_derived & 1)
 			sf._wordWrap = _wordWrap;
-		if (sf._padding.x.isNan())
+		if (sf._padding.x.isNaN())
 			sf._padding.x = _padding.x; 
-		if (sf._padding.y.isNan())
+		if (sf._padding.y.isNaN())
 			sf._padding.y = _padding.y; 
-		if (sf._padding.w.isNan())
+		if (sf._padding.w.isNaN())
 			sf._padding.w = _padding.w; 
-		if (sf._padding.h.isNan())
+		if (sf._padding.h.isNaN())
 			sf._padding.h = _padding.h; 
 		return sf;
 	}
@@ -67,11 +69,11 @@ class Style
 		// Compute the computed fields
 		void compute()
 		{
+			_computedFields = _fields;
+
 			if (_parent is null) return;
 			_parent.compute();
-			
-			_computedFields = _fields;
-			
+
 			alias _computedFields f;
 			
 			if (f._font is null)
@@ -80,17 +82,17 @@ class Style
 				f._background = _parent._computedFields._background;
 			
 			import std.math;
-			if (f._color.r.isNan())
+			if (f._color.r.isNaN())
 				f._color = _parent._computedFields._color;
 			if (_fields._derived & 1)
 				f._wordWrap = _parent._computedFields._wordWrap;
-			if (f._padding.x.isNan())
+			if (f._padding.x.isNaN())
 				f._padding.x = _parent._computedFields._padding.x; 
-			if (f._padding.y.isNan())
+			if (f._padding.y.isNaN())
 				f._padding.y = _parent._computedFields._padding.y; 
-			if (f._padding.w.isNan())
+			if (f._padding.w.isNaN())
 				f._padding.w = _parent._computedFields._padding.w; 
-			if (f._padding.h.isNan())
+			if (f._padding.h.isNaN())
 				f._padding.h = _parent._computedFields._padding.h; 
 		}	
 	}
@@ -105,10 +107,10 @@ class Style
 		void parent(Style p)
 		{
 			_parent = p;
-			styleSet.compute(this);
+			styleSet.compute(/*this*/);
 		}
 		
-		StyleFields computedFields() const
+		StyleFields computedFields() // const
 		{
 			return _computedFields;
 		}
@@ -120,8 +122,9 @@ class Style
 
 		void font(Font f) 
 		{
-			_computedFields._font = f;
-			styleSet.compute(this);
+			_fields._font = f;
+
+			styleSet.compute(/*this*/);
 		}
 		
 		Material background()
@@ -131,8 +134,8 @@ class Style
 
 		void background(Material b)
 		{
-			_computedFields._background = b;
-			styleSet.compute(this);
+			_fields._background = b;
+			styleSet.compute(/*this*/);
 		}
 		
 		Color color()
@@ -142,8 +145,8 @@ class Style
 
 		void color(Color c)
 		{
-			_computedFields._color = c;
-			styleSet.compute(this);
+			_fields._color = c;
+			styleSet.compute(/*this*/);
 		}
 		
 		bool wordWrap()
@@ -153,28 +156,28 @@ class Style
 		
 		void wordWrap(bool w)
 		{
-			_computedFields._wordWrap = w;
-			styleSet.compute(this);
+			_fields._wordWrap = w;
+			styleSet.compute(/*this*/);
 		}
 
 		Rectf padding()
 		{
 			return _computedFields._padding;
 		}
-		
+	
 		// TODO: make a paddingX, paddingY etc. methods
 		void padding(Rectf w)
 		{
-			_padding = w;
-			styleSet.compute(this);
+			_fields._padding = w;
+			styleSet.compute(/*this*/);
 		}
-		
 	}
 	
 	string name;
 	
-	this(string name = "unnamed")
+	this(StyleSet styleSet, string name = "unnamed")
 	{
+		this.styleSet = styleSet;
 		this.name = name;	
 	}
 	
@@ -183,12 +186,12 @@ class Style
 	{
 		_fields._font = null;
 		_fields._background = null;
-		_fields._color.x = NAN;
+		_fields._color.r = float.nan;
 		_fields._derived = 1;
-		_fields._padding.pos.x = NAN;
-		_fields._padding.pos.y = NAN;
-		_fields._padding.size.x = NAN;
-		_fields._padding.size.y = NAN;
+		_fields._padding.pos.x = float.nan;
+		_fields._padding.pos.y = float.nan;
+		_fields._padding.size.x = float.nan;
+		_fields._padding.size.y = float.nan;
 	}
 	
 	void merge(Style s)
@@ -230,34 +233,38 @@ class StyleSet
 			{
 				import font;
 				import graphics;
+				import system;
 				StyleSet ss = new StyleSet();
-				Style base = new Style();
-				base.font = new Font("cour.ttf", 16);
-				base.background = Material.builtIn;
-				base.color = Color(1f,1f,1f);
-				base.padding = Rectf(Vec2f(20,20), Vec2f(20,20));
-				base.name = "";
-				ss[0] = base; // default
+				Style lbase = new Style(ss);
+				lbase.font = new Font(getRunningExecutablePath() ~ "cour.ttf", 16);
+				lbase.background = Material.builtIn;
+				lbase.color = Color(1f,1f,1f);		
+				lbase.padding = Rectf(20, 20, 20 ,20);
+				lbase.name = "";
+				ss[0] = lbase; // default
 	
-				Style s = new Style();
-				s.parent = base;
-				s.color = Color(0.3f, 0f, 1f);
+				Style s = new Style(ss);
+				s.parent = lbase;
+//				s.color = Color(0.3f, 0f, 1f);
+				s.color = Color(1.0f, 0f, 0f);
+				s.font = new Font(getRunningExecutablePath() ~ "cour.ttf", 32);
 				s.name = "declaration";
 				ss[1] = s;
-				
-				s = new Style();
-				s.parent = base;
+
+				s = new Style(ss);
+				s.parent = lbase;
 				s.color = Color(0.3f, 1f, 0.3f);
 				s.name = "type";
 				ss[2] = s;
 	
-				s = new Style();
-				s.parent = base;
+				s = new Style(ss);
+				s.parent = lbase;
 				s.color = Color(0.0f, 1f, 0.0f);
 				s.name = "values";
 				ss[3] = s;
 
 				_defaultStyleSet = ss;
+
 			}
 			return _defaultStyleSet;
 		}

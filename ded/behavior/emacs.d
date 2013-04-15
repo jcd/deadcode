@@ -47,7 +47,7 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<ctrl> + /", "editor.undoBuffer");
 		set.setKeyBinding("<ctrl> + _", "editor.undoBuffer");
 		set.setKeyBinding("<ctrl> + x u", "editor.undoBuffer");
-
+		set.setKeyBinding("<ctrl> + b", "core.rebuildEditor");
 	}
 
 	KeySequence currentKeySequence;
@@ -59,7 +59,7 @@ class EmacsBehavior : EditorBehavior
 		currentKeySequence = new KeySequence("");
 	}
 	
-	void onEvent(Event event, BufferView view)
+	override void onEvent(Event event, BufferView view)
 	{
 		if (event.type == Event.Type.KeyDown)
 		{
@@ -96,15 +96,15 @@ class EmacsBehavior : EditorBehavior
 		else if (event.type == Event.Type.MouseScroll)
 		{
 			// Scroll view
-			int d = cast(int) event.scroll.y / 50;
+			int d = cast(int) event.scroll.y;
 			if (d < 0)
 			{
-				foreach (i; 0..-d)
+				foreach (i; 0..d*d)
 					view.scrollDown();
 			}
 			else
 			{
-				foreach (i; 0..d)
+				foreach (i; 0..d*d)
 					view.scrollUp();
 			}
 		}

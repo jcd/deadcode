@@ -147,6 +147,7 @@ bool send(Event event)
 	case Event.Type.KeyDown:
 	case Event.Type.KeyUp:
 	case Event.Type.Text:
+
 		if (Widget.keyboardFocusWidget != NullWidgetID)
 		{
 			Widget * w = Widget.keyboardFocusWidget in Widget.widgets;

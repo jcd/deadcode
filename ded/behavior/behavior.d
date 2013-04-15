@@ -41,7 +41,7 @@ class NullBehavior : EditorBehavior
 		EditorBehavior.editorBehaviors["null"] = new NullBehavior();
 	}
 	
-	void onEvent(Event event, BufferView controller)
+	override void onEvent(Event event, BufferView controller)
 	{
 		std.stdio.writeln("NullBehavior ", event);
 	}

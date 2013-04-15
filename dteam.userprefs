@@ -1,40 +1,32 @@
 ﻿<Properties>
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
-  <MonoDevelop.Ide.Workbench ActiveDocument="ded\widgetfeature.d">
+  <MonoDevelop.Ide.Workbench ActiveDocument="ded\region.d">
     <Files>
-      <File FileName="ded\main.d" Line="1" Column="1" />
-      <File FileName="ded\editor.d" Line="1" Column="1" />
-      <File FileName="ded\gui.d" Line="1" Column="1" />
-      <File FileName="ded\graphics.d" Line="1" Column="1" />
-      <File FileName="ded\font.d" Line="1" Column="1" />
-      <File FileName="ded\dbg.d" Line="1" Column="1" />
-      <File FileName="ded\behavior\emacs.d" Line="1" Column="1" />
+      <File FileName="ded\main.d" Line="92" Column="39" />
+      <File FileName="ded\widgetfeature.d" Line="656" Column="24" />
+      <File FileName="ded\styledtext.d" Line="17" Column="1" />
+      <File FileName="ded\region.d" Line="205" Column="6" />
+      <File FileName="ded\style.d" Line="1" Column="4" />
+      <File FileName="ded\models.d" Line="637" Column="4" />
+      <File FileName="ded\graphics.d" Line="1319" Column="3" />
       <File FileName="ded\behavior\behavior.d" Line="1" Column="1" />
-      <File FileName="ded\buffer.d" Line="1" Column="1" />
       <File FileName="ded\command.d" Line="1" Column="1" />
-      <File FileName="ded\keybinding.d" Line="1" Column="1" />
-      <File FileName="ded\editorcommands.d" Line="1" Column="1" />
-      <File FileName="ded\widget.d" Line="1" Column="1" />
-      <File FileName="ded\widgetfeature.d" Line="528" Column="112" />
-      <File FileName="ded\color.d" Line="1" Column="1" />
-      <File FileName="ded\style.d" Line="264" Column="3" />
-      <File FileName="ded\region.d" Line="17" Column="45" />
-      <File FileName="ded\bufferview.d" Line="1" Column="1" />
-      <File FileName="ded\render.d" Line="1" Column="1" />
-      <File FileName="ded\math.d" Line="1" Column="1" />
-      <File FileName="ded\smallvector.d" Line="1" Column="1" />
-      <File FileName="ded\models.d" Line="6" Column="1" />
-      <File FileName="..\..\..\..\..\D\dmd2\src\phobos\std\container.d" Line="2171" Column="6" />
-      <File FileName="..\..\..\..\..\D\dmd2\src\phobos\std\exception.d" Line="358" Column="1" />
-      <File FileName="..\Derelict3\import\derelict\sdl2\ttf.d" Line="106" Column="70" />
-      <File FileName="ded\styledtext.d" Line="153" Column="1" />
+      <File FileName="ded\behavior\emacs.d" Line="1" Column="1" />
+      <File FileName="ded\math.d" Line="14" Column="1" />
+      <File FileName="ded\widget.d" Line="186" Column="37" />
+      <File FileName="ded\font.d" Line="48" Column="22" />
+      <File FileName="ded\smallvector.d" Line="99" Column="3" />
+      <File FileName="ded\color.d" Line="1" Column="2" />
+      <File FileName="ded\bufferview.d" Line="204" Column="32" />
+      <File FileName="ded\buffer.d" Line="444" Column="2" />
+      <File FileName="ded\smallmatrix.d" Line="342" Column="28" />
     </Files>
     <Pads>
       <Pad Id="ProjectPad">
         <State expanded="True">
           <Node name="ded" expanded="True">
             <Node name="behavior" expanded="True" />
-            <Node name="widgetfeature.d" selected="True" />
+            <Node name="region.d" selected="True" />
           </Node>
         </State>
       </Pad>

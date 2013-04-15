@@ -42,7 +42,7 @@ class WidgetFeature
  */
 class DirectionalLayout(bool isHorz) : WidgetFeature
 {
-	bool send(Event event, ref Widget widget)
+	override bool send(Event event, ref Widget widget)
 	{
  		if (event.type != Event.Type.Resize)
 			return false;
@@ -56,7 +56,7 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 		{
 			// Divide the current width into even horizontal pieces
 			float d = rect.w / c.length;
-			auto r = Rectf(rect.x, rect.y, rect.x + d, rect.y2);
+			auto r = Rectf(rect.x, rect.y, d, rect.w);
 			foreach (ref w; c)
 			{
 				w.rect = r;
@@ -67,7 +67,7 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 		{
 			// Divide the current width into even horizontal pieces
 			float d = rect.h / c.length;
-			auto r = Rectf(rect.x, rect.y, rect.x2, rect.y + d);
+			auto r = Rectf(rect.x, rect.y, rect.w, d);
 			foreach (ref w; c)
 			{
 				w.rect = r;
@@ -77,7 +77,7 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 		return false;
 	}
 
-	void update(ref Widget widget) 
+	override void update(ref Widget widget) 
 	{
 		
 	}
@@ -147,7 +147,7 @@ class Dragger : WidgetFeature
 		this.startDragPos = Vec2f(-1000000, -1000000);
 	}
 	
-	bool send(Event event, ref Widget widget)
+	override bool send(Event event, ref Widget widget)
 	{
 		// Dragging support
 		Rectf handleRectAbs = handleRect;
@@ -187,7 +187,7 @@ class Dragger : WidgetFeature
 		return false;
 	}
 
-	void update(ref Widget widget) 
+	override void update(ref Widget widget) 
 	{
 	}
 }
@@ -203,7 +203,7 @@ class WindowDragger : WidgetFeature
 		this.startDragPos = Vec2f(-1000000, -1000000);
 	}
 	
-	bool send(Event event, ref Widget widget)
+	override bool send(Event event, ref Widget widget)
 	{
 		// Dragging support
 		if (event.type == Event.Type.MouseDown && widget.rect.contains(event.mousePos))
@@ -223,7 +223,7 @@ class WindowDragger : WidgetFeature
 		return false;
 	}
 
-	void update(ref Widget widget) 
+	override void update(ref Widget widget) 
 	{
 		if (widget.mouseGrabbedBy == widget.id)
 		{
@@ -254,7 +254,7 @@ class WindowResizer : WidgetFeature
 		this.startDragPos = Vec2f(-1000000, -1000000);
 	}
 	
-	bool send(Event event, ref Widget widget)
+	override bool send(Event event, ref Widget widget)
 	{
 		// Dragging support
 		if (event.type == Event.Type.MouseDown && widget.rect.contains(event.mousePos))
@@ -275,7 +275,7 @@ class WindowResizer : WidgetFeature
 		return false;
 	}
 
-	void update(ref Widget widget) 
+	override void update(ref Widget widget) 
 	{
 		if (widget.mouseGrabbedBy == widget.id && startDragPos.x > -1000)
 		{
@@ -343,11 +343,11 @@ class Constraint : WidgetFeature
 		this.offset = offset;
 	}
 	
-	void update(ref Widget widget) 
+	override void update(ref Widget widget) 
 	{
 	}
 			
-	bool send(Event event, ref Widget widget)
+	override bool send(Event event, ref Widget widget)
 	{
  		if (event.type != Event.Type.Resize)
 			return false;
@@ -458,7 +458,7 @@ class BoxRenderer : WidgetFeature
 {
 	Style _style;
 	Model!int model;
-	
+
 	@property {
 		Style style() 
 		{ 
@@ -495,8 +495,8 @@ class BoxRenderer : WidgetFeature
 			wrect.y = 0;
 			float[] uv = quadUVs(wrect, model.material, Window.active);
 			float[] vert = quadVertices(wrect);
-			model.mesh.buffers[0].setData(vert);
-			model.mesh.buffers[1].setData(uv);
+			model.mesh.buffers[0].data = vert;
+			model.mesh.buffers[1].data = uv;
 		}
 		model.draw(transform);
 	}
@@ -516,32 +516,39 @@ class TextRenderer : WidgetFeature
 	private
 	{
 		BufferView _view; // TODO: maybe specialize the Text class for non-editable text to use a raw buffer/string?
-		TextModel!BufferView _model;
+		TextModel _model;
 		StyledText!BufferView _styledText;
 		Model!int _cursorModel = null;
+		TextBoxLayout _layout;
 	}
-	
-	this(BufferView bufferView)
+
+	this(BufferView bufferView, string name = null)
 	{
 		this._view = bufferView;
-		this._styledText = new StyledText!BufferView(bufferView);
-		this._model = new TextModel!BufferView(this._styledText); // TODO: maybe model should be owner of styledText_
-		Font font = StyleSet.builtin[""].font;
-		this._cursorModel = createWindowQuad(Rectf(0, 0, font.fontWidth * 0.25f, font.fontLineSkip), Material.builtIn);
+		_view.name = name;
+		auto rs = new RegionSet();
+		rs.add(0, uint.max);
+		this._styledText = new StyledText!BufferView(new DSourceStyler!BufferView(), bufferView, rs);
+		this._model = new TextModel(); // TODO: maybe model should be owner of styledText_
+		//assert(StyleSet.builtin.length != 0);
+		//assert(StyleSet.builtin[0].font !is null);
+		//Font f = StyleSet.builtin[0].font;
+		import system;
+		this._cursorModel = createQuad(Rectf(0, 0, 1, 1), Material.create(getRunningExecutablePath() ~ "white.png"));
 		//this._cursorModel.material.texture = font.fontMap;
 	}
 
-	this(TextGapBuffer buffer = null)
+	this(TextGapBuffer buf = null, string name = null)
 	{
-		if (buffer is null)
-			buffer = new TextGapBuffer("", 10);
-		this(new BufferView(buffer));
+		if (buf is null)
+			buf = new TextGapBuffer("", 10);
+		this(new BufferView(buf), name);
 	}
 
-	this(string text)
+	this(string text, string name = null)
 	{
 		dstring dl = to!dstring(text);
-		this(new TextGapBuffer(dl, 20));
+		this(new TextGapBuffer(dl, 20), name);
 	}
 
 	@property 
@@ -605,37 +612,102 @@ class TextRenderer : WidgetFeature
 	
 		// Now calc the column and row of the cursor in order to find out the x and y coord:
 		// TODO: do
-			
-		//if (view.dirty)
+		Font font = styleSet[0].font;
+		Rectf wrect = Window.active.windowToWorld(widget.rect);
+		auto transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0f));
+		//auto transform = Mat4f.makeTranslate(Vec3f(-1,1,0));
+
+		if (_view.dirty)
 		{
 			// Update style region set.
 			// TODO: only on changes
 			_styledText.update(styleSet);
-			Font font = styleSet[""].font;
+
 			_view.visibleLineCount = cast(uint) (widget.rect.size.y / font.fontLineSkip);
 			
 			// TODO: get transform
 			Vec2f worldSize = Window.active.pixelSizeToWorld(widget.rect.size);
-			_model.renderArea = Rectf(0, 0, worldSize.x, worldSize.y); // Only update on resize
-			_model.queryRegionRects(Region(_view.cursorPoint, _view.cursorPoint+1));
-			//_model.queryPosTextIndex(Vec2f(0,0));
-			_model.update(Region(_view.bufferOffset, _view.length));
+			//_model.renderArea = Rectf(0, 0, worldSize.x, worldSize.y); // Only update on resize
 
-			Rectf wrect = Window.active.windowToWorld(widget.rect);
-			auto transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0f));
-			_model.draw(transform);
+			//auto rset = new RegionSet();
+			//rset.add(_view.bufferOffset, _view.length);
+			//_model.add(_view.buffer[rset.a .. rset.b], styleSet[0]);
+
+			_model.resetGlyphPositions();
+
+			//auto offset = _view.buffer.startOfLine(_view.bufferOffset);
+
+//			_layout = TextBoxLayout(_model, Rectf(0.0f * worldSize.x, -0.0f * worldSize.y, worldSize.x, worldSize.y));
+
+			_layout = TextBoxLayout(_model, Rectf(0, 0, worldSize.x, worldSize.y));
+			foreach (r; _styledText.regionSet)
+			{
+				if (r.b <= _view.bufferOffset) continue;
+				if (r.contains(_view.bufferOffset))
+				{
+					r.a = _view.bufferOffset;
+				}
+
+				//				_layout.add(_view.buffer[0.. 3000], styleSet[r.id]);
+				_layout.add(_view.buffer[r.a .. r.b], styleSet[r.id]);
+				if (_layout.done)
+					break;
+			}
+
+			//_model.add(worldSize.x, _view.buffer[0 .. 3], styleSet[0]);
+			//_model.add(worldSize.x, _view.buffer[3 .. 8], styleSet[1]);
+			//_model.add(worldSize.x, _view.buffer[8 .. 200], styleSet[2]);
+
+			//_model.add(worldSize.x, _view.buffer[0 .. 51], styleSet[0]);
+			//_model.add(worldSize.x, _view.buffer[51 .. 54], styleSet[1]);
+			//_model.add(worldSize.x, _view.buffer[54 .. 200], styleSet[2]);
+
+
 			_view.dirty = false;
-		
-			uint column = _view.cursorPoint - _view.buffer.startOfLine(_view.cursorPoint);
-			uint row = _view.buffer.lineNumber(_view.cursorPoint) - _view.lineOffset;
-			Vec2f cursorOffset = Window.active.pixelSizeToWorld(Vec2f(column * font.fontWidth, -cast(float)(row * font.fontLineSkip)));
-			std.stdio.writeln("xx ", row, " " , font.fontLineSkip, " ", cursorOffset.v);
-			transform = transform * Mat4f.makeTranslate(Vec3f(cursorOffset.x, cursorOffset.y, 0f));
-			_cursorModel.draw(transform);
 				
 			//_rectLines = cast(uint)(widget.rect.h / styleSet[""].font.fontLineSkip);
 		}
+
+		_model.draw(transform);
+
+		//uint glyphLineIndex = _view.cursorPoint - _view.buffer.startOfLine(_view.cursorPoint);
+		// float cursorLineOffset = _layout.lines[row].glyphWorldPos(glyphLineIndex).x;
+		//float cursorLineOffset = _model.getGlyphWorldPos(_view.cursorPoint - _view.bufferOffset).x;
+		
+		Rectf rect = void;
+		//std.stdio.writeln("of ", _view.cursorPoint, " ", _view.buffer.length, " ", _view.bufferOffset);
+
+		// Cull cursor
+		auto cursorLine = _view.buffer.lineNumber(_view.cursorPoint);
+		if (cursorLine < _view.lineOffset || cursorLine > (_view.lineOffset + _layout.lines.length))
+			return;
+
+		if (_view.cursorPoint == _view.buffer.length)
+		{
+			// Special handling for end of doc because not glyph info is present for that index obviously
+			auto idx = cast(int)_view.cursorPoint - cast(int)_view.bufferOffset;
+			if (idx < 1)
+				return; // no text for cursor
+			rect = _model.getGlyphWorldPos(idx-1);
+			rect.x = rect.x + rect.w;
+		}
+		else
+		{
+			rect = _model.getGlyphWorldPos(_view.cursorPoint - _view.bufferOffset);
+		}
+
+		//uint column = _view.cursorPoint - _view.buffer.startOfLine(_view.cursorPoint);
+//		Vec2f cursorOffset = Window.active.pixelSizeToWorld(Vec2f(0, -cast(float)(row * font.fontLineSkip)));
+//		cursorOffset.x = cursorLineOffset;
+		//std.stdio.writeln(row);
+		uint row = cursorLine - _view.lineOffset;
+		//std.stdio.writeln("row ", row, " ", _view.buffer.lineNumber(_view.cursorPoint), " " , _view.lineOffset);
+		auto lineRect = _layout.lines[row].rect;
+		transform = transform * Mat4f.makeTranslate(Vec3f(rect.x, lineRect.y - (lineRect.h ), 0f)) * Mat4f.makeScale(Vec3f(Window.active.pixelWidthToWorld(1), lineRect.h, 0));
+//		transform = transform * Mat4f.makeTranslate(Vec3f(rect.x, lineRect.y - (lineRect.h - _layout.lines[row].textBaseLine), 0f)) * Mat4f.makeScale(Vec3f(rect.w, lineRect.h, 0));
+		_cursorModel.draw(transform);
 	}
 }
 
 
+	

@@ -92,10 +92,29 @@ void register()
 	cmgr.create("editor.scrollPagedUp", "Open file", delegate(Variant data) {
 		auto ctrl = BufferView.current;
 		for (int i = 0; i < ctrl.visibleLineCount; i++)
-		{
+		{ 
 			ctrl.cursorUp();
 			ctrl.scrollUp();
 		}
 	});
 
+	cmgr.create("editor.saveBuffer", "Save buffer", delegate(Variant data) {
+	            	auto view = BufferView.current;
+	            	auto file = std.stdio.File(view.name, "wb");
+	            	file.rawWrite(std.conv.text(view.buffer.beforeGap));
+	            	file.rawWrite(std.conv.text(view.buffer.afterGap));
+	            	file.flush();
+	            	file.close();
+	            	std.stdio.writefln("Wrote %s", view.name);
+	            });
+
+	import build;
+	cmgr.create("core.rebuildEditor", "Rebuild the editor and replace the running instance with it", delegate(Variant data) {
+	            	build.buildIt();
+	            	// Serialize
+	            	// rename build version to xx
+	            	// start xx
+	            	//    The spawned instance will check if it is called xx then deserialize by piping to the running.exe, and then kill the original ded.exe running
+	            	// timeout starting and notify
+	            });
 }

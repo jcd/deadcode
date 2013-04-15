@@ -1,6 +1,6 @@
 module region;
 
-import style; // : Style;
+//import style; // : Style;
 import std.container;
 import std.exception;
 import alg = std.algorithm;
@@ -38,7 +38,7 @@ struct Region
 	{
 		if (r.empty) return cast(Region)this; // Bug: need to cast since it tries to return this which is const! even though it is a value type.
 		if (empty) return r;
-		return Region(alg.min(a,r.a), alg.max(b,r.b));
+		return Region(alg.min(a,r.a), alg.max(b,r.b), id);
 	}
 	
 	unittest {
@@ -56,8 +56,8 @@ struct Region
 	Region intersect(Region r) const
 	{ 
 		if (r.b <= a || r.a >= b || r.empty || empty) 
-			return Region(a, a); // an empty region with start at this.a
-		return Region(r.a > a ? r.a : a, r.b < b ? r.b : b);
+			return Region(a, a, id); // an empty region with start at this.a
+		return Region(r.a > a ? r.a : a, r.b < b ? r.b : b, id);
 	}
 	
 	unittest {
@@ -113,13 +113,8 @@ struct Region
 
 /** A set of regions
  * 
- * The regions may be overlapping. Methods are provided to
- * manipulate the regions:
- * 
- * a, Merge regions that are next to each other or overlapping
- *    and returns true for user provided delegate
- * b, Split partially ovelapping regions into several non-partial overlapping
- *    regions.
+ * The regions is not overlapping and adding a region that
+ * overlaps existing regions in the set will merge them into one.
  * 
  * TODO: Make operations lazy by returning a Range instead of a new RegionSet
  */
@@ -129,13 +124,30 @@ class RegionSet
 	alias Container.Range Range;
 	Container regions;
 	alias regions this;
-	
+
+	@property 
+	{
+		uint a() 
+		{
+			if (regions.empty)
+				return 0;
+			return regions.front.a;
+		}
+
+		uint b() 
+		{
+			if (regions.empty)
+				return 0;
+			return regions.back.b;
+		}
+	}
+
 	void add(uint a, uint b, int id = 0)
 	{
 		add(Region(a, b, id));
 	}
-	
-	void add(Region r)
+
+	void addxxx(Region r)
 	{
 		foreach (i; 0..regions.length)
 		{
@@ -147,6 +159,7 @@ class RegionSet
 				if ((i+1) != regions.length)
 				{
 					regions.insertBefore(regions[i+1..regions.length], r);
+					return;
 				}
 				break; // insert as last element
 			}
@@ -154,7 +167,7 @@ class RegionSet
 		regions.insertBack(r); // no elements already or incoming region is to be the last element
 	}
 	
-	void addy(Region r)
+	void add(Region r)
 	{ 
 		int mergeStartIdx = -1;
 		
@@ -164,7 +177,7 @@ class RegionSet
 		{
 			auto cur = regions[i];
 			bool intersects = cur.intersects(r);
-			bool doMerge = intersects || cur.a == r.b || cur.b == r.a;
+			bool doMerge = intersects || (cur.id == r.id && (cur.a == r.b || cur.b == r.a));
 
 			if (doMerge)
 			{									
@@ -206,7 +219,7 @@ class RegionSet
 			regions.replace(regions[mergeStartIdx..regions.length], r); // replace merged
 		}
 	}
-	
+
 	unittest
 	{
 		RegionSet s1 = new RegionSet;
@@ -217,6 +230,7 @@ class RegionSet
 		assert(s1.length == 2);
 		s1.add(Region(20,30));
 		assert(s1.length == 2);
+
 		s1.add(Region(15,35));
 		assert(s1.length == 2);
 		s1.add(Region(22,25));
@@ -234,7 +248,7 @@ class RegionSet
 		assert(s1.length == 1);
 		assert(s1.front == Region(0,35));
 	}
-	
+
 	void addx(Region r)
 	{ 
 		int mergeStartIdx = -1;
@@ -450,3 +464,4 @@ class RegionSet
 		return rs; 
 	}
 }
+

@@ -26,13 +26,13 @@ bool init()
    try{ 
         DerelictSDL2.load(); 
     }catch(Exception e){ 
-        writeln("Error loading SDL2 lib"); 
+        writeln("Error loading SDL2 lib ", e); 
       return false; 
     } 
     try{ 
         DerelictGL3.load(); 
     }catch(Exception e){ 
-        writeln("Error loading GL3 lib"); 
+		writeln("Error loading GL3 lib ", e); 
       return false; 
     } 
    try{ 
@@ -63,7 +63,7 @@ bool init()
 		writeln("Error initializing TTF ", TTF_GetError());
 		return false;
 	}
-	
+
    	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3); 
    	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2); 
    	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1); 
@@ -74,7 +74,8 @@ bool init()
 
 void destroy()
 {
-   SDL_Quit(); 
+	writeln("Destroying SDL");
+	SDL_Quit(); 
 }
 
 // Directly mapped from SDL keymod
@@ -491,7 +492,7 @@ struct Window
 			   	SDL_DestroyWindow(win); 
 		}
 	}
-	RefCounted!(Impl,RefCountedAutoInitialize.no) p;
+	RefCounted!(Impl) p;
 	
 	static Window active;
 	
@@ -515,7 +516,7 @@ struct Window
 	this(const(char)[] name, int width, int height)
 	{
 		p = RefCounted!(Impl,RefCountedAutoInitialize.no)(width, height);
-		
+
 		int flags = SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | SDL_WINDOW_SHOWN;// |
 			/*SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE; */
 	   	p.win = SDL_CreateWindow(name.ptr, 0, 0, width, height, flags); 
@@ -550,7 +551,7 @@ struct Window
 		MVP = proj * view;
 		
 		// If there is no active window yet then activate this
-		if (!Window.active.p.RefCounted.isInitialized)
+		if (!Window.active.p.refCountedStore().isInitialized)
 			active = this;
 		
 		SDL_StartTextInput();		
@@ -693,7 +694,7 @@ struct Window
 		
 		if (p.onUpdate)
 			p.onUpdate();
-		
+
       	SDL_GL_SwapWindow(p.win); 
 		return running;
 	}
@@ -829,7 +830,10 @@ struct Window
 		// world goes from (-1,-1) to (1,1)
 		Vec3f pTopLeft = windowToWorld(x1, y1);
 		Vec3f pLowRight = windowToWorld(x2, y2); 
-		return Rectf(pTopLeft.x, pTopLeft.y, pLowRight.x, pLowRight.y);
+		auto r = Rectf(pTopLeft.x, pTopLeft.y, 0, 0);
+		r.x2 = pLowRight.x;
+		r.y2 = pLowRight.y;
+		return r;
 	}
 
 	Rectf windowToWorld(Rectf r)
@@ -1063,8 +1067,9 @@ final class Texture
 	 
 	static @property Texture builtIn()
 	{
+		import system;
 		if (builtIn_ is null)
-			builtIn_ = create("bg2.png");
+			builtIn_ = create(getRunningExecutablePath() ~ "bg2.png");
 		return builtIn_;
 	}
 	
@@ -1134,6 +1139,7 @@ final class Texture
 		import std.file; 
 		assert(exists(path)); 
 		SDL_Surface * s = IMG_Load(path.ptr); 
+
 		assert(s); 
 		auto texture = createFromSDLSurface(s);
 		SDL_FreeSurface(s);
@@ -1242,24 +1248,32 @@ private static SDL_Surface* flip(SDL_Surface* sfc)
 final class Buffer
 {
 	uint glBufferID = 0;
-	size_t length;
-	
-	static Buffer create(float[] data = null)
+	float[] data;
+	size_t uploadedSize;
+
+	static Buffer create(float[] indata = null)
 	{
 		Buffer b = new Buffer();
 		glGenBuffers(1, &(b.glBufferID));
-		if (!data.empty)
-			b.setData(data);
+		if (!indata.empty)
+			b.data = indata; 
 		return b;
 	}
 
-	void setData(float[] data)
+	void upload()
 	{
-		length = data.length;
 		glBindBuffer(GL_ARRAY_BUFFER, glBufferID);
 		// Copy the data to gl buffer. Static draw: modify once, use many
 		glBufferData(GL_ARRAY_BUFFER, data.length * GL_FLOAT.sizeof, data.ptr, GL_STATIC_DRAW);       
-   		glBindBuffer(GL_ARRAY_BUFFER, 0); 	
+   		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		uploadedSize = data.length;
+		//std.stdio.writeln("uploading ", data);
+	}
+
+	//
+	void clearLocal()
+	{
+		data = null;
 	}
 }
 
@@ -1293,12 +1307,23 @@ final class Mesh
 	{
 		glBindVertexArray(glVertexArrayID);
 	}
-
-	
+		
 	void draw()
 	{
-     	glDrawArrays(GL_TRIANGLES, 0, buffers[0].length / 3); 
-	}	
+		// upload dirty buffers to gpu
+		foreach (buffer; buffers)
+		{
+			if (!buffer.data.empty)
+				buffer.upload();
+			buffer.clearLocal();
+		}
+
+		// do the drawing dance
+		if (buffers[0].uploadedSize != 0)
+		{
+			glDrawArrays(GL_TRIANGLES, 0, buffers[0].uploadedSize / 3); 
+		}
+	}
 }
 
 final class Material
@@ -1319,7 +1344,7 @@ final class Material
 	ShaderProgram shader;
 	Texture texture;
 		
-	Material create(const(char)[] imagePath)
+	static Material create(const(char)[] imagePath)
 	{
 		Texture tex = Texture.create(imagePath);
 		
@@ -1341,7 +1366,7 @@ final class Material
 	}
 }
 
-final class Model(SubModelKey)
+final class Model(SubModelKey = int)
 {
 	final static class SubModel
 	{
@@ -1600,7 +1625,7 @@ void renderText(SDL_Surface * target, Vec2f pos, GFont font, const(char)[] msg)
 
 	SDL_BlitSurface(surface, null, target, &area);
 	
-	//Rectf rect = Rectf(pos.x, pos.y, pos.x +  width, pos.y + height);
+	//Rectf rect = Rectf(pos.x, pos.y, width,  height);
 	//target.blitSDLSurface(rect, pow2surface);
 	SDL_FreeSurface(surface);
 	//SDL_FreeSurface(pow2surface);
@@ -1631,7 +1656,7 @@ void renderText(Texture target, Vec2f pos, GFont font, const(char)[] msg)
 
 	SDL_BlitSurface(surface, null, pow2surface, &area);
 	
-	Rectf rect = Rectf(pos.x, pos.y, pos.x +  width, pos.y + height);
+	Rectf rect = Rectf(pos.x, pos.y, width, height);
 	target.blitSDLSurface(rect, pow2surface);
 	SDL_FreeSurface(surface);
 	SDL_FreeSurface(pow2surface);

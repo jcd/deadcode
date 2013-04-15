@@ -59,11 +59,14 @@ class Font
 	
 	this(const(char)[] path, size_t size)
 	{
+		import std.string;
 		this.size = size;
-		
+
 		SDL_ClearError();
-		ttfFont = TTF_OpenFont(cast(char*)path, size);
-		enforceEx!Exception(ttfFont !is null, text("Error loading font ", path));
+		//string p = "C:\\Users\\jonasd\\Documents\\Projects\\dteam\\ded\\bin\\Debug\\";
+		//p ~= path;
+		ttfFont = TTF_OpenFont(toStringz(path), size);
+		enforceEx!Exception(ttfFont !is null, text("Error loading font ", path, " ", TTF_GetError()));
 		TTF_SetFontHinting(ttfFont, TTF_HINTING_LIGHT);
 		uint begin = cast(uint) '!';
 		uint end = cast(uint) '~';
@@ -73,7 +76,7 @@ class Font
 	
 	GlyphInfo lookupGlyph(dchar ch)
 	{
-		assert(cast(uint)ch - cast(uint)'!' <= glyphInfoASCII.length, text("ASCII Glyph out of bounds ", ch) );
+		assert(cast(uint)ch - cast(uint)'!' <= glyphInfoASCII.length, text("ASCII Glyph out of bounds ", ch, " (", cast(uint)ch, ")") );
 		return glyphInfoASCII[cast(uint)ch - cast(uint)'!']; // TODO: fix
 	}
 	
@@ -104,6 +107,7 @@ class Font
 				std.stdio.writeln("Error creating glyph ", TTF_GetError(), " ", i);
 				continue;
 			}
+
 			glyphInfoASCII[i-begin] = gi;
 			
 			// Estimate max glyph width
@@ -202,7 +206,8 @@ private int nextPowerOfTwo(int i) nothrow
 			}
 
 			float v = lastV - (s.h * vPerPixel);
-			gi.uvRect = Rectf(lastU, v, lastU + (s.w * uPerPixel), lastV);
+			gi.uvRect = Rectf(lastU, v, s.w * uPerPixel, 0);
+			gi.uvRect.y2 = lastV;
 			
 			auto glyphPos = Vec2f(gi.minX, gi.minY - fontDescent);
 			//auto gp = Vec2f(glyphPos.x / fontMap.width, glyphPos.y / fontMap.height);

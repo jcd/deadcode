@@ -113,24 +113,15 @@ alias Vec3!(float) Vec3f;
 
 struct Rect(T)
 {
-	static immutable Rect!T unit;
-	static immutable Rect!T zero;
-	
-	static this()
-	{
-		unit = Rect!T(0, 0, 1, 1);
-		zero = Rect!T(0, 0, 0, 0);
-	}
-	
 	Vec2!T pos; 
-	Vec2!T size;		
+	Vec2!T size;
 
-	this(T x, T y, T x2, T y2)
+	this(T x, T y, T w, T h)
 	{
-		pos.x = x;
+		pos.x = x; 
 		pos.y = y;
-		size.x = x2 - x;
-		size.y = y2 - y;
+		size.x = w;
+		size.y = h;
 	}
 	
 	this(Vec2!T pos, Vec2!T size)
@@ -138,7 +129,21 @@ struct Rect(T)
 		this.pos = pos;
 		this.size = size;
 	}
-		
+
+	this(Vec2!T pos, T w, T h)
+	{
+		this.pos = pos;
+		size.x = w;
+		size.y = h;
+	}
+
+	this(T x, T y, Vec2!T size)
+	{
+		pos.x = x;
+		pos.y = y;
+		this.size = size;
+	}
+
 	@property T x() const 
 	{
 		return pos.x;
@@ -184,11 +189,21 @@ struct Rect(T)
 		return size.x; /* width */
 	}
 
+	@property void w(T v)
+	{
+		size.x = v;
+	}
+
 	@property T h() const
 	{
 		return size.y; /* height */
 	}
-	
+
+	@property void h(T v)
+	{
+		size.y = v;
+	}
+
 	Rect!T clip(Rect!T toBeClipped)
 	{
 		toBeClipped.x = fmax(this.x, toBeClipped.x);
@@ -224,3 +239,11 @@ struct Rect(T)
 }
 
 alias Rect!(float) Rectf;
+
+
+unittest 
+{
+	Rectf r = Rectf(1, 2, 3, 4);
+	assert(!std.math.isNaN(r.pos.x));
+}
+

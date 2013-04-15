@@ -75,13 +75,14 @@ final class Widget
 		if (p !is null)
 		{
 			Widgets * w = _parentId in _children;
+
 			if (w !is null)
 			{
-				auto dg = (Widget tw) { return tw.id != this.id; };
-				_children[_parentId] = std.array.array(std.algorithm.filter!dg(*w));
+				auto dg = (Widget tw) { return tw.id != this.id; };  // TODO: doing this and providing as compare func creates a compiler error
+				_children[_parentId] = std.array.array(std.algorithm.filter!((Widget tw) { return tw.id != this.id; })(*w));
 			}
 		}
-
+		
 		if (newParent is null)
 		{
 			_parentId = NullWidgetID;
@@ -89,7 +90,7 @@ final class Widget
 		}
 
 		_parentId = newParent.id;
-		
+
 		auto w = _parentId in _children;
 		if (w is null)
 		{
@@ -155,13 +156,8 @@ final class Widget
 		assert(mouseGrabbedBy == id || mouseGrabbedBy == NullWidgetID);
 		mouseGrabbedBy = NullWidgetID;
 	}
-		
-	this(float x, float y, float w, float h, WidgetID _parentId = NullWidgetID)
-	{
-		this(Rectf(x, y, x+w, y+h), _parentId);
-	}
-	
-	this(Rectf windowRect = Rectf.zero, WidgetID _parentId = NullWidgetID)
+	/*
+	this(Rectf windowRect, WidgetID _parentId = NullWidgetID)
 	{
 		rect = windowRect;
 		id = nextId++;
@@ -182,13 +178,37 @@ final class Widget
 			}
 		}
 	}
+*/
+	this(float x, float y, float width, float height, WidgetID _parentId = NullWidgetID)
+	{
+		//this(Rectf(x, y, x+w, y+h), _parentId);
+
+		rect = Rectf(x, y, width, height);
+		id = nextId++;
+		this._parentId = _parentId;
+		this.acceptsKeyboardFocus = false;
+		
+		widgets[id] = this;
+		if (_parentId != NullWidgetID)
+		{
+			Widgets * w = _parentId in _children;
+			if (w is null)
+			{
+				_children[_parentId] = [this];
+			}
+			else
+			{
+				*w ~= this;
+			}
+		}	
+	}
 
 	bool send(Event event)
 	{
 		//if (event.type != Event.Type.MouseMove)
 		//	std.stdio.writeln("event ", event);		
 		OnEvent * handler = event.type in events;
-		
+
 		bool used = false;
 		
 		if (handler)
@@ -214,7 +234,6 @@ final class Widget
 			std.stdio.writeln("parent ev");
 			used = parent.send(event);
 		}
-		
 		return used;
 	}
 	

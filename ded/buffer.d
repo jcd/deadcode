@@ -7,6 +7,7 @@ import std.conv;
 
 class GapBuffer(T = dchar)
 {
+	alias T CharType;
 	private 
 	{
 		uint gapStart;
@@ -39,6 +40,11 @@ class GapBuffer(T = dchar)
 		return buffer.length - (gapEnd - gapStart);
 	}
 		
+	@safe @property empty() const nothrow 
+	{
+		return length == 0;
+	}
+
 	private void placeGapStart(uint index)
 	{
 		// Is the index already correct
@@ -95,11 +101,8 @@ class GapBuffer(T = dchar)
 		assert(std.algorithm.equal(b.buffer, a));		
 		 */
 	}
-	
-	
-	
-	
-	private void ensureGapCapacity(uint size)
+
+	void ensureGapCapacity(uint size)
 	{
 		size_t gapSize = gapEnd - gapStart;
 		if (gapSize >= size) return;
@@ -155,7 +158,11 @@ class GapBuffer(T = dchar)
 	+/	
 		*/		
 	}
-	
+
+	// Deletes forward from index ie.:
+	// abc[gap]def
+	// will remove 'd' and end with
+	// abc[gap]ef
 	void remove(uint index = uint.max)
 	{
 		if (index == uint.max)
@@ -235,8 +242,13 @@ class GapBuffer(T = dchar)
 			{
 				to--;
 			}
+
+			auto opSlice(size_t _from, size_t _to)
+			{
+				return Range(gbuf, from + _from, from + _to);
+			}
 		}
-		enforceEx!Exception(from <= to, "From index > to index");
+		enforceEx!Exception(from <= to, text("From index > to index ", from, " ", to));
 		auto r = Range(this, from, to);
 		return r;
 	}
@@ -259,12 +271,21 @@ class TextGapBuffer
 	{
 		gbuffer = new GapBuffer!dchar(str, initialGapSize);
 	}
-	
+
+	@property dchar[] beforeGap()
+	{
+		return gbuffer.buffer[0..gbuffer.gapStart];
+	}
+
+	@property dchar[] afterGap()
+	{
+		return gbuffer.buffer[gbuffer.gapEnd..$];
+	}
+
 	@property size_t lineCount() 
 	{
 		int count = -1;
-		uint index = 0;
-		std.stdio.writeln("lcstart");
+		uint index = length;
 		do
 		{	
 			index = endOfPreviousLine(index);
@@ -272,28 +293,66 @@ class TextGapBuffer
 		} while ( index != 0);
 		return count;
 	}
-	
-	// Remove count characters from the buffers starting at index
+
+	uint prev(int index)
+	{
+		assert(index <= gbuffer.length);
+		index--;
+		if (index <= 0) return 0;
+
+		dchar c = gbuffer[index]; 
+		if (c == '\r')
+			index--;
+		return index;
+	}
+
+
+	uint next(int index)
+	{
+		assert(index >= 0);
+		index++;
+		if (index >= gbuffer.length) return gbuffer.length;
+
+		dchar c = gbuffer[index]; 
+		if (c == '\r')
+			index++;
+		return index;
+	}
+
+
+	// Remove count characters from the buffers starting at index 
 	// If count is negative the characters are moved backwards
 	void remove(int count, int index = uint.max)
 	{
-		enforceEx!Exception(index >= 0 && index < length, text("Index out of bounds 0 <= ", index , " < ", length));
-		
-		// TODO: optimize
-		int d = count > 0 ? 1 : -1;
-		int at = index;
-		if (d < 0)
+		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " < ", length));
+
+		if (count > 0)
 		{
-			at--;
-			count = -count;
+			while (count--)
+			{
+				uint idx = next(index);
+
+				uint diff = idx - index;
+				if (diff == 0)
+					break;
+				while (diff--)
+					gbuffer.remove(index);
+			}
 		}
-		
-		for (int i = 0; i < count; i++)
+		else if (count < 0)
 		{
-			if (at >= gbuffer.length || at < 0)
-				break; // done
-			gbuffer.remove(at);
-			//at += d;
+			while (count++)
+			{
+				uint idx = prev(index);
+				uint diff = index - idx;
+				if (diff == 0)
+					break;
+				while (diff--) // TODO: optimize this because it moves the gap all the time
+				{
+					index--;
+					gbuffer.remove(index);
+				}
+			}
 		}
 	}
 
@@ -301,16 +360,26 @@ class TextGapBuffer
 	// the clamping on start and end.
 	uint charsOffset(uint startIndex, sizediff_t diff)
 	{
-		if (diff < 0)
+		if (diff > 0)
 		{
-			if (startIndex >= -diff) 
-				return startIndex + diff;
-			else
-				return 0;
+			while (diff--)
+			{
+				uint idx = next(startIndex);
+				if (idx == startIndex)
+					break;
+				startIndex = idx;
+			}
 		}
-		startIndex += diff;
-		if (startIndex > gbuffer.length)
-			return gbuffer.length;
+		else if (diff < 0)
+		{
+			while (diff++)
+			{
+				uint idx = prev(startIndex);
+				if (idx == startIndex)
+					break;
+				startIndex = idx;
+			}
+		}
 		return startIndex;
 	}
 
@@ -356,6 +425,23 @@ class TextGapBuffer
 	{
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
 		
+		if (gbuffer.empty) return 0;
+		
+		if (index == gbuffer.length)
+		{
+			index--;
+			if (index == 0)
+				return 0;
+		}
+		
+		// border case where index is at the end of line
+		if (gbuffer[index] == '\n')
+		{
+			index--;
+			if (index == 0)
+				return 0;
+		}
+
 		auto r = gbuffer[0u..index];
 		
 		// locate the first \n
@@ -372,14 +458,17 @@ class TextGapBuffer
 	uint endOfLine(uint index)   
 	{
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
-		
+	
+		if (index == length) 
+			return index;
+
 		auto r = gbuffer[index..gbuffer.length];
 		
 		// locate the next \n
 		size_t i = 0;
 		foreach (v; r)
 		{
-			if (v == '\n' || v == '\r')
+			if (v == '\n')
 				break;
 			i++;
 		}
@@ -391,7 +480,10 @@ class TextGapBuffer
 	{
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
 		auto r = gbuffer[index..gbuffer.length];
-		
+
+		if (index == length)
+			return index;
+
 		// locate the next \n
 		size_t i = 0;
 		foreach (v; r)
@@ -410,23 +502,11 @@ class TextGapBuffer
 	uint endOfPreviousLine(uint index)   
 	{
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));		
-		
-		auto r = gbuffer[0..index];
-		
-		// locate the next \n
-		size_t i = 0;
-		foreach_reverse (v; r)
-		{
-			i++;
-			if (v == '\n')
-				break;
-		}
-		std.stdio.writeln("pnl ", i, " ", index);
-	
-		uint nc = index - i;
-		if (nc > 0 && gbuffer[nc-1] == '\r')
+
+		uint nc = startOfLine(index);
+			
+		if (nc > 0)
 			nc--;
-		std.stdio.writeln("pnl2 ", nc);
 		return nc;
 	}
 	
@@ -434,17 +514,15 @@ class TextGapBuffer
 	{
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <=sa ", length));		
 		
-		std.stdio.writeln("lnstart ", index);
 		int count = -1;
 		do
 		{	
 			index = endOfPreviousLine(index);
-			std.stdio.writeln("idx ", index);
 			count++;
 		} while ( index != 0);
 		return count;
 	}
-	
+
 	uint find(uint index, const(char)[] needle)
 	{
 		size_t needleSize = needle.length;
@@ -504,4 +582,3 @@ class TextGapBuffer
 		return index != uint.max ? index : uint.max;
 	}
 }
-

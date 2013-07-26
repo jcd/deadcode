@@ -1,12 +1,12 @@
 module models;
 
-import graphics;
-import style; // : Style;
-import styledtext;
-
-import region;
+import graphics._;
+import gui.style; // : Style;
+import gui.window;
+import math._;
 import std.range;
 import std.container;
+import styledtext;
 
 Model!() createTriangle()
 {
@@ -103,13 +103,6 @@ Model!() createQuad(Rectf rect, Material mat)
 	
 	return m;
 }
-
-
-
-import std.container;
-import graphics;
-import math;
-import font;
 
 alias BinaryHeap!(Token[], "a.begin > b.begin") Heap;
 
@@ -528,7 +521,10 @@ class TextModel
 	Rectf getGlyphWorldPos(uint index)
 	{
 		if (index >= glyphPositions.length)
+		{
 			std.stdio.writeln("Out of bounds ", index , " max is ", glyphPositions.length);
+			return Rectf(0,0,0,0);
+		}
 		return glyphPositions[index];
 	}
 
@@ -554,7 +550,15 @@ class TextModel
 	{
 		styleTextModel = new StyledModel();	
 	}
-		
+
+	void clear()
+	{
+		foreach (subModel; styleTextModel.subModels)
+		{
+			subModel.mesh.clear();
+		}
+	}
+
 	private StyledModel.SubModel GetTextSubModelForStyle(Style style)
 	{
 		StyledModel.SubModel * m = style in styleTextModel.subModels;
@@ -576,7 +580,8 @@ class TextModel
 		textModel.mesh.setBuffer(vertexBuf, 3, 0);
 		textModel.mesh.setBuffer(colorBuf, 2, 1);	
 		textModel.mesh.setBuffer(vertColBuf, 3, 2);	
-						
+		textModel.blend = true;
+
 		Material mat = new Material();
 		mat.shader = Material.builtIn.shader;
 		textModel.material = mat;
@@ -1314,13 +1319,6 @@ struct TextBoxLayout
 		done = false;
 		model = m;
 		rect = bound;
-		lines ~= TextModel.LineBox();
-		curLine = &lines[0];
-		curLine.x = rect.x;
-		curLine.y = rect.y;
-		curLine.w = rect.w;
-		curLine.h = 0;
-		curLine.renderOffsetX = curLine.x;
 	}
 
 	size_t add(Text)(Text text, Style style)
@@ -1328,8 +1326,23 @@ struct TextBoxLayout
 		static int c = 0;
 
 		size_t charsUsed = 0;
-		if (curLine.y > rect.y2)
+		float curY = curLine is null ? rect.y : curLine.y;
+		if (curY <= (rect.y - rect.h))
+		{
+			done = true;
 			return 0;
+		}
+
+		if (lines.empty)
+		{
+			lines ~= TextModel.LineBox();
+			curLine = &lines[0];
+			curLine.x = rect.x;
+			curLine.y = rect.y;
+			curLine.w = rect.w;
+			curLine.h = 0;
+			curLine.renderOffsetX = curLine.x;
+		}
 
 		while (!text.empty)
 		{
@@ -1339,7 +1352,7 @@ struct TextBoxLayout
 			if (curLine.isFull)
 			{
 				float newY = curLine.y - curLine.h;
-				//std.stdio.writeln(c, " ", curLine.y, " ", rect.y2);
+				//std.stdio.writeln(newY, " ", rect.y, " ", rect.h);
 				if (newY < (rect.y - rect.h))
 				{
 					done = true;

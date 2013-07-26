@@ -1,7 +1,8 @@
-module keybinding;
+module gui.keybinding;
 
-import graphics;
-import command;
+import gui.command;
+import gui.keycode;
+import graphics._;
 
 import std.conv;
 import std.exception;
@@ -261,8 +262,34 @@ class KeyBindingsSet
 	{
 		auto s = new KeySequence(seq);
 		auto com = CommandManager.singleton.lookup(commandName);
-		if (!com)
+		if (com is null)
+		{
 			std.stdio.writeln("Warning: no commmand named ", commandName, " for binding to \"", seq, "\"");
+			// Make a delayed binding Command
+			static class DelayedBindingCommand : Command
+			{
+				Command cmd;
+				this(string name)
+				{
+					super(name, "Delayed binding command");
+				}
+				
+				override bool canExecute(Variant data)
+				{
+					std.stdio.writeln("fdsafdsa");
+					cmd = cmd is null ? CommandManager.singleton.lookup(name) : cmd;
+					return cmd !is null && cmd.canExecute(data);
+				}
+				
+				override void execute(Variant data)
+				{
+					cmd = cmd is null ? CommandManager.singleton.lookup(name) : cmd;
+					if (cmd is null) return;
+					cmd.execute(data);
+				}
+			}
+			com = new DelayedBindingCommand(commandName);
+		}
 		setKeyBinding(s, com);
 	}
 }

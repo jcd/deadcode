@@ -1,7 +1,7 @@
-module smallvector;
+module math.smallvector;
 
-import std.traits;
 import std.math;
+import std.traits;
 
 // generic 1D small vector
 // N is the element count, T the contained type
@@ -621,4 +621,10 @@ unittest
     //assert(!__traits(compiles, h.xx = h.yy));
     vec4ub j;
 }
+
+template Vec2(T) { alias SmallVector!(2u, T) Vec2; }
+template Vec3(T) { alias SmallVector!(3u, T) Vec3; }
+
+alias vec2f Vec2f;
+alias vec3f Vec3f;
 

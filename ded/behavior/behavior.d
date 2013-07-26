@@ -1,8 +1,9 @@
 module behavior.behavior;
 
-public import graphics;
 public import buffer;
 import bufferview;
+public import graphics._;
+import gui.event;
 
 class EditorBehavior
 {

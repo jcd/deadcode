@@ -1,7 +1,9 @@
 module build;
 
-import std.stdio;
 import std.process;
+import std.stdio;
+version(OFF):
+
 import std.array;
 import std.algorithm;
 //string dmdPath = "dmd.exe ";
@@ -19,7 +21,7 @@ const string[] importPaths = baseImportPaths ~ derelictImportPath;
 
 // Project base files
 const string[] baseFiles = [ 
-	"main.d", "system.d", "gui.d", "graphics.d", "math.d", "editor.d", "font.d", "smallvector.d", "smallmatrix.d", "dbg.d", "behavior\\emacs.d", "behavior\\behavior.d", "command.d", "keybinding.d", "editorcommands.d", "render.d", "widget.d", "widgetfeature.d", "color.d", "style.d", "region.d", "buffer.d", "bufferview.d", "models.d", "styledtext.d"
+	"main.d", "system.d", "gui.d", "graphics\\_.d", "math.d", "editor.d", "font.d", "smallvector.d", "smallmatrix.d", "dbg.d", "behavior\\emacs.d", "behavior\\behavior.d", "command.d", "keybinding.d", "editorcommands.d", "render.d", "widget.d", "widgetfeature.d", "color.d", "style.d", "region.d", "buffer.d", "bufferview.d", "models.d", "styledtext.d"
     //"main.d", "widget.d"
                             ];
 

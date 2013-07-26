@@ -1,7 +1,8 @@
-module font;
+module graphics.font;
 
-import graphics;
-import math;
+import graphics.texture;
+
+import math._;
 
 import std.exception;
 import std.conv;

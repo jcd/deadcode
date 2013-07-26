@@ -1,6 +1,7 @@
 module styledtext;
-import region;
-import style;
+
+import gui.style;
+import math.region;
 import std.container;
 
 class TextStyler(Text)

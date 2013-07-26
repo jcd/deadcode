@@ -1,11 +1,11 @@
-module smallmatrix;
+module math.smallmatrix;
 
+import math.smallvector;
+import std.conv;
 import std.math;
-import std.typetuple;
 import std.traits;
 import std.typecons;
-import std.conv;
-import smallvector;
+import std.typetuple;
 
 // generic small non-resizeable matrix with R rows and C columns
 // N is the element count, T the contained type
@@ -589,3 +589,5 @@ unittest
         mat2x4f C = A * B;
     }
 }
+
+alias mat4f Mat4f;

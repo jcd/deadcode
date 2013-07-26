@@ -1,9 +1,9 @@
 module buffer;
 
 import std.algorithm;
+import std.conv;
 import std.exception;
 import std.range;
-import std.conv;
 
 class GapBuffer(T = dchar)
 {
@@ -43,6 +43,11 @@ class GapBuffer(T = dchar)
 	@safe @property empty() const nothrow 
 	{
 		return length == 0;
+	}
+
+	void moveEditPointToEnd()
+	{
+		placeGapStart(length);
 	}
 
 	private void placeGapStart(uint index)
@@ -509,7 +514,7 @@ class TextGapBuffer
 			nc--;
 		return nc;
 	}
-	
+
 	uint lineNumber(uint index) 
 	{
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <=sa ", length));		

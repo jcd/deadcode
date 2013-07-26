@@ -1,121 +1,13 @@
-module math;
+module math.rect;
 
+import math.smallvector;
 import std.math : fmin, fmax;
-
-import smallvector;
-import smallmatrix;
-
-template Vec2(T) { alias SmallVector!(2u, T) Vec2; }
-template Vec3(T) { alias SmallVector!(3u, T) Vec3; }
-
-alias vec2f Vec2f;
-alias vec3f Vec3f;
-alias mat4f Mat4f;
-
-/+
-
-struct Vec2(T)
-{
-	union
-	{
-		struct 
-		{
-			T x;
-			T y;
-		}
-		struct 
-		{
-			T w;
-			T h;
-		}
-		T[2] data;
-	}
-			/*
-	T opIndex(uint i) const
-	{
-		assert(i < 2);
-		return (cast(T[])(this))[i];
-	}
-
-	 */
-	
-	@property T lengthSquared()
-	{
-		return x*x + y*y;
-	}
-
-	import std.stdio;
-	
-	Vec2!T opBinary(string OP)(Vec2!T v) const pure nothrow
-	{
-		return Vec2!T(mixin("x " ~ OP ~ " v.x"), mixin("y " ~ OP ~ " v.y"));
-	}
-	
-	void opOpAssign(string OP)(Vec2!(T) v) pure nothrow
-	{
-		mixin("this.x" ~ OP ~ "= v.x;"); 
-		mixin("this.y" ~ OP ~ "= v.y;");
-	} 
-
-	void opOpAssign(string OP)(T v) pure nothrow
-	{
-		mixin("this.x" ~ OP ~ "= v;"); 
-		mixin("this.y" ~ OP ~ "= v;");
-	} 
-	
-	Vec2!T opUnary(string OP)() pure nothrow
-	{
-		Vec2 r;
-		mixin("r.x = " ~ OP ~ "x;"); 
-		mixin("r.y = " ~ OP ~ "y;"); 
-		return r;
-	}
-}
-
-alias Vec2!(float) Vec2f;
-
-struct Vec3(T)
-{
-	union
-	{
-		struct 
-		{
-			T x;
-			T y;
-			T z;
-		}
-		struct 
-		{
-			T w;
-			T h;
-			T d;
-		}
-		struct 
-		{
-			T r;
-			T g;
-			T b;
-		}
-		T[3] data;
-	}
-		
-/*
-	T opIndex(uint i) const
-	{
-		assert(i < 3);
-		return (cast(T[])(this))[i];
-	}
- */
-}
-
-alias Vec3!(float) Vec3f;
-+/
 
 struct Rect(T)
 {
 	Vec2!T pos; 
 	Vec2!T size;
-
+	
 	this(T x, T y, T w, T h)
 	{
 		pos.x = x; 
@@ -129,81 +21,81 @@ struct Rect(T)
 		this.pos = pos;
 		this.size = size;
 	}
-
+	
 	this(Vec2!T pos, T w, T h)
 	{
 		this.pos = pos;
 		size.x = w;
 		size.y = h;
 	}
-
+	
 	this(T x, T y, Vec2!T size)
 	{
 		pos.x = x;
 		pos.y = y;
 		this.size = size;
 	}
-
+	
 	@property T x() const 
 	{
 		return pos.x;
 	}
-
+	
 	@property void x(T v)
 	{
 		pos.x = v;
 	}
-
+	
 	@property T y() const
 	{ 
 		return pos.y;
 	}
-
+	
 	@property void y(T v)
 	{
 		pos.y = v;
 	}
-
+	
 	@property T x2() const
 	{
 		return pos.x + size.x; /* width */
 	}
-
+	
 	@property void x2(T v)
 	{
 		size.x = v - pos.x;
 	}
-
+	
 	@property T y2() const
 	{
 		return pos.y + size.y; /* height */
 	}
-
+	
 	@property void y2(T v)
 	{
 		size.y = v - pos.y;
 	}
-
+	
 	@property T w() const
 	{
 		return size.x; /* width */
 	}
-
+	
 	@property void w(T v)
 	{
 		size.x = v;
 	}
-
+	
 	@property T h() const
 	{
 		return size.y; /* height */
 	}
-
+	
 	@property void h(T v)
 	{
 		size.y = v;
 	}
-
+	
 	Rect!T clip(Rect!T toBeClipped)
 	{
 		toBeClipped.x = fmax(this.x, toBeClipped.x);
@@ -217,7 +109,7 @@ struct Rect(T)
 		return toBeClipped;
 	}
 	
-//	Rect!T opBinary(string OP)(Vec2!T v) const
+	//	Rect!T opBinary(string OP)(Vec2!T v) const
 	Rect!T opBinary(string OP)(SmallVector!(2u,T) v) const pure nothrow
 	{
 		Rect!T res = this;
@@ -225,7 +117,7 @@ struct Rect(T)
 		return res;
 	}
 	
-//	void opOpAssign(string OP)(Vec2!T v) pure nothrow
+	//	void opOpAssign(string OP)(Vec2!T v) pure nothrow
 	void opOpAssign(string OP)(SmallVector!(2u,T) v) pure nothrow
 	{
 		mixin("this.pos.x" ~ OP ~ "= v.x;");
@@ -235,7 +127,7 @@ struct Rect(T)
 	bool contains(Vec2!T point)
 	{
 		return point.x <= x2 && point.x >= x && point.y <= y2 && point.y >= y;
- 	}
+	}
 }
 
 alias Rect!(float) Rectf;
@@ -246,4 +138,3 @@ unittest
 	Rectf r = Rectf(1, 2, 3, 4);
 	assert(!std.math.isNaN(r.pos.x));
 }
-

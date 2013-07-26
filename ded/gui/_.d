@@ -1,10 +1,11 @@
-module gui;
+module gui._;
 
 import core.time;
 
-import style;
-import graphics; // Event;
-import widget; // : Widget, NullWidgetID;
+import graphics._; // Event;
+import gui.event;
+public import gui.style;
+import gui.widget; // : Widget, NullWidgetID;
 
 // The widget that the mouse left button has been clicked down on
 private static uint downButtonWidget = NullWidgetID;
@@ -59,6 +60,7 @@ bool send(Event event)
 		overWidget = Widget.mouseWidget in Widget.widgets;
 	
 	// Send events to the found widget
+	std.stdio.writeln(event.type);
 	switch (event.type)
 	{
 	case Event.Type.MouseMove:
@@ -148,9 +150,11 @@ bool send(Event event)
 	case Event.Type.KeyUp:
 	case Event.Type.Text:
 
+			std.stdio.writeln("dxx ", event.type, " ", Widget.keyboardFocusWidget);
 		if (Widget.keyboardFocusWidget != NullWidgetID)
 		{
 			Widget * w = Widget.keyboardFocusWidget in Widget.widgets;
+
 			if (w is null)
 				Widget.setKeyboardFocusWidget(NullWidgetID);
 			else

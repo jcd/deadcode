@@ -13,7 +13,7 @@
     <Compiler>DMD2</Compiler>
     <Includes>
       <Includes>
-        <Path>C:\Users\jonasd\Documents\Projects\Derelict3\import</Path>
+        <Path>C:\Users\jonasd\Documents\Projects\D\dteam\external\Derelict3\import</Path>
       </Includes>
     </Includes>
   </PropertyGroup>
@@ -24,9 +24,9 @@
     <OutputName>ded</OutputName>
     <Libs>
       <Libs>
-        <Lib>C:\Users\jonasd\Documents\Projects\Derelict3\lib\DerelictGL3.lib</Lib>
-        <Lib>C:\Users\jonasd\Documents\Projects\Derelict3\lib\DerelictUtil.lib</Lib>
-        <Lib>C:\Users\jonasd\Documents\Projects\Derelict3\lib\DerelictSDL2.lib</Lib>
+        <Lib>C:\Users\jonasd\Documents\Projects\D\dteam\external\Derelict3\lib\DerelictGL3.lib</Lib>
+        <Lib>C:\Users\jonasd\Documents\Projects\D\dteam\external\Derelict3\lib\DerelictUtil.lib</Lib>
+        <Lib>C:\Users\jonasd\Documents\Projects\D\dteam\external\Derelict3\lib\DerelictSDL2.lib</Lib>
       </Libs>
     </Libs>
     <ExtraCompilerArguments>-property -unittest</ExtraCompilerArguments>
@@ -52,37 +52,65 @@
     <Externalconsole>True</Externalconsole>
     <UnittestMode>False</UnittestMode>
     <DebugLevel>0</DebugLevel>
+    <Libs>
+      <Libs>
+        <Lib>C:\Users\jonasd\Documents\Projects\Derelict3\DerelictGL3.lib</Lib>
+        <Lib>C:\Users\jonasd\Documents\Projects\Derelict3\DerelictUtil.lib</Lib>
+        <Lib>C:\Users\jonasd\Documents\Projects\Derelict3\DerelictSDL2.lib</Lib>
+      </Libs>
+    </Libs>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="main.d" />
-    <Compile Include="gui.d" />
-    <Compile Include="graphics.d" />
-    <Compile Include="math.d" />
-    <Compile Include="editor.d" />
-    <Compile Include="font.d" />
-    <Compile Include="smallvector.d" />
-    <Compile Include="smallmatrix.d" />
     <Compile Include="dbg.d" />
     <Compile Include="behavior\emacs.d" />
     <Compile Include="behavior\behavior.d" />
-    <Compile Include="command.d" />
-    <Compile Include="keybinding.d" />
     <Compile Include="editorcommands.d" />
-    <Compile Include="render.d" />
-    <Compile Include="widget.d" />
-    <Compile Include="widgetfeature.d" />
-    <Compile Include="color.d" />
-    <Compile Include="style.d" />
-    <Compile Include="region.d" />
     <Compile Include="buffer.d" />
     <Compile Include="bufferview.d" />
     <Compile Include="models.d" />
     <Compile Include="styledtext.d" />
     <Compile Include="system.d" />
     <Compile Include="build.d" />
+    <Compile Include="application.d" />
+    <Compile Include="animation\timeline.d" />
+    <Compile Include="animation\_.d" />
+    <Compile Include="animation\interpolate.d" />
+    <Compile Include="animation\animator.d" />
+    <Compile Include="controls\command.d" />
+    <Compile Include="controls\_.d" />
+    <Compile Include="controls\editor.d" />
+    <Compile Include="graphics\_.d" />
+    <Compile Include="graphics\shader.d" />
+    <Compile Include="graphics\shaderprogram.d" />
+    <Compile Include="graphics\texture.d" />
+    <Compile Include="graphics\buffer.d" />
+    <Compile Include="graphics\mesh.d" />
+    <Compile Include="graphics\material.d" />
+    <Compile Include="graphics\model.d" />
+    <Compile Include="graphics\font.d" />
+    <Compile Include="graphics\color.d" />
+    <Compile Include="gui\_.d" />
+    <Compile Include="gui\style.d" />
+    <Compile Include="gui\widget.d" />
+    <Compile Include="gui\widgetfeature.d" />
+    <Compile Include="gui\window.d" />
+    <Compile Include="math\smallmatrix.d" />
+    <Compile Include="math\region.d" />
+    <Compile Include="math\rect.d" />
+    <Compile Include="math\smallvector.d" />
+    <Compile Include="math\_.d" />
+    <Compile Include="gui\event.d" />
+    <Compile Include="gui\command.d" />
+    <Compile Include="gui\keycode.d" />
+    <Compile Include="gui\keybinding.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="extensions\" />
     <Folder Include="controls\" />
+    <Folder Include="animation\" />
+    <Folder Include="graphics\" />
+    <Folder Include="gui\" />
+    <Folder Include="math\" />
   </ItemGroup>
 </Project>

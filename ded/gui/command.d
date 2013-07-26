@@ -1,10 +1,10 @@
-module command;
+module gui.command;
 
 import std.conv;
 import std.exception;
 import std.range : empty;
-import std.variant;
 import std.string;
+import std.variant;
 
 class Command
 {
@@ -87,7 +87,14 @@ class CommandManager
 		return c;
 	}
 			
-/*
+	DelegateCommand create(string name, string description, void delegate() del)
+	{
+		auto c = new DelegateCommand(name, description, (Variant ignore) { del(); });
+		add(c);
+		return c;
+	}
+
+	/*
 	DelegateCommand create(string name, string description, void delegate() del)
 	{
 		auto c = new DelegateCommand(name, description, (Variant v) { del(); } );

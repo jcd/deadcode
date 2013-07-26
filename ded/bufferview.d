@@ -1,7 +1,9 @@
 module bufferview;
 
 import buffer; // : TextGapBuffer;
-
+import std.conv;
+import std.exception;
+import std.range;
 
 // TODO:
 //	* Set preferred colum doesn't work
@@ -40,6 +42,12 @@ class BufferView
 		uint _visibleLineCount;    // Number of lines to visible in view
 	}
 	
+	this(string txt)
+	{
+		import std.conv;
+		this(new TextGapBuffer(to!dstring(txt), 10));
+	}
+
 	this(TextGapBuffer buffer)
 	{
 		if (_current is null)
@@ -76,11 +84,16 @@ class BufferView
 		}	
 	}
 	
+	void cursorToEnd() nothrow
+	{
+		_cursorPoint = length;
+	}
+
 	@property uint cursorPoint() const pure nothrow
 	{
 		return _cursorPoint;
 	}
-	
+
 	@property void cursorPoint(uint v) 
 	{
 		assert(buffer !is null && v >= 0 && v <= buffer.length, "Cursor out of range");
@@ -155,6 +168,12 @@ class BufferView
 			index = _cursorPoint;
 		insertInternal(items, index);
 		_cursorPoint = buffer.editPoint;
+	}
+
+	void append(const(dchar)[] items)
+	{
+		cursorToEnd();
+		insert(items);
 	}
 
 	void remove(int count, int index = uint.max)
@@ -285,5 +304,106 @@ class BufferView
 			eol = buffer.startOfNextLine(_cursorPoint);
 		}
 		removeInternal(eol - _cursorPoint, _cursorPoint);
+	}
+}
+
+
+class BufferViewManager
+{
+	BufferView[string] buffers;
+	uint _namingSeq;
+
+	private string uniqueName()
+	{
+		while (true)
+		{
+			string autoName = text("Buffer ", _namingSeq);
+			if (autoName !in buffers)
+				return autoName;
+			_namingSeq++;
+		}
+		return "";
+	}
+
+	auto create(string content = "", string name = null)
+	{
+		if (name is null)
+			name = uniqueName();
+		enforceEx!Exception(! (name in buffers), text("A buffer with the name ", name, "already exists"));
+		auto b = new BufferView(content);
+		buffers[name] = b;
+		b.name = name;
+		return b;
+	}
+
+	auto create(TextGapBuffer buf, string name = null)
+	{
+		if (name is null)
+			name = uniqueName();
+		enforceEx!Exception(! (name in buffers), text("A buffer with the name ", name, "already exists"));
+		auto b = new BufferView(buf);
+		buffers[name] = b;
+		b.name = name;
+		return b;
+	}
+
+	/**
+	 * Params:
+	 * path = path to file
+	 * name = name of buffer. Leave empty to use the path as the name
+	 */
+	BufferView createFromPath(string path, string name = null)
+	{
+		auto b = create(name is null ? path : name);
+		auto f = std.stdio.File(path, "rb");
+		ulong size = f.size();
+		b.buffer.ensureGapCapacity(cast(uint)size);
+		auto range = f.byLine!(dchar,char)(std.stdio.KeepTerminator.yes, '\n');
+		foreach (line; range)
+		{
+			b.buffer.insert(to!(dchar[])(line));
+		}
+		return b;
+	}
+	
+	BufferView opIndex(string name)
+	{
+		auto b = name in buffers;
+		if (b) return *b;
+		return null;
+	}
+	
+	BufferView getOrCreate(string name)
+	{
+		auto b = this[name];
+		if (b) return b;
+		return create(name);
+	}
+
+	void rename(string from, string to)
+	{
+		auto b = this[from];
+		buffers.remove(from);
+		buffers[to] = b;
+		b.name = to;
+	}
+
+	void destroy(string name)
+	{
+		auto b = name in buffers;
+		if (b)
+			buffers.remove(name); // TODO: make sure dependent actors get notified? or rely on GC?
+	}
+	
+	void destroy(BufferView b)
+	{
+		foreach (key, value; buffers)
+		{
+			if (value == b)
+			{
+				destroy(key);
+				return;
+			}
+		}
 	}
 }

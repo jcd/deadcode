@@ -1,9 +1,10 @@
 module behavior.emacs;
 
-import keybinding;
-import command;
-import graphics;
 import bufferview;
+import graphics._;
+import gui.command;
+import gui.event;
+import gui.keybinding;
 
 public import behavior.behavior : EditorBehavior;
 
@@ -48,6 +49,7 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<ctrl> + _", "editor.undoBuffer");
 		set.setKeyBinding("<ctrl> + x u", "editor.undoBuffer");
 		set.setKeyBinding("<ctrl> + b", "core.rebuildEditor");
+		set.setKeyBinding("<ctrl> + w", "app.toggleCommandArea");
 	}
 
 	KeySequence currentKeySequence;
@@ -61,6 +63,12 @@ class EmacsBehavior : EditorBehavior
 	
 	override void onEvent(Event event, BufferView view)
 	{
+		if (view is null)
+		{
+			std.stdio.writefln("No active buffer for editor command");
+			return;
+		}
+
 		if (event.type == Event.Type.KeyDown)
 		{
 			currentKeySequence.add(event.keyCode, event.mod);
@@ -81,7 +89,7 @@ class EmacsBehavior : EditorBehavior
 				if (b.length == 1 && currentKeySequence.length == b[0].sequence.length)
 				{
 					currentKeySequence.length = 0;
-					b[0].command.execute(Variant(1u));
+					b[0].command.execute(Variant(view));
 				}
 				else
 				{
@@ -93,7 +101,7 @@ class EmacsBehavior : EditorBehavior
 			// No key bindings for this key event. Go enter text to editor
 			currentKeySequence.length = 0;
 		} 
-		else if (event.type == Event.Type.MouseScroll)
+		else if (event.type == Event.Type.MouseScroll && view !is null)
 		{
 			// Scroll view
 			int d = cast(int) event.scroll.y;
@@ -108,17 +116,20 @@ class EmacsBehavior : EditorBehavior
 					view.scrollUp();
 			}
 		}
-		else if (event.type == Event.Type.MouseClick)
+		else if (event.type == Event.Type.MouseClick && view !is null)
 		{
 			// Locate char under mouse pointer and set cursor at that char
 			
 		}
-		
+
+		if (view is null) return;
+
 		switch (event.type)
 		{
 		case Event.Type.Text:
+			std.stdio.writeln(event.ch, " ", std.conv.to!string(event.mod), " ", view);
 			view.insert(event.ch);
-			//std.stdio.writeln(event.ch, " ", std.conv.to!string(event.mod));
+			std.stdio.writeln(event.ch, " ", std.conv.to!string(event.mod));
 			break;
 		case Event.Type.KeyDown:
 			//handleKeyDown(event, controller);

@@ -1,4 +1,4 @@
-module styledtext;
+module gui.styledtext;
 
 import gui.style;
 import math.region;
@@ -28,18 +28,81 @@ class DSourceStyler(Text) : TextStyler!Text
 		}
 	}
 }
+/*
+	Heap buildKeywordTokens()
+	{
+		Token[dstring] templates;
+		// = { 
+//			"alias" = Token(0, 0, Vec3f(0,1,0))
+		//};
+		
+		// TODO: use ctRegex
+		enum decls = [ "alias"d, "auto", "assert", "class", "const", "enum", "extern", "for", "if", "import", "module", "new", "nothrow"
+			"private", "public", "pure", "return", "safe", "scope", "static", "struct", "template", "this", "union", "unittest", "version",
+			"while" ];
+		enum types = [ "byte"d, "char", "dchar", "int", "long", "short", "ubyte", "uint", "ulong", "ushort", "void", "wchar" ];
+		dstring re = "(";
+		dstring delim = "";
+		foreach (tt; decls)
+		{
+			re ~= delim;
+			re ~= tt;
+			delim = "|";
+		}
+		foreach (tt; types)
+		{
+			re ~= delim;
+			re ~= tt;
+		}
+		re ~= ")";
+		
+		import std.regex;		
+		auto ctr = regex(re, "mg");
+		
+		foreach (d; decls)
+			templates[d] = Token(0, 0, Vec3f(0.3,0.3,1));
+		foreach (t; types)
+			templates[t] = Token(0, 0, Vec3f(0.3,1,0.3));
+		
+		dstring[] names = templates.keys();
+		Token[] toks;
+		
+		import std.array;
+		auto buf = array(buffer[bufferOffset..buffer.length]);
+		
+		foreach (m; match(buf, ctr))
+		{
+			auto t = templates[m.hit];
+			t.begin = m.pre.length;
+			t.end = t.begin + m.hit.length;
+			toks ~= t;
 
+		}
+
+		Heap h;
+		h.acquire(toks);
+		return h;
+	}
+	*/
 class StyledText(Text)
 {
 	private TextStyler!Text textStyler;
 	public RegionSet regionSet;
 	StyleSet styleSet;
-	public Text text;
-	
-	this(TextStyler!Text styler, Text text, RegionSet regionSet, StyleSet styleSet = StyleSet.base)
+	public Text _text;
+
+	@property
+	{
+		Text text()
+		{
+			return _text;
+		}
+	}
+
+	this(TextStyler!Text styler, Text textIn, RegionSet regionSet, StyleSet styleSet = StyleSet.base)
 	{
 		this.textStyler = styler;
-		this.text = text;
+		this._text = textIn;
 		this.styleSet = styleSet;
 		this.regionSet = regionSet;
 	}
@@ -189,7 +252,7 @@ class StyledText(Text)
 	
 	void update(StyleSet styleSet)
 	{
-		textStyler.update(regionSet, text);
+		textStyler.update(regionSet, _text);
 
 		/*t
 		if (styledRegionSets.length != 0) return; // TODO: fix

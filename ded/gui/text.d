@@ -37,7 +37,6 @@ class TextModel
 		Model styleTextModel;
 		SubModel[Style] styleSubModelMap;
 		
-		//StyledText!Text styledText;
 		Rectf[] glyphPositions; // TODO: This is already stored in the Model!Style ... reuse somehow? 
 		
 		struct LineHeightInfo
@@ -48,11 +47,6 @@ class TextModel
 		}
 		
 		LineHeightInfo[] _lineHeightInfo;
-		
-		//Vec2f renderOffset;
-		//Rectf _renderArea;
-		//Model textModel;
-		//Model cursorModel;
 	}
 	
 	Rectf getGlyphWorldPos(uint index)
@@ -70,19 +64,7 @@ class TextModel
 		glyphPositions.length = 0;
 		assumeSafeAppend(glyphPositions);
 	}
-	
-	/*	
-	@property Rectf renderArea()
-	{
-		return _renderArea;
-	}
 
-	@property void renderArea(Rectf rect)
-	{
-		_renderArea = rect;
-		renderOffset = rect.pos;
-	}
-*/
 	this()
 	{
 		styleTextModel = new Model();	
@@ -125,11 +107,7 @@ class TextModel
 		textModel.material = mat;
 		return textModel;
 	}
-	
-	// also accept the buffer and the regions of interest to style
-	//	void onDraw(ref Widget widget, TextGapBuffer (or bufferHaveSomeFeatures) buffer, RegionSetStyles, RegionSet getInfoAbout)
-	
-	
+
 	/** Draw text into a rect and style text using regions
 	 * 
 	 * Text Regions with no style is not modelled at all.
@@ -144,12 +122,6 @@ class TextModel
 	 */ 
 	size_t add(Text)(ref LineBox lineBox, ref Text text, Style style)
 	{
-		//size_t sz = regionSet.b - regionSet.a;
-		//if (sz == 0) return;
-		
-		//if (glyphPositions.length < sz)
-		//	    glyphPositions.length = sz;
-		
 		SubModel subModel = GetTextSubModelForStyle(style);
 		subModel.material.texture = style.font.fontMap;
 		
@@ -184,241 +156,13 @@ class TextModel
 		lineBox.h = std.math.fmax(lineBox.h, Window.active.pixelHeightToWorld(style.font.fontLineSkip)); 
 		
 		return addStringToMesh(subModel.mesh, text, lineBox, style);
-		
-		/*t
-		foreach (style, regionSet; styledText.styledRegionSets)
-		{
-			if (regionSet.empty)
-			{
-				// TODO: remove style from model if exists
-				continue;
-			}
-
-			Model!Style.SubModel subModel = GetTextSubModelForStyle(style);
-			subModel.material.texture = style.font.fontMap;
-			
-			// POI should be regions
-			setTextMesh(subModel.mesh, styledText.text.buffer[regionToModel.a..regionToModel.b], regionSet, renderArea, style);
-		}
-		*/
-		//		Style defaultStyle = StyleSet.base[""]; // hack. Get it some other way
-		
-		/*		
-		import std.algorithm;
-		
-		// Calc the max number of lines to render based on the smallest font used for
-		// rendering any of this text
-		uint minFontHeightPx = reduce!min(defaultStyle.font.fontHeight, regions.map!("a.font.fontHeight")());
-		float minFontHeightWorldCoord = Window.active.pixelHeightToWorld(minFontHeight);
-		float maxLinesToRender = size.y / minFontHeightWorldCoord;
-
-		// Figure out the regions of the text range the is going to be rendered by reading newlines until
-		// maxLinesToRender is reached 
-		
-		auto range = regions.intersectRange(
-		
-		// Render each style as a separate model because they may use different materials 
-		foreach (styleName, regionSet; regionStyleNames)
-		{
-			if (regionSet.contains
-		}
-		*/
-		/*
-		// Get the first region in the regions that contains a char with index greate or equal to textOffset
-		// The result range is lazy
-		RegionSet regionsRemaining = regions.intersect(Region(textOffset, uint.max));
-
-		// Accumulate regions to be default styled
-		RegionSet defaultStyleRegions = new RegionSet();
-		bool firstIteration = true;
-		uint lastIdx = textOffset; // lastIdx is the first char that is not styled (e.g. right after a styled span)
-		
-		RegionSet[Style] styledRegionSets;
-		
-		foreach (currentRegion; regionsRemaining)
-		{						
-			// On first iteration we run through all regions and therefore can
-			// create new regions chars that is not style by any region and then put
-			// them to defaultStyleRegions for later processing.
-			if (firstIteration)
-			{
-				if (lastIdx < currentRegion.a)
-				{
-					auto r = Region(lastIdx, currentRegion.a);
-					r.data = defaultStyle;
-					defaultStyleRegions.add(r); 
-				}
-				lastIdx = currentRegion.b;
-			}
-			RegionSet * rs = currentRegion.data in styledRegionSets;
-			if (rs is null)
-			{
-				RegionSet nrs = new RegionSet();
-				rs = &nrs;
-				styledRegionSets[currentRegion.data] = nrs;
-			}
-			rs.add(currentRegion);
-		}
-			
-		// Add a last region with a default style
-		auto r = Region(lastIdx, uint.max);
-		r.data = defaultStyle;
-		defaultStyleRegions.add(r);
-		
-		updateRegionSetModel(text, textOffset, size, defaultStyleRegions);
-		
-		foreach (styledRegionSet; text.styledRegionSets)
-		{
-			updateRegionSetModel(text, textOffset, size, styledRegionSet);
-		}
-		*/
 	}
-	/*
-	
-	private void updateRegionSetModel(TextRange)(TextRange text, size_t textOffset, 
-						 		                 Vec2f size, RegionSet regions)
-	{
-		if (regions.empty)
-			return;
-		Style style = regions.front.data;
-		Rectf worldBounds = Rectf(0, 0, size.x, size.y);
-		Model model = GetTextModelForStyle(style);
-		model.material.texture = style.font.fontMap;
-		
-		// POI should be regions
-		msetTextMesh(model, text, regions, worldBounds, style.wordWrap);
-	}
-	*/
-	
+
 	void draw(Mat4f transform)
 	{
 		styleTextModel.draw(Window.active.MVP * transform);
 	}
-	
-	// }
-	//		Vec2f poi = model.setTextMesh(buffer[bufferOffset..buffer.length], toks, font, textModel.mesh, r, cursorPoint - bufferOffset, pointer, wordWrap);
-	
-	
-	//		cursorModel.transform = widget.activeStyle.model.transform * Mat4f.makeTranslate(Vec3f(poi.x, poi.y + Window.active.pixelHeightToWorld(font.fontLineSkip), 0f));
-	// cursorModel.draw();	 	
-	
-	
-	/*
-	
-		
-		// Create child widgets for the visible parts of the buffer
-		import std.conv;
-		import std.array;
-		
-		// rect is widget.rect
-		//	Rectf wrect = Window.active.windowToWorld(rect);
-		// model.transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0f));
-		
-		
-		textModel.transform = widget.activeStyle.model.transform;
 
-		Vec2f ppad = Vec2f(padding.pos.x, -padding.pos.y);
-		Vec2f wpad = Vec2f(widget.rect.size.x - padding.pos.x - padding.size.x, padding.pos.y + padding.size.y - widget.rect.size.y); !!!RECT
-		Rectf r = Rectf(Window.active.pixelSizeToWorld(ppad), Window.active.pixelSizeToWorld(wpad));
-		
-		auto toks = buildKeywordTokens();
-					
-		Vec2f pointer;
-		Vec2f poi = textModel.setTextMesh(buffer[bufferOffset..buffer.length], toks, font, textModel.mesh, r, cursorPoint - bufferOffset, pointer, wordWrap);
-		
-		textModel.draw();
-
-		cursorModel.transform = widget.activeStyle.model.transform * Mat4f.makeTranslate(Vec3f(poi.x, poi.y + Window.active.pixelHeightToWorld(font.fontLineSkip), 0f));
-		cursorModel.draw();
-	}
-		*/
-	
-	/*
-	Heap buildKeywordTokens()
-	{
-		Token[dstring] templates;
-		// = { 
-//			"alias" = Token(0, 0, Vec3f(0,1,0))
-		//};
-		
-		// TODO: use ctRegex
-		enum decls = [ "alias"d, "auto", "assert", "class", "const", "enum", "extern", "for", "if", "import", "module", "new", "nothrow"
-			"private", "public", "pure", "return", "safe", "scope", "static", "struct", "template", "this", "union", "unittest", "version",
-			"while" ];
-		enum types = [ "byte"d, "char", "dchar", "int", "long", "short", "ubyte", "uint", "ulong", "ushort", "void", "wchar" ];
-		dstring re = "(";
-		dstring delim = "";
-		foreach (tt; decls)
-		{
-			re ~= delim;
-			re ~= tt;
-			delim = "|";
-		}
-		foreach (tt; types)
-		{
-			re ~= delim;
-			re ~= tt;
-		}
-		re ~= ")";
-		
-		import std.regex;		
-		auto ctr = regex(re, "mg");
-		
-		foreach (d; decls)
-			templates[d] = Token(0, 0, Vec3f(0.3,0.3,1));
-		foreach (t; types)
-			templates[t] = Token(0, 0, Vec3f(0.3,1,0.3));
-		
-		dstring[] names = templates.keys();
-		Token[] toks;
-		
-		import std.array;
-		auto buf = array(buffer[bufferOffset..buffer.length]);
-		
-		foreach (m; match(buf, ctr))
-		{
-			auto t = templates[m.hit];
-			t.begin = m.pre.length;
-			t.end = t.begin + m.hit.length;
-			toks ~= t;
-
-		}
-
-		Heap h;
-		h.acquire(toks);
-		return h;
-	}
-	*/
-	
-	/* Update and create sub-widgets as necessary
-	 */
-	//void onUpdate(ref Widget widget)
-	//{
-	//}
-	/*
-	uint posToTextIndex(Vec2f pos)
-	{
-		
-	}
-	 */
-	/*
-	Vec2f textIndexToRect(uint i)
-	{
-		if (styledText is null) return Vec2f.init;
-		
-		Rectf maxLast; // In case the index is after all known regions the we just return the max rect found
-		Region needle = { i, i+1 };
-		foreach (style, regionSet; text.styledRegionSets)
-		{
-			if (regionSet.empty)
-				continue;
-			
-			// POI should be regions
-			setTextMesh(regionSet, renderArea, style);
-		}	
-	}
-	*/
-	
 	/** Render a text range as into a text model
 		Returns: The new offset where to append astring after the just added string
 	 */
@@ -538,15 +282,9 @@ class TextModel
 			                        Window.active.pixelSizeToWorld(g.offsetRect.size));
 			Rectf o = offsetRect + pos;
 			
-			//std.stdio.writeln(o);
-			//o.size *= 1f;
-			//o = Rectf(0,0,1,1);
+
 			Rectf c = g.uvRect;
-			
-			//c = Rectf(Vec2f(c.pos.x, -c.pos.y), c.size);
-			//c.pos *= 2.05f;
-			//c.size *= 1.0f;
-			
+
 			// TODO: optimize using e.g slices
 			(*verts)[vbase..vbase+2] = o.pos.v[];
 			//verts[base+0] = o.x;
@@ -616,7 +354,6 @@ class TextModel
 			vbase += 18; // 6 verts * 3 floats = 18
 			uvbase += 12;
 			
-			//			pos.x += Window.active.pixelWidthToWorld(font.fontWidth);
 			float advance = Window.active.pixelWidthToWorld(g.advance);
 			pos.x += advance;
 			glyphPositions[$-1].w = advance;
@@ -632,213 +369,9 @@ class TextModel
 		lhi.length = vbase - lhi.offset;
 		
 		_lineHeightInfo ~= lhi;
-		
-		//std.stdio.writeln(uvs.length);
-		//std.stdio.writeln(verts.length);
+
 		lineBox.renderOffsetX = pos.x;
 		return charsUsed;
 	}
-	/++
-
-	/** Render a text range as into a text model
-	 */
-	Vec2f setTextMesh(R)(Mesh mesh, R str, Rectf rect, Style style)
-	// Vec2f setTextMesh(R)(Model textModel, R str, Heap toks, Font font, Mesh target, Rectf box, size_t charOfInterest, Vec2f charAtCoords, bool wrap = true)
-	{
-		float sx = rect.x;
-		Vec2f pos = Vec2f(sx, rect.y - Window.active.pixelHeightToWorld(style.font.fontLineSkip));
-		// std.stdio.writeln(pos.v, " ", rect.pos.v, " ", rect.size.v);
-		Font font = style.font;
-		auto color = style.color;
-		
-		// Estimate buffer sizes
-		auto verts = &mesh.buffers[0].data;
-		auto uvs = &mesh.buffers[1].data;
-		auto cols = &mesh.buffers[2].data;
-
-		//verts.length = str.length * 18; // 6 vertices
-		//cols.length = str.length * 18; // 6 vertices
-		//uvs.length = str.length * 12;   // 6 uvs
-	
-		size_t idx = 0;
-		size_t handled = 0;
-		bool skip = false;
-		size_t charOfInterest = 0; // TODO: fix
-		charOfInterest++;
-		Vec2f poi = Vec2f(0,0);
-		
-		RegionSet.Container.Range regions = regionSet[]; // slice for iteration
-		
-		auto nextRegion = Region.init;
-		
-		if (!regions.empty)
-		{
-			nextRegion = regionSet.front;
-			regions.popFront();
-		}
-	
-		
-		foreach (ch; str)
-		{			
-			std.stdio.writeln("regions ", nextRegion);
-			// std.stdio.writeln("dd ", ch,  " ", str.length);
-			handled++;
-			if (charOfInterest == handled && !skip)
-				poi = pos;
-	
-			glyphPositions ~= pos;
-			
-			if (ch == '\n')
-			{
-				skip = false;
-				pos.x = sx;
-				pos.y -= Window.active.pixelHeightToWorld(font.fontLineSkip);
-				continue;
-			}
-			
-			if (ch == '\r' || skip)
-				continue;
-			
-			if (ch == '\t')
-			{
-				pos.x += Window.active.pixelWidthToWorld(font.fontWidth) * 4;
-				continue;
-			}
-			
-			if (ch == ' ')
-			{
-				pos.x += Window.active.pixelWidthToWorld(font.fontWidth);
-				continue;
-			}
-	
-			if (pos.x >= rect.x2)
-	{
-				if (style.wordWrap)
-				{
-					pos.x = sx;
-					pos.y -= Window.active.pixelHeightToWorld(font.fontLineSkip);
-				} 
-				else
-				{
-					skip = true;
-					continue;
-				}
-			}
-	
-			if (pos.y > rect.y2)
-			{
-				skip = true; // signal that cursor might be out of visible area
-				break; 
-			}
-						
-			// Lookup glyph in font
-			auto g = font.lookupGlyph(ch);
-			auto offsetRect = Rectf(Window.active.pixelSizeToWorld(g.offsetRect.pos), 
-									Window.active.pixelSizeToWorld(g.offsetRect.size));
-			Rectf o = offsetRect + pos;
-			//std.stdio.writeln(o);
-			//o.size *= 1f;
-			//o = Rectf(0,0,1,1);
-			Rectf c = g.uvRect;
-			//c = Rectf(Vec2f(c.pos.x, -c.pos.y), c.size);
-			//c.pos *= 2.05f;
-			//c.size *= 1.0f;
-				
-			size_t base = idx*18;
-			
-			// TODO: optimize using e.g slices
-			verts[base..base+2] = o.pos.v[];
-			//verts[base+0] = o.x;
-			//verts[base+1] = o.y;
-			verts[base+2] = 0f;
-			
-			verts[base+3] = o.x;
-			verts[base+4] = o.y2;
-			verts[base+5] = 0f;
-	
-			verts[base+6] = o.x2;
-			verts[base+7] = o.y2;
-			verts[base+8] = 0f;
-	
-			verts[base+9] = o.x;
-			verts[base+10] = o.y;
-			verts[base+11] = 0f;
-	
-			verts[base+12] = o.x2;
-			verts[base+13] = o.y2;
-			verts[base+14] = 0f;
-	
-			verts[base+15] = o.x2;
-			verts[base+16] = o.y;
-			verts[base+17] = 0f;
-	
-			uint h = handled - 1;
-			if (nextRegion.a <= h && nextRegion.b > h)
-			{
-				for (int i = 0; i < 6; i++)
-				{
-					cols[base+i*3] = color.r;
-					cols[base+i*3+1] = color.g;
-					cols[base+i*3+2] = color.b;
-				}
-				if (nextRegion.b - 1 == h && !regions.empty)
-				{
-					nextRegion = regions.front;
-					regions.popFront();
-				}
-			}
-			else
-			{
-				for (int i = 0; i < 6; i++)
-				{
-					cols[base+i*3] = 1.0f;
-					cols[base+i*3+1] = 1.0f;
-					cols[base+i*3+2] = 1.0f;
-				}
-			}
-			
-			base = idx*12;
-	
-			uvs[base+0] = c.x;
-			uvs[base+1] = c.y;
-			
-			uvs[base+2] = c.x;
-			uvs[base+3] = c.y2;
-	
-			uvs[base+4] = c.x2;
-			uvs[base+5] = c.y2;
-	
-			uvs[base+6] = c.x;
-			uvs[base+7] = c.y;
-	
-			uvs[base+8] = c.x2;
-			uvs[base+9] = c.y2;
-	
-			uvs[base+10] = c.x2;
-			uvs[base+11] = c.y;
-			
-	//			pos.x += Window.active.pixelWidthToWorld(font.fontWidth);
-			pos.x += Window.active.pixelWidthToWorld(g.advance);
-			//pos += Vec2f(0.3f);
-			idx++;
-		}
-		verts.length = idx * 18;
-		uvs.length = idx * 12;
-		mesh.buffers[0].setData(verts);
-		mesh.buffers[1].setData(uvs);
-		mesh.buffers[2].setData(cols);
-	
-		//std.stdio.writeln(uvs.length);
-		//std.stdio.writeln(verts.length);
-		
-		// Special case when cursor poi is after the very last char in str 
-		if (handled == str.length && charOfInterest == (handled+1) && !skip)
-			poi = pos;
-		
-		return poi;
-		
-	}
-	
-++/	
 	
 }

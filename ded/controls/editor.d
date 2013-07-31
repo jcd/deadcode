@@ -1,6 +1,6 @@
 module controls.editor;
 
-import application;
+import editorapplication;
 import bufferview;
 import graphics._;
 import gui.command : CommandManager;

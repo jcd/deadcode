@@ -1,4 +1,4 @@
-module application;
+module editorapplication;
 
 import behavior.behavior;
 import buffer;
@@ -6,27 +6,19 @@ import bufferview;
 import gui._;
 import math._; // Vec2f
 
-class Application
+class EditorApplication : Application
 {
 	private
 	{
-		Window _window;
-		Widget _mainWidget, _draggerWidget, _resizerWidget;
 		BufferViewManager _bufferViewManager;
 		BufferView _currentBuffer;
-
-		static Application _singleton;
 	}
 	
 	@property
 	{
-		Window window() { return _window; }
-		Widget mainWidget() { return _mainWidget; }
-		Widget dragWidget() { return _draggerWidget; }
-		Widget resizeWidget() { return _resizerWidget; }
 		static BufferViewManager bufferViewManager() { return get()._bufferViewManager; }
 		static BufferView currentBuffer() { return get()._currentBuffer; }
-		static Application get() { return _singleton; }
+		static EditorApplication get() { return cast(EditorApplication) _singleton; }
 	}
 
 	static void AddMessage(Types...)(Types msgs)
@@ -37,42 +29,26 @@ class Application
 		view.insert(dtext(format(msgs)));
 		view.insert("\n"d);
 	}
-
-	this()
-	{
-		assert (_singleton is null);
-		_singleton = this;
-		std.exception.enforceEx!Exception(graphics._.init(), "Error initializing graphics");
-		
-		setupMainWindow();
-
-		_bufferViewManager = new BufferViewManager();
-		_currentBuffer = _bufferViewManager.create("ctrl+w for console\n", "*Messages*");
-		_currentBuffer.cursorToEnd();
-		mainWidget.content = _currentBuffer;
-
-		// Let text editing behave like emacs
-		import behavior.emacs;
-		EditorBehavior.current = new EmacsBehavior();
-	}
 	
-	~this()
+	void showCommandBuffer(string commandStr = "")
 	{
-		graphics._.destroy();
+		//BufferView b = _bufferViewManager.getOrCreate("CommandInput");
 	}
 
-	void run()
+	override protected void setupMainWidget(Widget _mainWidget)
 	{
+		Window _window = _mainWidget.window;
+
 		// Let text editor handle events before normal gui
-		window.onEvent = (Event ev) {
+		_window.onEvent = (Event ev) {
 			
-			bool used = window.send(ev);
+			bool used = _window.send(ev);
 			
 			// If the widgets themselves did not handle the event 
 			// and it is a keyboard event we let the shortcut/input handler have a chance
 			if (used)
-				return;
-
+				return true;
+			
 			switch (ev.type)
 			{
 				case EventType.KeyDown:
@@ -84,34 +60,16 @@ class Application
 				default:
 					break;
 			}
+			return false;
 		};
-		
-		// Start main loop
-		window.run();
-	}
-	
-	void showCommandBuffer(string commandStr = "")
-	{
-		//BufferView b = _bufferViewManager.getOrCreate("CommandInput");
-	}
 
-
-	private void setupMainWindow()
-	{
-		// import derelict.sdl2.sdl;   
-		import graphics._;
-		_window = new Window("Ded", 1280, 1024); 
-		
 		// A widget that can be mousedowned and resize the window
-		_resizerWidget = _window.createWidget(0, 0, 30, 30);
+		Widget _resizerWidget = _window.createWidget(0, 0, 30, 30);
 		_resizerWidget.features ~= new WindowResizer();
 		
 		// A widget that can be mousedowned and move the window
-		_draggerWidget = _window.createWidget(0, 0, 20, 32);
+		Widget _draggerWidget = _window.createWidget(0, 0, 20, 32);
 		_draggerWidget.features ~= new WindowDragger();
-		
-		// The main widget that spans the entire window
-		_mainWidget = _window.createWidget(0, 0, 1210, 1010);
 		
 		/*
 	ScalarExpr e = new ScalarExpr(mainWidget, WidgetAnchor.Top, 10);
@@ -170,5 +128,15 @@ class Application
 			std.stdio.writeln("clicked");
 			return false; 
 		};
+
+		_bufferViewManager = new BufferViewManager();
+		_currentBuffer = _bufferViewManager.create("ctrl+w for console\n", "*Messages*");
+		_currentBuffer.cursorToEnd();
+		_mainWidget.content = _currentBuffer;
+		
+		// Let text editing behave like emacs
+		import behavior.emacs;
+		EditorBehavior.current = new EmacsBehavior();
+		std.stdio.writeln("Setup");
 	}
 }

@@ -2,7 +2,7 @@ module o;
 
 import std.stdio;
 
-void o(T...)(T args)
+void l(T...)(T args)
 {
 	foreach (a; args)
 	{

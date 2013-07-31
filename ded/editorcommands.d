@@ -111,9 +111,9 @@ void register()
 
 	cmgr.create("editor.open", "Open file", delegate(Variant data) {
 	            	auto path = data.get!string;
-	            	import application;
-	            	Application.AddMessage("Opening %s", path);
-	            	auto view = Application.bufferViewManager.create("", path);
+	            	import editorapplication;
+	            	EditorApplication.AddMessage("Opening %s", path);
+					auto view = EditorApplication.bufferViewManager.create("", path);
 	            	auto file = std.stdio.File(path, "rb");
 	            	view.buffer.gbuffer.ensureGapCapacity(cast(uint)file.size);
 	            	auto r = file.byLine!(char,	char)(std.stdio.KeepTerminator.yes, '\x0a');
@@ -121,7 +121,7 @@ void register()
 	            	{
 	            		view.buffer.gbuffer.insert(std.conv.dtext(line));
 	            	}
-	            	Application.AddMessage("Read %s", view.name);
+					EditorApplication.AddMessage("Read %s", view.name);
 	            	//Application.activeEditor.show(view);
 	            });
 

@@ -13,9 +13,13 @@ import std.range;
 import std.typecons;
 import std.stdio;
 
+alias uint WindowID;
+enum NullWindowID = 0u;
+
 class Window : RenderWindow
 {
-	alias void delegate(Event) OnEvent;
+	// Return true if event has been used
+	alias bool delegate(Event) OnEvent;
 	alias void delegate() OnUpdate;
 
 	private
@@ -32,8 +36,12 @@ class Window : RenderWindow
 		QueuedEvent eventQueue;
 
 		Widget[WidgetID] widgets;
+		WidgetID nextWidgetId = 1u; // TODO: use pool
 		Timeline _timeline;
 	}
+
+	Widget mainWidget;
+	WindowID id;
 
 	package Widgets[WidgetID] _widgetChildren;
 
@@ -102,20 +110,24 @@ class Window : RenderWindow
 		return eventQueue.next is null;
 	}
 
-	this(const(char)[] name, Vec2i sz)
+	this(WindowID _id, const(char)[] name, Vec2i sz)
 	{
-		this(name, sz.x, sz.y);
+		this(_id, name, sz.x, sz.y);
 	}
 
-	this(const(char)[] name, int width, int height) 
+	this(WindowID _id, const(char)[] name, int width, int height) 
 	{
 		super(name, width, height);
+		id = _id;
+
 		eventQueue = new QueuedEvent(); // first event in queue is never dequeued
 
 		// If there is no active window yet then activate this
 		if (Window.active is null)
 			active = this;
-		
+
+		mainWidget = createWidget(0, 0, width, height);
+
 		SDL_StartTextInput();		
 	
 		_timeline = new Timeline;
@@ -137,8 +149,7 @@ class Window : RenderWindow
 			Event queuedEvent = dequeueEvent();
 			while (queuedEvent.type != EventType.Invalid)
 			{
-				if (_onEvent !is null)
-					_onEvent(queuedEvent);
+				dispatchEvent(queuedEvent);
 				queuedEvent = dequeueEvent();
 			}
 
@@ -213,9 +224,8 @@ class Window : RenderWindow
 				default:  
 					break; 
 			}
-			
-			if (ev.type != EventType.Invalid && _onEvent !is null)
-				_onEvent(ev);
+
+			dispatchEvent(ev);
 
 			pollResult = SDL_PollEvent(&e);
 
@@ -237,7 +247,7 @@ class Window : RenderWindow
 		
 		return running;
 	}
-	
+
 	void run()
 	{
 		Event ev;
@@ -268,14 +278,18 @@ class Window : RenderWindow
 	// is accepted as a double click
 	enum maxDoubleClickTime = 0.3f;
 
-	Widget createWidget()
+	Widget createWidget(Widget parent, float x = 0, float y = 0, float width = 100, float height = 100)
 	{
-		return createWidget(0, 0, 100, 100);
+		WidgetID wid = parent.window.id << 24 + nextWidgetId++; 
+		auto w = new Widget(wid, parent, x, y, width, height);
+		register(w);
+		return w;
 	}
 
-	Widget createWidget(float x, float y, float width, float height, Widget _parent = null)
+	Widget createWidget(float x = 0, float y = 0, float width = 100, float height = 100)
 	{
-		auto w = new Widget(x, y, width, height, _parent);
+		WidgetID wid = id << 24 + nextWidgetId++;
+		auto w = new Widget(wid, this, x, y, width, height);
 		register(w);
 		return w;
 	}
@@ -370,6 +384,20 @@ class Window : RenderWindow
 		mouseGrabbedBy = NullWidgetID;
 	}
 
+	private void dispatchEvent(Event ev)
+	{
+		if (ev.type == EventType.Invalid)
+			return;
+
+		bool handle = _onEvent !is null;
+		if (handle)
+			handle = _onEvent(ev);
+		// Handle will be false if onEvent is not set or onEvent did not handle the event.
+		// In that case fall back.
+		if (!handle)
+			send(ev);
+	}
+	
 	/** Send an event to the GUI system
  	* 
 	*  Returns: true if event is still valid ie. hasn't been used by an event handling function.

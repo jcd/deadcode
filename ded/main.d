@@ -1,6 +1,6 @@
 module main;
 
-import application;
+import editorapplication;
 import controls._;
 import gui.command;
 import gui.widgetfeature;
@@ -18,7 +18,8 @@ import gui.widgetfeature;
  */
 int main()
 { 
-	auto app = new Application();
+	auto app = new EditorApplication();
+	app.createWindow(1280, 1024, "Ded");
 
 	// Create a text buffer and add show it in the mainWidget
 	//auto fileName = "testmath.d";

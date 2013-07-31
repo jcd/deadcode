@@ -4,6 +4,7 @@ import graphics._;
 import gui.event;
 import gui.style;
 import gui.widgetfeature;
+import gui.window;
 import math._; // Rectf;
 
 // widget
@@ -27,8 +28,6 @@ alias Widget[] Widgets;
 
 final class Widget 
 {	
-	static WidgetID nextId = 1;
-
 	WidgetID id;
 	gui.window.Window window;
 
@@ -157,21 +156,22 @@ final class Widget
 		}
 	}
 */
-	package this()
+	package this(WidgetID _id, Widget _parent, float x = 0, float y = 0, float width = 100, float height = 100)
 	{
-		this(0, 0, 100, 100);
+		assert(_parent !is null);
+		this._parent = _parent;
+		this(_id, _parent.window, x, y, width, height);
 	}
 
-	package this(float x, float y, float width, float height, Widget _parent = null)
+	package this(WidgetID _id, Window owner, float x = 0, float y = 0, float width = 100, float height = 100)
 	{
 		//this(Rectf(x, y, x+w, y+h), _parentId);
 		visible = true;
 		zOrder = 0f;
 		rect = Rectf(x, y, width, height);
-		id = nextId++;
-		this._parent = _parent;
-		if (_parent !is null)
-			window = _parent.window;
+		id = _id;
+		assert(owner !is null);
+		window = owner;
 		this.acceptsKeyboardFocus = false;
 	}
 

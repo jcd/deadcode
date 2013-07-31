@@ -6,7 +6,6 @@ import gui.window;
 import math._;
 import std.range;
 import std.container;
-import styledtext;
 
 Model createTriangle()
 {

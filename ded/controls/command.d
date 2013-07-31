@@ -1,6 +1,6 @@
 module controls.command;
 
-import application;
+import editorapplication;
 import bufferview;
 import graphics._;
 import gui.command : CommandManager;
@@ -57,7 +57,7 @@ class CommandControl
 		renderer.model.material = graphics._.Material.create("bg3.png");
 		mainWidget.features ~= renderer;
 
-		bufferView = Application.bufferViewManager.create("", "*CommandInput*");
+		bufferView = EditorApplication.bufferViewManager.create("", "*CommandInput*");
 
 		mainWidget.onKeyDown = (Event ev, Widget w) {
 			if (ev.keyCode == stringToKeyCode("return"))

@@ -29,7 +29,7 @@
         <Lib>C:\Users\jonasd\Documents\Projects\D\dteam\external\Derelict3\lib\DerelictSDL2.lib</Lib>
       </Libs>
     </Libs>
-    <ExtraCompilerArguments>-property -unittest</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-property -unittest -gc</ExtraCompilerArguments>
     <UnittestMode>False</UnittestMode>
     <DebugLevel>0</DebugLevel>
     <ConsolePause>False</ConsolePause>
@@ -67,10 +67,8 @@
     <Compile Include="editorcommands.d" />
     <Compile Include="buffer.d" />
     <Compile Include="bufferview.d" />
-    <Compile Include="styledtext.d" />
     <Compile Include="system.d" />
     <Compile Include="build.d" />
-    <Compile Include="application.d" />
     <Compile Include="animation\timeline.d" />
     <Compile Include="animation\_.d" />
     <Compile Include="animation\interpolate.d" />
@@ -110,6 +108,9 @@
     <Compile Include="gui\text.d" />
     <Compile Include="gui\textlayout.d" />
     <Compile Include="o.d" />
+    <Compile Include="gui\styledtext.d" />
+    <Compile Include="gui\application.d" />
+    <Compile Include="editorapplication.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="extensions\" />

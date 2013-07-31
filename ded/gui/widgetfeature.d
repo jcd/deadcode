@@ -3,20 +3,12 @@ module gui.widgetfeature;
 
 import behavior.behavior;
 import graphics._; 
-import gui.event;
-import gui.models; // : TextModel;
-import gui.style; // : StyleSet, Style;
-import gui.text; // : TextModel;
-import gui.textlayout; // : TextModel;
-import gui.widget; // : Widget, WidgetID;
-import gui.window;
+import gui._;
 import math._;
 import std.c.windows.windows;
 import std.range;
 import std.variant;
 import std.conv;
-import styledtext;
-
 
 struct CURSORINFO {
   DWORD   cbSize;
@@ -33,9 +25,9 @@ extern (Windows) nothrow
 
 class WidgetFeature
 {
-	bool send(Event event, ref Widget widget) { return false; }
-	void update(ref Widget widget) {}
-	void draw(ref Widget widget, StyleSet styleSet) {}
+	bool send(Event event, Widget widget) { return false; }
+	void update(Widget widget) {}
+	void draw(Widget widget, StyleSet styleSet) {}
 }
 
 /** Layouting of child widgets
@@ -45,7 +37,7 @@ class WidgetFeature
  */
 class DirectionalLayout(bool isHorz) : WidgetFeature
 {
-	override bool send(Event event, ref Widget widget)
+	override bool send(Event event, Widget widget)
 	{
  		if (event.type != EventType.Resize)
 			return false;
@@ -80,7 +72,7 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 		return false;
 	}
 
-	override void update(ref Widget widget) 
+	override void update(Widget widget) 
 	{
 		
 	}
@@ -96,48 +88,6 @@ class GridLayout : WidgetFeature
 }
 */
 
-
-/*
-class Text : WidgetFeature
-{
-	enum Overflow
-	{
-		Clip,
-		Wrap
-	}
-	
-	Overflow overflowX;
-	Overflow overflowY;
-	
-	private text.GapBuffer!dchar buffer;
-	private graphics.Material material;
-	
-	this(dstring txt)
-	{
-		buffer = new text.GapBuffer!dchar(txt, 40);
-		material = Material.builtIn;
-	}
-	
-	bool send(Event event, ref Widget widget)
-	{
-		return false;
-	}
-
-	void update(ref Widget widget) 
-	{
-		// Create a bitmap that will span the widget and 
-		if (!material.texture.valid)
-			material.texture = Texture.create(cast(int)widget.rect.w, cast(int)widget.rect.h);
-
-		Rectf wrect = Window.active.windowToWorld(widget.rect);
-		float[] uv = quadUVs(wrect, material, Window.active);
-		widget.activeStyle.model.material = material;
-		widget.activeStyle.model.mesh.buffers[1].setData(uv);
-		widget.activeStyle.model.draw();
-	}
-}
- */
-
 class Dragger : WidgetFeature
 {
 	Rectf handleRect;
@@ -150,7 +100,7 @@ class Dragger : WidgetFeature
 		this.startDragPos = Vec2f(-1000000, -1000000);
 	}
 	
-	override bool send(Event event, ref Widget widget)
+	override bool send(Event event, Widget widget)
 	{
 		// Dragging support
 		Rectf handleRectAbs = handleRect;
@@ -190,7 +140,7 @@ class Dragger : WidgetFeature
 		return false;
 	}
 
-	override void update(ref Widget widget) 
+	override void update(Widget widget) 
 	{
 	}
 }
@@ -206,7 +156,7 @@ class WindowDragger : WidgetFeature
 		this.startDragPos = Vec2f(-1000000, -1000000);
 	}
 	
-	override bool send(Event event, ref Widget widget)
+	override bool send(Event event, Widget widget)
 	{
 		// Dragging support
 		if (event.type == EventType.MouseDown && widget.rect.contains(event.mousePos))
@@ -226,7 +176,7 @@ class WindowDragger : WidgetFeature
 		return false;
 	}
 
-	override void update(ref Widget widget) 
+	override void update(Widget widget) 
 	{
 		if (widget.isGrabbingMouse())
 		{
@@ -257,7 +207,7 @@ class WindowResizer : WidgetFeature
 		this.startDragPos = Vec2f(-1000000, -1000000);
 	}
 	
-	override bool send(Event event, ref Widget widget)
+	override bool send(Event event, Widget widget)
 	{
 		// Dragging support
 		if (event.type == EventType.MouseDown && widget.rect.contains(event.mousePos))
@@ -278,7 +228,7 @@ class WindowResizer : WidgetFeature
 		return false;
 	}
 
-	override void update(ref Widget widget) 
+	override void update(Widget widget) 
 	{
 		if (widget.isGrabbingMouse() && startDragPos.x > -1000)
 		{
@@ -346,11 +296,11 @@ class Constraint : WidgetFeature
 		this.offset = offset;
 	}
 	
-	override void update(ref Widget widget) 
+	override void update(Widget widget) 
 	{
 	}
 			
-	override bool send(Event event, ref Widget widget)
+	override bool send(Event event, Widget widget)
 	{
  		if (event.type != EventType.Resize)
 			return false;
@@ -485,7 +435,7 @@ class BoxRenderer : WidgetFeature
 		model = createWindowQuad(Rectf(0,0,1,1), _style.background);
 	}
 	
-	override void draw(ref Widget widget, StyleSet styleSet)
+	override void draw(Widget widget, StyleSet styleSet)
 	{
 		Rectf rect = widget.rect;
 		Rectf wrect = Window.active.windowToWorld(rect);
@@ -510,6 +460,48 @@ class BoxRenderer : WidgetFeature
 
 import bufferview;
 
+/*
+class Text : WidgetFeature
+{
+	enum Overflow
+	{
+		Clip,
+		Wrap
+	}
+	
+	Overflow overflowX;
+	Overflow overflowY;
+	
+	private text.GapBuffer!dchar buffer;
+	private graphics.Material material;
+	
+	this(dstring txt)
+	{
+		buffer = new text.GapBuffer!dchar(txt, 40);
+		material = Material.builtIn;
+	}
+	
+	bool send(Event event, ref Widget widget)
+	{
+		return false;
+	}
+
+	void update(ref Widget widget) 
+	{
+		// Create a bitmap that will span the widget and 
+		if (!material.texture.valid)
+			material.texture = Texture.create(cast(int)widget.rect.w, cast(int)widget.rect.h);
+
+		Rectf wrect = Window.active.windowToWorld(widget.rect);
+		float[] uv = quadUVs(wrect, material, Window.active);
+		widget.activeStyle.model.material = material;
+		widget.activeStyle.model.mesh.buffers[1].setData(uv);
+		widget.activeStyle.model.draw();
+	}
+}
+ */
+
+
 /** The Text feature of a widget can be used to displays the contents of a TextView
  *  on the widget
  */
@@ -521,19 +513,17 @@ class TextRenderer : WidgetFeature
 	
 	private
 	{
-		BufferView _view; // TODO: maybe specialize the Text class for non-editable text to use a raw buffer/string?
 		TextModel _model;
 		StyledText!BufferView _styledText;
 		Model _cursorModel = null;
 		TextBoxLayout _layout;
 	}
 
-	this(BufferView bufferView)
+	this(BufferView _bufferView)
 	{
-		this._view = bufferView;
 		auto rs = new RegionSet();
 		rs.add(0, uint.max);
-		this._styledText = new StyledText!BufferView(new DSourceStyler!BufferView(), bufferView, rs);
+		this._styledText = new StyledText!BufferView(new DSourceStyler!BufferView(), _bufferView, rs);
 		this._model = new TextModel(); // TODO: maybe model should be owner of styledText_
 		//assert(StyleSet.builtin.length != 0);
 		//assert(StyleSet.builtin[0].font !is null);
@@ -561,13 +551,14 @@ class TextRenderer : WidgetFeature
 */
 	@property 
 	{
-		void bufferView(BufferView v)
-		{
-			_view = v;
-		}
+		//void bufferView(BufferView v)
+		//{
+		//	_view = v;
+	//	}
+	
 		BufferView bufferView()
 		{
-			return _view;
+			return _styledText.text;
 		}
 	}
 	
@@ -584,7 +575,7 @@ class TextRenderer : WidgetFeature
 			c.execute(data);
 	}
 	
-	override bool send(Event event, ref Widget widget)
+	override bool send(Event event, Widget widget)
 	{
 		if (widget.isKeyboardFocusWidget())
 			return false;
@@ -592,16 +583,16 @@ class TextRenderer : WidgetFeature
 		// TODO: isn't behavior just a event -> edit mapping e.g. command
 		// TODO: have several kinds of behaviours for app, window, textview. 
 		//       App and window should have the chance to grab events before textview
-		//EditorBehavior.current.onEvent(event, _view);
+		//EditorBehavior.current.onEvent(event, bufferView);
 		return false;
 	}
 	
-	override void update(ref Widget widget)
+	override void update(Widget widget)
 	{
 		widget.acceptsKeyboardFocus = true;		
 	}
 	
-	override void draw(ref Widget widget, StyleSet styleSet)
+	override void draw(Widget widget, StyleSet styleSet)
 	{
 		// Issues: 
 		//   1, Cannot calc x offset correct when not using monotype because of the simple rendering we are doing.
@@ -620,6 +611,7 @@ class TextRenderer : WidgetFeature
 	
 		// Now calc the column and row of the cursor in order to find out the x and y coord:
 		// TODO: do
+
 		Font font = styleSet[0].font;
 		if (widget.rect.h == 0f)
 			return;
@@ -627,40 +619,42 @@ class TextRenderer : WidgetFeature
 		auto transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, widget.zOrder));
 		//auto transform = Mat4f.makeTranslate(Vec3f(-1,1,0));
 
-		if (true || _view.dirty)
+		BufferView view = bufferView;
+
+		if (true || view.dirty)
 		{
 			// Update style region set.
 			// TODO: only on changes
 			_styledText.update(styleSet);
 
-			_view.visibleLineCount = cast(uint) (widget.rect.size.y / font.fontLineSkip);
+			view.visibleLineCount = cast(uint) (widget.rect.size.y / font.fontLineSkip);
 			
 			// TODO: get transform
 			Vec2f worldSize = Window.active.pixelSizeToWorld(widget.rect.size);
 			//_model.renderArea = Rectf(0, 0, worldSize.x, worldSize.y); // Only update on resize
 
 			//auto rset = new RegionSet();
-			//rset.add(_view.bufferOffset, _view.length);
-			//_model.add(_view.buffer[rset.a .. rset.b], styleSet[0]);
+			//rset.add(view.bufferOffset,_view.length);
+			//_model.add(view.buffer[rset.a .. rset.b], styleSet[0]);
 
 			_model.resetGlyphPositions();
 
-			//auto offset = _view.buffer.startOfLine(_view.bufferOffset);
+			//auto offset = view.buffer.startOfLine(view.bufferOffset);
 
 //			_layout = TextBoxLayout(_model, Rectf(0.0f * worldSize.x, -0.0f * worldSize.y, worldSize.x, worldSize.y));
-//			std.stdio.writeln(wrect.h, " ", _view.visibleLineCount, " ", worldSize.v);
+//			std.stdio.writeln(wrect.h, " ", view.visibleLineCount, " ", worldSize.v);
 
 			_layout = TextBoxLayout(_model, Rectf(0, 0, worldSize.x, worldSize.y));
 			foreach (r; _styledText.regionSet)
 			{
-				if (r.b <= _view.bufferOffset) continue;
-				if (r.contains(_view.bufferOffset))
+				if (r.b <= view.bufferOffset) continue;
+				if (r.contains(view.bufferOffset))
 				{
-					r.a = _view.bufferOffset;
+					r.a = view.bufferOffset;
 				}
 
-				//				_layout.add(_view.buffer[0.. 3000], styleSet[r.id]);
-				_layout.add(_view.buffer[r.a .. r.b], styleSet[r.id]);
+				//				_layout.add(view.buffer[0.. 3000], styleSet[r.id]);
+				_layout.add(view.buffer[r.a .. r.b], styleSet[r.id]);
 				if (_layout.done)
 					break;
 			}
@@ -671,39 +665,39 @@ class TextRenderer : WidgetFeature
 				_model.clear();
 			}
 
-			//_model.add(worldSize.x, _view.buffer[0 .. 3], styleSet[0]);
-			//_model.add(worldSize.x, _view.buffer[3 .. 8], styleSet[1]);
-			//_model.add(worldSize.x, _view.buffer[8 .. 200], styleSet[2]);
+			//_model.add(worldSize.x, view.buffer[0 .. 3], styleSet[0]);
+			//_model.add(worldSize.x, view.buffer[3 .. 8], styleSet[1]);
+			//_model.add(worldSize.x, view.buffer[8 .. 200], styleSet[2]);
 
-			//_model.add(worldSize.x, _view.buffer[0 .. 51], styleSet[0]);
-			//_model.add(worldSize.x, _view.buffer[51 .. 54], styleSet[1]);
-			//_model.add(worldSize.x, _view.buffer[54 .. 200], styleSet[2]);
+			//_model.add(worldSize.x, view.buffer[0 .. 51], styleSet[0]);
+			//_model.add(worldSize.x, view.buffer[51 .. 54], styleSet[1]);
+			//_model.add(worldSize.x, view.buffer[54 .. 200], styleSet[2]);
 
 
-			_view.dirty = false;
+			view.dirty = false;
 				
 			//_rectLines = cast(uint)(widget.rect.h / styleSet[""].font.fontLineSkip);
 		}
 
 		_model.draw(Window.active.MVP * transform);
 
-		//uint glyphLineIndex = _view.cursorPoint - _view.buffer.startOfLine(_view.cursorPoint);
+		//uint glyphLineIndex = view.cursorPoint - view.buffer.startOfLine(view.cursorPoint);
 		// float cursorLineOffset = _layout.lines[row].glyphWorldPos(glyphLineIndex).x;
-		//float cursorLineOffset = _model.getGlyphWorldPos(_view.cursorPoint - _view.bufferOffset).x;
+		//float cursorLineOffset = _model.getGlyphWorldPos(view.cursorPoint - view.bufferOffset).x;
 		
 		Rectf rect = void;
-		//std.stdio.writeln("of ", _view.cursorPoint, " ", _view.buffer.length, " ", _view.bufferOffset);
+		//std.stdio.writeln("of ", view.cursorPoint, " ", view.buffer.length, " ", view.bufferOffset);
 
 		// Cull cursor
-		auto cursorLine = _view.buffer.lineNumber(_view.cursorPoint);
-		//7std.stdio.writeln("FOOOO ", cursorLine, " ", _view.cursorPoint, " ", _view.bufferOffset, " ", _view.lineOffset, " ", _layout.lines.length, " ", _view.buffer.length);
-		if (cursorLine < _view.lineOffset || cursorLine > (_view.lineOffset + _layout.lines.length) || _layout.lines.empty)
+		auto cursorLine = view.buffer.lineNumber(view.cursorPoint);
+		//7std.stdio.writeln("FOOOO ", cursorLine, " ", view.cursorPoint, " ", view.bufferOffset, " ", view.lineOffset, " ", _layout.lines.length, " ", view.buffer.length);
+		if (cursorLine < view.lineOffset || cursorLine > (view.lineOffset + _layout.lines.length) || _layout.lines.empty)
 			return;
 
-		if (_view.cursorPoint == _view.buffer.length)
+		if (view.cursorPoint == view.buffer.length)
 		{
 			// Special handling for end of doc because no glyph info is present for that index obviously
-			auto idx = cast(int)_view.cursorPoint - cast(int)_view.bufferOffset;
+			auto idx = cast(int)view.cursorPoint - cast(int)view.bufferOffset;
 			if (idx < 1)
 				return; // no text for cursor
 			rect = _model.getGlyphWorldPos(idx-1);
@@ -711,17 +705,17 @@ class TextRenderer : WidgetFeature
 		}
 		else
 		{
-			rect = _model.getGlyphWorldPos(_view.cursorPoint - _view.bufferOffset);
+			rect = _model.getGlyphWorldPos(view.cursorPoint - view.bufferOffset);
 			if (rect.h == 0)
 				return;
 		}
 
-		//uint column = _view.cursorPoint - _view.buffer.startOfLine(_view.cursorPoint);
+		//uint column = view.cursorPoint - view.buffer.startOfLine(view.cursorPoint);
 //		Vec2f cursorOffset = Window.active.pixelSizeToWorld(Vec2f(0, -cast(float)(row * font.fontLineSkip)));
 //		cursorOffset.x = cursorLineOffset;
 		//std.stdio.writeln(row);
-		uint row = cursorLine - _view.lineOffset;
-		//std.stdio.writeln("row ", row, " ", _view.buffer.lineNumber(_view.cursorPoint), " " , _view.lineOffset);
+		uint row = cursorLine - view.lineOffset;
+		//std.stdio.writeln("row ", row, " ", view.buffer.lineNumber(view.cursorPoint), " " , view.lineOffset);
 		auto lineRect = _layout.lines[row].rect;
 		transform = transform * Mat4f.makeTranslate(Vec3f(rect.x, lineRect.y - (lineRect.h ), 0f)) * Mat4f.makeScale(Vec3f(Window.active.pixelWidthToWorld(1), lineRect.h, 0));
 //		transform = transform * Mat4f.makeTranslate(Vec3f(rect.x, lineRect.y - (lineRect.h - _layout.lines[row].textBaseLine), 0f)) * Mat4f.makeScale(Vec3f(rect.w, lineRect.h, 0));
@@ -729,18 +723,20 @@ class TextRenderer : WidgetFeature
 	}
 }
 
-import application;
+//import application;
+/*
 @property BufferView content(Widget widget, string text)
 {
 	auto bv = Application.bufferViewManager.create(text);
 	return content(widget, bv);
 }
+*/
 
 @property BufferView content(Widget widget, BufferView view)
 {
 	auto tr = new TextRenderer(view);
 	//foreach (ref 
-	//widget.features ~= tr;
+	widget.features ~= tr;
 	return tr.bufferView;
 }
 

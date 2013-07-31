@@ -62,13 +62,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="main.d" />
-    <Compile Include="dbg.d" />
     <Compile Include="behavior\emacs.d" />
     <Compile Include="behavior\behavior.d" />
     <Compile Include="editorcommands.d" />
     <Compile Include="buffer.d" />
     <Compile Include="bufferview.d" />
-    <Compile Include="models.d" />
     <Compile Include="styledtext.d" />
     <Compile Include="system.d" />
     <Compile Include="build.d" />
@@ -104,6 +102,14 @@
     <Compile Include="gui\command.d" />
     <Compile Include="gui\keycode.d" />
     <Compile Include="gui\keybinding.d" />
+    <Compile Include="graphics\renderqueue.d" />
+    <Compile Include="graphics\camera.d" />
+    <Compile Include="graphics\rendertarget.d" />
+    <Compile Include="graphics\renderwindow.d" />
+    <Compile Include="gui\models.d" />
+    <Compile Include="gui\text.d" />
+    <Compile Include="gui\textlayout.d" />
+    <Compile Include="o.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="extensions\" />

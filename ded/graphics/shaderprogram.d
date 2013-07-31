@@ -89,7 +89,7 @@ final class ShaderProgram
 		glUseProgram(glProgramID);
 		scope (exit) glUseProgram(0);
 		glUniform1i(getUniformLocation(name), location); 
-	} 
+	}
 	
 	void setUniform(const(char)[] name, in Mat4f m)
 	{ 

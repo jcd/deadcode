@@ -87,6 +87,7 @@ public import graphics.material;
 public import graphics.model;
 public import graphics.font;
 public import graphics.color;
+public import graphics.window;
 
 version (none)
 {

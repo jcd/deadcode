@@ -4,11 +4,13 @@ module gui.widgetfeature;
 import behavior.behavior;
 import graphics._; 
 import gui.event;
+import gui.models; // : TextModel;
 import gui.style; // : StyleSet, Style;
+import gui.text; // : TextModel;
+import gui.textlayout; // : TextModel;
 import gui.widget; // : Widget, WidgetID;
 import gui.window;
 import math._;
-import models; // : TextModel;
 import std.c.windows.windows;
 import std.range;
 import std.variant;
@@ -45,7 +47,7 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 {
 	override bool send(Event event, ref Widget widget)
 	{
- 		if (event.type != Event.Type.Resize)
+ 		if (event.type != EventType.Resize)
 			return false;
 		
 		auto c = widget.children;
@@ -155,7 +157,7 @@ class Dragger : WidgetFeature
 		handleRectAbs.pos.x += widget.rect.pos.x;
 		handleRectAbs.pos.y += widget.rect.pos.y;
 		
-		if (event.type == Event.Type.MouseDown && handleRectAbs.contains(event.mousePos))
+		if (event.type == EventType.MouseDown && handleRectAbs.contains(event.mousePos))
 		{
 			widget.grabMouse();
 			startDragPos = event.mousePos;
@@ -168,8 +170,8 @@ class Dragger : WidgetFeature
 			return false;
 		}
 		
-		if (widget.mouseGrabbedBy == widget.id &&
-			event.type == Event.Type.MouseMove && 
+		if (widget.isGrabbingMouse() &&
+			event.type == EventType.MouseMove && 
 		    event.mouseButtonsActive == Event.MouseButton.Left)
 		{
 			startDragPos = Vec2f(-1000000, -1000000);
@@ -179,7 +181,7 @@ class Dragger : WidgetFeature
 			return true;
 		} 
 		
-		if (event.type == Event.Type.MouseUp)
+		if (event.type == EventType.MouseUp)
 		{
 			startDragPos = Vec2f(-1000000, -1000000);
 			widget.releaseMouse();
@@ -207,14 +209,14 @@ class WindowDragger : WidgetFeature
 	override bool send(Event event, ref Widget widget)
 	{
 		// Dragging support
-		if (event.type == Event.Type.MouseDown && widget.rect.contains(event.mousePos))
+		if (event.type == EventType.MouseDown && widget.rect.contains(event.mousePos))
 		{
 			widget.grabMouse();
 			startDragPos = event.mousePos;
 			Window.active.waitForEvents = false;
 			return true;
 		} 
-		if (event.type == Event.Type.MouseUp)
+		if (event.type == EventType.MouseUp)
 		{
 			startDragPos = Vec2f(-1000000, -1000000);
 			widget.releaseMouse();
@@ -226,7 +228,7 @@ class WindowDragger : WidgetFeature
 
 	override void update(ref Widget widget) 
 	{
-		if (widget.mouseGrabbedBy == widget.id)
+		if (widget.isGrabbingMouse())
 		{
 			CURSORINFO desktopPos;
 			desktopPos.cbSize = CURSORINFO.sizeof;
@@ -258,7 +260,7 @@ class WindowResizer : WidgetFeature
 	override bool send(Event event, ref Widget widget)
 	{
 		// Dragging support
-		if (event.type == Event.Type.MouseDown && widget.rect.contains(event.mousePos))
+		if (event.type == EventType.MouseDown && widget.rect.contains(event.mousePos))
 		{
 			startSize = Window.active.size;
 			widget.grabMouse();
@@ -266,7 +268,7 @@ class WindowResizer : WidgetFeature
 			Window.active.waitForEvents = false;
 			return true;
 		} 
-		if (event.type == Event.Type.MouseUp)
+		if (event.type == EventType.MouseUp)
 		{
 			startDragPos = Vec2f(-1000000, -1000000);
 			widget.releaseMouse();
@@ -278,7 +280,7 @@ class WindowResizer : WidgetFeature
 
 	override void update(ref Widget widget) 
 	{
-		if (widget.mouseGrabbedBy == widget.id && startDragPos.x > -1000)
+		if (widget.isGrabbingMouse() && startDragPos.x > -1000)
 		{
 			Vec2f screenPos = getCursorScreenPos();
 			Window.active.size = startSize + (screenPos - startDragPos);
@@ -350,16 +352,17 @@ class Constraint : WidgetFeature
 			
 	override bool send(Event event, ref Widget widget)
 	{
- 		if (event.type != Event.Type.Resize)
+ 		if (event.type != EventType.Resize)
 			return false;
 		
 		float k = 0.999f;
 		
 		Rectf startRect = widget.rect;
-		
-		Rectf windowRect = Rectf(0,0,Window.active.width,Window.active.height);
 
-		Rectf relRect = relation == NullWidgetID ? windowRect : Widget.widgets[relation].rect;
+		Vec2i winSize = Window.active.size;
+		Rectf windowRect = Rectf(0,0,winSize.x,winSize.y);
+
+		Rectf relRect = relation == NullWidgetID ? windowRect : gui.window.Window.active.getWidget(relation).rect;
 		Vec2f relAnchor;
 		
 		// The vertical axis
@@ -458,7 +461,7 @@ class Constraint : WidgetFeature
 class BoxRenderer : WidgetFeature 
 {
 	Style _style;
-	Model!int model;
+	Model model;
 
 	@property {
 		Style style() 
@@ -501,7 +504,7 @@ class BoxRenderer : WidgetFeature
 			model.mesh.buffers[0].data = vert;
 			model.mesh.buffers[1].data = uv;
 		}
-		model.draw(transform);
+		model.draw(Window.active.MVP * transform);
 	}
 }
 
@@ -521,7 +524,7 @@ class TextRenderer : WidgetFeature
 		BufferView _view; // TODO: maybe specialize the Text class for non-editable text to use a raw buffer/string?
 		TextModel _model;
 		StyledText!BufferView _styledText;
-		Model!int _cursorModel = null;
+		Model _cursorModel = null;
 		TextBoxLayout _layout;
 	}
 
@@ -583,7 +586,7 @@ class TextRenderer : WidgetFeature
 	
 	override bool send(Event event, ref Widget widget)
 	{
-		if (widget.id != Widget.keyboardFocusWidget)
+		if (widget.isKeyboardFocusWidget())
 			return false;
 
 		// TODO: isn't behavior just a event -> edit mapping e.g. command
@@ -682,7 +685,7 @@ class TextRenderer : WidgetFeature
 			//_rectLines = cast(uint)(widget.rect.h / styleSet[""].font.fontLineSkip);
 		}
 
-		_model.draw(transform);
+		_model.draw(Window.active.MVP * transform);
 
 		//uint glyphLineIndex = _view.cursorPoint - _view.buffer.startOfLine(_view.cursorPoint);
 		// float cursorLineOffset = _layout.lines[row].glyphWorldPos(glyphLineIndex).x;
@@ -722,7 +725,7 @@ class TextRenderer : WidgetFeature
 		auto lineRect = _layout.lines[row].rect;
 		transform = transform * Mat4f.makeTranslate(Vec3f(rect.x, lineRect.y - (lineRect.h ), 0f)) * Mat4f.makeScale(Vec3f(Window.active.pixelWidthToWorld(1), lineRect.h, 0));
 //		transform = transform * Mat4f.makeTranslate(Vec3f(rect.x, lineRect.y - (lineRect.h - _layout.lines[row].textBaseLine), 0f)) * Mat4f.makeScale(Vec3f(rect.w, lineRect.h, 0));
-		_cursorModel.draw(transform);
+		_cursorModel.draw(Window.active.MVP * transform);
 	}
 }
 
@@ -754,10 +757,14 @@ BufferView bufferView(Widget widget)
 
 Widget bufferWidget(BufferView view)
 {
+	// TODO: fix
+	return null;
+	/*
 	foreach (k, v; Widget.widgets)
 	{
 		if (v.bufferView() is view)
 			return v;
 	}
 	return null;
+*/
 }

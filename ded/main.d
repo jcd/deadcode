@@ -41,7 +41,7 @@ class CommandFields
 
 	this()
 	{
-		widget.events[Event.Type.KeyUp] = onKeyUp;
+		widget.events[EventType.KeyUp] = onKeyUp;
 	}
 
 	void onKeyUp(Widget w, Event ev)

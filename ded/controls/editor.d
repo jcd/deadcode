@@ -16,7 +16,7 @@ class Editor
 	
 	this(float h)
 	{
-		mainWidget = new Widget();
+		mainWidget = gui.window.Window.active.createWidget();
 		mainWidget.acceptsKeyboardFocus = true;
 
 		auto renderer = new BoxRenderer();
@@ -32,7 +32,7 @@ class Editor
 		{
 			// create a widget for this buffer
 
-			auto newWidget = new Widget();
+			auto newWidget = gui.window.Window.active.createWidget();
 		
 			auto c = new Constraint(mainWidget.id,
 		    	                    Constraint.HorizontalAnchor.Right, Constraint.VerticalAnchor.Bottom,

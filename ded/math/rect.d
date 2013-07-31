@@ -132,7 +132,6 @@ struct Rect(T)
 
 alias Rect!(float) Rectf;
 
-
 unittest 
 {
 	Rectf r = Rectf(1, 2, 3, 4);

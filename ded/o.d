@@ -1,4 +1,4 @@
-module dbg;
+module o;
 
 import std.stdio;
 

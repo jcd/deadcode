@@ -69,7 +69,7 @@ class EmacsBehavior : EditorBehavior
 			return;
 		}
 
-		if (event.type == Event.Type.KeyDown)
+		if (event.type == EventType.KeyDown)
 		{
 			currentKeySequence.add(event.keyCode, event.mod);
 			auto fn = (KeyBinding a) => { return a.command.canExecute(Variant(1u)); };
@@ -101,7 +101,7 @@ class EmacsBehavior : EditorBehavior
 			// No key bindings for this key event. Go enter text to editor
 			currentKeySequence.length = 0;
 		} 
-		else if (event.type == Event.Type.MouseScroll && view !is null)
+		else if (event.type == EventType.MouseScroll && view !is null)
 		{
 			// Scroll view
 			int d = cast(int) event.scroll.y;
@@ -116,7 +116,7 @@ class EmacsBehavior : EditorBehavior
 					view.scrollUp();
 			}
 		}
-		else if (event.type == Event.Type.MouseClick && view !is null)
+		else if (event.type == EventType.MouseClick && view !is null)
 		{
 			// Locate char under mouse pointer and set cursor at that char
 			
@@ -126,12 +126,12 @@ class EmacsBehavior : EditorBehavior
 
 		switch (event.type)
 		{
-		case Event.Type.Text:
+		case EventType.Text:
 			std.stdio.writeln(event.ch, " ", std.conv.to!string(event.mod), " ", view);
 			view.insert(event.ch);
 			std.stdio.writeln(event.ch, " ", std.conv.to!string(event.mod));
 			break;
-		case Event.Type.KeyDown:
+		case EventType.KeyDown:
 			//handleKeyDown(event, controller);
 		default:
 		break;

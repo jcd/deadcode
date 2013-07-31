@@ -10,13 +10,6 @@ import std.conv;
 import derelict.sdl2.sdl; 
 import derelict.sdl2.ttf;
 
-Font inheritFont;
-static this()
-{
-	// Special font to signal that a style should use parent styles font
-	 inheritFont = new Font();
-}
-
 class Font
 {
 	private
@@ -137,9 +130,7 @@ class Font
 			texWidth = 64;	
 			texHeight <<= 1;
 		}
-		
-		
-		
+
 		enforceEx!Exception(texWidth <= 4096, "Font map texture width > 4096");
 		enforceEx!Exception(texHeight <= 4096, "Font map texture height > 4096");
 	
@@ -154,20 +145,7 @@ class Font
 			fontMap = Texture.create(texWidth, texHeight);
 		}
 	}
-	
-private int nextPowerOfTwo(int i) nothrow
-{
-    int v = i - 1;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    v++;
-    //assert(isPowerOf2(v));
-    return v;
-}
-	
+
 	private void populateFontMap()
 	{
 		SDL_Surface * pow2surface = SDL_CreateRGBSurface(0, cast(int)fontMap.width, cast(int)fontMap.height, 32,
@@ -188,15 +166,12 @@ private int nextPowerOfTwo(int i) nothrow
 		foreach (ref gi; glyphInfoASCII)
 		{
 			SDL_Surface * s = TTF_RenderGlyph_Blended(ttfFont, cast(wchar)gi.ch, col);
-			//SDL_Surface * s = TTF_RenderUTF8_Blended(ttfFont, "hello".ptr, col);
 			if (s is null)
 			{
-				
 				std.stdio.writeln("Could not rasterize glyph ", gi.ch);
 				break;
 			}
-			
-			
+
 			float uWidth = gi.advance * uPerPixel;
 			if (lastU + uWidth > 1f)
 			{
@@ -250,9 +225,6 @@ private int nextPowerOfTwo(int i) nothrow
 						text("Error measuring text size: ", TTF_GetError()));
 	}	
 }
-
-
-
 
 /*
 Model createWindowFontMapTestQuad(Rectf windowRect)

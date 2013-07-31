@@ -23,15 +23,15 @@ class CommandControl
 	{
 		expandSpeed = 0.3f;
 		height = h;
-		mainWidget = new Widget();
+		mainWidget = gui.window.Window.active.createWidget();
 		mainWidget.acceptsKeyboardFocus = true;
 		mainWidget.rect.size.y = 1f;
-		auto bottomWidget = new Widget();
+		auto bottomWidget = gui.window.Window.active.createWidget();
 
-		bottomWidget.events[Event.Type.Update] = (Event ev, ref Widget w) {
+	//	bottomWidget.events[EventType.Update] = (Event ev, ref Widget w) {
 			//std.stdio.writeln("hello ", w.rect.pos.v, " ", w.rect.size.v);
-			return true;
-		};
+	//		return true;
+	//	};
 
 		auto c = new Constraint(mainWidget.id,
 		                        Constraint.HorizontalAnchor.Right, Constraint.VerticalAnchor.Bottom,
@@ -59,7 +59,7 @@ class CommandControl
 
 		bufferView = Application.bufferViewManager.create("", "*CommandInput*");
 
-		mainWidget.events[Event.Type.KeyDown] = (Event ev, ref Widget w) {
+		mainWidget.onKeyDown = (Event ev, Widget w) {
 			if (ev.keyCode == stringToKeyCode("return"))
 			{
 				toggleShown();
@@ -71,7 +71,7 @@ class CommandControl
 			return true; 
 		};
 
-		mainWidget.events[Event.Type.Text] = (Event ev, ref Widget w) {
+		mainWidget.onText = (Event ev, Widget w) {
 			behavior.behavior.EditorBehavior.current.onEvent(ev, bufferView);
 			return true; 
 		};
@@ -94,11 +94,11 @@ class CommandControl
 			if (b && show || !b && !show)
 				return;
 
-			std.stdio.writeln("show ", b, " ", mainWidget.id);
+			std.stdio.writeln("show ", b, " ", mainWidget.id, " ", mainWidget.rect.size.y);
 
-			Widget.setKeyboardFocusWidget(b ? mainWidget.id : NullWidgetID);
+			gui.window.Window.active.setKeyboardFocusWidget(b ? mainWidget : null);
 
-			Application.timeline.animate(mainWidget.rect.size.y, b ? height : 0, expandSpeed);
+			gui.window.Window.active.timeline.animate(mainWidget.rect.size.y, b ? height : 0, expandSpeed);
 		}
 
 		bool show()

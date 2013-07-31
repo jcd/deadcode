@@ -1,170 +1,154 @@
 module gui.window;
 
-import derelict.opengl3.gl3; 
+import animation.timeline;
+import core.time;
 import derelict.sdl2.sdl;
+import graphics._;
 import gui.event;
 import gui.keycode;
+import gui.style;
+import gui.widget;
 import math._;
 import std.range;
 import std.typecons;
 import std.stdio;
 
-struct Window
+class Window : RenderWindow
 {
 	alias void delegate(Event) OnEvent;
 	alias void delegate() OnUpdate;
-	private struct Impl 
+
+	private
 	{
-		int width;
-		int height;
-		bool waitForEvents;
-		OnEvent onEvent;
-		OnUpdate onUpdate;
-		SDL_Window *win; 
-		SDL_GLContext context; 
-		
-		~this()
+		bool _waitForEvents;
+		OnEvent _onEvent;
+		OnUpdate _onUpdate;
+
+		class QueuedEvent
 		{
-			if (context)
-				SDL_GL_DeleteContext(context); 
-			if (win)
-				SDL_DestroyWindow(win); 
+			Event event;
+			QueuedEvent next;
 		}
+		QueuedEvent eventQueue;
+
+		Widget[WidgetID] widgets;
+		Timeline _timeline;
 	}
-	
-	RefCounted!(Impl) p;
-	
+
+	package Widgets[WidgetID] _widgetChildren;
+
 	static Window active;
-	
-	Mat4f MVP;
-	
-	@property void waitForEvents(bool v)
+
+	@property 
 	{
-		p.waitForEvents = v;
+		void waitForEvents(bool v)
+		{
+			_waitForEvents = v;
+		}
+
+		void onEvent(OnEvent callback)
+		{
+			_onEvent = callback;
+		}
+	
+		void onUpdate(OnUpdate callback)
+		{
+			_onUpdate = callback;
+		}
+
+		override Vec2i size()
+		{
+			return super.size;
+		}
+
+		override void size(Vec2f s)
+		{			
+			this.size(Vec2i(cast(int)s.x, cast(int)s.y));
+		}
+
+		override void size(Vec2i sz)
+		{
+			super.size = sz;
+			Event ev;
+			ev.type = EventType.Resize;
+			ev.width = sz.x;
+			ev.height = sz.y;
+			queueEvent(ev);	
+		}
+
+		Timeline timeline() { return _timeline; }
 	}
-	
-	@property void onEvent(OnEvent callback)
+
+	void queueEvent(Event e)
 	{
-		p.onEvent = callback;
+		QueuedEvent qe = eventQueue;
+		while (qe.next !is null)
+			qe = qe.next;
+		qe.next = new QueuedEvent;
+		qe.next.event = e;
 	}
-	
-	@property void onUpdate(OnUpdate callback)
+
+	Event dequeueEvent()
 	{
-		p.onUpdate = callback;
+		if (eventQueue.next is null)
+			return Event(EventType.Invalid);
+		QueuedEvent e = eventQueue.next;
+		eventQueue.next = e.next;
+		return e.event;
 	}
-	
-	this(const(char)[] name, int width, int height)
+
+	bool queueEmpty()
 	{
-		p = RefCounted!(Impl,RefCountedAutoInitialize.no)(width, height);
-		
-		int flags = SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | SDL_WINDOW_SHOWN;// |
-		/*SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE; */
-		p.win = SDL_CreateWindow(name.ptr, 0, 0, width, height, flags); 
-		//	   	p.win = SDL_CreateWindow(name.ptr, SDL_WINDOWPOS_CENTERED, 
-		//SDL_WINDOWPOS_CENTERED, width, height, flags); 
-		
-		if(!p.win)
-		{ 
-			writefln("Error creating SDL window"); 
-			SDL_Quit();
-		} 
-		
-		p.context = SDL_GL_CreateContext(p.win); 
-		SDL_GL_SetSwapInterval(1); 
-		glClearColor(0.0, 0.0, 0.0, 1.0); 
-		glViewport(0, 0, width, height); 
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
-		glClearDepth(1.0);
-		auto aspect = cast(double)width / cast(double)height;
-		/*
-		glMatrixMode( GL_PROJECTION );
-		glLoadIdentity(); 
-		glFrustum(-near_height * aspect, 
-		   near_height * aspect, 
-		   -near_height,
-		   near_height, zNear, zFar );	
-*/	
-		
-		DerelictGL3.reload(); 
-		
-		Mat4f proj = Mat4f.orthographic(-1,1,-1,1,1,100);
-		Mat4f view = Mat4f.makeTranslate(Vec3f(0.0,0.0,10.0f));
-		MVP = proj * view;
-		
+		return eventQueue.next is null;
+	}
+
+	this(const(char)[] name, Vec2i sz)
+	{
+		this(name, sz.x, sz.y);
+	}
+
+	this(const(char)[] name, int width, int height) 
+	{
+		super(name, width, height);
+		eventQueue = new QueuedEvent(); // first event in queue is never dequeued
+
 		// If there is no active window yet then activate this
-		if (!Window.active.p.refCountedStore().isInitialized)
+		if (Window.active is null)
 			active = this;
 		
 		SDL_StartTextInput();		
-		icon();
-	}
 	
-	void icon()
-	{
-		// TODO: read from file
-		SDL_Surface *surface;     // Declare an SDL_Surface to be filled in with pixel data from an image file
-		ushort pixels[16*16] = [  // ...or with raw pixel data.
-		                        0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 
-		                        0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 
-		                        0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 
-		                        0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 
-		                        0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 
-		                        0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 
-		                        0x0fff, 0x0aab, 0x0789, 0x0bcc, 0x0eee, 0x09aa, 0x099a, 0x0ddd, 
-		                        0x0fff, 0x0eee, 0x0899, 0x0fff, 0x0fff, 0x1fff, 0x0dde, 0x0dee, 
-		                        0x0fff, 0xabbc, 0xf779, 0x8cdd, 0x3fff, 0x9bbc, 0xaaab, 0x6fff, 
-		                        0x0fff, 0x3fff, 0xbaab, 0x0fff, 0x0fff, 0x6689, 0x6fff, 0x0dee, 
-		                        0xe678, 0xf134, 0x8abb, 0xf235, 0xf678, 0xf013, 0xf568, 0xf001, 
-		                        0xd889, 0x7abc, 0xf001, 0x0fff, 0x0fff, 0x0bcc, 0x9124, 0x5fff, 
-		                        0xf124, 0xf356, 0x3eee, 0x0fff, 0x7bbc, 0xf124, 0x0789, 0x2fff, 
-		                        0xf002, 0xd789, 0xf024, 0x0fff, 0x0fff, 0x0002, 0x0134, 0xd79a, 
-		                        0x1fff, 0xf023, 0xf000, 0xf124, 0xc99a, 0xf024, 0x0567, 0x0fff, 
-		                        0xf002, 0xe678, 0xf013, 0x0fff, 0x0ddd, 0x0fff, 0x0fff, 0xb689, 
-		                        0x8abb, 0x0fff, 0x0fff, 0xf001, 0xf235, 0xf013, 0x0fff, 0xd789, 
-		                        0xf002, 0x9899, 0xf001, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0xe789, 
-		                        0xf023, 0xf000, 0xf001, 0xe456, 0x8bcc, 0xf013, 0xf002, 0xf012, 
-		                        0x1767, 0x5aaa, 0xf013, 0xf001, 0xf000, 0x0fff, 0x7fff, 0xf124, 
-		                        0x0fff, 0x089a, 0x0578, 0x0fff, 0x089a, 0x0013, 0x0245, 0x0eff, 
-		                        0x0223, 0x0dde, 0x0135, 0x0789, 0x0ddd, 0xbbbc, 0xf346, 0x0467, 
-		                        0x0fff, 0x4eee, 0x3ddd, 0x0edd, 0x0dee, 0x0fff, 0x0fff, 0x0dee, 
-		                        0x0def, 0x08ab, 0x0fff, 0x7fff, 0xfabc, 0xf356, 0x0457, 0x0467, 
-		                        0x0fff, 0x0bcd, 0x4bde, 0x9bcc, 0x8dee, 0x8eff, 0x8fff, 0x9fff, 
-		                        0xadee, 0xeccd, 0xf689, 0xc357, 0x2356, 0x0356, 0x0467, 0x0467, 
-		                        0x0fff, 0x0ccd, 0x0bdd, 0x0cdd, 0x0aaa, 0x2234, 0x4135, 0x4346, 
-		                        0x5356, 0x2246, 0x0346, 0x0356, 0x0467, 0x0356, 0x0467, 0x0467, 
-		                        0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 
-		                        0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 
-		                        0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 
-		                        0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff 
-		                        ]; 
-		surface = SDL_CreateRGBSurfaceFrom(pixels.ptr,16,16,16,16*2,0x0f00,0x00f0,0x000f,0xf000);
-		
-		
-		
-		SDL_SetWindowIcon(p.win, surface); 
-		// The icon is attached to the window pointer
-		
-		
-		// ...and the surface containing the icon pixel data is no longer required.
-		SDL_FreeSurface(surface);	
+		_timeline = new Timeline;
+		_timeline.start();
 	}
-	
+
 	bool update()
 	{
-		glDepthMask(GL_TRUE);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 		bool running = true;
 		SDL_Event e; 
-		if (p.waitForEvents)
-			SDL_WaitEvent(&e);
+		int pollResult = 0;
+		if (_waitForEvents && queueEmpty())
+			pollResult = SDL_WaitEvent(&e);
 		else
-			SDL_PollEvent(&e);
-		do { 
+			pollResult = SDL_PollEvent(&e);
+		
+		do {
+
+			Event queuedEvent = dequeueEvent();
+			while (queuedEvent.type != EventType.Invalid)
+			{
+				if (_onEvent !is null)
+					_onEvent(queuedEvent);
+				queuedEvent = dequeueEvent();
+			}
+
+			if (!pollResult)
+				break;
+
 			Event ev;
 			switch(e.type) { 
 				case SDL_MOUSEMOTION:
-					ev.type = Event.Type.MouseMove;
+					ev.type = EventType.MouseMove;
 					ev.mousePos.x = e.motion.x;
 					ev.mousePos.y = e.motion.y;
 					ev.mousePosRel.x = e.motion.xrel;
@@ -172,27 +156,27 @@ struct Window
 					ev.mouseButtonsActive = e.motion.state;
 					break;				
 				case SDL_MOUSEBUTTONDOWN:
-					ev.type = Event.Type.MouseDown;
+					ev.type = EventType.MouseDown;
 					ev.mousePos.x = e.motion.x;
 					ev.mousePos.y = e.motion.y;
 					ev.mouseButtonsActive = e.button.state;
 					ev.mouseButtonsChanged = e.button.button;
 					break;
 				case SDL_MOUSEBUTTONUP:
-					ev.type = Event.Type.MouseUp;
+					ev.type = EventType.MouseUp;
 					ev.mousePos.x = e.motion.x;
 					ev.mousePos.y = e.motion.y;
 					ev.mouseButtonsActive = e.button.state;
 					ev.mouseButtonsChanged = e.button.button;
 					break;
 				case SDL_MOUSEWHEEL:
-					ev.type = Event.Type.MouseScroll;
+					ev.type = EventType.MouseScroll;
 					ev.scroll = Vec2f(e.wheel.x, e.wheel.y);
 					break;
 				case SDL_KEYDOWN:
 					if (e.key.keysym.sym == SDLK_ESCAPE)
 						running = false;
-					ev.type = Event.Type.KeyDown;
+					ev.type = EventType.KeyDown;
 					ev.keyCode = e.key.keysym.sym;
 					ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
 					ev.mod = cast(KeyMod)SDL_GetModState();
@@ -201,7 +185,7 @@ struct Window
 				case SDL_KEYUP:
 					if (e.key.keysym.sym == SDLK_ESCAPE)
 						running = false;
-					ev.type = Event.Type.KeyUp;
+					ev.type = EventType.KeyUp;
 					ev.keyCode = e.key.keysym.sym;
 					ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
 					ev.mod = cast(KeyMod)SDL_GetModState();
@@ -211,7 +195,7 @@ struct Window
 					//std.stdio.writeln(e.text.text);
 					char[] ch = cast(char[])e.text.text;
 					//size_t st = std.utf.stride(ch, 0);
-					ev.type = Event.Type.Text;
+					ev.type = EventType.Text;
 					ev.ch = ch.front;
 					ev.mod = cast(KeyMod)SDL_GetModState();
 					break;
@@ -230,165 +214,339 @@ struct Window
 					break; 
 			}
 			
-			if (p.onEvent)
-				p.onEvent(ev);
-			
-		} while (SDL_PollEvent(&e));
+			if (ev.type != EventType.Invalid && _onEvent !is null)
+				_onEvent(ev);
+
+			pollResult = SDL_PollEvent(&e);
+
+		} while (true);
+
+		timeline.update();
+
+		// Let gui widgets, constraints etc. update before drawing them
+		foreach (w; widgets)
+			w.update();
+
+		if (_onUpdate !is null)
+			_onUpdate();
+
+		// Base class render method that will in turn call _onRender if set
+		render(false);
+		renderGUI(null);
+		swapBuffers();
 		
-		if (p.onUpdate)
-			p.onUpdate();
-		
-		SDL_GL_SwapWindow(p.win); 
 		return running;
 	}
 	
 	void run()
 	{
 		Event ev;
-		ev.type = Event.Type.Resize;
-		ev.width = width;
-		ev.height = height;
-		p.onEvent(ev);
+		ev.type = EventType.Resize;
+		Vec2i sz = size;
+		ev.width = sz.x;
+		ev.height = sz.y;
+		if (_onEvent !is null)
+			_onEvent(ev);
 		
 		while(update()) { };
 	}
+
+	// The widget that the mouse left button has been clicked down on
+	private WidgetID downButtonWidget = NullWidgetID;
 	
-	@property 
+	// The widget that has been clicked by the left mouse button
+	private WidgetID clickWidget = NullWidgetID;
+
+	private WidgetID mouseWidget = NullWidgetID;
+	private WidgetID mouseGrabbedBy = NullWidgetID;
+	private WidgetID keyboardFocusWidget = NullWidgetID;
+
+	// The time of the last click on a widget in this window
+	private TickDuration clickWidgetTime;
+
+	// The max time that can pass when another click 
+	// is accepted as a double click
+	enum maxDoubleClickTime = 0.3f;
+
+	Widget createWidget()
 	{
-		Vec2f position() const
-		{
-			int x, y;
-			SDL_GetWindowPosition(cast(SDL_Window*)p.win, &x, &y);
-			return Vec2f(x, y);
-		}
-		
-		void position(Vec2f pos)
-		{
-			int x = cast(int)pos.x;
-			int y = cast(int)pos.y;
-			SDL_SetWindowPosition(p.win, x, y);
-		}
-	}	
-	
-	@property 
-	{
-		Vec2f size() const
-		{
-			int x, y;
-			SDL_GetWindowSize(cast(SDL_Window*)p.win, &x, &y);
-			return Vec2f(x, y);
-		}
-		
-		void size(Vec2f s)
-		{			
-			int x = cast(int)s.x;
-			int y = cast(int)s.y;
-			if (p.width != x || p.height != y)
-			{				
-				p.width = x;
-				p.height = y;
-				glViewport(0, 0, x, y);
-				
-				Event ev;
-				ev.type = Event.Type.Resize;
-				ev.width = x;
-				ev.height = y;
-				p.onEvent(ev);	
-				
-				SDL_SetWindowSize(p.win, x, y);
-			}
-		}
+		return createWidget(0, 0, 100, 100);
 	}
-	
-	@property int width() const 
+
+	Widget createWidget(float x, float y, float width, float height, Widget _parent = null)
 	{
-		return p.width;
+		auto w = new Widget(x, y, width, height, _parent);
+		register(w);
+		return w;
 	}
-	
-	@property int height() const 
+
+	private void register(Widget w)
 	{
-		return p.height;
-	}
-	
-	@property 
-	{
-		bool maximized() const
+		w.window = this;
+		widgets[w.id] = w;
+		Widget wparent = w.parent;
+		if (wparent !is null)
 		{
-			auto v = SDL_GetWindowFlags(cast(SDL_Window*)p.win);
-			return (v & SDL_WINDOW_MAXIMIZED) != 0;
-		}
-		
-		void maximized(bool v)
-		{
-			if (v)
+			Widgets * ws = wparent.id in _widgetChildren;
+			if (ws is null)
 			{
-				SDL_MaximizeWindow(p.win);
+				_widgetChildren[wparent.id] = [w];
 			}
-			//SDL_MinimizeWindow(p.win);
+			else
+			{
+				*ws ~= w;
+			}
+		}	
+	}
+
+	Widget getWidget(WidgetID id)
+	{
+		return widgets[id];
+	}
+
+	void setKeyboardFocusWidget(Widget widg)
+	{
+		setKeyboardFocusWidget(widg is null ? NullWidgetID : widg.id);
+	}
+
+	void setKeyboardFocusWidget(WidgetID wid)
+		{
+		// Find widget that accepts keyboard focus from wid
+		// and though parents if any. This bubbling is not handled by
+		// the normal widget.send(..) mechanism because we need to
+		// send unfocus event only if any widget will accept the
+		// keyboard focus which is not always the case.
+	
+		auto wp = wid in widgets;
+		Widget w = wp is null ? null : *wp;
+		
+		// TODO: fix w = null does not work!?!?
+		while (w !is null && !w.acceptsKeyboardFocus)
+		{
+			if (w.parent is null)
+			{
+				return;
+			}
+			else
+			{
+				w = w.parent;
+			}
+		}
+		
+		auto ow = keyboardFocusWidget in widgets;
+		if (ow !is null)
+			ow.send(Event(EventType.KeyboardUnfocus));
+		
+		if (w !is null)
+		{
+			w.send(Event(EventType.KeyboardFocus));
+			keyboardFocusWidget = w.id;
+		}
+		else
+		{
+			keyboardFocusWidget = NullWidgetID;
 		}
 	}
-	
-	/** Convert a size in pixels to a size in world coordinate at z = 0
-	 */
-	import math.smallvector;
-	Vec2f pixelSizeToWorld(SmallVector!(2u,float) pixels)
+
+	bool isKeyboardFocusWidget(Widget w)
 	{
-		pixels.x /= width * 0.5f;
-		pixels.y /= height * 0.5f;
-		return pixels;
+		return keyboardFocusWidget == w.id;
+	}
+
+	void grabMouse(Widget w)
+	{
+		assert(mouseGrabbedBy == NullWidgetID);
+		mouseGrabbedBy = w.id;
+	}
+
+	bool isGrabbingMouse(Widget w)
+	{
+		return w.id == mouseGrabbedBy;
 	}
 	
-	/// ditto
-	float pixelWidthToWorld(float x)
+	void releaseMouse()
 	{
-		x /= width * 0.5f; 
-		return x;
+		assert(mouseGrabbedBy != NullWidgetID);
+		mouseGrabbedBy = NullWidgetID;
+	}
+
+	/** Send an event to the GUI system
+ 	* 
+	*  Returns: true if event is still valid ie. hasn't been used by an event handling function.
+	*/
+	bool send(Event event)
+	{
+		bool used = false;
+		WidgetID lastMouseWidget = mouseWidget;
+		mouseWidget = NullWidgetID;
+		
+		/*
+	static bool bubbleEvent(Widget* wi, Event ev)
+	{
+		Widget w = *wi;
+		bool valid = true;
+		do 
+		{
+			valid = w.send(ev);
+			w = w.parent;
+		} 
+		while (valid && w !is null); 
+		return valid;
+	}
+*/		
+		// Find widget that mouse is over
+		foreach (ref w; widgets)
+		{
+			if (w.rect.contains(event.mousePos))
+			{
+				mouseWidget = w.id;
+			}
+		}
+		if (mouseGrabbedBy)
+			mouseWidget = mouseGrabbedBy;
+		
+		Widget * overWidget = null; 
+		if (mouseWidget)
+			overWidget = mouseWidget in widgets;
+		
+		// Send events to the found widget
+		std.stdio.writeln(event.type);
+		switch (event.type)
+		{
+			case EventType.MouseMove:
+				if (lastMouseWidget != mouseWidget)
+				{
+					// If a click has been initiated by a mouse down and the mouse 
+					// goes away from the widget the click is aborted.
+					downButtonWidget = NullWidgetID;
+					clickWidget = NullWidgetID;
+					
+					// Handle mouse out events
+					if (lastMouseWidget != NullWidgetID)
+					{
+						Widget * outWidget = lastMouseWidget in widgets;
+						
+						// Bubbling to parents lets a parent handle all out events for its children 
+						// which can be convenient
+						if (outWidget)
+						{
+							event.type = EventType.MouseOut;
+							outWidget.send(event);
+						}
+					}
+					
+					// Handle mouse over event and mouse move event
+					if (overWidget)
+					{
+						event.type = EventType.MouseOver;
+						overWidget.send(event);
+						event.type = EventType.MouseMove;
+						used = overWidget.send(event);
+					}
+				}
+				else if (overWidget)
+				{
+					// Handle mouse move event
+					used = overWidget.send(event);
+				}
+				else
+				{
+					// If a click has been initiated by a mouse down and the mouse 
+					// goes away from the widget the click is aborted.
+					downButtonWidget = NullWidgetID;
+					clickWidget = NullWidgetID;				
+				}
+				break;
+			case EventType.MouseDown:
+				if (overWidget)
+				{
+					downButtonWidget = mouseWidget;
+					used = overWidget.send(event);
+				}
+				else
+				{
+					downButtonWidget = NullWidgetID;
+					clickWidget = NullWidgetID;
+				}
+				break;
+			case EventType.MouseUp:
+				if (overWidget)
+				{
+					used = overWidget.send(event);
+					if (downButtonWidget == mouseWidget)
+					{
+						TickDuration tdur = TickDuration.currSystemTick;
+						float doubleClickTime = tdur.to!("seconds",float)() - clickWidgetTime.to!("seconds",float)();
+						if (downButtonWidget == clickWidget && doubleClickTime < maxDoubleClickTime)
+						{
+							event.type = EventType.MouseDoubleClick;
+							used = overWidget.send(event) || used;
+							clickWidget = 0;
+						}
+						else
+						{
+							event.type = EventType.MouseClick;
+							used = overWidget.send(event) || used;
+							clickWidget = downButtonWidget;
+							clickWidgetTime = TickDuration.currSystemTick;
+							setKeyboardFocusWidget(clickWidget);
+						}
+					}
+				}
+				downButtonWidget = NullWidgetID;
+				break;
+			case EventType.MouseScroll:
+			case EventType.KeyDown:
+			case EventType.KeyUp:
+			case EventType.Text:
+				
+				std.stdio.writeln("dxx ", event.type, " ", keyboardFocusWidget);
+				if (keyboardFocusWidget != NullWidgetID)
+				{
+					Widget * w = keyboardFocusWidget in widgets;
+					
+					if (w is null)
+						setKeyboardFocusWidget(NullWidgetID);
+					else
+						used = w.send(event);
+				}
+				break;
+			case EventType.Resize:
+				bool cont = false;
+				int maxIter = 5;
+				// Resize events will let widget do relayouts. 
+				do
+				{
+					cont = false;
+					foreach (w; widgets)
+					{
+						cont |= w.send(event);
+					}
+				} while (cont && maxIter--);
+			default:
+				break;
+		}
+		
+		// TODO: fix
+		// FIX: this
+		//if (Widget.keyboardFocusWidget == NullWidgetID && Widget.widgets.length != 0 ) {}
+		//Widget.setKeyboardFocusWidget(Widget.widgets[Widget.widgets.keys()[0]].id); 
+		return used;
 	}
 	
-	/// ditto
-	float pixelHeightToWorld(float y)
+	/** Draw all widgets
+ 	* 
+ 	*/
+	void renderGUI(StyleSet styleSet = null)
 	{
-		y /= height * 0.5f;
-		return y;
+		if (styleSet is null)
+			styleSet = StyleSet.base;
+		
+		foreach (w; widgets)
+		{
+			if (w.parent is null)
+				w.draw(styleSet);
+		}
 	}
-	
-	/** Window pixel coordinate to world coordinate at z = 0
-	 */
-	Vec3f windowToWorld(float x, float y)
-	{
-		// world goes from (-1,-1) to (1,1)
-		return Vec3f(2f * x / width - 1f, -2f * y / height + 1f, 0f);
-	}
-	
-	/// ditto
-	Vec3f windowToWorld(Vec2f src)
-	{
-		return windowToWorld(src.x, src.y);
-	}
-	
-	/** Window pixel coordinate to world coordinate at z = 0
-	 */
-	Rectf windowToWorld(float x1, float y1, float x2, float y2)
-	{
-		// world goes from (-1,-1) to (1,1)
-		Vec3f pTopLeft = windowToWorld(x1, y1);
-		Vec3f pLowRight = windowToWorld(x2, y2); 
-		auto r = Rectf(pTopLeft.x, pTopLeft.y, 0, 0);
-		r.x2 = pLowRight.x;
-		r.y2 = pLowRight.y;
-		return r;
-	}
-	
-	Rectf windowToWorld(Rectf r)
-	{
-		return windowToWorld(r.x, r.y, r.x2, r.y2);
-	}
-	
-	/** World coordinate (ignoring z) to window pixel coordinate
-	 */ 
-	Vec2f worldToWindow(Vec3f src)
-	{
-		// world goes from (-1,-1) to (1,1)
-		return Vec2f(( 0.5f * src.x + 0.5f) * width, ( 0.5f * src.y - 0.5f) * height);
-	}
+
 }

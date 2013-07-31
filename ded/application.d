@@ -1,33 +1,29 @@
 module application;
 
-import animation._;
+import behavior.behavior;
 import buffer;
 import bufferview;
-import gui.event;
-import gui.widget;   // widget definition
-import gui.widgetfeature;
+import gui._;
 import math._; // Vec2f
-import win = gui.window;
 
 class Application
 {
 	private
 	{
-		win.Window _window;
+		Window _window;
 		Widget _mainWidget, _draggerWidget, _resizerWidget;
 		BufferViewManager _bufferViewManager;
 		BufferView _currentBuffer;
-		Timeline _timeline;
+
 		static Application _singleton;
 	}
 	
 	@property
 	{
-		win.Window window() { return _window; }
+		Window window() { return _window; }
 		Widget mainWidget() { return _mainWidget; }
 		Widget dragWidget() { return _draggerWidget; }
 		Widget resizeWidget() { return _resizerWidget; }
-		static Timeline timeline() { return get()._timeline; }
 		static BufferViewManager bufferViewManager() { return get()._bufferViewManager; }
 		static BufferView currentBuffer() { return get()._currentBuffer; }
 		static Application get() { return _singleton; }
@@ -50,9 +46,6 @@ class Application
 		
 		setupMainWindow();
 
-		_timeline = new Timeline;
-		_timeline.start();
-
 		_bufferViewManager = new BufferViewManager();
 		_currentBuffer = _bufferViewManager.create("ctrl+w for console\n", "*Messages*");
 		_currentBuffer.cursorToEnd();
@@ -63,23 +56,17 @@ class Application
 		EditorBehavior.current = new EmacsBehavior();
 	}
 	
+	~this()
+	{
+		graphics._.destroy();
+	}
+
 	void run()
 	{
-		scope (exit) graphics._.destroy();
-		loop();
-	}
-	
-	private void loop()
-	{
-		import graphics._;
-		import gui._;
-		
-		// Let GUI handle events
-		this.window.onEvent = (Event ev) {
+		// Let text editor handle events before normal gui
+		window.onEvent = (Event ev) {
 			
-			import behavior.emacs;
-			
-			bool used = gui._.send(ev);
+			bool used = window.send(ev);
 			
 			// If the widgets themselves did not handle the event 
 			// and it is a keyboard event we let the shortcut/input handler have a chance
@@ -88,10 +75,10 @@ class Application
 
 			switch (ev.type)
 			{
-				case Event.Type.KeyDown:
-				case Event.Type.KeyUp:
-				case Event.Type.Text:
-				case Event.Type.MouseScroll:
+				case EventType.KeyDown:
+				case EventType.KeyUp:
+				case EventType.Text:
+				case EventType.MouseScroll:
 					EditorBehavior.current.onEvent(ev, currentBuffer);
 					break;
 				default:
@@ -99,15 +86,8 @@ class Application
 			}
 		};
 		
-		// Update is called 
-		this.window.onUpdate = () {
-			timeline.update();
-			gui._.update();
-			gui._.draw();
-		};
-		
 		// Start main loop
-		this.window.run();
+		window.run();
 	}
 	
 	void showCommandBuffer(string commandStr = "")
@@ -120,18 +100,18 @@ class Application
 	{
 		// import derelict.sdl2.sdl;   
 		import graphics._;
-		_window = win.Window("Ded", 1280, 1024); 
+		_window = new Window("Ded", 1280, 1024); 
 		
 		// A widget that can be mousedowned and resize the window
-		_resizerWidget = new Widget(0, 0, 30, 30);
+		_resizerWidget = _window.createWidget(0, 0, 30, 30);
 		_resizerWidget.features ~= new WindowResizer();
 		
 		// A widget that can be mousedowned and move the window
-		_draggerWidget = new Widget(0, 0, 20, 32);
+		_draggerWidget = _window.createWidget(0, 0, 20, 32);
 		_draggerWidget.features ~= new WindowDragger();
 		
 		// The main widget that spans the entire window
-		_mainWidget = new Widget(0, 0, 1210, 1010);
+		_mainWidget = _window.createWidget(0, 0, 1210, 1010);
 		
 		/*
 	ScalarExpr e = new ScalarExpr(mainWidget, WidgetAnchor.Top, 10);
@@ -184,9 +164,9 @@ class Application
 		_mainWidget.features ~= new BoxRenderer(gui.style.StyleSet.base[4]);
 		_draggerWidget.features ~= new BoxRenderer();
 		_resizerWidget.features ~= new BoxRenderer();
-		
-		_draggerWidget.events[Event.Type.MouseClick] = (Event e, ref Widget w) 
-		{ 
+
+		_draggerWidget.onMouseClick = (Event e, Widget w) 
+		{
 			std.stdio.writeln("clicked");
 			return false; 
 		};

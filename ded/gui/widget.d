@@ -26,89 +26,76 @@ enum NullWidgetID = 0u;
 alias Widget[] Widgets;
 
 final class Widget 
-{
-	static Widget[WidgetID] widgets;
-	static Widgets[WidgetID] _children;
-	
+{	
 	static WidgetID nextId = 1;
-	static WidgetID mouseWidget = NullWidgetID;
-	static WidgetID mouseGrabbedBy = NullWidgetID;
-	static WidgetID keyboardFocusWidget = NullWidgetID;
 
 	WidgetID id;
-	WidgetID _parentId;
+	gui.window.Window window;
+
 	Rectf rect;  // rect for events like mouse over etc.
 	float zOrder;
 
 	bool acceptsKeyboardFocus;
 			
 	// Events
-	alias bool delegate(Event event, ref Widget widget) OnEvent;
-	OnEvent[Event.Type] events;
+	alias bool delegate(Event event, Widget widget) OnEvent;
+	OnEvent[EventType] events;
 
 	// Behavior
-	WidgetFeature[] features; 
+	WidgetFeature[] features;
+
+	bool visible;
 
 	private
 	{
-		bool _visible;
+		Widget _parent;
+	}
+
+	private void eventCallbackHelper(EventType t, bool delegate(Event, Widget) del)
+	{
+		if (del is null)
+			events.remove(t);
+		else
+			events[t] = del;
 	}
 
 	@property 
 	{
-		bool visible() const { return _visible; }
-		void visible(bool v) { _visible = v; }
+		void onMouseClick(bool delegate(Event, Widget) del) { eventCallbackHelper(EventType.MouseClick, del); }
+		void onKeyDown(bool delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyDown, del); }
+		void onText(bool delegate(Event, Widget) del) { eventCallbackHelper(EventType.Text, del); }
 	}
 
-
-	/*
-	@property WindowID parentID() const 
-	{
-		return _parentId;
-	}
-	
-	@property void parentID(WindowID _parentId)
-	{
-		if (this._parentID ==_parentId) return;
-		(Widget[]) * _children = this._parentId in children;
-		string[string] aa;
-	
-		this._parentID = _parentId;
-	}
-	*/
-	
 	@property Widget parent()
 	{
-		if (_parentId == NullWidgetID) return null;
-		return widgets[_parentId];
+		return _parent;
 	}
 	
 	@property void parent(Widget newParent)
 	{
-		auto p = parent;
-		if (p !is null)
+		// Fixup the children map
+
+		// Remove orig parent from children map
+		if (_parent !is null)
 		{
-			Widgets * w = _parentId in _children;
+			Widgets* w = _parent.id in window._widgetChildren;
 
 			if (w !is null)
 			{
-				auto dg = (Widget tw) { return tw.id != this.id; };  // TODO: doing this and providing as compare func creates a compiler error
-				_children[_parentId] = std.array.array(std.algorithm.filter!((Widget tw) { return tw.id != this.id; })(*w));
+				//auto dg = (Widget tw) { return tw.id != this.id; };  // TODO: doing this and providing as compare func creates a compiler error
+				window._widgetChildren[_parent.id] = std.array.array(std.algorithm.filter!((Widget tw) { return tw.id != this.id; })(*w));
 			}
 		}
 		
+		_parent = newParent;
+
 		if (newParent is null)
-		{
-			_parentId = NullWidgetID;
 			return;
-		}
 
-		_parentId = newParent.id;
-
-		auto w = _parentId in _children;
+		Widgets* w = _parent.id in window._widgetChildren;
 		if (w is null)
 		{
-			_children[_parentId] = [this];
+			window._widgetChildren[parent.id] = [this];
 		}
 		else
 		{
@@ -118,65 +105,35 @@ final class Widget
 	
 	@property Widgets children()
 	{
-		Widgets * w = id in _children;
+		Widgets * w = id in window._widgetChildren;
 		return w is null ? null : *w;
 	}
 	
 	void setKeyboardFocusWidget()
 	{
-		setKeyboardFocusWidget(id);
+		window.setKeyboardFocusWidget(this);
 	}
 
-	static void setKeyboardFocusWidget(WidgetID wid)
+	bool isKeyboardFocusWidget()
 	{
-		// Find widget that accepts keyboard focus from wid
-		// and though parents if any. This bubbling is not handled by
-		// the normal widget.send(..) mechanism because we need to
-		// send unfocus event only if any widget will accept the
-		// keyboard focus which is not always the case.
-
-		auto wp = wid in Widget.widgets;
-		Widget w = wp is null ? null : *wp;
-		
-		// TODO: fix w = null does not work!?!?
-		while (w !is null && !w.acceptsKeyboardFocus)
-		{
-			if (w._parentId == NullWidgetID)
-			{
-				return;
-			}
-			else
-			{
-				w = w.parent;
-			}
-		}
-		
-		auto ow = keyboardFocusWidget in Widget.widgets;
-		if (ow !is null)
-			ow.send(Event(Event.Type.KeyboardUnfocus));
-
-		if (w !is null)
-		{
-			w.send(Event(Event.Type.KeyboardFocus));
-			Widget.keyboardFocusWidget = w.id;
-		}
-		else
-		{
-			Widget.keyboardFocusWidget = NullWidgetID;
-		}
+		return window.isKeyboardFocusWidget(this);
 	}
-	
+
 	void grabMouse()
 	{
-		assert(mouseGrabbedBy == NullWidgetID || mouseGrabbedBy == id);
-		mouseGrabbedBy = id;
+		window.grabMouse(this);
+	}
+
+	bool isGrabbingMouse()
+	{
+		return window.isGrabbingMouse(this);
 	}
 
 	void releaseMouse()
 	{
-		assert(mouseGrabbedBy == id || mouseGrabbedBy == NullWidgetID);
-		mouseGrabbedBy = NullWidgetID;
+		window.releaseMouse();
 	}
+
 	/*
 	this(Rectf windowRect, WidgetID _parentId = NullWidgetID)
 	{
@@ -188,10 +145,10 @@ final class Widget
 		widgets[id] = this;
 		if (_parentId != NullWidgetID)
 		{
-			Widgets * w = _parentId in _children;
+			Widgets * w = _parentId in window._widgetChildren;
 			if (w is null)
 			{
-				_children[_parentId] = [this];
+				window._widgetChildren[_parentId] = [this];
 			}
 			else
 			{
@@ -200,39 +157,27 @@ final class Widget
 		}
 	}
 */
-	this()
+	package this()
 	{
 		this(0, 0, 100, 100);
 	}
 
-	this(float x, float y, float width, float height, WidgetID _parentId = NullWidgetID)
+	package this(float x, float y, float width, float height, Widget _parent = null)
 	{
 		//this(Rectf(x, y, x+w, y+h), _parentId);
-		_visible = true;
+		visible = true;
 		zOrder = 0f;
 		rect = Rectf(x, y, width, height);
 		id = nextId++;
-		this._parentId = _parentId;
+		this._parent = _parent;
+		if (_parent !is null)
+			window = _parent.window;
 		this.acceptsKeyboardFocus = false;
-		
-		widgets[id] = this;
-		if (_parentId != NullWidgetID)
-		{
-			Widgets * w = _parentId in _children;
-			if (w is null)
-			{
-				_children[_parentId] = [this];
-			}
-			else
-			{
-				*w ~= this;
-			}
-		}	
 	}
 
 	bool send(Event event)
 	{
-		//if (event.type != Event.Type.MouseMove)
+		//if (event.type != EventType.MouseMove)
 		//	std.stdio.writeln("event ", event);		
 		OnEvent * handler = event.type in events;
 
@@ -244,7 +189,7 @@ final class Widget
 		}
 		else
 		{ 
-			handler = Event.Type.Default in events;
+			handler = EventType.Default in events;
 			if (handler)
 				used = (*handler)(event, this);
 		}
@@ -256,7 +201,7 @@ final class Widget
 		}
 		
 		// Bubble up through parents
-		if (!used && parent !is null)
+		if (!used && _parent !is null)
 		{
 			std.stdio.writeln("parent ev");
 			used = parent.send(event);
@@ -276,7 +221,7 @@ final class Widget
 		}
 		
 		// Draw children
-		foreach (ref w; children)
+		foreach (w; children)
 		{
 			w.draw(styleSet);
 		}
@@ -298,10 +243,10 @@ final class Widget
 				}			
 		}
 
-		OnEvent * handler = Event.Type.Update in events;
+//		OnEvent * handler = EventType.Update in events;
 		
-		if (handler)
-			(*handler)(Event(Event.Type.Update), this);
+//		if (handler)
+//			(*handler)(Event(EventType.Update), this);
 
 		/*
 		Rectf wrect = Window.active.windowToWorld(rect);

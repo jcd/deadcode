@@ -626,5 +626,6 @@ template Vec2(T) { alias SmallVector!(2u, T) Vec2; }
 template Vec3(T) { alias SmallVector!(3u, T) Vec3; }
 
 alias vec2f Vec2f;
+alias vec2i Vec2i;
 alias vec3f Vec3f;
 

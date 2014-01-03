@@ -1,0 +1,1 @@
+rdmd.exe tool.d %*

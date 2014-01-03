@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{3947E667-4C90-4C3A-BEB9-7148D6FE0D7C}") = "ded", "ded.dproj", "{F706A620-CFE0-4012-B329-0CF4BBEE7112}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+		Unittest|Any CPU = Unittest|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F706A620-CFE0-4012-B329-0CF4BBEE7112}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F706A620-CFE0-4012-B329-0CF4BBEE7112}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F706A620-CFE0-4012-B329-0CF4BBEE7112}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F706A620-CFE0-4012-B329-0CF4BBEE7112}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F706A620-CFE0-4012-B329-0CF4BBEE7112}.Unittest|Any CPU.ActiveCfg = Unittest|Any CPU
+		{F706A620-CFE0-4012-B329-0CF4BBEE7112}.Unittest|Any CPU.Build.0 = Unittest|Any CPU
+	EndGlobalSection
+	GlobalSection(MonoDevelopProperties) = preSolution
+		StartupItem = ded.dproj
+	EndGlobalSection
+EndGlobal

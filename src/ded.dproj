@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="3.5" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>9.0.21022</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{F706A620-CFE0-4012-B329-0CF4BBEE7112}</ProjectGuid>
+    <Target>Executable</Target>
+    <IncrementalLinking>True</IncrementalLinking>
+    <UseDefaultCompiler>True</UseDefaultCompiler>
+    <PreferOneStepBuild>True</PreferOneStepBuild>
+    <Compiler>DMD2</Compiler>
+    <Includes>
+      <Includes>
+        <Path>C:\Users\jonasd\Documents\Projects\D\dteam\external\Derelict3\import</Path>
+      </Includes>
+    </Includes>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>True</DebugSymbols>
+    <OutputPath>bin\Debug</OutputPath>
+    <ObjectsDirectory>obj\Debug</ObjectsDirectory>
+    <OutputName>ded</OutputName>
+    <Libs>
+      <Libs>
+        <Lib>C:\Users\jonasd\Documents\Projects\D\dteam\external\Derelict3\lib\DerelictGL3.lib</Lib>
+        <Lib>C:\Users\jonasd\Documents\Projects\D\dteam\external\Derelict3\lib\DerelictUtil.lib</Lib>
+        <Lib>C:\Users\jonasd\Documents\Projects\D\dteam\external\Derelict3\lib\DerelictSDL2.lib</Lib>
+      </Libs>
+    </Libs>
+    <ExtraCompilerArguments>-property -unittest -gc</ExtraCompilerArguments>
+    <UnittestMode>False</UnittestMode>
+    <DebugLevel>0</DebugLevel>
+    <ConsolePause>False</ConsolePause>
+    <Externalconsole>True</Externalconsole>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>bin\Release</OutputPath>
+    <ObjectsDirectory>obj\Release</ObjectsDirectory>
+    <OutputName>ded</OutputName>
+    <Externalconsole>True</Externalconsole>
+    <UnittestMode>False</UnittestMode>
+    <DebugLevel>0</DebugLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
+    <DebugSymbols>True</DebugSymbols>
+    <OutputPath>bin\Unittest</OutputPath>
+    <ObjectsDirectory>obj\Unittest</ObjectsDirectory>
+    <ExtraCompilerArguments>-unittest </ExtraCompilerArguments>
+    <OutputName>ded</OutputName>
+    <Externalconsole>True</Externalconsole>
+    <UnittestMode>False</UnittestMode>
+    <DebugLevel>0</DebugLevel>
+    <Libs>
+      <Libs>
+        <Lib>C:\Users\jonasd\Documents\Projects\Derelict3\DerelictGL3.lib</Lib>
+        <Lib>C:\Users\jonasd\Documents\Projects\Derelict3\DerelictUtil.lib</Lib>
+        <Lib>C:\Users\jonasd\Documents\Projects\Derelict3\DerelictSDL2.lib</Lib>
+      </Libs>
+    </Libs>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="main.d" />
+    <Compile Include="behavior\emacs.d" />
+    <Compile Include="behavior\behavior.d" />
+    <Compile Include="editorcommands.d" />
+    <Compile Include="buffer.d" />
+    <Compile Include="bufferview.d" />
+    <Compile Include="system.d" />
+    <Compile Include="build.d" />
+    <Compile Include="animation\timeline.d" />
+    <Compile Include="animation\_.d" />
+    <Compile Include="animation\interpolate.d" />
+    <Compile Include="animation\animator.d" />
+    <Compile Include="controls\command.d" />
+    <Compile Include="controls\_.d" />
+    <Compile Include="controls\editor.d" />
+    <Compile Include="graphics\_.d" />
+    <Compile Include="graphics\shader.d" />
+    <Compile Include="graphics\shaderprogram.d" />
+    <Compile Include="graphics\texture.d" />
+    <Compile Include="graphics\buffer.d" />
+    <Compile Include="graphics\mesh.d" />
+    <Compile Include="graphics\material.d" />
+    <Compile Include="graphics\model.d" />
+    <Compile Include="graphics\font.d" />
+    <Compile Include="graphics\color.d" />
+    <Compile Include="gui\_.d" />
+    <Compile Include="gui\style.d" />
+    <Compile Include="gui\widget.d" />
+    <Compile Include="gui\window.d" />
+    <Compile Include="math\smallmatrix.d" />
+    <Compile Include="math\region.d" />
+    <Compile Include="math\rect.d" />
+    <Compile Include="math\smallvector.d" />
+    <Compile Include="math\_.d" />
+    <Compile Include="gui\event.d" />
+    <Compile Include="gui\keycode.d" />
+    <Compile Include="gui\keybinding.d" />
+    <Compile Include="graphics\renderqueue.d" />
+    <Compile Include="graphics\camera.d" />
+    <Compile Include="graphics\rendertarget.d" />
+    <Compile Include="graphics\renderwindow.d" />
+    <Compile Include="gui\models.d" />
+    <Compile Include="gui\text.d" />
+    <Compile Include="gui\textlayout.d" />
+    <Compile Include="o.d" />
+    <Compile Include="gui\styledtext.d" />
+    <Compile Include="graphics\graphicssystem.d" />
+    <Compile Include="manager.d" />
+    <Compile Include="animation\mutator.d" />
+    <Compile Include="gui\widgetfeature\_.d" />
+    <Compile Include="gui\widgetfeature\directionallayout.d" />
+    <Compile Include="gui\widgetfeature\dragger.d" />
+    <Compile Include="gui\widgetfeature\windowdragger.d" />
+    <Compile Include="gui\widgetfeature\windowresizer.d" />
+    <Compile Include="gui\widgetfeature\boxrenderer.d" />
+    <Compile Include="gui\widgetfeature\textrenderer.d" />
+    <Compile Include="gui\widgetfeature\constraintlayout.d" />
+    <Compile Include="gui\control\button.d" />
+    <Compile Include="test.d" />
+    <Compile Include="gui\ruleset.d" />
+    <Compile Include="command.d">
+      <DependentUpon>buffer.d</DependentUpon>
+    </Compile>
+    <Compile Include="undo.d" />
+    <Compile Include="gui\gui.d" />
+    <Compile Include="application.d" />
+    <Compile Include="guiapplication.d" />
+    <Compile Include="jsonx.d" />
+    <Compile Include="gui\resource.d" />
+    <Compile Include="graphics\resource.d" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="extensions\" />
+    <Folder Include="controls\" />
+    <Folder Include="animation\" />
+    <Folder Include="graphics\" />
+    <Folder Include="gui\" />
+    <Folder Include="math\" />
+    <Folder Include="gui\widgetfeature\" />
+    <Folder Include="gui\control\" />
+  </ItemGroup>
+</Project>

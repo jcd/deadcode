@@ -1,0 +1,15 @@
+{
+	"name": "ded",
+	"description": "Ded - D Editor",
+	"homepage": "http://foobar.dk",
+	"copyright": "Copyright © 2013, Jonas Drewsen",
+	"authors": [
+		"Jonas Drewsen"
+	],
+	"dependencies": {
+		"sdlang-d": ">=0.8.4",
+		"derelict-gl3": "~master",
+		"derelict-sdl2": "~master",
+		"derelict-ft": "~master"
+	}
+}

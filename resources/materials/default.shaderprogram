@@ -1,0 +1,37 @@
+{
+	"vertexShader" : "#version 330
+      layout(location = 0) in vec3 pos; 
+   	layout(location = 1) in vec2 texCoords; 
+   	layout(location = 2) in vec3 col; 
+
+   	out vec2 coords; 
+	out vec3 cols;
+	uniform mat4 MVP;
+	
+   	void main(void) 
+   	{ 
+
+       gl_Position = MVP * vec4(pos, 1.0); 
+ //      gl_Position = vec4(pos, 1.0); 
+      coords = texCoords.st; 
+	  cols = col;
+   	}",
+	
+
+	"fragmentShader" : "#version 330 
+	
+   	uniform sampler2D colMap; 
+	
+	in vec2 coords; 
+	in vec3 cols; 
+	out vec3 color;
+
+   	void main(void) 
+   	{ 
+      vec3 coltmp = texture(colMap, coords.st).xyz; 
+
+	//      color = vec3(coords.yyx + coltmp); 
+      color = vec3(coltmp) * cols; 
+      // color = vec3(1.0, 0.0,0.0);
+	}"
+}

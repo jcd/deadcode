@@ -1,0 +1,44 @@
+{
+	"default" : {
+		"parent" : "",
+		"font" : "../fonts/default.font",
+		"material" : "../materials/edit-background.material",
+		"color" : "#ffffff",
+		"padding" : "20 20 20 20"
+	},
+	"dsource-declaration" : {
+		"parent" : "",
+		"font" : "../fonts/default.font",
+		"material" : "../materials/default.material",
+		"color" : "#ff0000",
+		"padding" : "20 20 20 20"
+	},
+	"dsource-type" : {
+		"parent" : "",
+		"font" : "../fonts/default.font",
+		"material" : "../materials/default.material",
+		"color" : "#a0ffa0",
+		"padding" : "20 20 20 20"
+	},
+	"dsource-value" : {
+		"parent" : "",
+		"font" : "../fonts/default.font",
+		"material" : "../materials/default.material",
+		"color" : "#00ff00",
+		"padding" : "20 20 20 20"
+	},
+	"edit-background" : {
+		"parent" : "",
+		"font" : "../fonts/default.font",
+		"material" : "../materials/edit-background.material",
+		"color" : "#00ff00",
+		"padding" : "20 20 20 20"
+	},
+	"window-head" : {
+		"parent" : "",
+		"font" : "../fonts/default.font",
+		"material" : "../materials/window-head.material",
+		"color" : "#00ff00",
+		"padding" : "20 20 20 20"
+	}
+}

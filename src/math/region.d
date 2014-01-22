@@ -5,6 +5,11 @@ import alg = std.algorithm;
 import std.container;
 import std.exception;
 
+import core.buffer;
+
+version(unittest) import test;
+
+
 /** A range of sequential characters in a text
  */
 struct Region
@@ -23,9 +28,9 @@ struct Region
 
 	unittest 
 	{
-		assert(Region.zero.empty);
-		assert(Region(5,5).empty);
-		assert(!Region(0,1).empty);
+		Assert(Region.zero.empty);
+		Assert(Region(5,5).empty);
+		Assert(!Region(0,1).empty);
 	}
 		
 	/** Return a region that contains this region and the given region. 
@@ -43,12 +48,12 @@ struct Region
 	
 	unittest {
 		// Test touching regions
-		assert(Region(0,10).cover(Region(10,20)) == Region(0,20));
-		assert(Region(10,20).cover(Region(0,10)) == Region(0,20));
+		Assert(Region(0,10).cover(Region(10,20)), Region(0,20));
+		Assert(Region(10,20).cover(Region(0,10)), Region(0,20));
 		// Test containing regions
-		assert(Region(0,20).cover(Region(5,10)) == Region(0,20));
+		Assert(Region(0,20).cover(Region(5,10)), Region(0,20));
 		// Test regions with space between
-		assert(Region(0,10).cover(Region(15,100)) == Region(0,100));
+		Assert(Region(0,10).cover(Region(15,100)), Region(0,100));
 	}
 	
 	/** Return the intersection of the two regions
@@ -62,12 +67,12 @@ struct Region
 	
 	unittest {
 		// Test touching regions
-		assert(Region(0,10).intersect(Region(10,20)).empty);
-		assert(Region(10,20).intersect(Region(0,10)).empty);
+		Assert(Region(0,10).intersect(Region(10,20)).empty);
+		Assert(Region(10,20).intersect(Region(0,10)).empty);
 		// Test containing regions
-		assert(Region(0,20).intersect(Region(5,10)) == Region(5,10));
+		Assert(Region(0,20).intersect(Region(5,10)), Region(5,10));
 		// Test regions with space between
-		assert(Region(0,10).intersect(Region(15,100)).empty);
+		Assert(Region(0,10).intersect(Region(15,100)).empty);
 	}
 		
 	/** Returns true if the given region intersects with this region
@@ -86,13 +91,13 @@ struct Region
 	
 	unittest {
 		// Test touching regions
-		assert(!Region(0,10).contains(Region(10,20)));
-		assert(!Region(10,20).contains(Region(0,10)));
+		Assert(!Region(0,10).contains(Region(10,20)));
+		Assert(!Region(10,20).contains(Region(0,10)));
 		// Test containing regions
-		assert(Region(0,20).contains(Region(5,10)));
-		assert(Region(5,10).contains(Region(5,10)));
+		Assert(Region(0,20).contains(Region(5,10)));
+		Assert(Region(5,10).contains(Region(5,10)));
 		// Test regions with space between
-		assert(!Region(0,10).contains(Region(15,100)));
+		Assert(!Region(0,10).contains(Region(15,100)));
 	}
 	
 	/** Returns true if the given index is contained within this region
@@ -104,10 +109,10 @@ struct Region
 	
 	unittest
 	{
-		assert(!Region.zero.contains(0));
-		assert(Region(0,1).contains(0));
-		assert(!Region(0,1).contains(1));
-		assert(!Region(0,1).contains(2));
+		Assert(!Region.zero.contains(0));
+		Assert(Region(0,1).contains(0));
+		Assert(!Region(0,1).contains(1));
+		Assert(!Region(0,1).contains(2));
 	}
 }
 
@@ -125,6 +130,8 @@ class RegionSet
 	Container regions;
 	alias regions this;
 
+	bool _mergeIntersectingRegions = true;
+
 	@property 
 	{
 		uint a() 
@@ -140,6 +147,12 @@ class RegionSet
 				return 0;
 			return regions.back.b;
 		}
+	}
+
+	this(bool mergeIntersectingRegions = true)
+	{
+		_mergeIntersectingRegions = mergeIntersectingRegions;
+		assert(mergeIntersectingRegions);
 	}
 
 	void add(uint a, uint b, int id = 0)
@@ -223,30 +236,30 @@ class RegionSet
 	unittest
 	{
 		RegionSet s1 = new RegionSet;
-		assert(s1.empty);
+		Assert(s1.empty);
 		s1.add(Region(0,10));
-		assert(s1.length == 1);
+		Assert(s1.length, 1);
 		s1.add(Region(20,30));
-		assert(s1.length == 2);
+		Assert(s1.length, 2);
 		s1.add(Region(20,30));
-		assert(s1.length == 2);
+		Assert(s1.length, 2);
 
 		s1.add(Region(15,35));
-		assert(s1.length == 2);
+		Assert(s1.length, 2);
 		s1.add(Region(22,25));
-		assert(s1.length == 2);
+		Assert(s1.length, 2);
 		s1.add(Region(11,14));
-		assert(s1.length == 3);
-		assert(s1[0] == Region(0,10));
-		assert(s1[1] == Region(11,14));
-		assert(s1[2] == Region(15,35));
+		Assert(s1.length, 3);
+		Assert(s1[0], Region(0,10));
+		Assert(s1[1], Region(11,14));
+		Assert(s1[2], Region(15,35));
 		s1.add(Region(10,14));
-		assert(s1.length == 2);
-		assert(s1[0] == Region(0,14));
-		assert(s1[1] == Region(15,35));
+		Assert(s1.length, 2);
+		Assert(s1[0], Region(0,14));
+		Assert(s1[1], Region(15,35));
 		s1.add(Region(10,15));
-		assert(s1.length == 1);
-		assert(s1.front == Region(0,35));
+		Assert(s1.length, 1);
+		Assert(s1.front, Region(0,35));
 	}
 
 	void addx(Region r)
@@ -376,10 +389,10 @@ class RegionSet
 		s1.add(Region(20,30));
 		s1.add(Region(40,50));
 		s2.add(s1);
-		assert(s2.length == 3);
-		assert(s2[0] == Region(0,10));
-		assert(s2[1] == Region(20,30));
-		assert(s2[2] == Region(40,50));
+		Assert(s2.length, 3);
+		Assert(s2[0], Region(0,10));
+		Assert(s2[1], Region(20,30));
+		Assert(s2[2], Region(40,50));
 	}
 	
 	// TODO fix

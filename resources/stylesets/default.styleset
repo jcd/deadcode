@@ -39,6 +39,6 @@
 		"font" : "../fonts/default.font",
 		"material" : "../materials/window-head.material",
 		"color" : "#00ff00",
-		"padding" : "20 20 20 20"
+		"padding" : "0 0 0 0"
 	}
 }

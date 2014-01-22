@@ -14,8 +14,10 @@ import guiapplication;
  * and for the last category some constraints on the widget types
  * it will act on. (need some kind of tagging of widgets?)
  */
-int main()
+int main(string args[])
 { 
+	version (unittest) return 0;
+
 	try
 	{
 		auto app = GUIApplication.create();

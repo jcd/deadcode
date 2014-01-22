@@ -1,10 +1,15 @@
 module core.bufferview;
 
 import core.buffer; // : TextGapBuffer;
+import core.bufferviewaction;
+import math.region;
+import std.container;
 import std.conv;
 import std.exception;
 import std.range;
 import std.stdio;
+
+version(unittest) import test;
 
 // TODO:
 //	* Set preferred colum doesn't work
@@ -19,16 +24,19 @@ import std.stdio;
 class BufferView 
 {	
 	string name;
-	private TextGapBuffer buffer; // This should be changeable to something else if wanted
-	// BufferInfo bufferInfo;
+	package TextGapBuffer buffer;     // This should be changeable to something else if wanted
+	// private GapBuffer!int lineStarts; // Indexes into buffer for all line starts. Purely a optimization.
+	private RegionSet selections;
+
 	bool dirty;
 	uint bufferOffset; // char offset into the buffer from where to draw
 
 	alias void delegate(BufferView) Callback;
 
 	Callback onChanged;
-	private void changed()
+	package void changed()
 	{
+		dirty = true;
 		if (onChanged !is null)
 			onChanged(this);
 	}
@@ -50,12 +58,14 @@ class BufferView
 		buffer.gbuffer.ensureGapCapacity(s - buffer.length);
 	}
 
+	package uint _cursorPoint;
+	
 	private 
 	{
-		uint _cursorPoint;
 		uint _preferredCursorColumn;	
 		uint _lineOffset;   // line offset into the buffer from where to draw. Could be derived from bufferOffset.
 		uint _visibleLineCount;    // Number of lines to visible in view
+		ActionStack _undoStack;
 	}
 	
 	this(string txt)
@@ -67,11 +77,12 @@ class BufferView
 	this(TextGapBuffer buffer)
 	{
 		this.buffer = buffer;
-		// this.bufferInfo = BufferInfo( null, false );
 		dirty = true;
 		onChanged = null;
+		selections = new RegionSet(true); // should be false
+		_undoStack = new ActionStack;
 	}
-				
+	
 	@property 
 	{
 		uint lineNumber()
@@ -109,10 +120,24 @@ class BufferView
 		}
 	}
 	
-	void clear(const(TextGapBuffer.CharType)[] dl)
+	void undo()
 	{
-		buffer = new TextGapBuffer(dl, 20);
-		changed();
+		if (_undoStack.canUndo())
+			_undoStack.undo(this);
+	}
+
+	void redo()
+	{
+		if (_undoStack.canRedo())
+			_undoStack.redo(this);
+	}
+
+	void clear(immutable(TextGapBuffer.CharType)[] dl)
+	{
+		clear();
+		_undoStack.push!InsertAction(this, dl);
+		// buffer = new TextGapBuffer(dl, 20);
+		// changed();
 	}
 
 	void write(File file)
@@ -123,12 +148,14 @@ class BufferView
 
 	void cursorToStart() 
 	{
-		cursorPoint = 0;
+		_undoStack.push!CursorToStartAction(this);
+		// cursorPoint = 0;
 	}
 
 	void cursorToEnd() 
 	{
-		cursorPoint = length;
+		_undoStack.push!CursorToEndAction(this);
+		// cursorPoint = length;
 	}
 
 	@property uint cursorPoint() const pure nothrow
@@ -139,7 +166,8 @@ class BufferView
 	@property void cursorPoint(uint v) 
 	{
 		assert(buffer !is null && v >= 0 && v <= buffer.length, "Cursor out of range");
-		_cursorPoint = v;
+		_undoStack.push!CursorRightAction(this, v - _cursorPoint);
+		// _cursorPoint = v;
 		setPreferredCursorColumnFromIndex(v);
 	}
 
@@ -180,47 +208,21 @@ class BufferView
 	{
 		
 	}
-	
-	private void insertInternal(dchar item, uint index = uint.max)
+		
+	void insert(dchar item)
 	{
-		buffer.insert(item, index);
-		dirty = true;
-		changed();
-		//		bufferInfo.undoStack ~= UndoStep(fdfdasdf);
-	}
-	
-	private void insertInternal(const(dchar)[] items, uint index = uint.max)
-	{
-		buffer.insert(items, index);
-		dirty = true;
-		changed();
-		//		bufferInfo.undoStack ~= UndoStep(fdfdasdf);
+		dchar[1] buf;
+		buf[0] = item;
+		insert(buf.idup);
+		//actionStack.insert(this, buf.idup);
 	}
 
-	private void removeInternal(int count, int index = uint.max)
+	void insert(dstring txt)
 	{
-		dirty = true;
-		buffer.remove(count, index);		
-		changed();
+		_undoStack.push!InsertAction(this, txt);
 	}
 
-	void insert(dchar item, uint index = uint.max)
-	{
-		if (index == uint.max)
-			index = _cursorPoint;
-		insertInternal(item, index);
-		cursorPoint = buffer.editPoint;
-	}
-
-	void insert(const(dchar)[] items, uint index = uint.max)
-	{
-		if (index == uint.max)
-			index = _cursorPoint;
-		insertInternal(items, index);
-		cursorPoint = buffer.editPoint;
-	}
-
-	void append(const(dchar)[] items)
+	void append(dstring items)
 	{
 		cursorToEnd();
 		insert(items);
@@ -232,40 +234,42 @@ class BufferView
 		insert(dtext(items));
 	}
 
-	void remove(int count, int index = uint.max)
+	void remove(int count)
 	{
-		if (index == uint.max)
-			index = _cursorPoint;
-		removeInternal(count, index);		
-		cursorPoint = buffer.editPoint;
+		_undoStack.push!RemoveAction(this, count);
 	}
 	
 	void clear()
 	{
-		buffer.clear();
-		cursorPoint = 0;
-		_preferredCursorColumn = 0;
-		cursorPoint = buffer.editPoint;		
+		_undoStack.push!CursorRightAction(this, -cursorPoint);
+		_undoStack.push!RemoveAction(this, length);
+
+		//		this.cursorPoint = 0;
+		//actionStack.remove(this, buffer.length);
+		//buffer.clear();
+		//cursorPoint = 0;
+		//_preferredCursorColumn = 0;
+		//cursorPoint = buffer.editPoint;		
 	}
 	
 	void cursorLeft(uint c = 1) 
 	{
-		cursorPoint = buffer.charsOffset(_cursorPoint, -c);
+		_undoStack.push!CursorRightAction(this, -c);
 	}	
 
 	void cursorRight(uint c = 1)
 	{
-		cursorPoint = buffer.charsOffset(_cursorPoint, c);
+		_undoStack.push!CursorRightAction(this, c);
 	}
 
 	void cursorUp(uint c = 1) 
 	{
-		_cursorPoint = buffer.linesOffset(_cursorPoint, -c, _preferredCursorColumn);
+		_undoStack.push!CursorDownAction(this, -c);
 	}
 	
 	void cursorDown(uint c = 1)
 	{
-		_cursorPoint = buffer.linesOffset(_cursorPoint, c, _preferredCursorColumn);
+		_undoStack.push!CursorDownAction(this, c);
 	}
 	
 	void scrollUp()
@@ -324,8 +328,9 @@ class BufferView
 	void deleteWordBefore()
 	{ 
 		auto deleteTo = indexWordBefore();
-		removeInternal(_cursorPoint - deleteTo, deleteTo);
+		auto deleteLen = _cursorPoint - deleteTo;
 		cursorPoint = deleteTo;
+		remove(deleteLen);
 	}
 	
 	private uint indexWordAfter()
@@ -350,7 +355,9 @@ class BufferView
 	void deleteWordAfter()
 	{
 		auto deleteTo = indexWordAfter();
-		removeInternal(deleteTo - _cursorPoint, _cursorPoint);
+		auto deleteLen = deleteTo - _cursorPoint;
+		cursorPoint = deleteTo;
+		remove(-deleteLen);
 	}
 
 	void deleteToEndOfLine()
@@ -360,7 +367,7 @@ class BufferView
 		{
 			eol = buffer.startOfNextLine(_cursorPoint);
 		}
-		removeInternal(eol - _cursorPoint, _cursorPoint);
+		remove(eol - _cursorPoint);
 	}
 }
 

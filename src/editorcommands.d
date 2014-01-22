@@ -68,6 +68,8 @@ void register(CommandManager cmgr, Application _app)
 	mixin(createCmd("deleteWordAfter", "Delete word after cursor"));
 	mixin(createCmd("deleteToEndOfLine", "Delete line part after cursor"));
 	mixin(createCmd("clear", "Clear buffer"));
+	mixin(createCmd("undo", "Undo buffer"));
+	mixin(createCmd("redo", "Redo buffer"));
 
 	
 	cmgr.create("edit.cursorToCharBefore", "Move cursor to char before cursor", delegate(Variant data) {

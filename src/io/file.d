@@ -12,8 +12,7 @@ class File : IO
 {
 	this(string path)
 	{
-		import util.system;
-		_handle = StdFile(buildNormalizedPath(getRunningExecutablePath() ~ "/" ~ path), "r");
+		_handle = StdFile(path, "r");
 	}
 	
 	~this()
@@ -65,29 +64,41 @@ class FileProtocol : IOProtocol
 	
 	IO open(URI url)
 	{
-		return new File(url.toString());
+		return new File(uriToPath(url));
 	}
 
 	string readText(URI inUrl)
 	{
+		return std.file.readText(uriToPath(inUrl));
+	}
+
+	static string uriToPath(URI inUrl)
+	{
+		import util.system;
 		auto url = inUrl.toString();
 
 		string origURL = url;
-		
-		if (url.startsWith("file://"))
+
+		if (url.startsWith("file:"))
+			url = url[5..$];
+
+		string base;
+		if (url.startsWith("//"))
 		{
-			url = url[7..$]; // strip
-			if (!url.empty && url[0] != '/')
-			{
-				// uri was file://hostname/path/to/file and hostname needs to go
-				ptrdiff_t d = std.string.indexOf(url, '/', 1);
-				if (d <= 0)
-					throw new IOException(std.string.format("Only host part of file URL present '%s'", origURL));
-				url = url[d..$];
-			}
+			base = getRunningExecutablePath();
+			url = url[2..$];
 		}
 
-		return std.file.readText(url);
+		if (url.startsWith("/"))
+		{
+			// Relative to base path 
+			url = buildPath(base, url);
+		}
+		else 
+		{
+			url = buildPath(getRunningExecutablePath, url);
+		}
+		return buildNormalizedPath(url);
 	}
 }
 
@@ -101,14 +112,14 @@ unittest
 	// Convenience protocol method for reading all text in a file
 	foreach (p; paths)
 	{
-		Assert(fp.readText(p).startsWith("[Setup]"));
+		Assert(fp.readText(new URI(p)).startsWith("[Setup]"));
 	}
 
 	// ditto but through allocated File
 	foreach (p; paths)
 	{
-		auto f = fp.open(p);
-		Assert(f.readText(p).startsWith("[Setup]"));
+		auto f = fp.open(new URI(p));
+		Assert(f.readText().startsWith("[Setup]"));
 	}
 }
 

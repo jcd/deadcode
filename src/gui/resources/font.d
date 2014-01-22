@@ -143,7 +143,7 @@ unittest
 {
 	FontManager m = new FontManager;
 	auto p = new JsonFontSerializer;
-	m.addProvider("file", p);
+	m.addSerializer(p);
 
 	import test;
 	auto r = m.declare("font1");
@@ -151,6 +151,6 @@ unittest
 	AssertIs(m.get(r.name), r, "Resource from declare same as resource gotten by name from manager");
 	auto r2 = m.declare("font1");
 	AssertIs(r, r2, "Redeclaring with same name results in same resource");
-	auto r3 = m.declare("font1", "resources/fonts/default.font");
+	auto r3 = m.declare("font1", new URI("resources/fonts/default.font"));
 	AssertIs(r, r3, "Redeclaring with same name and a uri results in same resource");
 }

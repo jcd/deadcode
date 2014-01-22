@@ -23,10 +23,24 @@ class KeySequence
 		bool match(ref const Key s) 
 		{ 
 			// Modifiers need special treatment because e.g. lctrl is a subset of ctrl
-
+			std.stdio.writeln(this,  " " , s);
 			if (keyCode != s.keyCode) 
 				return false;
 			
+			//int xor = ~(mod ^ s.mod);
+
+			//bool modMatches = KeyMod.LSHIFT & xor 
+
+			bool modMatches = ((KeyMod.LSHIFT & mod) == (KeyMod.LSHIFT & s.mod) ||
+							   (KeyMod.RSHIFT & mod) == (KeyMod.RSHIFT & s.mod)) &&
+							  ((KeyMod.LCTRL & mod) == (KeyMod.LCTRL & s.mod) ||
+							   (KeyMod.RCTRL & mod) == (KeyMod.RCTRL & s.mod)) &&
+							  ((KeyMod.LALT & mod) == (KeyMod.LALT & s.mod) ||
+							   (KeyMod.RALT & mod) == (KeyMod.RALT & s.mod)) &&
+							  ((KeyMod.LGUI & mod) == (KeyMod.LGUI & s.mod) ||
+							   (KeyMod.RGUI & mod) == (KeyMod.RGUI & s.mod));
+			return modMatches;
+			/*
 			switch (mod)
 			{
 				case KeyMod.SHIFT:
@@ -40,6 +54,7 @@ class KeySequence
 				default:
 					return mod == s.mod;
 			}
+			*/
 		}
 
 		string toString() const

@@ -3,13 +3,29 @@
 	"description": "Ded - D Editor",
 	"homepage": "http://foobar.dk",
 	"copyright": "Copyright © 2013, Jonas Drewsen",
+	"mainSourceFile" : "src/app.d",
 	"authors": [
 		"Jonas Drewsen"
 	],
+	"buildRequirements": ["allowWarnings"],
 	"dependencies": {
 		"sdlang-d": ">=0.8.4",
 		"derelict-gl3": "~master",
 		"derelict-sdl2": "~master",
 		"derelict-ft": "~master"
-	}
+	},
+	"configurations": [
+		{
+        "name": "debug",
+        "targetType": "executable",
+		"targetName" : "ded-debug",
+		"buildOptions" : [ "debug_", "debugInfo"]
+		},
+		{
+        "name": "unittest",
+        "targetType": "executable",
+		"targetName" : "ded-unittest",
+		"buildOptions" : ["unittests", "debug_", "debugInfo"]
+		}
+	]
 }

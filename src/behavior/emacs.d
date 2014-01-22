@@ -67,9 +67,11 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<ctrl> + x <ctrl> + w", "edit.saveBufferAs");
 		set.setKeyBinding("<ctrl> + x <ctrl> + w", "edit.saveBufferAs");
 
-		set.setKeyBinding("<ctrl> + /", "edit.undoBuffer");
-		set.setKeyBinding("<ctrl> + _", "edit.undoBuffer");
-		set.setKeyBinding("<ctrl> + x u", "edit.undoBuffer");
+		set.setKeyBinding("<ctrl> + /", "edit.undo");
+		set.setKeyBinding("<ctrl> + _", "edit.undo");
+		set.setKeyBinding("<ctrl> + x u", "edit.undo");
+		set.setKeyBinding("<ctrl> + <shift> + z", "edit.redo");
+		set.setKeyBinding("<ctrl> + z", "edit.undo");
 		set.setKeyBinding("<ctrl> + b", "core.rebuildEditor");
 		set.setKeyBinding("<ctrl> + w", "app.toggleCommandArea");
 

@@ -617,13 +617,25 @@ version(unittest)
 	{
 	}
 
-	class DummyProvider : ResourceProvider!Dummy
+	class DummyLoader : IResourceLoader!Dummy
 	{
-		public bool load(Dummy res, URI uri, ResourceManager!Dummy callbackTarget)
+		public bool load(Dummy r, URI uri)
 		{
-			res.loaded = true;
-			callbackTarget.onResourceLoaded(res, this);
+			r.manager.onResourceLoaded(r, null);
 			return true;
+		}
+	}
+
+	class DummySerializer : ResourceSerializer!Dummy
+	{
+		override bool canHandle(URI uri)
+		{
+			return true;
+		}
+
+		override void deserialize(Dummy res, IO io)
+		{
+			res.manager.onResourceLoaded(res, this);
 		}
 	}
 }
@@ -631,16 +643,17 @@ version(unittest)
 unittest
 {
 	DummyManager m = new DummyManager;
-	DummyProvider p = new DummyProvider;
-	m.addProvider("file", p);
+	//DummySerializer p = new DummySerializer;
+	//m.addSerializer(p);
+	DummyLoader loader = new DummyLoader;
 
 	import test;
-	auto r = m.declare("dummy1");
+	auto r = m.declare("dummy1", null, loader);
 	Assert(m.get(r.handle) is r, "Resource from declare same as resource gotten by handle from manager");
 	Assert(m.get(r.name) is r, "Resource from declare same as resource gotten by name from manager");
-	auto r2 = m.declare("dummy1");
+	auto r2 = m.declare("dummy1", null, loader);
 	Assert(r is r2, "Redeclaring with same name results in same resource");
-	auto r3 = m.declare("dummy1", new URI("resources/dummies/dummy1.dummy"));
+	auto r3 = m.declare("dummy1", new URI("resources/dummies/dummy1.dummy"), loader);
 	Assert(r is r3, "Redeclaring with same name and a uri results in same resource");
 	Assert(r.loaded, false, "Resource is not loaded before calling load");
 	m.load(r.handle);

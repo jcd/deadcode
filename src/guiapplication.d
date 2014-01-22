@@ -216,7 +216,7 @@ class GUIApplication : Application
 		if (w is null)
 		{
 			// create a new widget for this buffer
-			auto editorWidget = new Editor(_mainWidget, buf);
+			auto editorWidget = new Editor(_mainWidget, buf);	
 			editors[buf.name] = editorWidget;
 			editorWidget.name = "editor-" ~ buf.name;
 			editorWidget.onKeyboardFocusCallback = (Event ev, Widget w) {

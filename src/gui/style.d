@@ -603,7 +603,7 @@ class StyleSetSerializer : ResourceSerializer!StyleSet
 	private FontManager _fontManager;
 }
 
-
+/*
 
 interface Serializer
 {
@@ -653,7 +653,7 @@ unittest
 	import std.stdio;
 	import std.string;
 
-	StyleSetManager mgr = new StyleSetManager(new FontManager(), new MaterialManager());
+	StyleSetManager mgr = StyleSetManager.create(new IOManager(), new MaterialManager(), new FontManager());
 	auto s = new JSONSerializer(strip(d));
 	mgr.deserialize(s);
 	
@@ -661,3 +661,4 @@ unittest
 //	Assert(d, s.
 	
 }
+*/

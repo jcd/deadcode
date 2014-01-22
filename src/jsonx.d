@@ -1,4 +1,4 @@
-﻿module jsonx;
+module jsonx;
 
 import std.algorithm : find;
 import std.ascii : isControl, isUpper, isDigit, isHexDigit, isWhite;
@@ -529,7 +529,7 @@ T jsonDecode_impl(T, R)(ref R input) if(isInputCharRange!R && isSomeString!T) {
         } else if(isControl(c) && c != '\n' && c != '\t' && c != '\r' ) {
             /* Error - JSON strings cannot include raw control characters */
             
-			throw new JsonException("encountered raw control character. Rest is " ~ input);
+			throw new JsonException("encountered raw control character. Rest is " ~ to!string(input));
         } else {
             /* Regular character */
             static if(canReuseInput) {
@@ -593,8 +593,8 @@ class JsonException : Exception {
     }
 }
 
+/+
 unittest {
-	return;
     static struct MyConfig {
         string encoding;
         string[] plugins;
@@ -791,3 +791,4 @@ unittest {
     v = jsonDecode(`"\u2660\u2666"`);
     assert(jsonEncode(v) == "\"\&spades;\&diams;\"");
 }
++/

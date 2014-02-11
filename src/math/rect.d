@@ -85,6 +85,17 @@ struct Rect(T)
 		size.y = v - pos.y;
 	}
 
+	@property const(Vec2!T) posMax() const
+	{
+		return pos + size;
+	}
+
+	@property void posMax(Vec2!T v)
+	{
+		x2 = v.x;
+		y2 = v.y;
+	}
+
 	@property ref T w()  
 	{
 		return size.x; 
@@ -135,8 +146,28 @@ struct Rect(T)
 	}
 	
 	bool contains(const(Vec2!T) point) const
-	{
-		return point.x <= x2 && point.x >= x && point.y <= y2 && point.y >= y;
+	{	
+		// Since size can be negative we need two paths
+		bool contained = void;
+		if (size.x < 0)
+		{
+			contained = point.x >= x2 && point.x <= x;
+		}
+		else
+		{
+			contained = point.x <= x2 && point.x >= x;
+		}
+
+		if (size.y < 0)
+		{
+			contained = contained && (point.y >= y2 && point.y <= y);
+		}
+		else
+		{
+			contained = contained && (point.y <= y2 && point.y >= y);
+		}
+
+		return contained;
 	}
 
 	string toString() const

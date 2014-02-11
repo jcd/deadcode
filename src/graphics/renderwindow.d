@@ -226,7 +226,7 @@ class RenderWindow : RenderTarget
 	{
 		Vec2i s = size;
 		worldUnits *= 0.5f;
-		return Vec2f(s.x * worldUnits.x, s.y * worldUnits.y);
+		return Vec2f(s.x * worldUnits.x, s.y * -worldUnits.y);
 	}
 	
 	/// ditto
@@ -282,6 +282,14 @@ class RenderWindow : RenderTarget
 	{
 		// world goes from (-1,-1) to (1,1)
 		Vec2i s = size;
-		return Vec2f(( 0.5f * src.x + 0.5f) * s.x, ( 0.5f * src.y - 0.5f) * s.y);
+		return Vec2f(( 0.5f * src.x + 0.5f) * s.x, ( 0.5f * -src.y + 0.5f) * s.y);
 	}
+
+	override Rectf worldToWindow(Rectf r)
+	{
+		Vec2f winPos = worldToPixelPos(r.pos);
+		Vec2f winSize = worldSizeToPixel(r.size);
+		return Rectf(winPos, winSize);
+	}
+
 }

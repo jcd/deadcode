@@ -41,6 +41,10 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<pageup>", "edit.scrollPageUp");
 		set.setKeyBinding("<ctrl> + a", "edit.cursorToBeginningOfLine");
 		set.setKeyBinding("<ctrl> + e", "edit.cursorToEndOfLine");
+		set.setKeyBinding("<ctrl> + <shift> + a", "edit.selectToBeginningOfLine");
+		set.setKeyBinding("<ctrl> + <shift> + e", "edit.selectToEndOfLine");
+		set.setKeyBinding("<ctrl> + <shift> + <left>", "edit.selectToWordBefore");
+		set.setKeyBinding("<ctrl> + <shift> + <right>", "edit.selectToWordAfter");
 		set.setKeyBinding("<ctrl> + <backspace>", "edit.deleteWordBefore");
 		set.setKeyBinding("<ctrl> + <delete>", "edit.deleteWordAfter");
 		set.setKeyBinding("<ctrl> + <left>", "edit.cursorToWordBefore");
@@ -49,6 +53,10 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<right>", "edit.cursorToCharAfter");
 		set.setKeyBinding("<up>", "edit.cursorToCharAbove");
 		set.setKeyBinding("<down>", "edit.cursorToCharBelow");
+		set.setKeyBinding("<shift> + <left>", "edit.selectToCharBefore");
+		set.setKeyBinding("<shift> + <right>", "edit.selectToCharAfter");
+		set.setKeyBinding("<shift> + <up>", "edit.selectToCharAbove");
+		set.setKeyBinding("<shift> + <down>", "edit.selectToCharBelow");
 		set.setKeyBinding("<ctrl> + k", "edit.deleteToEndOfLine");
 		set.setKeyBinding("<backspace>", "edit.deleteCharBefore");
 		auto rs = new RuleSet();

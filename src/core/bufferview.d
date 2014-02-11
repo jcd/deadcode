@@ -7,6 +7,7 @@ import std.container;
 import std.conv;
 import std.exception;
 import std.range;
+import std.signals;
 import std.stdio;
 
 version(unittest) import test;
@@ -16,6 +17,7 @@ version(unittest) import test;
 //  * Cannot page down until out after buffer length. Think buffer.startOfLine/endOfLine are guilty
 
 /** A BufferView is used as a view to he contents of a buffer. 
+ * A BufferView in non GUI related but only used for representing and controlling a buffer.
  * Several BufferViews may display the same buffer.
  * The selection, cursor position etc. is distinct for each BufferView.
  * Changes to the buffer is usually done through a view.
@@ -26,19 +28,25 @@ class BufferView
 	string name;
 	package TextGapBuffer buffer;     // This should be changeable to something else if wanted
 	// private GapBuffer!int lineStarts; // Indexes into buffer for all line starts. Purely a optimization.
-	private RegionSet selections;
+	
+	uint selectionStartIndex;
+	Region selection;
+	// RegionSet selections;
+
+	alias immutable(TextGapBuffer.CharType)[] BufferString;
 
 	bool dirty;
 	uint bufferOffset; // char offset into the buffer from where to draw
+	
+	// emit(this, text, insertedTextAfterThisIndex)
+	mixin Signal!(BufferView, BufferString, uint) onInsert;
+	
+	// emit(this, text, removedTextAfterThisIndex)
+	mixin Signal!(BufferView, BufferString, uint) onRemove;
 
-	alias void delegate(BufferView) Callback;
-
-	Callback onChanged;
 	package void changed()
 	{
 		dirty = true;
-		if (onChanged !is null)
-			onChanged(this);
 	}
 
 	auto opSlice(size_t from, size_t to) const
@@ -78,8 +86,7 @@ class BufferView
 	{
 		this.buffer = buffer;
 		dirty = true;
-		onChanged = null;
-		selections = new RegionSet(true); // should be false
+		//selections = new RegionSet(true); // should be false
 		_undoStack = new ActionStack;
 	}
 	
@@ -119,7 +126,12 @@ class BufferView
 			return buffer.lastLine;
 		}
 	}
-	
+
+	void clearUndoStack()
+	{
+		_undoStack.clear();
+	}
+
 	void undo()
 	{
 		if (_undoStack.canUndo())
@@ -148,12 +160,14 @@ class BufferView
 
 	void cursorToStart() 
 	{
+		selection.clear();
 		_undoStack.push!CursorToStartAction(this);
 		// cursorPoint = 0;
 	}
 
 	void cursorToEnd() 
 	{
+		selection.clear();
 		_undoStack.push!CursorToEndAction(this);
 		// cursorPoint = length;
 	}
@@ -163,12 +177,21 @@ class BufferView
 		return _cursorPoint;
 	}
 
+	// TODO:	When having a selection and then moving the cursor without shift it should remove selection again.
+
 	@property void cursorPoint(uint v) 
 	{
-		assert(buffer !is null && v >= 0 && v <= buffer.length, "Cursor out of range");
-		_undoStack.push!CursorRightAction(this, v - _cursorPoint);
+		assert(isValidCursorPoint(v), "Cursor out of range");
+		_cursorPoint = v;
+		
+		//_undoStack.push!CursorRightAction(this, v - _cursorPoint);
 		// _cursorPoint = v;
-		setPreferredCursorColumnFromIndex(v);
+		// setPreferredCursorColumnFromIndex(v);
+	}
+
+	bool isValidCursorPoint(uint v)
+	{
+		return  buffer !is null && v >= 0 && v <= buffer.length;
 	}
 
 	@property int cursorPointRelative() const pure nothrow
@@ -219,7 +242,17 @@ class BufferView
 
 	void insert(dstring txt)
 	{
-		_undoStack.push!InsertAction(this, txt);
+		if (selection.empty)
+		{
+			_undoStack.push!InsertAction(this, txt);
+		}
+		else
+		{
+			_undoStack.push!ActionGroupAction(this, 
+											  new RemoveSelectedAction(),
+											  new InsertAction(txt)
+												  );
+		}
 	}
 
 	void append(dstring items)
@@ -254,26 +287,67 @@ class BufferView
 	
 	void cursorLeft(uint c = 1) 
 	{
+		selection.clear();
 		_undoStack.push!CursorRightAction(this, -c);
 	}	
 
 	void cursorRight(uint c = 1)
 	{
+		selection.clear();
 		_undoStack.push!CursorRightAction(this, c);
 	}
 
 	void cursorUp(uint c = 1) 
 	{
+		selection.clear();
 		_undoStack.push!CursorDownAction(this, -c);
 	}
 	
 	void cursorDown(uint c = 1)
 	{
+		selection.clear();
 		_undoStack.push!CursorDownAction(this, c);
 	}
 	
-	void scrollUp()
+	void selectLeft(uint c = 1) 
 	{
+		selectTo(_cursorPoint - c);
+		_undoStack.push!CursorRightAction(this, -c);
+	}	
+
+	void selectRight(uint c = 1)
+	{
+		selectTo(_cursorPoint + c);
+		_undoStack.push!CursorRightAction(this, c);
+	}
+
+	void selectUp(uint c = 1) 
+	{
+		auto p = buffer.linesOffset(_cursorPoint, -c, preferredCursorColumn);
+		selectTo(p);
+		_undoStack.push!CursorDownAction(this, -c);
+	}
+
+	void selectDown(uint c = 1)
+	{
+		auto p = buffer.linesOffset(_cursorPoint, c, preferredCursorColumn);
+		selectTo(p);
+		_undoStack.push!CursorDownAction(this, c);
+	}
+
+	void selectTo(uint c)
+	{
+		if (selection.empty)
+			selectionStartIndex = cursorPoint;
+		
+		if (selectionStartIndex < c)
+			selection = Region(selectionStartIndex, c);
+		else
+			selection = Region(c, selectionStartIndex);
+	}
+
+	void scrollUp()
+	{	
 		bufferOffset = buffer.startOfLine(buffer.endOfPreviousLine(bufferOffset));
 		if (_lineOffset > 0)
 			_lineOffset--;
@@ -296,13 +370,30 @@ class BufferView
 
 	void cursorToBeginningOfLine()
 	{
+		selection.clear();
 		_cursorPoint = buffer.startOfLine(_cursorPoint);
 		_preferredCursorColumn = 0;
 	}
 	
 	void cursorToEndOfLine()
 	{
+		selection.clear();
 		cursorPoint = buffer.endOfLine(_cursorPoint);
+		_preferredCursorColumn = cursorPoint;
+	}
+
+	void selectToBeginningOfLine()
+	{
+		auto startOfLine = buffer.startOfLine(_cursorPoint);
+		selectTo(startOfLine);
+		cursorPoint = startOfLine;
+	}
+
+	void selectToEndOfLine()
+	{
+		auto endOfLine = buffer.endOfLine(_cursorPoint);
+		selectTo(endOfLine);
+		cursorPoint = endOfLine;
 	}
 
 	private uint indexWordBefore()
@@ -322,9 +413,17 @@ class BufferView
 	
 	void cursorToWordBefore()
 	{
+		selection.clear();
 		cursorPoint = indexWordBefore();
 	}
 	
+	void selectToWordBefore()
+	{
+		auto b = indexWordBefore();
+		selectTo(b);
+		cursorPoint = b;
+	}
+
 	void deleteWordBefore()
 	{ 
 		auto deleteTo = indexWordBefore();
@@ -332,7 +431,7 @@ class BufferView
 		cursorPoint = deleteTo;
 		remove(deleteLen);
 	}
-	
+
 	private uint indexWordAfter()
 	{
 		uint startOfWord = buffer.findOneOf(_cursorPoint, buffer.WORDCHARS);
@@ -349,9 +448,17 @@ class BufferView
 
 	void cursorToWordAfter()
 	{
+		selection.clear();
 		cursorPoint = indexWordAfter();
 	}
 	
+	void selectToWordAfter()
+	{
+		auto a = indexWordAfter();
+		selectTo(a);
+		cursorPoint = a;
+	}
+
 	void deleteWordAfter()
 	{
 		auto deleteTo = indexWordAfter();

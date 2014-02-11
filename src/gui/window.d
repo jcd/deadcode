@@ -32,10 +32,13 @@ class Window : Widget
 		// to have name on all widgets and therefore the name is
 		// not a member of Widget.
 		Widget[string] widgetNameMap; 
+
+		
 	}
 
 	std.variant.Variant userData;
 	WindowID id;
+	StyleSet styleSet;
 
 	static Window active;
 
@@ -45,7 +48,7 @@ class Window : Widget
 		{
 			return this;
 		}
-		
+	
 		void onEvent(OnEvent callback)
 		{
 			_onEvent = callback;
@@ -150,6 +153,11 @@ class Window : Widget
 		return _renderTarget.windowToWorld(r);
 	}
 
+	Rectf worldToWindow(Rectf r)
+	{
+		return _renderTarget.worldToWindow(r);
+	}
+
 	Vec2f worldToPixelSize(Vec2f src)
 	{
 		return _renderTarget.worldSizeToPixel(src);
@@ -241,10 +249,10 @@ class Window : Widget
 			_onUpdate();
 	}
 
-	override void draw(StyleSet styleSet)
+	override void draw()
 	{
 		_renderTarget.render(false);
-		super.draw(styleSet);
+		super.draw();
 		_renderTarget.swapBuffers();
 	}
 

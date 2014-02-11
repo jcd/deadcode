@@ -8,6 +8,16 @@ import std.range;
 import std.variant;
 import std.conv;
 import std.traits;
+import std.typecons;
+
+struct GlyphHit
+{
+	bool endOfLine; /// The hit was after the last char on the line and index points to the last char
+	uint index;     /// Index of the char that was hit. In case endOfLine is true, index of the last char on line
+	Rectf rect;     /// The rect that the glyph occupies.
+
+	@property isValid() { return index != uint.max; }
+}
 
 /** The Text feature of a widget can be used to displays the contents of a TextView
  *  on the widget
@@ -20,6 +30,7 @@ class TextRenderer(Text) : WidgetFeature
 	private
 	{
 		TextModel _model;
+		//TextSelectionModel _selectionModel;
 		StyledText!Text _styledText;
 		Model _cursorModel = null;
 		TextBoxLayout _layout;
@@ -27,6 +38,10 @@ class TextRenderer(Text) : WidgetFeature
 		bool _textDirty = true;
 		enum _isBasicText = ! hasMember!(Text, "dirty");
 	}
+
+	// Tmp solution until proper styleset and selectors are supported
+	Region selection;
+	Style selectionStyle;
 
 	bool cursorEnabled = true;
 
@@ -49,7 +64,7 @@ class TextRenderer(Text) : WidgetFeature
 		import util.system;
 		this._cursorModel = createQuad(Rectf(0,0,1, 1), gui.resources.material.Material.create(getRunningExecutablePath() ~ "white.png"));
 		// std.stdio.writeln(getRunningExecutablePath() ~ "white.png");
-		//this._cursorModel.material.texture = font.fontMap;
+		// this._cursorModel.material.texture = font.fontMap;
 	}
 
 	@property 
@@ -116,10 +131,14 @@ class TextRenderer(Text) : WidgetFeature
 	void getTransform(Widget widget, ref Mat4f transform)
 	{
 		Rectf wrect = widget.window.windowToWorld(widget.rect);
-		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0));
+		
+		// Since text are layed out using pixel coords we scale into world coords
+		Vec2f scale = widget.window.pixelSizeToWorld(Vec2f(1,1));
+		
+		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0)) * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
 	}
 
-	override void draw(Widget widget, StyleSet styleSet)
+	override void draw(Widget widget)
 	{
 		// Issues: 
 		//   1, Cannot calc x offset correct when not using monotype because of the simple rendering we are doing.
@@ -149,6 +168,10 @@ class TextRenderer(Text) : WidgetFeature
 		getTransform(widget, transform);
 		//auto transform = Mat4f.makeTranslate(Vec3f(-1,1,0));
 		
+		StyleSet styleSet = widget.window.styleSet;
+		if (selectionStyle is null)
+			selectionStyle = styleSet.createStyle();
+
 		static if (_isBasicText)
 		{
 			if (_textDirty) 
@@ -168,12 +191,11 @@ class TextRenderer(Text) : WidgetFeature
 			}
 		}
 
-
 		_model.draw(widget.window.MVP * transform);
 
 		//uint glyphLineIndex = view.cursorPoint - view.buffer.startOfLine(view.cursorPoint);
 		// float cursorLineOffset = _layout.lines[row].glyphWorldPos(glyphLineIndex).x;
-		//float cursorLineOffset = _model.getGlyphWorldPos(view.cursorPoint - view.bufferOffset).x;
+		//float cursorLineOffset = _model.getGlyphdPos(view.cursorPoint - view.bufferOffset).x;
 	
 		static if (!_isBasicText)
 		{
@@ -193,11 +215,15 @@ class TextRenderer(Text) : WidgetFeature
 		_styledText.update(styleSet);
 
 		// TODO: get transform
-		Vec2f worldSize = widget.window.pixelSizeToWorld(widget.rect.size);
+		// Vec2f worldSize = widget.window.pixelSizeToWorld(widget.rect.size);
 
 		_model.resetGlyphPositions();
 
-		_layout = TextBoxLayout(_model, Rectf(0, 0, worldSize.x, worldSize.y));
+		// _layout = TextBoxLayout(_model, Rectf(0, 0, worldSize.x, worldSize.y));
+		
+		Vec2f winSize = widget.window.size;
+		_layout = TextBoxLayout(_model, Rectf(0, 0, winSize.x, winSize.y));
+		
 		foreach (r; _styledText.regionSet)
 		{
 			if (r.b <= textOffset) continue;
@@ -207,7 +233,34 @@ class TextRenderer(Text) : WidgetFeature
 			}
 			
 			Style style = styleSet.getStyle(_styledText.styleIDToName(r.id));
-			_layout.add(text[r.a .. r.b], style);
+			auto intersectParts = r.intersect3(selection);
+			if (!intersectParts.before.empty)
+			{
+				// unselected
+				auto r2 = intersectParts.before;
+				_layout.add(text[r2.a .. r2.b], style);
+			}
+
+			if (!intersectParts.at.empty)
+			{
+				// selected
+				import graphics.color;
+				selectionStyle.parent = style;
+				selectionStyle.color = Color(0,0,1);
+				auto r2 = intersectParts.at;
+				_layout.add(text[r2.a .. r2.b], selectionStyle);
+			}
+
+			if (!intersectParts.after.empty)
+			{
+				// unselected
+				auto r2 = intersectParts.after;
+				_layout.add(text[r2.a .. r2.b], style);
+			}
+
+			//if (!r.empty)
+				//_layout.add(text[r.a .. r.b], style);
+			
 			if (_layout.done)
 				break;
 		}
@@ -245,6 +298,7 @@ class TextRenderer(Text) : WidgetFeature
 		_textDirty = false;
 	}
 */
+	// World rect relative to widget
 	Rectf getRectForViewIndex(uint idx)
 	{
 		auto relIdx = cast(int)idx - cast(int)text.bufferOffset;
@@ -280,21 +334,21 @@ class TextRenderer(Text) : WidgetFeature
 				return r;
 			}
 
-			rect = _model.getGlyphWorldPos(relIdx-1);
+			rect = _model.getGlyphPos(relIdx-1);
 			if (rect.x == float.nan)
 				return rect;
 			rect.x = rect.x + rect.w;
 		}
 		else
 		{
-			rect = _model.getGlyphWorldPos(relIdx);
+			rect = _model.getGlyphPos(relIdx);
 		}
 		return rect;
 	}
 
 	Mat4f getTransformForViewIndex(uint idx, ref Rectf rect)
 	{
-		rect = getRectForViewIndex(text.cursorPoint);
+		rect = getRectForViewIndex(idx);
 		if (rect.x == float.nan)
 			return Mat4f.IDENTITY;
 		
@@ -307,23 +361,103 @@ class TextRenderer(Text) : WidgetFeature
 		return getTransformForViewIndex(idx, rect);
 	}
 
-	void drawCursor(Widget widget, ref Mat4f transform, float fontLineSkip)
+	void getTransformForIdx(Widget widget, ref Mat4f transform, float fontLineSkip, uint idx)
 	{
 		Rectf rect = void;
-		auto posTrans = getTransformForViewIndex(text.cursorPoint, rect);
-		auto isStartOfText = text.cursorPoint == 0;
+		auto posTrans = getTransformForViewIndex(idx, rect);
+		auto isStartOfText = idx == 0;
 		if (posTrans == Mat4f.IDENTITY)
 		{
 			if (!isStartOfText)
 				return;
-			auto fallbackHeight = Window.active.pixelHeightToWorld(fontLineSkip);
+			auto fallbackHeight = fontLineSkip;
 			rect.h = fallbackHeight;
 			rect.x = 0;
 			posTrans = Mat4f.makeTranslate(Vec3f(rect.x, -rect.h, 0f));
 		}
+
+//		auto scaleTrans = Mat4f.makeScale(Vec3f(widget.window.pixelWidthToWorld(1), rect.h, 0));
+		auto scaleTrans = Mat4f.makeScale(Vec3f(1, rect.h, 0));
+		transform = transform * posTrans * scaleTrans;	
+	}
+
+	Rectf getGlyphRect(Widget widget, uint idx)
+	{
+		Rectf rect = void;
+		auto posTrans = getTransformForViewIndex(idx, rect);
+		if (rect.x == float.nan)
+			return rect;
+
+		Mat4f trx;
+		getTransform(widget, trx);
 		
-		auto scaleTrans = Mat4f.makeScale(Vec3f(widget.window.pixelWidthToWorld(1), rect.h, 0));
-		transform = transform * posTrans * scaleTrans;
+		trx = widget.window.MVP * trx; // * posTrans;
+		
+		/*
+		Rectf r = getRectForViewIndex(idx);
+		if (r.x == float.nan)
+			return r;		
+		r = widget.window.worldToWindow(r);
+		r.pos = r.pos + widget.rect.pos;
+		*/
+
+		Rectf result;
+		//Vec4f p = Vec4f(rect.pos, 1f);
+		result.pos = (trx * Vec4f(rect.x, rect.y, 0f, 1f)).xy;
+		auto p = rect.posMax;
+		result.posMax = (trx * Vec4f(p.x, p.y, 0f, 1f)).xy;
+		
+		auto r2 = widget.window.worldToWindow(result);
+		//r2.pos.y -= r2.size.y;
+		return r2;
+
+		//return result;
+	}
+
+	/** Get glyph index into buffer that is a window position
+		
+		Params:
+			widget = the widget associated with this renderer
+			pos = the windows position to find glyph for
+
+		Returns:
+			A tuple of bool,uint,Rectf. The is true if the position is directly at a glyph and false otherwise.
+			The uint is the index into the buffer where the glyph is located in case the bool is true. 
+			The uint is the index into the buffer of the end of line for the line where the mouse is located in case 
+			the bool is false. If the cursor is at no buffer line uint.max is returned.
+			The Rectf is the rect that the glyph occupies.
+	*/
+	GlyphHit getGlyphAt(Widget widget, Vec2f pos)
+	{
+		// TODO: Maybe this should be handled by the textrenderer ie. click detection. Maybe not.
+		// Naive brute force finding of glyph pos
+		uint i = _styledText.text.bufferOffset;
+		// uint i = bufferView.bufferOffset;
+
+		// Vec2f mousePos = event.mousePos;
+		Rectf glyphRect = getGlyphRect(widget, i);
+
+		// glyphRect.y is bottom 
+		bool found = false;
+		while (glyphRect.x != float.nan && pos.y > glyphRect.y2)
+		{
+			//std.stdio.writeln(glyphRect, " ", pos);
+			if (glyphRect.contains(pos))
+			{
+				found = true;
+				break;
+			}
+			i++;
+			glyphRect = getGlyphRect(widget, i);
+		}
+		if (found)
+			return GlyphHit(true, i, glyphRect);
+		return GlyphHit(false, glyphRect.x == float.nan || _styledText.text.bufferOffset == i ? uint.max : i-1, glyphRect);
+	}
+
+	void drawCursor(Widget widget, ref Mat4f transform, float fontLineSkip)
+	{
+		getTransformForIdx(widget, transform, fontLineSkip, text.cursorPoint);
 		_cursorModel.draw(widget.window.MVP * transform);
 
 		/*

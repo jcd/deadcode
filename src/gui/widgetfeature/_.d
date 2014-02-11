@@ -8,7 +8,7 @@ class WidgetFeature
 {
 	EventUsed send(Event event, Widget widget) { return EventUsed.no; }
 	void update(Widget widget) {}
-	void draw(Widget widget, StyleSet styleSet) {}
+	void draw(Widget widget) {}
 }
 
 public import gui.widgetfeature.boxrenderer;

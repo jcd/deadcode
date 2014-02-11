@@ -18,9 +18,9 @@ class BoxRenderer : WidgetFeature
 		model = createQuad(Rectf(0,0,1,1));
 	}
 	
-	override void draw(Widget widget, StyleSet styleSet)
+	override void draw(Widget widget)
 	{
-		Style style = styleSet.getStyle(styleName);
+		Style style = widget.window.styleSet.getStyle(styleName);
 		model.material = style.background;
 		const Rectf r = Rectf(widget.rect);
 		Rectf wrect = widget.window.windowToWorld(r);

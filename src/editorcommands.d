@@ -64,6 +64,12 @@ void register(CommandManager cmgr, Application _app)
 	mixin(createCmd("cursorToEndOfLine", "Move cursor to end of current line"));
 	mixin(createCmd("cursorToWordBefore", "Move cursor to word before cursor"));
 	mixin(createCmd("cursorToWordAfter", "Move cursor to word after cursor"));
+
+	mixin(createCmd("selectToBeginningOfLine", "Expand selection to beginning of current line"));
+	mixin(createCmd("selectToEndOfLine", "Expand selection cursor to end of current line"));
+	mixin(createCmd("selectToWordBefore", "Expand selection to word before cursor"));
+	mixin(createCmd("selectToWordAfter", "Expand selection to word after cursor"));
+
 	mixin(createCmd("deleteWordBefore", "Delete word before cursor"));
 	mixin(createCmd("deleteWordAfter", "Delete word after cursor"));
 	mixin(createCmd("deleteToEndOfLine", "Delete line part after cursor"));
@@ -96,6 +102,35 @@ void register(CommandManager cmgr, Application _app)
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 		ctrl.cursorDown();
+		uint lineNum = ctrl.lineNumber;
+		if (lineNum > (ctrl.lineOffset + ctrl.visibleLineCount))
+			ctrl.scrollDown();
+	});
+
+	cmgr.create("edit.selectToCharBefore", "Select to char before cursor", delegate(Variant data) {
+		mixin(getBufferOrReturn);
+		b.selectLeft(1);
+	});
+
+	cmgr.create("edit.selectToCharAfter", "Select to char after cursor", delegate(Variant data) {
+		mixin(getBufferOrReturn);
+		b.selectRight(1);
+	});
+
+	cmgr.create("edit.selectToCharAbove", "Select to char before cursor", delegate(Variant data) {
+		mixin(getBufferOrReturn);
+		auto ctrl = b;
+		ctrl.selectUp(1);
+		uint lineNum = ctrl.lineNumber;
+		//std.stdio.writeln("key down ", lineNum, " ", ctrl.lineOffset," ", ctrl.visibleLineCount /*, " ", ctrl.buffer.lineCount*/);
+		if (lineNum < ctrl.lineOffset)
+			ctrl.scrollUp();
+	});
+
+	cmgr.create("edit.selectToCharBelow", "Select to char after cursor", delegate(Variant data) {
+		mixin(getBufferOrReturn);
+		auto ctrl = b;
+		ctrl.selectDown();
 		uint lineNum = ctrl.lineNumber;
 		if (lineNum > (ctrl.lineOffset + ctrl.visibleLineCount))
 			ctrl.scrollDown();

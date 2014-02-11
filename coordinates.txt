@@ -1,0 +1,17 @@
+textures: 
+	(0,0) bottom,left
+	(1,1) top, right
+
+gui:
+	same as e.g. Qt, Cairo, GDI
+	(0,0) top, left
+	(w,h) bottom, right
+
+opengl:
+	(-1,-1) bottom, left
+	(1,1) top, right
+
+glviewport:
+	(0,0) bottom, left
+	(w,h) top, right
+

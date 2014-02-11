@@ -152,12 +152,13 @@ class GUI
 			v.update();
 		}
 
-		auto styleSet = styleSetManager.get("default");
-
 		foreach (k, v; _windows)
 		{
 			// TODO: cull hidden windows
-			v.draw(styleSet);
+			// TODO: fix double drawing of widgets because the are all drawn here and some of them
+			// as children of window as well
+			// if (v.parent is v.window)
+				v.draw();
 		}
 	}
 		
@@ -290,6 +291,8 @@ class GUI
 		if (activeWindow is null)
 			activeWindow = win;
 		_windows[win.id] = win;
+		auto styleSet = styleSetManager.get("default");
+		win.styleSet = styleSet;
 
 		Event ev;
 		ev.type = EventType.Resize;

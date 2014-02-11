@@ -4,7 +4,7 @@ import application;
 import core.bufferview;
 import core.uri;
 import controls.command;
-import controls.editor;
+import controls.texteditor;
 import graphics._;
 import gui._;
 import math._; // Vec2f
@@ -15,7 +15,15 @@ import std.array;
 class GUIApplication : Application
 {
 	GUI guiRoot;
-	Editor[string] editors;
+	
+	
+	struct EditorInfo
+	{
+		static uint focusOrderCounter = 0;
+		uint focusOrder; // LRU ordering
+		TextEditor editor;
+	}
+	EditorInfo[string] editors;
 	Widget _mainWidget;
 
 	class WindowData
@@ -134,6 +142,7 @@ class GUIApplication : Application
 
 		auto mainBuf = bufferViewManager["*Messages*"];
 		mainBuf.cursorToEnd();
+		mainBuf.clearUndoStack();
 		showBuffer(mainBuf);
 		
 		// Add command control
@@ -186,11 +195,11 @@ class GUIApplication : Application
 		// current buffer name is most likely "command" buffer and not an active editor
 		string currentBufferName = currentBuffer is null ? null : currentBuffer.name;
 		return editors.values
-					.filter!(a => a.bufferView.name.startsWith(prefix) && a.bufferView.name != currentBufferName)()
+					.filter!(a => a.editor.bufferView.name.startsWith(prefix) && a.editor.bufferView.name != currentBufferName)()
 					.array()
-					.sort!("a.lastDrawTick > b.lastDrawTick")()
-					.map!"a.bufferView.name"()
-					.array(); 
+					.sort!("a.focusOrder > b.focusOrder")()
+					.map!"a.editor.bufferView.name"()
+					.array();
 	}
 
 	string[] getBufferCompletions(string prefix)
@@ -212,21 +221,22 @@ class GUIApplication : Application
 	void showBuffer(BufferView buf)
 	{
 		_mainWidget.hideChildren();
-		Editor* w = buf.name in editors;
+		EditorInfo* w = buf.name in editors;
 		if (w is null)
 		{
 			// create a new widget for this buffer
-			auto editorWidget = new Editor(_mainWidget, buf);	
-			editors[buf.name] = editorWidget;
+			auto editorWidget = new TextEditor(_mainWidget, buf);	
+			editors[buf.name] = EditorInfo(++EditorInfo.focusOrderCounter, editorWidget);
 			editorWidget.name = "editor-" ~ buf.name;
 			editorWidget.onKeyboardFocusCallback = (Event ev, Widget w) {
+				editors[buf.name].focusOrder = ++EditorInfo.focusOrderCounter;
 				currentBuffer = buf;
-				return EventUsed.yes;		
+				return EventUsed.yes;
 			};
-			w = &editorWidget;
+			w = buf.name in editors;
 		}
-		w.visible = true;
-		w.setKeyboardFocusWidget();
+		w.editor.visible = true;
+		w.editor.setKeyboardFocusWidget();
 		currentBuffer = buf;
 	}
 }

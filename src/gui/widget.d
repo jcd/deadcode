@@ -463,22 +463,31 @@ class Widget
 
 	mixin(ctGenerateEventCallbacks());
 
-	void draw(StyleSet styleSet)
+	protected void drawFeatures()
+	{
+		// Draw features
+		foreach (f; features)
+		{
+			f.draw(this);
+		}	
+	}
+
+	protected void drawChildren()
+	{
+		// Draw children
+		foreach (w; children)
+		{
+			w.draw();
+		}
+	}
+
+	void draw()
 	{
 		if (!visible)
 			return;
 
-		// Draw features
-		foreach (f; features)
-		{
-			f.draw(this, styleSet);
-		}
-		
-		// Draw children
-		foreach (w; children)
-		{
-			w.draw(styleSet);
-		}
+		drawFeatures();
+		drawChildren();
 	}
 
 	void update()

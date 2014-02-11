@@ -100,13 +100,13 @@ class CommandControl : Widget
 		show = false;
 	}
 
-	override void draw(StyleSet styleSet)
+	override void draw()
 	{
 		if (!visible)
 			return;
 		if (bottomWidget is null)
-			init(styleSet);
-		super.draw(styleSet);
+			init(window.styleSet);
+		super.draw();
 	}
 
 	override EventUsed onCommand(Event event)

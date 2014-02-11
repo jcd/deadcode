@@ -31,6 +31,32 @@ class KeySequence
 
 			//bool modMatches = KeyMod.LSHIFT & xor 
 
+			// Match matrix
+			
+			// mod/s.mod | LSHIFT | RSHIFT | SHIFT | NONE
+			// LSHIFT    | yes    | no     | yes   | no
+			// RSHIFT    | no     | yes    | yes   | no
+			// SHIFT     | yes    | yes    | yes   | no
+			// none      | no     | no     | no    | yes
+			
+			auto shiftNeeded = mod & KeyMod.SHIFT;
+			auto shiftGotten = s.mod & KeyMod.SHIFT;
+			auto shiftMatch = shiftNeeded & shiftGotten || shiftNeeded == shiftGotten;
+
+			auto ctrlNeeded = mod & KeyMod.CTRL;
+			auto ctrlGotten = s.mod & KeyMod.CTRL;
+			auto ctrlMatch = ctrlNeeded & ctrlGotten || ctrlNeeded == ctrlGotten;
+
+			auto altNeeded = mod & KeyMod.ALT;
+			auto altGotten = s.mod & KeyMod.ALT;
+			auto altMatch = altNeeded & altGotten || altNeeded == altGotten;
+
+			auto guiNeeded = mod & KeyMod.GUI;
+			auto guiGotten = s.mod & KeyMod.GUI;
+			auto guiMatch = guiNeeded & guiGotten || guiNeeded == guiGotten;
+
+			return shiftMatch && ctrlMatch && altMatch && guiMatch;
+/*
 			bool modMatches = ((KeyMod.LSHIFT & mod) == (KeyMod.LSHIFT & s.mod) ||
 							   (KeyMod.RSHIFT & mod) == (KeyMod.RSHIFT & s.mod)) &&
 							  ((KeyMod.LCTRL & mod) == (KeyMod.LCTRL & s.mod) ||
@@ -40,6 +66,7 @@ class KeySequence
 							  ((KeyMod.LGUI & mod) == (KeyMod.LGUI & s.mod) ||
 							   (KeyMod.RGUI & mod) == (KeyMod.RGUI & s.mod));
 			return modMatches;
+	*/		
 			/*
 			switch (mod)
 			{

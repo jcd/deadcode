@@ -34,6 +34,7 @@ class RenderTarget
 	abstract void render(bool _swapBuffers = true);
 	abstract void swapBuffers();
 	abstract Rectf windowToWorld(Rectf r);
+	abstract Rectf worldToWindow(Rectf r);
 	abstract Vec2f pixelSizeToWorld(Vec2f pixels);
 	abstract Vec2f worldSizeToPixel(Vec2f worldUnits);
 	abstract float pixelWidthToWorld(float x);

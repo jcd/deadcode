@@ -53,6 +53,7 @@ class DSourceStyler(Text) : TextStyler!Text
 		auto buf = array(text[0..text.length]);
 
 		size_t lastEndIdx = 0;
+
 		foreach (m; match(buf, ctr))
 		{
 			auto t = templates[m.hit];
@@ -64,8 +65,9 @@ class DSourceStyler(Text) : TextStyler!Text
 			lastEndIdx = end;
 		}
 
-		if (lastEndIdx == 0 && text.length != 0)
-			rset.add(0, text.length, 0);
+		if (lastEndIdx != text.length)
+			rset.add(lastEndIdx, text.length, 0);
+
 	
 		return;
 

@@ -19,6 +19,8 @@ import std.math;
 import std.path;
 import std.range;
 
+version (unittest) import test;
+
 alias string StyleID;
 
 immutable StyleID NullStyleName = "";
@@ -89,7 +91,7 @@ class Style
 			_computedFields = _fields;
 
 			if (_parent is null) return;
-			_parent.compute();
+			// _parent.compute();
 
 			alias _computedFields f;
 			
@@ -113,7 +115,7 @@ class Style
 				f._padding.h = _parent._computedFields._padding.h; 
 		
 			styleSet.compute(this);
-		}	
+		}
 	}
 
 	@property 
@@ -223,6 +225,16 @@ class Style
 		_fields._padding.size.y = float.nan;
 	}
 	
+	// reset in the same state as s
+	void reset(Style s)
+	{
+		_fields._font = s._fields._font;
+		_fields._background = s._fields._background;
+		_fields._color = s._fields._color;
+		_fields._derived = s._fields._derived;
+		_fields._padding = s._fields._padding;
+	}
+
 	void merge(Style s)
 	{
 		
@@ -342,9 +354,19 @@ class StyleSet : Resource!StyleSet
 	{
 		if (name == null)
 		{
+			Style getStyleHelper(string name)
+			{
+				foreach (k, v; styles)
+				{
+					if (v.name == name)
+						return v;
+				}
+				return null;
+			}
+			
 			int i = 1;
 			name = std.string.format("style_%s", i++);
-			while ( getStyle(name) is null )
+			while ( getStyleHelper(name) !is null )
 				name = std.string.format("style_%s", i++);
 		}
 		auto s = new Style(this, name);
@@ -355,13 +377,39 @@ class StyleSet : Resource!StyleSet
 	// Compute computed fields for all styles
 	private void compute(Style root)
 	{
-		foreach (n, style; styles)
+		foreach (style; styles)
 		{
 			if (style.parent is root)
 				style.compute();
 		}
 	}
 }
+
+
+unittest
+{
+	auto ss = new StyleSet;
+	auto parent = ss.createStyle;
+	parent.color = Color(0,1,0);
+	parent.padding = Rectf(1,2,3,4);
+	
+	auto child1 = ss.createStyle;
+	child1.parent = parent;
+	child1.color = Color(1,0,0);
+	Assert(child1.color, Color(1,0,0));
+	Assert(parent.color, Color(0,1,0));
+	Assert(child1.padding, parent.padding);
+	Assert(child1.padding, Rectf(1,2,3,4));
+
+	auto child2 = ss.createStyle;
+	child2.parent = parent;
+	child2.padding = Rectf(2,2,2,2);
+
+	Assert(child2.color, parent.color);
+	Assert(child2.padding != parent.padding);
+	Assert(child2.padding, Rectf(2,2,2,2));
+}
+
 
 class StyleSetManager : ResourceManager!StyleSet
 {

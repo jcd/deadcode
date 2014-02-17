@@ -30,6 +30,8 @@ class TextRenderer(Text) : WidgetFeature
 	private
 	{
 		TextModel _model;
+		TextSelectionModel _selectionModel;
+
 		//TextSelectionModel _selectionModel;
 		StyledText!Text _styledText;
 		Model _cursorModel = null;
@@ -128,15 +130,26 @@ class TextRenderer(Text) : WidgetFeature
 		widget.acceptsKeyboardFocus = true;		
 	}
 
-	void getTransform(Widget widget, ref Mat4f transform)
+	void getOffsetTransform(Widget widget, ref Mat4f transform)
 	{
 		Rectf wrect = widget.window.windowToWorld(widget.rect);
+
+		// Since text are layed out using pixel coords we scale into world coords
+		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0));
+	}
+
+	void getTransform(Widget widget, ref Mat4f transform)
+	{
+//		Rectf wrect = widget.window.windowToWorld(widget.rect);
 		
 		// Since text are layed out using pixel coords we scale into world coords
 		Vec2f scale = widget.window.pixelSizeToWorld(Vec2f(1,1));
-		
-		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0)) * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
+		getOffsetTransform(widget, transform);
+//		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0)) * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
+		transform = transform * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
 	}
+
+	//BoxModel _box;
 
 	override void draw(Widget widget)
 	{
@@ -162,7 +175,12 @@ class TextRenderer(Text) : WidgetFeature
 			return;
 
 		if (_model is null)
+		{
 			_model = new TextModel; //(styleSet);
+			//_box = new BoxModel(Sprite(Rectf(0,0,16,16)), RectfOffset(6,6,6,6));
+			//_box = new BoxModel(Sprite(Rectf(0,0,16,16)));
+			//_box.color = Vec3f(0.7, 0.7, 0.7);
+		}
 
 		Mat4f transform;
 		getTransform(widget, transform);
@@ -191,6 +209,31 @@ class TextRenderer(Text) : WidgetFeature
 			}
 		}
 
+		//_box.material = styleSet.getStyle("box").background;
+		//_box.rect = Rectf(0, 0, 64, 64);
+		//_box.draw(widget.window.MVP * transform);
+
+		if (_selectionModel is null)
+		{
+			_selectionModel = new TextSelectionModel(_layout, _styledText.text.selection);
+			_selectionModel.styleName = "box";
+		}
+		else
+		{
+			_selectionModel.textLayout = _layout;
+			if (_selectionModel.selection != _styledText.text.selection)
+			{
+				_selectionModel.selection = _styledText.text.selection;
+				_selectionModel.update();
+			}
+		}
+		
+		//Mat4f ofstransform;
+		//getOffsetTransform(widget, ofstransform);
+
+		// Rectf wrect = widget.window.windowToWorld(widget.rect);
+		_selectionModel.draw(widget.window.MVP * transform);
+		
 		_model.draw(widget.window.MVP * transform);
 
 		//uint glyphLineIndex = view.cursorPoint - view.buffer.startOfLine(view.cursorPoint);
@@ -246,7 +289,7 @@ class TextRenderer(Text) : WidgetFeature
 				// selected
 				import graphics.color;
 				selectionStyle.parent = style;
-				selectionStyle.color = Color(0,0,1);
+				// selectionStyle.color = Color(0,0,1);
 				auto r2 = intersectParts.at;
 				_layout.add(text[r2.a .. r2.b], selectionStyle);
 			}
@@ -459,6 +502,7 @@ class TextRenderer(Text) : WidgetFeature
 	{
 		getTransformForIdx(widget, transform, fontLineSkip, text.cursorPoint);
 		_cursorModel.draw(widget.window.MVP * transform);
+		
 
 		/*
 		// Cull cursor

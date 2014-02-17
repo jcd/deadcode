@@ -82,7 +82,8 @@ class CursorRightAction : Action
 
 	override void redo(BufferView bv)
 	{
-		auto v = bv.cursorPoint + offset;
+		
+		auto v = bv.buffer.charsOffset(bv._cursorPoint, offset);
 		if (!bv.isValidCursorPoint(v))
 			return;
 		bv._cursorPoint = v;
@@ -91,7 +92,7 @@ class CursorRightAction : Action
 	
 	override void undo(BufferView bv)
 	{
-		auto v = bv.cursorPoint - offset;
+		auto v = bv.buffer.charsOffset(bv._cursorPoint, -offset);
 		if (!bv.isValidCursorPoint(v))
 			return;
 		bv._cursorPoint = v;
@@ -149,6 +150,7 @@ class InsertAction : Action
 		auto insertPoint = bv.cursorPoint;
 		bv.buffer.insert(txt, insertPoint);
 		bv._cursorPoint = insertPoint + txt.length;
+		bv.setPreferredCursorColumnFromIndex();
 		bv.changed();
 		bv.onInsert.emit(bv, txt, insertPoint);
 	}
@@ -162,6 +164,7 @@ class InsertAction : Action
 	{
 		bv._cursorPoint = bv.cursorPoint - text.length;
 		bv.buffer.remove(text.length, bv.cursorPoint);
+		bv.setPreferredCursorColumnFromIndex();
 		bv.changed();
 		bv.onRemove.emit(bv, text, bv.cursorPoint);
 	}
@@ -197,6 +200,7 @@ class RemoveAction : Action
 
 		bv.buffer.remove(l, o);
 		bv._cursorPoint = o;
+		bv.setPreferredCursorColumnFromIndex();
 		bv.changed();
 		bv.onRemove.emit(bv, t, o);
 	}
@@ -214,6 +218,7 @@ class RemoveAction : Action
 		if (length < 0)
 			restoredCursorPoint -= length; // length is negative here
 		bv._cursorPoint = restoredCursorPoint; 
+		bv.setPreferredCursorColumnFromIndex();
 		bv.changed();
 		bv.onInsert.emit(bv, text, origCursorPoint);
 	}
@@ -236,6 +241,7 @@ class RemoveSelectedAction : Action
 		bv.buffer.remove(l, o);
 		bv.selection.b = bv.selection.a;
 		bv._cursorPoint = o;
+		bv.setPreferredCursorColumnFromIndex();
 		bv.changed();
 		bv.onRemove.emit(bv, text, o);
 	}
@@ -258,6 +264,7 @@ class RemoveSelectedAction : Action
 			bv.selection.b = bv._cursorPoint;
 			bv.selection.a = bv._cursorPoint - text.length;
 		}
+		bv.setPreferredCursorColumnFromIndex();
 	}
 }
 
@@ -277,6 +284,7 @@ class ClearAction : Action
 		auto len = bv.length;
 		bv.buffer.remove(len, 0);
 		bv._cursorPoint = 0;
+		bv.setPreferredCursorColumnFromIndex();
 		bv.changed();
 		bv.onRemove.emit(bv, text, 0);
 	}
@@ -285,6 +293,7 @@ class ClearAction : Action
 	{
 		bv.buffer.insert(text, 0);
 		bv._cursorPoint = offset; 
+		bv.setPreferredCursorColumnFromIndex();
 		bv.changed();
 		bv.onInsert.emit(bv, text, 0);
 	}

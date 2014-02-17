@@ -40,5 +40,12 @@
 		"material" : "../materials/window-head.material",
 		"color" : "#00ff00",
 		"padding" : "0 0 0 0"
+	},
+	"box" : {
+		"parent" : "",
+		"font" : "../fonts/default.font",
+		"material" : "../materials/nine-patch.material",
+		"color" : "#00ff00",
+		"padding" : "0 0 0 0"
 	}
 }

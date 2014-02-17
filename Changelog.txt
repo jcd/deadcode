@@ -1,3 +1,12 @@
+Release 0.2 - 17 Feb 2014:
+
+	* Undo system
+	* Dev tool to automatically setup,build,test,dist-upload
+	* Mouse click to set cursor
+	* Select using mouse/keyboard
+	* Text background highlighting
+	* Generic 9 patch box model
+
 Release 0.1 - 02 Jan 2014:
 
 	* Initial release

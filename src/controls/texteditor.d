@@ -116,7 +116,7 @@ class TextEditor : Widget
 	private void _updateSelectionEnd(GlyphHit hit, Vec2f mousePos)
 	{
 		uint index;
-		if (_mouseStartSelectionIdx == uint.max)
+		if (true || _mouseStartSelectionIdx == uint.max)
 		{
 			// Selection start not set. Do so.
 			// When picking the start glyph we want to split the hit glyph vertically and if the
@@ -125,7 +125,8 @@ class TextEditor : Widget
 			// selection, not when determining the end or when expanding the selection.
 			auto yPosHalfWayGlyphRect = hit.rect.x + hit.rect.w * .5f;
 			index = yPosHalfWayGlyphRect < mousePos.x ? hit.index+1 : hit.index; 
-			_mouseStartSelectionIdx = index;
+			if (_mouseStartSelectionIdx == uint.max)
+				_mouseStartSelectionIdx = index;
 		}
 		else
 		{

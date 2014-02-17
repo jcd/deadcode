@@ -5,10 +5,13 @@ import graphics.color;
 import graphics.model;
 import graphics.mesh;
 import gui.gui;
+import gui.models;
 import gui.resources.font;
 import gui.resources.material;
 import gui.resources.shaderprogram;
 import gui.resources.texture;
+import gui.style;
+import gui.textlayout;
 import gui.window;
 import math._;
 
@@ -40,6 +43,8 @@ class TextModel
 		styleTextModel = new Model();	
 	}
 
+	// Get the world glyph pos. Glyphs are rendered from 0,0 and downwards ie. 
+	// y-coord of the first glyph is -lineHeight and height is lineHeight for that line.
 	Rectf getGlyphPos(uint index)
 	{
 		if (index >= glyphPositions.length)
@@ -151,6 +156,9 @@ class TextModel
 			{
 				isFull = true;
 				str.popFront();
+				auto g = font.lookupGlyph(' ');
+				float eolWidth = g.advance;
+				glyphPositions[$-1].w = eolWidth; 
 				break;
 			}
 
@@ -159,7 +167,8 @@ class TextModel
 
 			if (ch == '\t')
 			{
-				float tabWidth = font.fontWidth * 4;
+				auto g = font.lookupGlyph(' ');
+				float tabWidth = g.advance * 4;
 				pos.x += tabWidth;
 				glyphPositions[$-1].w = tabWidth; 
 				continue;
@@ -304,39 +313,128 @@ class TextModel
 	}
 }
 
-/*
 class TextSelectionModel
 {
-	private
+	BoxModel[] models; // Model representing the selected area
+	TextBoxLayout textLayout;
+	Region selection;
+	string styleName = "default";
+
+	this(TextBoxLayout layout, Region sel)
 	{
-		struct Line 
+		textLayout = layout;
+		selection = sel;
+	}
+	
+	void update()
+	{
+		// A region for each selected parts of the lines. Not that only the beginning and ending lines
+		// can have regions that are a partial line.
+		// TODO: use appender		
+		struct Line
 		{
-			NineSplitModel nineSplitModel;	
+			Region region;
+			float lineHeight;
 		}
-		NineSplitModel[] nineSplitModels;
-	}
+		Line[] lines; 
 
-	TextModel textModel;
-	
-	TextSelectionModel(TextModel model)
-	{
-		textModel = model;
-	}
-	
-	void Update(RegionSet regions, )
-	{
-		foreach (Region r; regions)
+		// A region may span several lines and the linebox info must be probed to find out
+		// what part belongs where. Additionally the linebox knows about the layed out line height.
+		foreach (i, ref line; textLayout.lines)
 		{
-			// A region may span several lines and the linebox info must be probed to find out
-			// what part belongs where. Additionally the linebox knows about the layed out line height.
-			
+			if (selection.b <= line.region.a)
+				break; // line is after selection. No more to model.
 
+			auto chunks = line.region.intersect3(selection);
+			if (chunks.at.empty)
+				continue; // Nothing at this line is selected.
+
+			// Get the begin and end rects for the selection on this line
+			lines ~= Line(chunks.at, line.largestFontHeight);
+
+			if (!chunks.after.empty)
+				break; // If something is after the intersections it must mean we have reached the selection end
+		}
+
+		// Construct the mesh that represents the background of the selection.
+		assumeSafeAppend(models);
+		models.length = lines.length;
+
+		// TODO: move this into the loop above
+		Rectf prevRect;
+
+		const float borderSize = 2;
+
+		foreach (i, ref line; lines)
+		{
 			// Begin and end glyph pos will tell us the horizontal ends of the selection box for
-			Vec2f beginGlyphPos = model.getGlyphPos(r.a);
-			Vec2f endGlyphPos = model.getGlyphPos(r.b-1);
+			// The 
+			Rectf beginGlyphPos = textLayout.model.getGlyphPos(line.region.a);
+			Rectf endGlyphPos =  textLayout.model.getGlyphPos(line.region.b-1);
 
+			// Swap y-coords to match coor system
+			beginGlyphPos.y = (-beginGlyphPos.y) - beginGlyphPos.h;
+			endGlyphPos.y = (-endGlyphPos.y) - endGlyphPos.h;
 
+			BoxModel box = models[i];
+			if (box is null)
+			{
+				box = new BoxModel(Sprite(0,0,16,16), RectfOffset(borderSize,borderSize,borderSize,borderSize));
+				//box = new BoxModel(Sprite(Rectf(6,6,4,4)));
+				box.color = Vec3f(0.3, 0.3, 0.3);
+				models[i] = box;
+			}
+			else
+			{
+				box.setupDefaultNinePatch(Sprite(0,0,16,16));
+			}
+
+			Vec2f size = Vec2f((endGlyphPos.pos.x + endGlyphPos.size.x) - beginGlyphPos.pos.x, line.lineHeight);
+
+			auto curRect = Rectf(beginGlyphPos.pos, size);
+
+			bool firstLine = i == 0;
+			if (!firstLine)
+			{
+				// Check the previous line rect to figure out how this line top corners should look and 
+				// prev lines bottom corners should look
+				if (curRect.x <= prevRect.x && curRect.x2 >= prevRect.x)
+				{
+					// The last should have an open bottom left corner
+					models[i-1].bottomLeft = Sprite(borderSize, borderSize, 4, 4);
+					if (curRect.x2 > prevRect.x2)
+					{
+											
+					}
+					else
+					{
+						models[i].topRight = Sprite(6, 6, 4, 4);
+					}
+				}
+				if (curRect.x2 >= prevRect.x2 && curRect.x <= prevRect.x2)
+				{
+					// The last should have an open bottom left corner
+					models[i-1].bottomRight = Sprite(borderSize, borderSize, 4, 4);
+				}
+				if (curRect.x == prevRect.x)
+				{
+					models[i].topLeft = Sprite(borderSize, borderSize, 4, 4);
+				}
+			}
+
+			prevRect = curRect;
+			box.rect = curRect;
+		}
+	}
+
+	void draw(Mat4f transform)
+	{
+		Style style = Window.active.styleSet.getStyle(styleName);
+		auto mat = style.background;
+		foreach (m; models)
+		{
+			m.material = mat;
+			m.draw(transform);
 		}
 	}
 }
-*/

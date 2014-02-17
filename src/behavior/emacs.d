@@ -67,6 +67,7 @@ class EmacsBehavior : EditorBehavior
 
 		set.setKeyBinding("<return>", "edit.insertNewline");
 		set.setKeyBinding("<ctrl> + d", "edit.deleteCharAfter");
+		set.setKeyBinding("<delete>", "edit.deleteCharAfter");
 		set.setKeyBinding("<ctrl> + x <ctrl> + p", "edit.clear");
 		
 		set.setKeyBinding("<ctrl> + x <ctrl> + f", "app.toggleCommandArea", Variant("edit.open "));

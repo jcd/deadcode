@@ -1,11 +1,63 @@
 Release 0.2 - 17 Feb 2014:
 
+Overview:
+
 	* Undo system
 	* Dev tool to automatically setup,build,test,dist-upload
 	* Mouse click to set cursor
 	* Select using mouse/keyboard
 	* Text background highlighting
 	* Generic 9 patch box model
+
+Changes:
+
+	e923c86 Use textselectionmodel in textrenderer
+	223249c Add new default box style
+	b1b8026 Always use halfway char method for determining what char index is hit
+	958690b Make emacs binding for del key
+	bea9159 Make bufferview.remove delete selection instead of next/prev chars if a selection exists.
+	aeafc41 Fix reversability of bufferviewactions by setting preferred column. 
+			Now using charOffset to offset instead of (a-b) because that will handle newlines properly.
+	2b3f3c0 Add convenice function to calculate an uv coord on a texture from pixel offsets. Also exposed size as a Vec2f on texture.
+	913a9be Use width of space instead of fontwidth for tabs and spaces. Added new TextSelectionModel for text selections.
+	b7db306 Make changes to boxrenderer to accomodate for changes i models.d
+	cc52d73 Change shader to support alpha textures
+	2acc09b Correct calculation of region end of a layed out line
+	f2b291e Refactoring models functions. Added BoxModel for 9 patching
+	119d47f Optimize array usage
+	c2bb7a3 Allow access to submodel on a model. Hacked support for blend modes
+	95dd247 Fixes to buffer.endOfLine/startOfLine
+	3bf5e12 Expose renderTarget on window
+	acdf51b Added empty() on Rect and new RectOffset type
+	4f7facf Added release config
+	acaa1f3 Tool support for building specific config
+	639f241 * Split Editor into TextEditor base and CodeEditor derived classes. 
+			* Moved styleSet from draw() parameters and into a member field for window. 
+			* Made onMouseGlyphXXX callbacks on TextEditor Added signals to BufferView for insertions and deletions 
+			* Added support for grouping a sequence of actions into a single undo step Moved away from std.container.
+			* Array and use a manual dlinked list instead because the former seems unreliable Support for keyboard selection. 
+			* Refactoring of textrendering/textlayout to make cleaner cut between layout and rendering and to expose glyph positions for text selections 
+			* Added getGlyphAt(pos) for textrenderer LRU info for TextEditors owned by GUIApplication 
+			* Added documentation about the different coord systems used throughout.
+	690ba2a added missing abc method for worldToWindow()
+	5ba0bf0 Fix worldSizeToPixel,worldToPixelPos and add new worldToWindow for renderwindow
+	3ef2b7c Fix bug in text styler when styling last part of text
+	ad65d45 Fix style inheritance bugs and added test to style.
+	5a9e64d Added vec4f alias
+	f3779ac Import Rect.contains to support negative sizes. Added posMax property to Rect.
+	ab9c894 Added expansion/contraction of regions based on point of insertion/deletion. 
+			Added new intersect method to region that returns the three parts of a intersection. 
+			Added length property to region.
+	7ad7a12 Fix key sequence matcher with mathing keys but different mods could match wrongly.
+	c9ce104 * Undo/redo system based on actionstack that can be used for macros later on. 
+			* Enable unit testing in dub 
+			* Migrate unittests to test.d framework 
+			* Fix key sequence matching 
+			* Fix file protocol url handling and file opening
+	5021e2b Improve project tool
+	71cd3c6 Better jsonx error messages
+	8b8c38d Add git ignore file
+
 
 Release 0.1 - 02 Jan 2014:
 

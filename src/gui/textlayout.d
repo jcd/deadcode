@@ -90,8 +90,9 @@ struct TextBoxLayout
 		while (!text.empty)
 		{
 			//curLine.rect = Rectf(rect.x, curLine.y, rect.w, curLine.h);
-			charsUsed += addToLine(text, style);
-			curLine.region.b += charsUsed;
+			auto charsAdded = addToLine(text, style);
+			charsUsed += charsAdded;
+			curLine.region.b += charsAdded;
 			
 			if (curLine.isFull)
 			{

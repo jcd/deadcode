@@ -22,6 +22,12 @@
 		"buildOptions" : [ "debug_", "debugInfo"]
 		},
 		{
+        "name": "release",
+        "targetType": "executable",
+		"targetName" : "ded",
+		"buildOptions" : [ "debug_", "debugInfo"]
+		},
+		{
         "name": "unittest",
         "targetType": "executable",
 		"targetName" : "ded-unittest",

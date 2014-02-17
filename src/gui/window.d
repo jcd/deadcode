@@ -64,6 +64,11 @@ class Window : Widget
 			return _renderTarget.MVP;
 		}
 
+		RenderTarget renderTarget()
+		{
+			return _renderTarget;
+		}
+
 		override const(Vec2f) size() const
 		{
 			auto sz = _renderTarget.size;

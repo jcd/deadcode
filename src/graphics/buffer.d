@@ -43,6 +43,7 @@ final class Buffer
 	void clearLocal()
 	{
 		data = null;
+		assumeSafeAppend(data);
 	}
 }
 

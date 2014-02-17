@@ -322,7 +322,7 @@ class TextGapBuffer
 		return count;
 	}
 
-	uint prev(int index)
+	uint prev(int index) const
 	{
 		assert(index <= gbuffer.length);
 		index--;
@@ -335,7 +335,7 @@ class TextGapBuffer
 	}
 
 
-	uint next(int index)
+	uint next(int index) const
 	{
 		assert(index >= 0);
 		if (index >= gbuffer.length) return gbuffer.length;
@@ -438,14 +438,12 @@ class TextGapBuffer
 		// locate the char just above the current cursor char
 		for (uint i = 0; i < lines; i++)
 			newPos = startOfNextLine(newPos);
-		
-		uint eol = endOfLine(newPos);
+			
+		uint eoline = endOfLine(newPos);
 		newPos = startOfLine(newPos) + preferredColumn;
 		
-		if (newPos > gbuffer.length)
-			newPos = gbuffer.length;
-		else if (newPos > eol)
-			newPos = eol;
+		if (newPos > eoline)
+			newPos = eoline;
 		return newPos;
 	}
 	
@@ -455,19 +453,20 @@ class TextGapBuffer
 		
 		if (gbuffer.empty) return 0;
 		
-		if (index == gbuffer.length)
-		{
-			index--;
-			if (index == 0)
-				return 0;
-		}
-		
+		dchar c = index == gbuffer.length ? 0xFFEF : gbuffer[index];
+
 		// border case where index is at the end of line
-		if (gbuffer[index] == '\n')
+		if (index == gbuffer.length || c == '\n' || c == '\r')
 		{
-			index--;
-			if (index == 0)
+			uint newidx = prev(index);
+			if (newidx == 0)
 				return 0;
+			
+			c = gbuffer[newidx];
+
+			// In case it was an empty line we already were at start of line.
+			if (c == '\n' || c == '\r')
+				return index;
 		}
 
 		auto r = gbuffer[0u..index];

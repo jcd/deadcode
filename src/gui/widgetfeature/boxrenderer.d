@@ -31,7 +31,9 @@ class BoxRenderer : WidgetFeature
 		// All size changes need to adjust vertices and/or uvs.
 		// Translation is done using transform so move rect to 0,0
 		wrect.pos = Vec2f(0,0);
-		float[] uv = quadUVForTextureMatchingRenderTargetPixels(wrect, model.material, widget.window.size);
+		// float[] uv = quadUVForTextureMatchingRenderTargetPixels(wrect, , );
+		auto tex = model.material.texture;
+		float[] uv = quadUVForTextureMatchingRenderTargetPixels(wrect, widget.window.size / Vec2f(tex.width, tex.height));
 		float[] vert = quadVertices(wrect);
 		model.mesh.buffers[0].data = vert;
 		model.mesh.buffers[1].data = uv;

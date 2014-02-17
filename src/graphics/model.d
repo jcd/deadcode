@@ -11,6 +11,7 @@ final class SubModel
 	Mesh mesh;
 	Mat material;
 	bool blend;
+	int blendMode = 0;
 	
 	@property valid() const
 	{
@@ -26,7 +27,10 @@ final class SubModel
 			glEnable (GL_BLEND);
 			//glDisable(GL_DEPTH_TEST);
 			glDepthMask(GL_FALSE);
-			glBlendFunc (GL_ONE, GL_ONE);
+			if (blendMode == 0)
+				glBlendFunc (GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+			else
+				glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}
 		else
 		{
@@ -89,6 +93,11 @@ final class Model
 			subModels.front.material = m;
 		}
 		
+		SubModel subModel()
+		{
+			return subModels.front;
+		}
+
 		@property valid() const
 		{
 			return !subModels.empty && subModels.front.valid;

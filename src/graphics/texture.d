@@ -8,6 +8,15 @@ import graphics.color;
 import math._;
 import std.stdio : writeln;
 
+// Costs:
+// Program binding
+// FBO binding
+// Texture binding
+// Vertex array specification
+// Buffer binding
+// glUniform*
+// Update current vertex state (glColor, glVertexAttrib, etc). 
+
 class Texture 
 {
 	private static Texture builtIn_;
@@ -24,6 +33,24 @@ class Texture
 	float width; // Todo: readonly?
 	float height;
 	
+	@property vec2f size()
+	{
+		return Vec2f(width, height);
+	}
+
+	Rectf pixelRectToUVRect(Rectf r)
+	{
+		return pixelRectToUVRect(size, r);
+	}
+
+	static Rectf pixelRectToUVRect(Vec2f texSize, Rectf r)
+	{
+		auto sz = texSize;
+		r.pos /= sz;
+		r.size /= sz;
+		return r;
+	}
+
 	enum Wrap
 	{
 		Repeat,

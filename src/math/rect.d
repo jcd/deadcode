@@ -1,7 +1,7 @@
 module math.rect;
 
 import math.smallvector;
-import std.math : fmin, fmax;
+import std.math : fmin, fmax, isNaN;
 import std.string : format;
 
 struct Rect(T)
@@ -43,6 +43,11 @@ struct Rect(T)
 		pos.x = x;
 		pos.y = y;
 		this.size = size;
+	}
+
+	@property empty() const @safe
+	{
+		return isNaN(size.x) || isNaN(size.y) || size.x == 0 || size.y == 0 || isNaN(pos.x) || isNaN(pos.y);
 	}
 
 	@property ref T x()  
@@ -193,3 +198,20 @@ unittest
 	Assert(!std.math.isNaN(r.pos.x));
 	Assert(stringToRectf("1 2 3 4.5"), Rectf(1,2,3,4.5));
 }
+
+
+struct RectOffset(T)
+{
+	T top;
+	T left; 
+	T bottom;
+	T right;
+
+	@property bool empty() @safe nothrow
+	{
+		import std.math;
+		return isNaN(top) || isNaN(left) || isNaN(bottom) || isNaN(right) || (top == 0f && left == 0f && bottom == 0f && right == 0f);
+	}
+}
+
+alias RectOffset!float RectfOffset;

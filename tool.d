@@ -68,6 +68,8 @@ void setup(string[] args)
 void build(string[] args)
 {
 	auto cmd = "dub build 2>&1";
+	if (args.length > 2)
+		cmd = "dub build --config=" ~ args[2] ~ " 2>&1";
 	writeln(cmd);
 	auto res = pipeShell(cmd, Redirect.stdin);
 	wait(res.pid);
@@ -142,14 +144,15 @@ void collect(string packRoot)
 {
 	string[] files = [
 		"ded.exe",
-		"ded_d.exe",
+		"ded-debug.exe",
 		"SDL2.dll",
 		"SDL2_image.dll",
 		"SDL2_ttf.dll",
 		"libfreetype-6.dll",
 		"libpng16-16.dll",
 		"zlib1.dll",
-		"white.png"
+		"white.png",
+		"Changelog.txt"
 	];
 
 	writeln("Copying");

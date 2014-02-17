@@ -7,7 +7,8 @@
    	out vec2 coords; 
 	out vec3 cols;
 	uniform mat4 MVP;
-	
+   // uniform vec4 
+
    	void main(void) 
    	{ 
 
@@ -24,14 +25,15 @@
 	
 	in vec2 coords; 
 	in vec3 cols; 
-	out vec3 color;
+	out vec4 color;
 
    	void main(void) 
    	{ 
-      vec3 coltmp = texture(colMap, coords.st).xyz; 
+      vec4 coltmp = texture(colMap, coords.st); 
 
 	//      color = vec3(coords.yyx + coltmp); 
-      color = vec3(coltmp) * cols; 
-      // color = vec3(1.0, 0.0,0.0);
+     color = vec4(coltmp.xyz * cols,coltmp.a); 
+   //  color = coltmp; 
+      // color = vec4(1.0, 0.0,0.0,0.5);
 	}"
 }

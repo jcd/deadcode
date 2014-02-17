@@ -243,16 +243,12 @@ class BufferView
 	void insert(dstring txt)
 	{
 		if (selection.empty)
-		{
 			_undoStack.push!InsertAction(this, txt);
-		}
 		else
-		{
 			_undoStack.push!ActionGroupAction(this, 
 											  new RemoveSelectedAction(),
 											  new InsertAction(txt)
 												  );
-		}
 	}
 
 	void append(dstring items)
@@ -269,7 +265,10 @@ class BufferView
 
 	void remove(int count)
 	{
-		_undoStack.push!RemoveAction(this, count);
+		if (selection.empty)
+			_undoStack.push!RemoveAction(this, count);
+		else
+			_undoStack.push!RemoveSelectedAction(this);
 	}
 	
 	void clear()

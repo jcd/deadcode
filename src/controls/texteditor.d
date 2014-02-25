@@ -31,7 +31,7 @@ class TextEditor : Widget
 		super(parent);
 		acceptsKeyboardFocus = true;
 		features ~= new BoxRenderer("edit-background");
-		this.alignTo(Anchor.TopLeft);
+		this.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
 		this.alignTo(Anchor.BottomRight);
 		renderer = (this.content = buf);
 		bufferView = buf;
@@ -51,7 +51,6 @@ class TextEditor : Widget
 
 	override EventUsed onMouseScroll(Event event)
 	{
-		std.stdio.writeln("scrool");
 		// Scroll view
 		int d = cast(int) event.scroll.y;
 		if (d < 0)

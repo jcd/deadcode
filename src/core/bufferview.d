@@ -12,8 +12,42 @@ import std.stdio;
 
 version(unittest) import test;
 
+class CopyBuffer
+{
+	static class Entry
+	{
+		this(dstring t)
+		{
+			txt = t;
+		}
+		dstring txt;
+	}
+	Entry[] entries;
+
+	@property bool empty() const
+	{
+		return entries.empty;
+	}
+
+	@property size_t length() const
+	{
+		return entries.length;
+	}
+
+	void add(dstring t)
+	{
+		entries ~= new Entry(t);
+	}
+
+	Entry get(int offset)
+	{
+		if (offset >= entries.length)
+			return null;
+		return entries[$-offset-1];
+	}
+}
+
 // TODO:
-//	* Set preferred colum doesn't work
 //  * Cannot page down until out after buffer length. Think buffer.startOfLine/endOfLine are guilty
 
 /** A BufferView is used as a view to he contents of a buffer. 
@@ -29,6 +63,8 @@ class BufferView
 	package TextGapBuffer buffer;     // This should be changeable to something else if wanted
 	// private GapBuffer!int lineStarts; // Indexes into buffer for all line starts. Purely a optimization.
 	
+	CopyBuffer copyBuffer;
+
 	uint selectionStartIndex;
 	Region selection;
 	// RegionSet selections;
@@ -43,6 +79,9 @@ class BufferView
 	
 	// emit(this, text, removedTextAfterThisIndex)
 	mixin Signal!(BufferView, BufferString, uint) onRemove;
+
+	// emit(this, text, removedTextAfterThisIndex)
+	mixin Signal!(BufferView, BufferString, uint) onCopy;
 
 	package void changed()
 	{
@@ -88,6 +127,7 @@ class BufferView
 		dirty = true;
 		//selections = new RegionSet(true); // should be false
 		_undoStack = new ActionStack;
+		copyBuffer = new CopyBuffer;
 	}
 	
 	@property 
@@ -102,11 +142,13 @@ class BufferView
 		{
 			return _lineOffset;
 		}
+		
 		// TODO: keep up to date and rename maybe
 		uint visibleLineCount()
 		{
 			return _visibleLineCount;
 		}
+
 		void visibleLineCount(uint c)
 		{
 			if (_visibleLineCount != c)
@@ -124,6 +166,11 @@ class BufferView
 		const(TextGapBuffer.CharType)[] lastLine() const
 		{
 			return buffer.lastLine;
+		}
+
+		const(TextGapBuffer.CharType)[] selectedText() const
+		{
+			return buffer.toArray(selection.a, selection.b);
 		}
 	}
 
@@ -144,16 +191,39 @@ class BufferView
 			_undoStack.redo(this);
 	}
 
+	void copy()
+	{
+		_undoStack.push!CopySelectedAction(this);
+	}
+	
+	void paste(int copyBufferEntryOffset = 0)
+	{
+		if (!copyBuffer.empty)
+			_undoStack.push!PasteAction(this, copyBufferEntryOffset);
+	}
+
+	void pasteCycle()
+	{
+		if (!copyBuffer.empty)
+			_undoStack.push!PasteAction(this, -1);
+	}
+
+	void cut()
+	{
+		_undoStack.push!ActionGroupAction(this, 
+										  new CopySelectedAction(),
+										  new RemoveSelectedAction());
+	}
+
 	void clear(immutable(TextGapBuffer.CharType)[] dl)
 	{
 		clear();
 		_undoStack.push!InsertAction(this, dl);
-		// buffer = new TextGapBuffer(dl, 20);
-		// changed();
 	}
 
 	void write(File file)
 	{
+		// TODO: use iomanager and IOs for writing
 		file.rawWrite(std.conv.text(buffer.beforeGap));
 		file.rawWrite(std.conv.text(buffer.afterGap));
 	}
@@ -161,23 +231,19 @@ class BufferView
 	void cursorToStart() 
 	{
 		selection.clear();
-		_undoStack.push!CursorToStartAction(this);
-		// cursorPoint = 0;
+		_undoStack.push!CursorAction(this, TextBoundary.buffer, -1);
 	}
 
 	void cursorToEnd() 
 	{
 		selection.clear();
-		_undoStack.push!CursorToEndAction(this);
-		// cursorPoint = length;
+		_undoStack.push!CursorAction(this, TextBoundary.buffer, 1);
 	}
 
 	@property uint cursorPoint() const pure nothrow
 	{
 		return _cursorPoint;
 	}
-
-	// TODO:	When having a selection and then moving the cursor without shift it should remove selection again.
 
 	@property void cursorPoint(uint v) 
 	{
@@ -194,24 +260,46 @@ class BufferView
 		return  buffer !is null && v >= 0 && v <= buffer.length;
 	}
 
+	/*
 	@property int cursorPointRelative() const pure nothrow
 	{
 		return cast(int)cursorPoint - cast(int)bufferOffset;
 	}
+	*/
 
 	@property uint preferredCursorColumn() const pure nothrow
 	{
 		return _preferredCursorColumn;
 	}
-	
+
+	@property void preferredCursorColumn(uint col) 
+	{
+		_preferredCursorColumn  = col;
+	}
+
 	void setPreferredCursorColumnFromIndex(uint index = uint.max) 
 	{
 		if (index == uint.max)
 			index = _cursorPoint;
 		//assert(buffer !is null && index >= 0 && index < buffer.length, text("Index out of bounds 0 <= ", index , " < ", buffer.length));
-		_preferredCursorColumn = index - buffer.startOfLine(index);
+		uint startOfLine = buffer.offsetToStartOfLine(index);
+		_preferredCursorColumn = index - startOfLine;
 	}
 	
+	void setIndexFromPreferredCursorColumn(uint col = uint.max) 
+	{
+		if (col == uint.max)
+			col = _preferredCursorColumn;
+		//assert(buffer !is null && index >= 0 && index < buffer.length, text("Index out of bounds 0 <= ", index , " < ", buffer.length));
+		uint startOfLine = buffer.offsetToStartOfLine(_cursorPoint);
+		uint endOfLine = buffer.offsetToEndOfLine(_cursorPoint);
+		uint diff = endOfLine - startOfLine;
+		if (diff > col)
+			cursorPoint = startOfLine + col;
+		else
+			cursorPoint = endOfLine;
+	}
+
 	@property void linesVisible(uint lines)
 	{
 		if (_visibleLineCount != lines)
@@ -220,24 +308,12 @@ class BufferView
 			dirty = true;
 		}
 	}
-
-	/** Step history when doing redo/undo
-	 *  
-	 * Params:
-	 * steps number of steps to walk in history. Negative values will 
-	 * undo actions done on this view.
-	 */
-	void stepHistory(int steps)
-	{
-		
-	}
 		
 	void insert(dchar item)
 	{
 		dchar[1] buf;
 		buf[0] = item;
 		insert(buf.idup);
-		//actionStack.insert(this, buf.idup);
 	}
 
 	void insert(dstring txt)
@@ -266,34 +342,27 @@ class BufferView
 	void remove(int count)
 	{
 		if (selection.empty)
-			_undoStack.push!RemoveAction(this, count);
+			_undoStack.push!RemoveAction(this, TextBoundary.chr, count);
 		else
 			_undoStack.push!RemoveSelectedAction(this);
 	}
 	
 	void clear()
 	{
-		_undoStack.push!CursorRightAction(this, -cursorPoint);
-		_undoStack.push!RemoveAction(this, length);
-
-		//		this.cursorPoint = 0;
-		//actionStack.remove(this, buffer.length);
-		//buffer.clear();
-		//cursorPoint = 0;
-		//_preferredCursorColumn = 0;
-		//cursorPoint = buffer.editPoint;		
+		_undoStack.push!CursorAction(this, TextBoundary.buffer, -1);
+		_undoStack.push!RemoveAction(this, TextBoundary.chr, length);
 	}
 	
 	void cursorLeft(uint c = 1) 
 	{
 		selection.clear();
-		_undoStack.push!CursorRightAction(this, -c);
+		_undoStack.push!CursorAction(this, TextBoundary.chr, -c);
 	}	
 
 	void cursorRight(uint c = 1)
 	{
 		selection.clear();
-		_undoStack.push!CursorRightAction(this, c);
+		_undoStack.push!CursorAction(this, TextBoundary.chr, c);
 	}
 
 	void cursorUp(uint c = 1) 
@@ -311,25 +380,25 @@ class BufferView
 	void selectLeft(uint c = 1) 
 	{
 		selectTo(_cursorPoint - c);
-		_undoStack.push!CursorRightAction(this, -c);
-	}	
+		_undoStack.push!CursorAction(this, TextBoundary.chr, -c);
+	}
 
 	void selectRight(uint c = 1)
 	{
 		selectTo(_cursorPoint + c);
-		_undoStack.push!CursorRightAction(this, c);
+		_undoStack.push!CursorAction(this, TextBoundary.chr, c);
 	}
 
 	void selectUp(uint c = 1) 
 	{
-		auto p = buffer.linesOffset(_cursorPoint, -c, preferredCursorColumn);
+		auto p = buffer.offsetVertically(_cursorPoint, -c, preferredCursorColumn);
 		selectTo(p);
 		_undoStack.push!CursorDownAction(this, -c);
 	}
 
 	void selectDown(uint c = 1)
 	{
-		auto p = buffer.linesOffset(_cursorPoint, c, preferredCursorColumn);
+		auto p = buffer.offsetVertically(_cursorPoint, c, preferredCursorColumn);
 		selectTo(p);
 		_undoStack.push!CursorDownAction(this, c);
 	}
@@ -347,7 +416,7 @@ class BufferView
 
 	void scrollUp()
 	{	
-		bufferOffset = buffer.startOfLine(buffer.endOfPreviousLine(bufferOffset));
+		bufferOffset = buffer.offsetToStartOfLine(buffer.endOfPreviousLine(bufferOffset));
 		if (_lineOffset > 0)
 			_lineOffset--;
 		dirty = true;
@@ -370,110 +439,82 @@ class BufferView
 	void cursorToBeginningOfLine()
 	{
 		selection.clear();
-		_cursorPoint = buffer.startOfLine(_cursorPoint);
-		_preferredCursorColumn = 0;
+		_undoStack.push!CursorAction(this, TextBoundary.line, -1);
 	}
 	
 	void cursorToEndOfLine()
 	{
 		selection.clear();
-		cursorPoint = buffer.endOfLine(_cursorPoint);
-		_preferredCursorColumn = cursorPoint;
+		_undoStack.push!CursorAction(this, TextBoundary.line, 1);
 	}
 
 	void selectToBeginningOfLine()
 	{
-		auto startOfLine = buffer.startOfLine(_cursorPoint);
+		auto startOfLine = buffer.offsetByLine(_cursorPoint, -1);
 		selectTo(startOfLine);
 		cursorPoint = startOfLine;
+		setPreferredCursorColumnFromIndex();
 	}
 
 	void selectToEndOfLine()
 	{
-		auto endOfLine = buffer.endOfLine(_cursorPoint);
+		auto endOfLine = buffer.offsetByLine(_cursorPoint, 1);
 		selectTo(endOfLine);
 		cursorPoint = endOfLine;
-	}
-
-	private uint indexWordBefore()
-	{
-		uint endOfWord = buffer.findOneOfReverse(_cursorPoint - 1, buffer.WORDCHARS);
-		uint target = 0;
-		if (endOfWord != uint.max)
-		{
-			target = endOfWord;
-			uint startOfWord = buffer.findOneNotOfReverse(endOfWord, buffer.WORDCHARS);
-			target = 0;
-			if (startOfWord != uint.max)
-				target = startOfWord + 1;
-		}
-		return target;
+		setPreferredCursorColumnFromIndex();
 	}
 	
 	void cursorToWordBefore()
 	{
 		selection.clear();
-		cursorPoint = indexWordBefore();
+		_undoStack.push!CursorAction(this, TextBoundary.word, -1);
 	}
 	
 	void selectToWordBefore()
 	{
-		auto b = indexWordBefore();
+		
+		auto b = buffer.offsetByWord(_cursorPoint, -1);
 		selectTo(b);
 		cursorPoint = b;
+		setPreferredCursorColumnFromIndex();
 	}
 
 	void deleteWordBefore()
 	{ 
-		auto deleteTo = indexWordBefore();
-		auto deleteLen = _cursorPoint - deleteTo;
-		cursorPoint = deleteTo;
-		remove(deleteLen);
-	}
-
-	private uint indexWordAfter()
-	{
-		uint startOfWord = buffer.findOneOf(_cursorPoint, buffer.WORDCHARS);
-		uint target = buffer.length;
-		if (startOfWord != uint.max)
-		{
-			target = startOfWord;
-			uint endOfWord = buffer.findOneNotOf(startOfWord, buffer.WORDCHARS);
-			if (endOfWord != uint.max)
-				target = endOfWord;
-		}
-		return target;
+		if (selection.empty)
+			_undoStack.push!RemoveAction(this, TextBoundary.word, -1);
+		else
+			_undoStack.push!RemoveSelectedAction(this);
 	}
 
 	void cursorToWordAfter()
 	{
 		selection.clear();
-		cursorPoint = indexWordAfter();
+		_undoStack.push!CursorAction(this, TextBoundary.word, 1);
 	}
 	
 	void selectToWordAfter()
 	{
-		auto a = indexWordAfter();
+		auto a = buffer.offsetByWord(_cursorPoint, 1);
 		selectTo(a);
 		cursorPoint = a;
+		setPreferredCursorColumnFromIndex();
 	}
 
 	void deleteWordAfter()
 	{
-		auto deleteTo = indexWordAfter();
-		auto deleteLen = deleteTo - _cursorPoint;
-		cursorPoint = deleteTo;
-		remove(-deleteLen);
+		if (selection.empty)
+			_undoStack.push!RemoveAction(this, TextBoundary.word, 1);
+		else
+		    _undoStack.push!RemoveSelectedAction(this);
 	}
 
 	void deleteToEndOfLine()
 	{
-		uint eol = buffer.endOfLine(_cursorPoint);
-		if (eol == _cursorPoint)
-		{
-			eol = buffer.startOfNextLine(_cursorPoint);
-		}
-		remove(eol - _cursorPoint);
+		if (selection.empty)
+			_undoStack.push!RemoveAction(this, TextBoundary.line, 1);
+		else
+		    _undoStack.push!RemoveSelectedAction(this);
 	}
 }
 

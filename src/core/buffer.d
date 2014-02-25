@@ -5,6 +5,8 @@ import std.conv;
 import std.exception;
 import std.range;
 
+version (unittest) import test;
+
 class GapBuffer(T = dchar)
 {
 	alias T CharType;
@@ -259,19 +261,19 @@ class GapBuffer(T = dchar)
 	}
 
 
-	const(T)[] toArray(size_t from, size_t to) const
+	T[] toArray(size_t from, size_t to) const
 	{
 		size_t gapSize = gapEnd - gapStart;
 
 		// range is before startGap
 		if (to <= gapStart || gapSize == 0)
-			return buffer[from..to];
+			return buffer[from..to].dup;
 		// range is after endGap
 		else if ( from + gapSize >= gapEnd)
-			return buffer[(from+gapSize)..(to+gapSize)];
+			return buffer[(from+gapSize)..(to+gapSize)].dup;
 
 		// range is spanning the gap
-		const(T)[] res = buffer[from..gapStart];
+		T[] res = buffer[from..gapStart].dup;
 		res ~= buffer[gapEnd..to+gapSize];
 		return res;
 	}
@@ -283,6 +285,14 @@ class GapBuffer(T = dchar)
 		res ~= buffer[gapEnd..$];
 		return res;
 	}
+}
+
+enum TextBoundary
+{
+	chr,
+	word,
+	line,
+	buffer,
 }
 
 class TextGapBuffer
@@ -307,7 +317,7 @@ class TextGapBuffer
 
 	@property const(dchar)[] lastLine() const
 	{
-		return toArray(startOfLine(length), length);
+		return toArray(offsetToStartOfLine(length), length);
 	}
 
 	@property size_t lineCount() 
@@ -322,6 +332,23 @@ class TextGapBuffer
 		return count;
 	}
 
+	@property size_t charCount() 
+	{
+		uint lastIdx = 0;
+		uint count = 0;
+		do 
+		{
+			uint curIdx = next(lastIdx);
+			if (curIdx == lastIdx)
+				break;
+			lastIdx = curIdx;
+			count++;
+		}
+		while(true);
+
+		return count;
+	}
+
 	uint prev(int index) const
 	{
 		assert(index <= gbuffer.length);
@@ -329,7 +356,13 @@ class TextGapBuffer
 		if (index <= 0) return 0;
 
 		dchar c = gbuffer[index]; 
-		if (c == '\n' && index > 0 && gbuffer[index-1] == '\r')
+		
+		// Magic to handle \r\n newlines
+		// If we landed on a \n and a \r is preceeding the do one more 
+		// step to land on the \r.
+		// If we landed on a \n the do one more step to land before the \r
+		if (index > 0 && 
+			((c == '\n' && gbuffer[index-1] == '\r') || c == '\r') )
 			index--; // \r\n. eat both
 		return index;
 	}
@@ -347,10 +380,369 @@ class TextGapBuffer
 		return index;
 	}
 
+	bool isWordChar(int index)
+	{
+		return std.algorithm.canFind(WORDCHARS, this[index]);
+	}
+	
 
+	uint offsetBy(uint index, int count, TextBoundary bound)
+	{
+		final switch (bound)
+		{
+			case TextBoundary.chr:
+				return offsetByChar(index, count);
+			case TextBoundary.word:
+				return offsetByWord(index, count);
+			case TextBoundary.line:
+				return offsetByLine(index, count);
+			case TextBoundary.buffer:
+				return count < 0 ? 0 : (count == 0 ? index : length);
+		}
+	}
+
+	// Return the startIndex moved diff characters taking
+	// the clamping on start and end.
+	uint offsetByChar(uint startIndex, int diff = 1)
+	{
+		while (diff > 0)
+		{
+			--diff;
+			uint idx = next(startIndex);
+			if (idx == startIndex)
+				break;
+			startIndex = idx;			
+		}
+		while (diff < 0)
+		{
+			++diff;
+			uint idx = prev(startIndex);
+			if (idx == startIndex)
+				break;
+			startIndex = idx;
+		}
+		return startIndex;
+	}
+
+	unittest
+	{
+		auto b = new TextGapBuffer("Hello world\r\nHow are you\r\ntoday\nwell"d, 3);
+		
+		Assert(0, b.offsetByChar(0,0));
+		Assert(1, b.offsetByChar(0,1));
+		Assert(0, b.offsetByChar(0,0));
+		Assert(0, b.offsetByChar(0,-1));
+
+		Assert(11, b.offsetByChar(11,0));
+		Assert(13, b.offsetByChar(11,1));
+		Assert(10, b.offsetByChar(11,-1));
+		Assert(14, b.offsetByChar(11,2));
+
+		Assert(13, b.offsetByChar(12,1));
+		Assert(10, b.offsetByChar(12,-1));
+
+		Assert(b.prev(b.length-2), b.offsetByChar(b.charCount,-1));
+		Assert(b.charCount, b.charCount);
+		Assert(b.length, b.offsetByChar(b.charCount,3));
+	}
+
+	// Algorithm like then one used for emacs/sublime. (not like vs)
+	// The first char is defined by the direction of offs:
+	// offs > 0 means first char is the next char ie. startIndex
+	// offs < 0 meacs first char is prev char ie. startIndex-1
+	// First all non-words chars are skipped in the direction, 
+	// there may be no non-word chars if in the middle of a word.
+	// Then all word chars are skipped to find the final result.
+	//
+	// This will always place the result index at the end of the
+	// word when offs > 0 and at the start of the word when offs < 0.
+	// This is unlike vs. which always places the result index at the
+	// start of the work no matter the direction.
+	//
+	uint offsetByWord(uint startIndex, int offs = 1)
+	{
+		while (offs < 0)
+		{
+			++offs;
+			// Find first word char
+			startIndex = findOneOfReverse(prev(startIndex), WORDCHARS);
+			if (startIndex == uint.max)
+				return 0; // no word char found ie. must be first word in buffer
+
+			// Locate start of word
+			startIndex = findOneNotOfReverse(startIndex, WORDCHARS);
+			if (startIndex == uint.max)
+				return 0; // Cannot find any non word char ie. must be start of buffer
+			
+			// Correct target because we found the first char before the word start boundary
+			startIndex = next(startIndex);
+		}
+
+		while (offs > 0)
+		{
+			--offs;
+			// Find first word char
+			startIndex = findOneOf(startIndex, WORDCHARS);
+			if (startIndex == uint.max)
+				return length; // no word char found ie. must be last work in buffer
+
+			startIndex = findOneNotOf(startIndex, WORDCHARS);
+			if (startIndex == uint.max)
+				return length; // Cannot find any non word char ie. must be end of buffer
+		}
+		return startIndex;
+	}
+
+	unittest
+	{
+		auto b = new TextGapBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell"d, 3);
+
+		Assert(7, b.offsetByWord(2,1));
+		Assert(0, b.offsetByWord(2,-1));
+		Assert(14, b.offsetByWord(2,2));
+
+		Assert(14, b.offsetByWord(7,1));
+		Assert(2, b.offsetByWord(7,-1));
+
+		Assert(8, b.offsetByWord(14,-1));
+		Assert(19, b.offsetByWord(14,1));
+
+		Assert(8, b.offsetByWord(15,-1));
+		Assert(19, b.offsetByWord(15,1));
+
+		Assert(b.length, b.offsetByWord(0,7));
+		Assert(b.length-5, b.offsetByWord(0,6));
+	}
+
+	// Same behavior as offsetByWord but instead or WORDCHARS being the delimiter
+	// it is end-of-line charaters.
+	uint offsetByLine(uint startIndex, sizediff_t offs = 1) const
+	{
+		while (offs < 0)
+		{
+			++offs;
+
+			startIndex = findOneOfReverse(prev(prev(startIndex)), "\n");
+			if (startIndex == uint.max)
+				return 0; // no newline found ie. must be first line in buffer
+
+			// Correct target because we found the first char before the word start boundary
+			startIndex = next(startIndex);
+		}
+
+		while (offs > 0 && startIndex < length)
+		{
+			--offs;
+			auto cur = this[startIndex];
+			if (cur == '\r' || cur == '\n')
+				startIndex = next(startIndex);
+				
+			startIndex = findOneOf(startIndex, "\r\n");
+			if (startIndex == uint.max)
+				return length; // Cannot find any non word char ie. must be end of buffer
+		}
+		return startIndex;
+	}
+
+	unittest
+	{
+		auto b = new TextGapBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell\ndd\nfdsas"d, 3);
+
+		Assert(14, b.offsetByLine(0,1));
+		Assert(27, b.offsetByLine(14,1));
+		Assert(27, b.offsetByLine(15,1));
+		Assert(27, b.offsetByLine(0,2));
+		
+		Assert(16, b.offsetByLine(27,-1)); 
+		Assert(0, b.offsetByLine(27,-2)); 
+		Assert(0, b.offsetByLine(26,-2)); 
+		Assert(b.length-5, b.offsetByLine(b.length,-1));  
+		Assert(b.length-8, b.offsetByLine(b.length,-2));  
+	}
+
+	// Return a buffer index obtained by moving 'lines' lines from index using
+	// preferredColumn. If preferredColumn is uint.max the column of the index
+	// param is used. lines == 0 is a valid input in order to just navigate current line
+	// using preferredColumn.
+	uint offsetVertically(uint index, sizediff_t lines = 1, uint preferredColumn = uint.max) const
+	{
+		if (preferredColumn == uint.max)
+			preferredColumn = index - offsetToStartOfLine(index);
+
+		uint newPos = index;
+
+		if (lines < 0)
+		{
+			// locate the char just above the current index
+			lines = -lines;
+			for (uint i = 0; i < lines; i++)
+				newPos = endOfPreviousLine(newPos);
+
+			uint eol = offsetToEndOfLine(newPos);
+			newPos = offsetToStartOfLine(newPos) + preferredColumn;
+			if (newPos > eol)
+				newPos = eol;
+		}
+		else
+		{
+
+			// locate the char just above the current cursor char
+			for (uint i = 0; i < lines; i++)
+				newPos = startOfNextLine(newPos);
+
+			uint eoline = offsetToEndOfLine(newPos);
+			newPos = offsetToStartOfLine(newPos) + preferredColumn;
+
+			if (newPos > eoline)
+				newPos = eoline;
+		}
+		return newPos;
+	}
+
+	//unittest
+	//{
+	//    auto b = new TextGapBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell\ndd\nfdsas"d, 3);
+	//
+	//    Assert(3, b.offsetByLine(21,1));
+	//    Assert(34, b.offsetByLine(21,-1)); 
+	//    Assert(44, b.offsetByLine(21,4));  // preferred colum not possible next line
+	//    Assert(b.length-6, b.offsetByLine(b.length-1,1));  // preferred colum not possible prev line
+	//}
+
+	//uint offsetTo(uint index, TextBoundary bound, bool startOfBoundary = true)
+	//{
+	//    final switch (bound)
+	//    {
+	//        case TextBoundary.chr:
+	//            return offsetToChar(index, startOfBoundary);
+	//        case TextBoundary.word:
+	//            return offsetToWord(index, startOfBoundary);
+	//        case TextBoundary.line:
+	//            return offsetToLine(index, startOfBoundary);
+	//        case TextBoundary.buffer:
+	//            return offsetToBuffer(index, startOfBoundary);
+	//    }
+	//}
+	//
+	//uint offsetToChar(uint index, bool startOfBoundary)
+	//{
+	//    return startOfBoundary ? index : next(index);
+	//}
+	//
+	//uint offsetToWord(uint index, bool startOfBoundary)
+	//{
+	//    return offsetByWord(index, startOfBoundary ? -1 : 1);
+	//}
+	//
+	//uint offsetToLine(uint index, bool startOfBoundary)
+	//{
+	//    return offsetByLine(index, startOfBoundary ? -1 : 1, uint.max-1);
+	//}
+
+	//unittest
+	//{
+	//    auto b = new TextGapBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell"d, 3);
+	//
+	//    Assert(2, b.offsetToWord(0, false));
+	//    Assert(6, b.offsetToWord(2, false));
+	//
+	//    Assert(0, b.offsetToWord(0, true));
+	//    Assert(0, b.offsetToWord(2, true));
+	//    Assert(2, b.offsetToWord(3, true));
+	//    Assert(2, b.offsetToWord(7, true));
+	//    Assert(8, b.offsetToWord(8, true));
+	//}
+
+	uint offsetToLineBoundary(uint index, bool startOfBoundary) const
+	{
+		if (startOfBoundary)
+		{
+			enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
+
+			if (gbuffer.empty) return 0;
+
+			dchar c = index == gbuffer.length ? 0xFFEF : gbuffer[index];
+
+			// border case where index is at the end of line
+			if (index == gbuffer.length || c == '\n' || c == '\r')
+			{
+				uint newidx = prev(index);
+				if (newidx == 0)
+					return 0;
+
+				c = gbuffer[newidx];
+
+				// In case it was an empty line we already were at start of line.
+				if (c == '\n')
+					return index;
+				index = newidx;
+			}
+
+			auto r = gbuffer[0u..index];
+
+			// locate the first \n
+			size_t i = 0;
+			foreach_reverse (v; r)
+			{
+				if (v == '\n')
+					break;
+				i++;
+			}
+			return index - i;
+		}
+		else // not startOfBoundary
+		{
+			enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
+
+			if (index == length)
+				return index;
+
+			auto r = gbuffer[index..gbuffer.length];
+
+			// locate the next \n
+			size_t i = 0;
+			foreach (v; r)
+			{
+				if (v == '\n')
+				{
+					if (i > 0 && this[i-1] == '\r')
+						i--;
+					break;
+				}
+				i++;
+			}
+
+			return index + i;
+		}
+	}
+
+	uint offsetToBuffer(uint index, bool startOfBoundary)
+	{
+		if (startOfBoundary)
+			return 0;
+		else
+			return length;
+	}
+
+	uint offsetToEndOfLine(uint index) const
+	{
+		return offsetToLineBoundary(index, false);
+	}
+
+	uint offsetToStartOfLine(uint index) const
+	{
+		return offsetToLineBoundary(index, true);
+	}
+
+	/*
+	void offset(int count, TextOffset offsetType, uint index = uint.max)
+	{
+	
+	}
+*/
 	// Remove count characters from the buffers starting at index 
 	// If count is negative the characters are moved backwards
-	void remove(int count, int index = uint.max)
+	void remove(int count, uint index)
 	{
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " < ", length));
 
@@ -384,126 +776,7 @@ class TextGapBuffer
 		}
 	}
 
-	// Return the startIndex moved diff characters taking
-	// the clamping on start and end.
-	uint charsOffset(uint startIndex, sizediff_t diff)
-	{
-		if (diff > 0)
-		{
-			while (diff--)
-			{
-				uint idx = next(startIndex);
-				if (idx == startIndex)
-					break;
-				startIndex = idx;
-			}
-		}
-		else if (diff < 0)
-		{
-			while (diff++)
-			{
-				uint idx = prev(startIndex);
-				if (idx == startIndex)
-					break;
-				startIndex = idx;
-			}
-		}
-		return startIndex;
-	}
-
-	// Return a buffer index obtained by moving 'lines' lines from index using
-	// preferredColumn. If preferredColumn is uint.max the column of the index
-	// param is used.
-	uint linesOffset(uint index, sizediff_t lines = 1, uint preferredColumn = uint.max)
-	{
-		if (preferredColumn == uint.max)
-			preferredColumn = index - startOfLine(index);
-		
-		uint newPos = index;
-		
-		if (lines < 0)
-		{
-			// locate the char just above the current index
-			lines = -lines;
-			for (uint i = 0; i < lines; i++)
-				newPos = endOfPreviousLine(newPos);
-		
-			uint eol = endOfLine(newPos);
-			newPos = startOfLine(newPos) + preferredColumn;
-			if (newPos > eol)
-				newPos = eol;
-			return newPos;
-		}
-		
-		// locate the char just above the current cursor char
-		for (uint i = 0; i < lines; i++)
-			newPos = startOfNextLine(newPos);
-			
-		uint eoline = endOfLine(newPos);
-		newPos = startOfLine(newPos) + preferredColumn;
-		
-		if (newPos > eoline)
-			newPos = eoline;
-		return newPos;
-	}
-	
-	uint startOfLine(uint index) const
-	{
-		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
-		
-		if (gbuffer.empty) return 0;
-		
-		dchar c = index == gbuffer.length ? 0xFFEF : gbuffer[index];
-
-		// border case where index is at the end of line
-		if (index == gbuffer.length || c == '\n' || c == '\r')
-		{
-			uint newidx = prev(index);
-			if (newidx == 0)
-				return 0;
-			
-			c = gbuffer[newidx];
-
-			// In case it was an empty line we already were at start of line.
-			if (c == '\n' || c == '\r')
-				return index;
-		}
-
-		auto r = gbuffer[0u..index];
-		
-		// locate the first \n
-		size_t i = 0;
-		foreach_reverse (v; r)
-		{
-			if (v == '\n')
-				break;
-			i++;			
-		}
-		return index - i;
-	}
-	
-	uint endOfLine(uint index)   
-	{
-		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
-	
-		if (index == length) 
-			return index;
-
-		auto r = gbuffer[index..gbuffer.length];
-		
-		// locate the next \n
-		size_t i = 0;
-		foreach (v; r)
-		{
-			if (v == '\n')
-				break;
-			i++;
-		}
-		
-		return index + i;
-	}
-	
-	uint startOfNextLine(uint index)   
+	uint startOfNextLine(uint index) const
 	{
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
 		auto r = gbuffer[index..gbuffer.length];
@@ -526,18 +799,18 @@ class TextGapBuffer
 		return i;
 	}
 
-	uint endOfPreviousLine(uint index)   
+	uint endOfPreviousLine(uint index) const
 	{
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));		
 
-		uint nc = startOfLine(index);
+		uint nc = offsetToStartOfLine(index);
 			
 		if (nc > 0)
 			nc--;
 		return nc;
 	}
 
-	uint lineNumber(uint index) 
+	uint lineNumber(uint index) const
 	{
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <=sa ", length));		
 		
@@ -550,7 +823,7 @@ class TextGapBuffer
 		return count;
 	}
 
-	uint find(uint index, const(char)[] needle)
+	uint find(uint index, const(char)[] needle) const
 	{
 		size_t needleSize = needle.length;
 		size_t curEnd = needleSize + index;
@@ -565,7 +838,7 @@ class TextGapBuffer
 
 	enum WORDCHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 	
-	uint findOneOf(uint index, const(char)[] needles)
+	uint findOneOf(uint index, const(char)[] needles) const
 	{
 		size_t len = length;
 		
@@ -576,7 +849,7 @@ class TextGapBuffer
 		return index < len ? index : uint.max;
 	}
 	
-	uint findOneNotOf(uint index, const(char)[] needles)
+	uint findOneNotOf(uint index, const(char)[] needles) const
 	{
 		size_t len = length;
 		
@@ -587,25 +860,25 @@ class TextGapBuffer
 		return index < len ? index : uint.max;
 	}
 
-	uint findOneOfReverse(uint index, const(char)[] needles)
+	uint findOneOfReverse(uint index, const(char)[] needles) const
 	{
 		size_t len = length;
 		
-		while (index != uint.max && !std.algorithm.canFind(needles, this[index]))
+		while (index < len && index != uint.max && !std.algorithm.canFind(needles, this[index]))
 		{
 			index--;
 		}
-		return index != uint.max ? index : uint.max;
+		return index != uint.max && index < len ? index : uint.max;
 	}
 
-	uint findOneNotOfReverse(uint index, const(char)[] needles)
+	uint findOneNotOfReverse(uint index, const(char)[] needles) const
 	{
 		size_t len = length;
 		
-		while (index != uint.max && std.algorithm.canFind(needles, this[index]))
+		while (index < len && index != uint.max && std.algorithm.canFind(needles, this[index]))
 		{
 			index--;
 		}
-		return index != uint.max ? index : uint.max;
+		return index != uint.max && index < len ? index : uint.max;
 	}
 }

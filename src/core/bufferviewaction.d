@@ -11,6 +11,11 @@ import std.typecons;
 
 version(unittest) import test;
 
+// An action is revisible in regards to 
+// cursor position, preferredColumn and text content.
+// This also means that the reverse of nextWord isn't just prevWord since
+// the cursor may be in the middle of a word to begin with and a nextWord followed
+// by a prevWord would not restore the cursor position (or preferred column) correctly.
 class Action
 {
 	bool modifying = true; // is this action modifying the buffer or just navigating
@@ -35,6 +40,11 @@ class ActionGroupAction : Action
 		}
 	}
 
+	private bool update(Args...)(Args args)
+	{
+		return false; // cannot update group actions
+	}
+
 	override void redo(BufferView bv)
 	{
 		foreach (a; actions)
@@ -47,90 +57,129 @@ class ActionGroupAction : Action
 			a.undo(bv);
 	}
 }
-/*
-class SelectToAction : Action
-{
-	Region r;
-
-	this(Region r)
-	{
-		modifying = false;
-		this.r = r;
-	}
-
-	override void redo(BufferView bv)
-	{
-		_undoStack.push!CursorRightAction(this, v - _cursorPoint);
-		bv.selectTo(
-	}
-
-	override void undo(BufferView bv)
-	{
-		bv._cursorPoint = bv.cursorPoint - offset;
-	}
-}
-*/
-class CursorRightAction : Action
-{
-	int offset;
-
-	this(int off)
-	{
-		modifying = false;
-		offset = off;
-	}
-
-	override void redo(BufferView bv)
-	{
-		
-		auto v = bv.buffer.charsOffset(bv._cursorPoint, offset);
-		if (!bv.isValidCursorPoint(v))
-			return;
-		bv._cursorPoint = v;
-		bv.setPreferredCursorColumnFromIndex();
-	}
-	
-	override void undo(BufferView bv)
-	{
-		auto v = bv.buffer.charsOffset(bv._cursorPoint, -offset);
-		if (!bv.isValidCursorPoint(v))
-			return;
-		bv._cursorPoint = v;
-		bv.setPreferredCursorColumnFromIndex();
-	}
-}
 
 class CursorDownAction : Action
 {
-	int offset;
+	int count;
+	//uint preferredColumn;
 
-	this(int off)
+	this(int cnt)
 	{
 		modifying = false;
-		offset = off;
+		count = cnt;
+	}
+
+	// Return true if this action was updated to reflect the changes
+	private bool update(BufferView bv, int cnt)
+	{
+		count += cnt;
+		perform(bv, cnt);
+		return true;
+	}
+	private void perform(BufferView bv, int cnt)
+	{
+		auto v = bv.buffer.offsetVertically(bv._cursorPoint, cnt, bv.preferredCursorColumn);
+		if (!bv.isValidCursorPoint(v))
+			return;
+		bv._cursorPoint = v;
 	}
 
 	override void redo(BufferView bv)
 	{
-		auto v = bv.buffer.linesOffset(bv._cursorPoint, offset, bv.preferredCursorColumn);
-		if (!bv.isValidCursorPoint(v))
-			return;
-		bv._cursorPoint = v;
+		//preferredColumn = bv.preferredCursorColumn;
+		perform(bv, count);
 	}
 
 	override void undo(BufferView bv)
 	{
-		auto v = bv.buffer.linesOffset(bv._cursorPoint, -offset, bv.preferredCursorColumn);
-		if (!bv.isValidCursorPoint(v))
-			return;
+		auto v = bv.buffer.offsetVertically(bv._cursorPoint, -count, bv.preferredCursorColumn);
 		bv._cursorPoint = v;
+		//bv.preferredCursorColumn(preferredColumn);
+		//bv.setIndexFromPreferredCursorColumn();
 	}
+}
+
+unittest
+{
+	// Test reversibility
+	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
+	Action i1 = new CursorDownAction(1);
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 0;
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 6);
+	i1.undo(v);
+	Assert(v.cursorPoint, 0);
+
+	i1.redo(v);
+	Assert(v.cursorPoint, 6);
+	i1.redo(v);
+	Assert(v.cursorPoint, 9);
+	i1.redo(v);
+	Assert(v.cursorPoint, 17);
+	i1.undo(v);
+	Assert(v.cursorPoint, 9);
+	i1.undo(v);
+	Assert(v.cursorPoint, 6);
+	i1.undo(v);
+	Assert(v.cursorPoint, 0);
+	i1.undo(v);
+	Assert(v.cursorPoint, 0);
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 5;
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 5");
+	i1.redo(v);
+	Assert(v.cursorPoint, 8);
+	i1.undo(v);
+	Assert(v.cursorPoint, 5);
+
+	i1.redo(v);
+	Assert(v.cursorPoint, 8);
+	i1.redo(v);
+	Assert(v.cursorPoint, 14);
+	i1.redo(v);
+	Assert(v.cursorPoint, 17);
+	i1.undo(v);
+	Assert(v.cursorPoint, 14);
+	i1.undo(v);
+	Assert(v.cursorPoint, 8);
+	i1.undo(v);
+	Assert(v.cursorPoint, 5);
+	i1.undo(v);
+	Assert(v.cursorPoint, 5);
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 7;
+	Assert(v.preferredCursorColumn, 7, "preferred colum is 7");
+	i1.redo(v);
+	Assert(v.cursorPoint, 8);
+	i1.undo(v);
+	Assert(v.cursorPoint, 5);
+
+	i1.redo(v);
+	Assert(v.cursorPoint, 8);
+	i1.redo(v);
+	Assert(v.cursorPoint, 16);
+	i1.redo(v);
+	Assert(v.cursorPoint, 17);
+	i1.undo(v);
+	Assert(v.cursorPoint, 16);
+	i1.undo(v);
+	Assert(v.cursorPoint, 8);
+	i1.undo(v);
+	Assert(v.cursorPoint, 5);
+	i1.undo(v);
+	Assert(v.cursorPoint, 5);
 }
 
 class InsertAction : Action
 {
 	immutable(TextGapBuffer.CharType)[] text;
-
+	uint preferredColumn;
+	
 	this(immutable(TextGapBuffer.CharType)[] txt)
 	{
 		text = txt;
@@ -139,10 +188,13 @@ class InsertAction : Action
 	// Update this insert action by adding txt to existing text and redo action with
 	// the concatenated text. Note that a redo() must have been performed on the existings text
 	// before calling this as it is assumed that text is already in buffer.
-	private void update(BufferView bv, immutable(TextGapBuffer.CharType)[] txt)
+	private bool update(BufferView bv, immutable(TextGapBuffer.CharType)[] txt)
 	{
+		if (txt == " " || txt == "\t" || txt == "\r\n" || txt == "\n")
+			return false; // force undo entry for each word
 		text ~= txt;
-		perform(bv, txt);	
+		perform(bv, txt);
+		return true;
 	}
 
 	private void perform(BufferView bv, immutable(TextGapBuffer.CharType)[] txt)
@@ -157,6 +209,7 @@ class InsertAction : Action
 
 	override void redo(BufferView bv)
 	{
+		preferredColumn = bv.preferredCursorColumn;
 		perform(bv, text);
 	}
 
@@ -164,50 +217,104 @@ class InsertAction : Action
 	{
 		bv._cursorPoint = bv.cursorPoint - text.length;
 		bv.buffer.remove(text.length, bv.cursorPoint);
-		bv.setPreferredCursorColumnFromIndex();
+		bv.preferredCursorColumn(preferredColumn);
+		// bv.setIndexFromPreferredCursorColumn();
 		bv.changed();
 		bv.onRemove.emit(bv, text, bv.cursorPoint);
 	}
 }
 
+unittest
+{
+	// Test reversibility
+	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
+	Action i1 = new InsertAction("XY"d);
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 0;
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 2);
+	Assert(v.preferredCursorColumn, 2, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 0);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 5;
+	v.cursorPoint = 7;
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 9);
+	Assert(v.preferredCursorColumn, 3, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 7);
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn	= 7;
+	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 9);
+	Assert(v.preferredCursorColumn, 3, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 7);
+	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
+}
+
 class RemoveAction : Action
 {
-	int length;
+	uint preferredColumn;
+	int count;
 	immutable(TextGapBuffer.CharType)[] text; // used to remember what to undo
+	TextBoundary boundary;
 
-	this(int len)
+	this(TextBoundary b, int cnt = 1)
 	{
-		length = len;
+		count = cnt;
+		boundary = b;
 	}
 
-	private void update(BufferView bv, int len)
+	private bool update(BufferView bv, TextBoundary b, int cnt)
 	{
-		length += len;
-		perform(bv, len);
+		// Only some boundary moves and direction can be updated
+		if (boundary != b || ((cnt < 0) != (count < 0)))
+			return false;
+		count += cnt;
+		perform(bv, b, cnt);
+		return true;
 	}
 	
-	private void perform(BufferView bv, int len)
+	private void perform(BufferView bv, TextBoundary b, int cnt)
 	{
-		import std.math;
+		auto start = bv.buffer.offsetBy(bv._cursorPoint, cnt, b);
+		auto end = bv._cursorPoint;
+
 		// record the content for later undoing
-		auto l = abs(len);
-		auto o = bv.cursorPoint + (len < 0 ? -l : 0);
-		auto t = array(bv.buffer[o..o+l]).idup;
-		if (len < 0)
+		if (start > end)
+		{
+			auto tmp = start;
+			start = end;
+			end = tmp;
+		}
+
+		auto t = array(bv.buffer[start..end]).idup;
+		if (cnt < 0)
 			text = t ~ text;
 		else
 			text ~= t;
 
-		bv.buffer.remove(l, o);
-		bv._cursorPoint = o;
+		bv.buffer.remove(end-start, start);
+		bv._cursorPoint = start;
 		bv.setPreferredCursorColumnFromIndex();
 		bv.changed();
-		bv.onRemove.emit(bv, t, o);
+		bv.onRemove.emit(bv, t, start);
 	}
 
 	override void redo(BufferView bv)
 	{
-		perform(bv, length);
+		preferredColumn = bv.preferredCursorColumn;
+		perform(bv, boundary, count);
 	}
 
 	override void undo(BufferView bv)
@@ -215,22 +322,83 @@ class RemoveAction : Action
 		bv.buffer.insert(text, bv.cursorPoint);
 		auto origCursorPoint = bv.cursorPoint;
 		auto restoredCursorPoint = origCursorPoint;
-		if (length < 0)
-			restoredCursorPoint -= length; // length is negative here
+		if (count < 0)
+			restoredCursorPoint += text.length;
 		bv._cursorPoint = restoredCursorPoint; 
-		bv.setPreferredCursorColumnFromIndex();
+		bv.preferredCursorColumn(preferredColumn);
+		// bv.setIndexFromPreferredCursorColumn();
 		bv.changed();
 		bv.onInsert.emit(bv, text, origCursorPoint);
+		text = null;
 	}
+}
+
+unittest
+{
+	// Test reversibility
+	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
+	Action i1 = new RemoveAction(TextBoundary.chr, 2);
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 0;
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 0);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 0);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 5;
+	v.cursorPoint = 7;
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 7);
+	Assert(v.preferredCursorColumn, 1, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 7);
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
+
+	Action i2 = new RemoveAction(TextBoundary.chr, -2);
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 0;
+	v.cursorPoint = 0;
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i2.redo(v);
+	Assert(v.cursorPoint, 0);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i2.undo(v);
+	Assert(v.cursorPoint, 0);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 5;
+	v.cursorPoint = 8;
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
+	i2.redo(v);
+	Assert(v.cursorPoint, 6);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i2.undo(v);
+	Assert(v.cursorPoint, 8);
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
 }
 
 class RemoveSelectedAction : Action
 {
+	uint preferredColumn;
 	bool cursorAtStartOfSelection;
 	immutable(TextGapBuffer.CharType)[] text; // used to remember what to undo
 
+	private bool update(BufferView bv)
+	{
+		return false; // cannot update this
+	}
+
 	override void redo(BufferView bv)
 	{
+		preferredColumn = bv.preferredCursorColumn;
 		import std.math;
 		// record the content for later undoing
 		
@@ -264,92 +432,277 @@ class RemoveSelectedAction : Action
 			bv.selection.b = bv._cursorPoint;
 			bv.selection.a = bv._cursorPoint - text.length;
 		}
-		bv.setPreferredCursorColumnFromIndex();
+		bv.preferredCursorColumn(preferredColumn);
+		//bv.setIndexFromPreferredCursorColumn();
 	}
 }
 
-class ClearAction : Action
-{
-	int offset;
-	immutable(TextGapBuffer.CharType)[] text; // used to remember what to undo
-
-	this()
-	{
-	}
-
-	override void redo(BufferView bv)
-	{
-		text = array(bv.buffer[0..bv.buffer.length]).idup;
-		offset = bv.cursorPoint;
-		auto len = bv.length;
-		bv.buffer.remove(len, 0);
-		bv._cursorPoint = 0;
-		bv.setPreferredCursorColumnFromIndex();
-		bv.changed();
-		bv.onRemove.emit(bv, text, 0);
-	}
-
-	override void undo(BufferView bv)
-	{
-		bv.buffer.insert(text, 0);
-		bv._cursorPoint = offset; 
-		bv.setPreferredCursorColumnFromIndex();
-		bv.changed();
-		bv.onInsert.emit(bv, text, 0);
-	}
-}
-
-class CursorToStartAction : Action
-{
-	int offset;
-	immutable(TextGapBuffer.CharType)[] text; // used to remember what to undo
-
-	this()
-	{
-		modifying = false;
-	}
-
-	override void redo(BufferView bv)
-	{
-		offset = bv.cursorPoint;
-		bv._cursorPoint = 0;
-		bv.setPreferredCursorColumnFromIndex();
-	}
-
-	override void undo(BufferView bv)
-	{
-		bv._cursorPoint = offset;
-		bv.setPreferredCursorColumnFromIndex();
-	}
-}
-
-class CursorToEndAction : Action
-{
-	int offset;
-	immutable(TextGapBuffer.CharType)[] text; // used to remember what to undo
-
-	this()
-	{
-		modifying = false;
-	}
-
-	override void redo(BufferView bv)
-	{
-		offset = bv.cursorPoint;
-		bv._cursorPoint = bv.length;
-		bv.setPreferredCursorColumnFromIndex();
-	}
-
-	override void undo(BufferView bv)
-	{
-		bv._cursorPoint = offset;
-		bv.setPreferredCursorColumnFromIndex();
-	}
-}
-
-// Test Actions on BufferView
 unittest
 {
+	import math.region;
+	
+	// Test reversibility
+	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
+	Action i1 = new RemoveSelectedAction();
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 0;
+	v.selection = Region(v.cursorPoint, v.cursorPoint + 2);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 0);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 0);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 5;
+	v.cursorPoint = 7;
+	v.selection = Region(v.cursorPoint, v.cursorPoint + 2);
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 7);
+	Assert(v.preferredCursorColumn, 1, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 7);
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 0;
+	v.cursorPoint = 0;
+	v.selection = Region(0, 0);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 0);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 0);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 5;
+	v.cursorPoint = 8;
+	v.selection = Region(v.cursorPoint - 2, v.cursorPoint);
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 6);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 8);
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
+}
+
+class CopySelectedAction : Action
+{
+	this()
+	{
+		modifying = false;
+	}
+	
+	private bool update(BufferView bv)
+	{
+		return false; // cannot update this
+	}
+
+	override void redo(BufferView bv)
+	{
+		auto text = bv.selectedText.idup;
+		bv.copyBuffer.add(text);
+		bv.onCopy.emit(bv, text, bv.selection.a);
+	}
+
+	override void undo(BufferView bv)
+	{
+		// no-op
+	}
+}
+
+class PasteAction : Action
+{
+	int copyBufferEntryOffset;
+	InsertAction insertAction;
+	RemoveSelectedAction removeSelectedAction;
+
+	this(int boffset)
+	{
+		copyBufferEntryOffset = boffset < 0 ? 0 : boffset;
+	}
+
+	private bool update(BufferView bv, int offset)
+	{
+		if (offset >= 0)
+			return false;
+
+		int origOffset = copyBufferEntryOffset;
+		if (offset < 0)
+			copyBufferEntryOffset -= offset;
+
+		if (copyBufferEntryOffset >= bv.copyBuffer.length || copyBufferEntryOffset < 0)
+		{
+			// no-op
+			copyBufferEntryOffset = origOffset;
+			return true;
+		}
+		
+		if (insertAction is null)
+		{
+			// Previous pastes were done with invalid entry offsets ie. no-op.
+			// This is the first actual paste
+			redo(bv); 
+			return true;
+		}
+
+		insertAction.undo(bv);
+		auto e = bv.copyBuffer.get(copyBufferEntryOffset);
+		insertAction = new InsertAction(e.txt);
+		insertAction.redo(bv);
+		return true;
+	}
+
+	override void redo(BufferView bv)
+	{
+		if (insertAction is null)
+		{
+			auto e = bv.copyBuffer.get(copyBufferEntryOffset);
+			if (e is null)
+				return; // nothing at that entry
+
+			if (!bv.selection.empty)
+			{
+				removeSelectedAction = new RemoveSelectedAction();			
+				removeSelectedAction.redo(bv);
+			}
+			
+			insertAction = new InsertAction(e.txt);
+		}
+		insertAction.redo(bv);
+	}
+
+	override void undo(BufferView bv)
+	{
+		if (insertAction !is null)
+			insertAction.undo(bv);
+		if (removeSelectedAction !is null)
+			removeSelectedAction.undo(bv);
+	}
+}
+
+class CursorAction : Action
+{
+	int offset;
+	TextBoundary boundary;
+	int count;
+	uint preferredColumn; // To set when undoing. Upon updating it will alway be the initial column that is kept.
+
+	this(TextBoundary b, int cnt = 1)
+	{
+		modifying = false;
+		boundary = b;
+		count = cnt;
+	}
+
+	private bool update(BufferView bv, TextBoundary b, int cnt)
+	{
+		// Only some boundary moves and direction can be updated
+		if (boundary != b || ((cnt < 0) != (count < 0)))
+			return false;
+		count += cnt;
+		perform(bv, b, cnt);
+		return true;		
+	}
+
+	private void perform(BufferView bv, TextBoundary b, int c)
+	{
+		bv._cursorPoint = bv.buffer.offsetBy(bv._cursorPoint, c, b);
+		bv.setPreferredCursorColumnFromIndex();
+	}
+
+	override void redo(BufferView bv)
+	{
+		preferredColumn = bv.preferredCursorColumn;
+		offset = bv.cursorPoint;
+		perform(bv, boundary, count);
+	}
+
+	override void undo(BufferView bv)
+	{
+		bv._cursorPoint = offset;
+		bv.preferredCursorColumn = preferredColumn;
+		// bv.setPreferredCursorColumnFromIndex();
+	}
+}
+
+unittest
+{
+	// Test reversibility
+	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
+	Action i1 = new CursorAction(TextBoundary.word, 1);
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 0;
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 5);
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 0);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 7;
+	v.cursorPoint = 2;
+	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 5);
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 2);
+	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
+
+	i1 = new CursorAction(TextBoundary.line, 1);
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 7;
+	v.cursorPoint = 4;
+	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 5);
+	Assert(v.preferredCursorColumn, 5, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 4);
+	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
+
+	i1 = new CursorAction(TextBoundary.line, 2);
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 7;
+	v.cursorPoint = 4;
+	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 8);
+	Assert(v.preferredCursorColumn, 2, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 4);
+	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
+
+	i1 = new CursorAction(TextBoundary.line, -2);
+
+	// ""01234\n67\n9ABCDEF\n""
+	v.preferredCursorColumn = 7;
+	v.cursorPoint = 7;
+	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
+	i1.redo(v);
+	Assert(v.cursorPoint, 0);
+	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	i1.undo(v);
+	Assert(v.cursorPoint, 7);
+	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
+}
+
+unittest
+{
+	// Misc. mixed actions on BufferView
 	BufferView v = new BufferView("");
 	Action i1 = new InsertAction("testing");
 
@@ -364,7 +717,7 @@ unittest
 	Assert(v.buffer.toArray(), "testing"d);
 
 	// Testing insertion redo and undo with offset
-	Action o1 = new CursorRightAction(-5);
+	Action o1 = new CursorAction(TextBoundary.chr, -5);
 	o1.redo(v);
 	Action i2 = new InsertAction("foo");
 	i2.redo(v);
@@ -377,9 +730,9 @@ unittest
 	Assert(v.buffer.toArray(), "tefoosting"d);
 
 	// Testing remove redo/undo with positive length
-	Action o2 = new CursorRightAction(-3);
+	Action o2 = new CursorAction(TextBoundary.chr, -3);
 	o2.redo(v);
-	Action r2 = new RemoveAction(3);
+	Action r2 = new RemoveAction(TextBoundary.chr, 3);
 	r2.redo(v);
 	Assert(v.buffer.toArray(), "testing"d);
 
@@ -390,9 +743,9 @@ unittest
 	Assert(v.buffer.toArray(), "testing"d);
 
 	// Testing remove redo/undo with negative length
-	Action o3 = new CursorRightAction(3);
+	Action o3 = new CursorAction(TextBoundary.chr, 3);
 	o3.redo(v);
-	Action r3 = new RemoveAction(-1);
+	Action r3 = new RemoveAction(TextBoundary.chr, -1);
 	r3.redo(v);
 	Assert(v.buffer.toArray(), "testng"d);
 
@@ -416,16 +769,15 @@ class ActionStack
 
 	// Keep track of all cursor actions (e.g. cursorLeft/toEndOfLine) and
 	// insert the on stack before a non-cursor (ie. modifying) action when such one is pushed.
-	// This solved the situation where you undo some steps, the moves the cursor and the redo some steps.
-	// When redoing in that situation you simply throw away topCursorActions and redo actions. If it was not
-	// done this way any subsequent cursor actions after an undo would be inserted as new actions on the
-	// undo array immediately and "overwrite" the real undo stack top.
-	//Array!Action topCursorActions;
+	// This solves the situation where you undo some steps, then move the cursor and the redo some steps.
+	// When redoing in that situation you simply throw away topCursorActions and redo actions after that. 
+	// If it was not done this way any subsequent cursor actions after an undo would be inserted as 
+	// new actions on the undo array immediately and "overwrite" the real undo stack top.
+	// Array!Action topCursorActions;
 	Action[] topCursorActions;
 
 	// Bundle sequential insert and remove sequences
-	InsertAction activeInsertAction;
-	RemoveAction activeRemoveAction;
+	Action activeAction;
 
 	this()
 	{
@@ -452,15 +804,15 @@ class ActionStack
 	version (unittest)
 	{
 	// TODO FIX
-	void offset(BufferView bv, int offset)
+	private void offset(BufferView bv, int offset)
 	{
 		if (offset == 0)
 			return;
 
-		CursorRightAction offsetAction = topCursorActions.empty ? null : cast(CursorRightAction) topCursorActions.back();
-		if (offsetAction is null)
+		CursorAction offsetAction = topCursorActions.empty ? null : cast(CursorAction) topCursorActions.back();
+		if (offsetAction is null || offsetAction.boundary != TextBoundary.chr)
 		{
-			topCursorActions.insertBack(new CursorRightAction(offset));
+			topCursorActions ~= new CursorAction(TextBoundary.chr, offset);
 			topCursorActions.back().redo(bv);
 
 		}
@@ -472,57 +824,37 @@ class ActionStack
 	}
 	}
 
-	private void offset(int offset)
-	{
-		if (offset == 0)
-			return;
-
-		//CursorRightAction offsetAction = topCursorActions.empty ? null : cast(CursorRightAction) topCursorActions.back();
-		CursorRightAction offsetAction = topCursorActions.empty ? null : cast(CursorRightAction) topCursorActions[$-1];
-		if (offsetAction is null)
-		{
-//			topCursorActions.insertBack(new CursorRightAction(offset));
-			topCursorActions ~= new CursorRightAction(offset);
-		}
-		else
-		{
-			offsetAction.offset += offset;
-		}
-	}
+//    private void offset(int offset)
+//    {
+//        if (offset == 0)
+//            return;
+//
+//        //CursorRightAction offsetAction = topCursorActions.empty ? null : cast(CursorRightAction) topCursorActions.back();
+//    
+//        // Merge all offsets into last cursor action if that was a simple move-by-char action. Else create a new cursor action.
+//        CursorAction cursorAction = topCursorActions.empty ? null : cast(CursorAction) topCursorActions[$-1];
+//        if (cursorAction is null || cursorAction.boundary != TextBoundary.chr)
+//        {
+////			topCursorActions.insertBack(new CursorRightAction(offset));
+//            topCursorActions ~= new CursorRightAction(offset);
+//        }
+//        else
+//        {
+//            cursorAction.offset += offset;
+//        }
+//    }
 
 	private Action createAction(T, Args...)(BufferView bv, Args args)
 	{
-		static if (is (T : InsertAction))
+		// Aggregate inserts and removes if possible
+		// TODO: Do this for all other actions that supports the update() method as well.		
+		T activeTAction = cast(T) activeAction;
+		if (activeTAction is null || !activeTAction.update(bv, args))
 		{
-			activeRemoveAction = null;
-
-			if (activeInsertAction is null)
-				activeInsertAction = new InsertAction(args);
-			else
-			{
-				activeInsertAction.update(bv, args[0]);
-				return null;
-			}
-			return activeInsertAction;
+			activeAction = new T(args);
+			return activeAction;
 		}
-		else static if (is (T : RemoveAction))
-		{
-			activeInsertAction = null;
-			if (activeRemoveAction is null || (args[0] <= 0) != (activeRemoveAction.length <= 0))
-				activeRemoveAction = new RemoveAction(args);
-			else
-			{
-				activeRemoveAction.update(bv, args[0]);
-				return null;
-			}
-			return activeRemoveAction;
-		}
-		else
-		{
-			activeRemoveAction = null;
-			activeInsertAction = null;
-			return new T(args);
-		}
+		return null; // update of top action done and no new action created.
 	}
 
 	void push(T, Args...)(BufferView bv, Args args)
@@ -531,7 +863,8 @@ class ActionStack
 			cursorPointAfterLastAction = bv.cursorPoint;
 
 		int off = bv.cursorPoint - cursorPointAfterLastAction;
-		offset(off);
+		if (off != 0)
+			createAction!CursorAction(bv, TextBoundary.chr, off);
 
 		Action a = createAction!T(bv, args);
 		if (a is null)
@@ -555,6 +888,8 @@ class ActionStack
 
 			a.redo(bv);
 
+			// Put on stack after performed because any embedded action will get
+			// push to stack before this actions which is what we want.
 			if (last.next !is null)
 				last.next.prev = null; 
 			last.next = new Item(a);
@@ -612,6 +947,7 @@ class ActionStack
 		}
 
 		cursorPointAfterLastAction = bv.cursorPoint;
+		activeAction = null;
 	}
 
 	void undo(BufferView bv)
@@ -631,6 +967,7 @@ class ActionStack
 		}
 
 		cursorPointAfterLastAction = bv.cursorPoint;
+		activeAction = null;
 	}
 }
 
@@ -643,7 +980,7 @@ version(unittest)
 
 	void remove(ActionStack st, BufferView bv, int len)
 	{
-		st.push!RemoveAction(bv, len);
+		st.push!RemoveAction(bv, TextBoundary.chr, len);
 	}
 }
 
@@ -663,7 +1000,7 @@ unittest
 	Assert(v.buffer.toArray(), "testing"d);
 
 	// Testing insertion redo and undo with offset
-	st.push!CursorRightAction(v, -5);
+	st.push!CursorAction(v, TextBoundary.chr, -5);
 	st.insert(v, "foo"); 
 	Assert(v.buffer.toArray(), "tefoosting"d);
 
@@ -674,7 +1011,7 @@ unittest
 	Assert(v.buffer.toArray(), "tefoosting"d);
 
 	// Testing remove redo/undo with positive length
-	st.push!CursorRightAction(v, -3);
+	st.push!CursorAction(v, TextBoundary.chr, -3);
 	st.remove(v, 3);
 	Assert(v.buffer.toArray(), "testing"d);
 
@@ -685,7 +1022,7 @@ unittest
 	Assert(v.buffer.toArray(), "testing"d);
 
 	// Testing remove redo/undo with negative length
-	st.push!CursorRightAction(v, 3);
+	st.push!CursorAction(v, TextBoundary.chr, 3);
 	st.remove(v, -1);
 	Assert(v.buffer.toArray(), "testng"d);
 
@@ -693,7 +1030,7 @@ unittest
 	Assert(v.buffer.toArray(), "testing"d);
 
 	// Testing undo with after moveing cursor
-	st.push!CursorRightAction(v, -4);
+	st.push!CursorAction(v, TextBoundary.chr, -4);
 	st.remove(v, -1);
 	Assert(v.buffer.toArray(), "esting"d);
 

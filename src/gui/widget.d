@@ -540,6 +540,26 @@ class Widget
 		activeStyle.model.draw();
   */
 	}
+
+	void getScreenOffsetToWorldTransform(ref Mat4f transform)
+	{
+		Rectf wrect = window.windowToWorld(rect);
+
+		// Since text are layed out using pixel coords we scale into world coords
+		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0));
+	}
+
+	void getScreenToWorldTransform(ref Mat4f transform)
+	{
+		//		Rectf wrect = widget.window.windowToWorld(widget.rect);
+
+		// Since text are layed out using pixel coords we scale into world coords
+		Vec2f scale = window.pixelSizeToWorld(Vec2f(1,1));
+		getScreenOffsetToWorldTransform(transform);
+		//		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0)) * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
+		transform = transform * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
+	}
+
 }
 
 bool isInFrontOf(Widget isThis, Widget inFrontOfThis)

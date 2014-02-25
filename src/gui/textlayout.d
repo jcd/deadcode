@@ -4,6 +4,7 @@ import graphics.buffer;
 import gui.style;
 import gui.text;
 import math._;
+import std.algorithm;
 import std.range;
 
 struct TextBoxLayout
@@ -11,7 +12,7 @@ struct TextBoxLayout
 	TextModel model;
 	Rectf bounds;
 	bool done;
-		
+
 	struct Line
 	{
 	public:
@@ -41,6 +42,9 @@ struct TextBoxLayout
 		}
 
 		LineHeightBufferInfo[] curLineHeightBufferInfos;
+		
+		Font[] _fontsToUpdate; // fontmap that should be updated because they need additional glyphs
+		bool _missingGlyphInfo;
 	}
 
 	/** Constructor
@@ -50,11 +54,22 @@ struct TextBoxLayout
 	*/
 	this(TextModel textModel, Rectf bounds)
 	{
+		_missingGlyphInfo = false;
 		done = false;
 		model = textModel;
 		this.bounds = bounds;
 	}
 	
+	void updateFontMaps()
+	{
+		if (_fontsToUpdate.empty)
+			return;
+		foreach (f; _fontsToUpdate)
+			f.updateFontMap();
+		_fontsToUpdate.length = 0;
+		assumeSafeAppend(_fontsToUpdate);
+	}
+
 	void _newLine(uint startBufferIdx, float yStart)
 	{
 		lines ~= Line();
@@ -74,7 +89,8 @@ struct TextBoxLayout
 
 	size_t add(Text)(Text text, Style style)
 	{
-		
+		_missingGlyphInfo = false;	
+
 		float topOfLineBox = curLine is null ? bounds.y : curLine.rect.y;
 		if (topOfLineBox >= bounds.y2)
 		{
@@ -109,6 +125,9 @@ struct TextBoxLayout
 			}
 		}
 
+		if (_missingGlyphInfo && !_fontsToUpdate.canFind(style.font))
+				_fontsToUpdate ~= style.font;
+		
 		return charsUsed;
 	}
 
@@ -180,6 +199,8 @@ struct TextBoxLayout
 		Rectf atWorldRect = Rectf(pos, Vec2f(curLine.rect.w, curLine.rect.h));
 
 		auto res = model.addTextVertices!Range(style.background, text, atWorldRect, style.font, style.color, style.wordWrap);
+
+		_missingGlyphInfo = _missingGlyphInfo || res.missingGlyphInfo;
 
 		// Correct glyphPositions for glyphs that have ascendDiff < 0 
 		if (ascentDiff > 0)

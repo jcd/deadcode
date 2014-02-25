@@ -34,7 +34,7 @@ class CommandControl : Widget
 	{
 		super(parent);
 		app = _app;
-		commandMap = [ "of" : "edit.open", "sb" : "edit.showBuffer" ];
+		commandMap = [ "f" : "edit.open", "b" : "edit.showBuffer" ];
 		
 		expandDuration = 0.2f;
 		contractDuration = 0.07f;

@@ -35,7 +35,7 @@ class EmacsBehavior : EditorBehavior
 		keyBindings.push(set);
 	
 		// Register emacs behavior as an option
-		set.setKeyBinding("<ctrl> + v", "edit.scrollPageDown");
+		// set.setKeyBinding("<ctrl> + v", "edit.scrollPageDown"); 
 		set.setKeyBinding("<alt> + v", "edit.scrollPageUp");
 		set.setKeyBinding("<pagedown>", "edit.scrollPageDown");
 		set.setKeyBinding("<pageup>", "edit.scrollPageUp");
@@ -61,17 +61,18 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<backspace>", "edit.deleteCharBefore");
 		auto rs = new RuleSet();
 		rs.addEquals("currentBufferName", "*CommandInput*");
-		set.setKeyBinding("<return>", "edit.commitCompletion", Variant(), rs);
-		set.setKeyBinding("<tab>", "edit.complete", Variant(), rs);
-		set.setKeyBinding("<ctrl> + g", "app.toggleCommandArea", Variant(), rs);
+		set.setKeyBinding("<return>", "edit.commitCompletion", rs);
+		set.setKeyBinding("<tab>", "edit.complete", rs);
+		set.setKeyBinding("<ctrl> + g", "app.toggleCommandArea", rs);
 
-		set.setKeyBinding("<return>", "edit.insertNewline");
+		set.setKeyBinding("<return>", "edit.insert", "\n");
+		set.setKeyBinding("<tab>", "edit.insert", "\t");
 		set.setKeyBinding("<ctrl> + d", "edit.deleteCharAfter");
 		set.setKeyBinding("<delete>", "edit.deleteCharAfter");
 		set.setKeyBinding("<ctrl> + x <ctrl> + p", "edit.clear");
 		
-		set.setKeyBinding("<ctrl> + x <ctrl> + f", "app.toggleCommandArea", Variant("edit.open "));
-		set.setKeyBinding("<ctrl> + x b", "app.toggleCommandArea", Variant("edit.showBuffer "));
+		set.setKeyBinding("<ctrl> + x <ctrl> + f", "app.toggleCommandArea", "edit.open ");
+		set.setKeyBinding("<ctrl> + x b", "app.toggleCommandArea", "edit.showBuffer ");
 		set.setKeyBinding("<ctrl> + x <ctrl> + s", "edit.save");
 		set.setKeyBinding("<ctrl> + x <ctrl> + w", "edit.saveBufferAs");
 		set.setKeyBinding("<ctrl> + x <ctrl> + w", "edit.saveBufferAs");
@@ -81,6 +82,11 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<ctrl> + x u", "edit.undo");
 		set.setKeyBinding("<ctrl> + <shift> + z", "edit.redo");
 		set.setKeyBinding("<ctrl> + z", "edit.undo");
+		set.setKeyBinding("<ctrl> + c", "edit.copy");
+		set.setKeyBinding("<ctrl> + v", "edit.paste");
+		set.setKeyBinding("<ctrl> + <shift> + v", "edit.pasteCycle");
+		// set.setKeyBinding("<ctrl> + x", "edit.cut");
+
 		set.setKeyBinding("<ctrl> + b", "core.rebuildEditor");
 		set.setKeyBinding("<ctrl> + w", "app.toggleCommandArea");
 

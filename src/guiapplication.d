@@ -185,6 +185,7 @@ class GUIApplication : Application
 			view.insert(std.conv.dtext(line));
 		}
 		view.cursorToStart();
+		view.clearUndoStack();
 		AddMessage("Read %s", view.name);
 		showBuffer(view);
 		//Application.activeEditor.show(view);			

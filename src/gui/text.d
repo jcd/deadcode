@@ -114,8 +114,7 @@ class TextModel
 		wordWrap = If true the method will return when the inWorldRect overflows horizontally.
 		
 		Returns: 
-			A struct of (usedChars, lineIsFull, maxX)	
-
+			A struct of (usedChars, lineIsFull, maxX)
 	*/
 	auto addTextVertices(R)(Material material, ref R str, Rectf inWorldRect, Font font, Color color, bool wordWrap)
 	{
@@ -141,6 +140,7 @@ class TextModel
 		cols.length = verts.length;
 		uvs.length = uvbase + str.length * 12; // 6 verts of 2 floats each = 12
 
+		bool missingGlyphInfo = false;
 		bool skip = false;
 		bool isFull = false;
 		size_t charsUsed = 0;
@@ -206,6 +206,14 @@ class TextModel
 
 			// Lookup glyph in font
 			auto g = font.lookupGlyph(ch);
+			if (g.empty)
+			{
+				// Glyph currently not in fontmap and we need to regenerate 
+				// the fontmap at some point to get it. It not done automatically
+				// because we want to bundle fontmap regenerations for many chars at once.
+				missingGlyphInfo = true;
+				continue;
+			}
 
 			assert(!std.math.isNaN(g.offsetRect.x));
 			assert(!std.math.isNaN(g.offsetRect.y));
@@ -299,6 +307,7 @@ class TextModel
 
 		struct Result
 		{
+			bool missingGlyphInfo;
 			size_t charsAdded = 0;
 			size_t vertsAdded;
 			bool lineIsFull = false;
@@ -309,7 +318,7 @@ class TextModel
 		}
 
 		auto vertsAdded = vbase - vbaseorig;
-		return Result(charsUsed, vertsAdded, isFull, pos.x, mesh.buffers[0], vbaseorig, vbase - vbaseorig);
+		return Result(missingGlyphInfo, charsUsed, vertsAdded, isFull, pos.x, mesh.buffers[0], vbaseorig, vbase - vbaseorig);
 	}
 }
 
@@ -381,7 +390,7 @@ class TextSelectionModel
 			{
 				box = new BoxModel(Sprite(0,0,16,16), RectfOffset(borderSize,borderSize,borderSize,borderSize));
 				//box = new BoxModel(Sprite(Rectf(6,6,4,4)));
-				box.color = Vec3f(0.3, 0.3, 0.3);
+				box.color = Vec3f(0.25, 0.25, 0.25);
 				models[i] = box;
 			}
 			else

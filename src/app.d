@@ -16,7 +16,12 @@ import guiapplication;
  */
 int main(string args[])
 { 
-	version (unittest) return 0;
+	version (unittest) 
+	{ 	
+		import test;
+		printStats();
+		return 0;
+	}
 
 	try
 	{

@@ -3,7 +3,7 @@
 		"parent" : "",
 		"font" : "../fonts/default.font",
 		"material" : "../materials/edit-background.material",
-		"color" : "#ffffff",
+		"color" : "#f8f8f2",
 		"padding" : "20 20 20 20"
 	},
 	"dsource-declaration" : {

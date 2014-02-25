@@ -130,25 +130,6 @@ class TextRenderer(Text) : WidgetFeature
 		widget.acceptsKeyboardFocus = true;		
 	}
 
-	void getOffsetTransform(Widget widget, ref Mat4f transform)
-	{
-		Rectf wrect = widget.window.windowToWorld(widget.rect);
-
-		// Since text are layed out using pixel coords we scale into world coords
-		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0));
-	}
-
-	void getTransform(Widget widget, ref Mat4f transform)
-	{
-//		Rectf wrect = widget.window.windowToWorld(widget.rect);
-		
-		// Since text are layed out using pixel coords we scale into world coords
-		Vec2f scale = widget.window.pixelSizeToWorld(Vec2f(1,1));
-		getOffsetTransform(widget, transform);
-//		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0)) * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
-		transform = transform * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
-	}
-
 	//BoxModel _box;
 
 	override void draw(Widget widget)
@@ -183,7 +164,7 @@ class TextRenderer(Text) : WidgetFeature
 		}
 
 		Mat4f transform;
-		getTransform(widget, transform);
+		widget.getScreenToWorldTransform(transform);
 		//auto transform = Mat4f.makeTranslate(Vec3f(-1,1,0));
 		
 		StyleSet styleSet = widget.window.styleSet;
@@ -232,9 +213,10 @@ class TextRenderer(Text) : WidgetFeature
 		//getOffsetTransform(widget, ofstransform);
 
 		// Rectf wrect = widget.window.windowToWorld(widget.rect);
-		_selectionModel.draw(widget.window.MVP * transform);
+		Mat4f trx = widget.window.MVP * transform;
 		
-		_model.draw(widget.window.MVP * transform);
+		_selectionModel.draw(trx);
+		_model.draw(trx);
 
 		//uint glyphLineIndex = view.cursorPoint - view.buffer.startOfLine(view.cursorPoint);
 		// float cursorLineOffset = _layout.lines[row].glyphWorldPos(glyphLineIndex).x;
@@ -260,11 +242,13 @@ class TextRenderer(Text) : WidgetFeature
 		// TODO: get transform
 		// Vec2f worldSize = widget.window.pixelSizeToWorld(widget.rect.size);
 
-		_model.resetGlyphPositions();
+		_model.clear(); // Clear model buffers
+		_model.resetGlyphPositions(); // TODO: this call should probably be part of clear()
 
 		// _layout = TextBoxLayout(_model, Rectf(0, 0, worldSize.x, worldSize.y));
 		
 		Vec2f winSize = widget.window.size;
+		_layout.updateFontMaps();
 		_layout = TextBoxLayout(_model, Rectf(0, 0, winSize.x, winSize.y));
 		
 		foreach (r; _styledText.regionSet)
@@ -276,6 +260,7 @@ class TextRenderer(Text) : WidgetFeature
 			}
 			
 			Style style = styleSet.getStyle(_styledText.styleIDToName(r.id));
+			//style.font.updateFontMap();
 			auto intersectParts = r.intersect3(selection);
 			if (!intersectParts.before.empty)
 			{
@@ -290,6 +275,7 @@ class TextRenderer(Text) : WidgetFeature
 				import graphics.color;
 				selectionStyle.parent = style;
 				// selectionStyle.color = Color(0,0,1);
+				//selectionStyle.font.updateFontMap();
 				auto r2 = intersectParts.at;
 				_layout.add(text[r2.a .. r2.b], selectionStyle);
 			}
@@ -308,10 +294,11 @@ class TextRenderer(Text) : WidgetFeature
 				break;
 		}
 		
+		_textDirty = false;
+
 		if (_layout.lines.empty)
 			_model.clear(); // Clear model buffers
 		
-		_textDirty = false;
 		layoutChanged();
 	}
 
@@ -432,7 +419,7 @@ class TextRenderer(Text) : WidgetFeature
 			return rect;
 
 		Mat4f trx;
-		getTransform(widget, trx);
+		widget.getScreenToWorldTransform(trx);
 		
 		trx = widget.window.MVP * trx; // * posTrans;
 		

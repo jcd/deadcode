@@ -185,8 +185,8 @@ string dirtyProp(string type, string name, string dirtyField = "_dirty")
 {
 	return  "private " ~ type ~ " _" ~ name ~ ";" ~
 		    type ~ " " ~ name ~ "() { return _" ~ name ~ "; }" ~
-	//		"void " ~ name ~ "(" ~ type ~ " v) { " ~ dirtyField ~ " = v != _" ~ name ~ "; _" ~ name ~ " = v; }";
-	"void " ~ name ~ "(" ~ type ~ " v) { " ~ dirtyField ~ " = true; _" ~ name ~ " = v; }";
+			"void " ~ name ~ "(" ~ type ~ " v) { " ~ dirtyField ~ " = v != _" ~ name ~ "; _" ~ name ~ " = v; }";
+	//"void " ~ name ~ "(" ~ type ~ " v) { " ~ dirtyField ~ " = true; _" ~ name ~ " = v; }";
 }
 
 enum ImageFill
@@ -216,7 +216,7 @@ class BoxModel
 {
 	@property 
 	{
-		mixin(dirtyProp("Rectf", "rect", "_dirtyRect"));  // window size rect
+		mixin(dirtyProp("Rectf", "rect", "_dirtyRect"));  // window pos/size rect
 		mixin(dirtyProp("RectfOffset", "borders", "_dirtyBorders"));  // window size borders
 		mixin(dirtyProp("ImageFill[4]", "borderFills", "_dirtyBorders")); // top, left, bottom, right
 		mixin(dirtyProp("ImageFill", "centerFill", "_dirtyBorders"));

@@ -76,8 +76,11 @@ void register(CommandManager cmgr, Application _app)
 	mixin(createCmd("clear", "Clear buffer"));
 	mixin(createCmd("undo", "Undo buffer"));
 	mixin(createCmd("redo", "Redo buffer"));
+	mixin(createCmd("copy", "Copy selection"));
+	mixin(createCmd("paste", "Paste entry from copy buffer"));
+	mixin(createCmd("pasteCycle", "Paste previous entry in instead of the last one just pasted copy buffer"));
+	mixin(createCmd("cut", "Cut selection"));
 
-	
 	cmgr.create("edit.cursorToCharBefore", "Move cursor to char before cursor", delegate(Variant data) {
 		mixin(getBufferOrReturn);
 		b.cursorLeft(1);
@@ -146,9 +149,11 @@ void register(CommandManager cmgr, Application _app)
 		b.remove(1);
 	});
 
-	cmgr.create("edit.insertNewline", "Insert a newline at cursor", delegate(Variant data) {
+	cmgr.create("edit.insert", "Insert a newline at cursor", delegate(Variant data) {
 		mixin(getBufferOrReturn);
-		b.insert('\n');
+		auto str = data.get!string();
+		import std.conv;
+		b.insert(to!dstring(str));
 	});
 	
 	cmgr.create("edit.scrollPageDown", "Scroll view one page down", delegate(Variant data) {

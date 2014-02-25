@@ -23,7 +23,6 @@ class KeySequence
 		bool match(ref const Key s) 
 		{ 
 			// Modifiers need special treatment because e.g. lctrl is a subset of ctrl
-			std.stdio.writeln(this,  " " , s);
 			if (keyCode != s.keyCode) 
 				return false;
 			
@@ -345,7 +344,21 @@ class KeyBindingsSet
 	{
 		setKeyBinding(new KeyBinding(seq, com, args, val));
 	}	
+	
+	/// ditto
+	// TODO: Make into template when 2.065 is reached
+	void setKeyBinding(string seq, string com, string arg, RuleSet val = null)
+	{
+		setKeyBinding(new KeyBinding(seq, com, Variant(arg), val));
+	}	
 
+	/// ditto
+	void setKeyBinding(string seq, string com, RuleSet val)
+	{
+		setKeyBinding(new KeyBinding(seq, com, Variant(), val));
+	}	
+
+	// ditto
 	void setKeyBinding(KeySequence seq, string com, Variant args = Variant(), RuleSet val = null) 
 	{
 		setKeyBinding(new KeyBinding(seq, com, args, val));

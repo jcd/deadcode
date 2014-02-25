@@ -622,6 +622,7 @@ version(unittest)
 		public bool load(Dummy r, URI uri)
 		{
 			r.manager.onResourceLoaded(r, null);
+			r.loaded = true;
 			return true;
 		}
 	}

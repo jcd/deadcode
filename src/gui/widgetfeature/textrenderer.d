@@ -202,11 +202,11 @@ class TextRenderer(Text) : WidgetFeature
 		else
 		{
 			_selectionModel.textLayout = _layout;
-			if (_selectionModel.selection != _styledText.text.selection)
-			{
+//			if (_selectionModel.selection != _styledText.text.selection)
+			//{
 				_selectionModel.selection = _styledText.text.selection;
-				_selectionModel.update();
-			}
+				_selectionModel.update(_styledText.text.bufferOffset);
+			//}
 		}
 		
 		//Mat4f ofstransform;

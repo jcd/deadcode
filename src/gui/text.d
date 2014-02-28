@@ -335,7 +335,7 @@ class TextSelectionModel
 		selection = sel;
 	}
 	
-	void update()
+	void update(int textOffset)
 	{
 		// A region for each selected parts of the lines. Not that only the beginning and ending lines
 		// can have regions that are a partial line.
@@ -349,12 +349,14 @@ class TextSelectionModel
 
 		// A region may span several lines and the linebox info must be probed to find out
 		// what part belongs where. Additionally the linebox knows about the layed out line height.
+		Region selRegion = selection;
+		selRegion.entriesRemoved(0, textOffset);
 		foreach (i, ref line; textLayout.lines)
 		{
-			if (selection.b <= line.region.a)
+			if (selRegion.b <= line.region.a)
 				break; // line is after selection. No more to model.
 
-			auto chunks = line.region.intersect3(selection);
+			auto chunks = line.region.intersect3(selRegion);
 			if (chunks.at.empty)
 				continue; // Nothing at this line is selected.
 
@@ -372,7 +374,7 @@ class TextSelectionModel
 		// TODO: move this into the loop above
 		Rectf prevRect;
 
-		const float borderSize = 2;
+		const float borderSize = 3;
 
 		foreach (i, ref line; lines)
 		{

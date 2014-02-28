@@ -1,3 +1,36 @@
+Release 0.3 - 28 Feb 2014:
+
+Overview:
+
+	* Copy/Paste/PasteCycle support
+	* Unicode rendering support
+	* Stabilization
+
+Changes:
+
+	f7be8ce Make selection work on scrolled view and while scrolling as well. Fix rendering glich of selection background.
+	09b04f3 Fix start/end of line buffer methods
+	d623c9c Spelling error in comment
+	def26ee Migrate emacs keybindings to simple bindings API. Add emacs bindings for copy/paste/pasteCycle commands.
+	a16d96b Expose new BufferView methods as editor commands. Migrate insertNewline command to insert command that accepts a string.
+	45c3804 Add offsetByXXX methods to Buffer to make it easy to navigate using common boundaries such as char/word/line/buffer. Migrate last of BufferView methods to BufferViewActions. Migrated BufferView to new offsetBy methods. Added Copy/Paste/PasteCycle/Cut support to BufferView. Exposed selected text in BufferView. Added onCopy signal to BufferView. Tons of fixes to BufferViewAction to properly handle e.g. preferred column. Added lots of unittest to BufferViewActions.
+	6dfbe92 Fix issue with text still being drawn in the old style in addition to the new style when it changed style. Also call text layouter to allow it to update fontmaps if necessary.
+	3b7476d Add convenience methods to Widget for getting window to world transforms for the widget rect
+	e4f4c72 Make TextBoxLayout track fonts that needs to be rebuild because of missing glyphs in the fontmap
+	3bf5926 Change clear semantic on graphics buffers to only clear gpu buffers if there are no data pending for the buffer from the cpu
+	35a9ffa Let text model return info about missing glyphs in font
+	4dc3460 Fix Resource management unit test
+	2b3f57c Enable correct dirty tracking for BoxModel
+	c121fb8 Allow simpler key binding API
+	7edd83e Unicode rendering support for font
+	737f247 Better command shortcuts on commandcontrol
+	39b0967 Add padding on texteditor content
+	04b0401 Clear undo stack after loading file in order not to be able to undo the initial text insert
+	9bb31b2 Use test stats module
+	b11770e Improve test module with stats
+	2eb0db1 Better default font color
+
+
 Release 0.2 - 17 Feb 2014:
 
 Overview:

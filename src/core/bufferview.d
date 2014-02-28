@@ -51,13 +51,13 @@ class CopyBuffer
 //  * Cannot page down until out after buffer length. Think buffer.startOfLine/endOfLine are guilty
 
 /** A BufferView is used as a view to he contents of a buffer. 
- * A BufferView in non GUI related but only used for representing and controlling a buffer.
+ * A BufferView is non GUI related but only used for representing and controlling a buffer.
  * Several BufferViews may display the same buffer.
  * The selection, cursor position etc. is distinct for each BufferView.
  * Changes to the buffer is usually done through a view.
  * To render a specific BufferView on screen use a TextRenderer.
  */
-class BufferView 
+class BufferView
 {	
 	string name;
 	package TextGapBuffer buffer;     // This should be changeable to something else if wanted

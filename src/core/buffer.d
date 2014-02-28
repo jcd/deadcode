@@ -599,6 +599,12 @@ class TextGapBuffer
 		return newPos;
 	}
 
+	unittest
+	{
+		auto b = new TextGapBuffer("  Hello woerld\r\nHow are you\r\n\nwell\ndd\nfdsas"d, 3);
+		Assert(30, b.offsetVertically(0, 3));
+	}
+
 	//unittest
 	//{
 	//    auto b = new TextGapBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell\ndd\nfdsas"d, 3);
@@ -673,7 +679,7 @@ class TextGapBuffer
 				c = gbuffer[newidx];
 
 				// In case it was an empty line we already were at start of line.
-				if (c == '\n')
+				if (c == '\n' || c == '\r')
 					return index;
 				index = newidx;
 			}
@@ -806,7 +812,7 @@ class TextGapBuffer
 		uint nc = offsetToStartOfLine(index);
 			
 		if (nc > 0)
-			nc--;
+			nc = prev(nc);
 		return nc;
 	}
 

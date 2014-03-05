@@ -12,11 +12,15 @@ import math._; // Vec2f
 import std.algorithm;
 import std.array;
 
+
+import std.c.windows.windows;
+extern (Windows): nothrow export HWND FindWindowA(LPCTSTR className, LPCTSTR windowName);
+
+
 class GUIApplication : Application
 {
 	GUI guiRoot;
-	
-	
+
 	struct EditorInfo
 	{
 		static uint focusOrderCounter = 0;
@@ -66,18 +70,59 @@ class GUIApplication : Application
 		
 		setupMainWindow();
 
+		static import extension;
+		extension.init(this);
+
 		guiRoot.run();
 	}
 
-	Window createWindow(string name = "MainWindow", int width = 1000, int height = 1000)
+	Window createWindow(string name = "mainWindow", int width = 1000, int height = 1000)
 	{
 		return guiRoot.createWindow(name, width, height);
 	}
 
+	/**
+		CSS style selector for querying a widget e.g.
+		Window.mainWindow > .main ErrorListWidget
+		can even get detached widget using
+		Window.mainWindow ErrorListWidget
+		or for all windows just
+		ErrorListWidget
+	*/
+	Widget queryWidget(string selector)
+	{
+		import std.regex;
+		auto toks = split(selector, regex("\\s+"));
+		return null;
+	}
+
+version (Windows)	
+{
+	private Rectf getExistingWindowRect()
+	{
+		auto hwnd = FindWindowA("SDL_app", "Ded");
+		writeln("Already running is ", hwnd);
+		Rectf result;
+		RECT r;
+		if (hwnd !is null)
+		{
+			GetWindowRect(hwnd, &r);
+			result = Rectf(r.left, r.top, r.bottom - r.top, r.right - r.left);
+		}
+		return result;
+	}
+}
+
 	private void setupMainWindow()
 	{
+		auto existingRect = getExistingWindowRect();
 		auto win = createWindow("Ded");
-		
+		if (!existingRect.empty)
+		{
+			win.position = existingRect.pos;
+			win.size = existingRect.size;
+		}
+
 		// Let text editor handle events before normal gui
 		win.onEvent = (ref Event ev) {
 			// Let the shortcut handler do its magic before event is dispatched to
@@ -154,16 +199,16 @@ class GUIApplication : Application
 		winData.commandControl = cc;
 	}
 
-	void openFile(string path)
+	BufferView openFile(string path)
 	{
 		auto existingBuffer = bufferViewManager[path];
 		if (existingBuffer !is null)
 		{
 			showBuffer(existingBuffer);
-			return;
+			return existingBuffer;
 		}
 
-		AddMessage("Opening %s", path);
+		addMessage("Opening %s", path);
 		std.stdio.File file;
 		try
 			file = std.stdio.File(path, "rb");
@@ -173,8 +218,8 @@ class GUIApplication : Application
 			if (e.errno == core.stdc.errno.ENOENT)
 				msg = "No such file";
 			
-			AddMessage("Error opening file : %s", msg);
-			return;
+			addMessage("Error opening file : %s", msg);
+			return null;
 		}
 		auto view = bufferViewManager.create("", path);
 		view.ensureCapacity(cast(uint)file.size);
@@ -186,8 +231,9 @@ class GUIApplication : Application
 		}
 		view.cursorToStart();
 		view.clearUndoStack();
-		AddMessage("Read %s", view.name);
+		addMessage("Read %s", view.name);
 		showBuffer(view);
+		return view;
 		//Application.activeEditor.show(view);			
 	}
 
@@ -213,7 +259,7 @@ class GUIApplication : Application
 		auto buf = bufferViewManager[name];
 		if (buf is null)
 		{
-			AddMessage("Cannot show unknown buffer '%s'", name);
+			addMessage("Cannot show unknown buffer '%s'", name);
 			return;
 		}
 		showBuffer(buf);

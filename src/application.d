@@ -28,9 +28,9 @@ class Application
 	this()
 	{
 		_commandManager = new CommandManager();
-		register(commandManager, this);
+		register(this);
 		_bufferViewManager = new BufferViewManager();
-		auto buf = _bufferViewManager.create("ctrl+? for help.\nctrl+w for console\n", "*Messages*");
+		auto buf = _bufferViewManager.create("ctrl+? for help.\nctrl+w for console\nfoobar hfhff\n", "*Messages*");
 		buf.cursorToEndOfLine();
 		_bufferViewManager.create("", "*CommandInput*");
 
@@ -39,7 +39,7 @@ class Application
 		_editorBehavior = new EmacsBehavior(this);
 	}
 
-	void AddMessage(Types...)(Types msgs)
+	void addMessage(Types...)(Types msgs)
 	{
 		import std.string;
 		import std.conv;

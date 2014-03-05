@@ -9,8 +9,9 @@ import gui.style;
 import gui.widget;
 import math._;
 import std.range;
-import std.typecons;
+import std.signals;
 import std.stdio;
+import std.typecons;
 
 alias uint WindowID;
 
@@ -31,14 +32,15 @@ class Window : Widget
 		// partial mapping name to widgets because we do not want
 		// to have name on all widgets and therefore the name is
 		// not a member of Widget.
-		Widget[string] widgetNameMap; 
-
-		
+		Widget[string] widgetNameMap; 		
 	}
 
 	std.variant.Variant userData;
 	WindowID id;
 	StyleSet styleSet;
+	
+	// emit(this)
+	mixin Signal!(Window) onUpdate;
 
 	static Window active;
 
@@ -54,10 +56,10 @@ class Window : Widget
 			_onEvent = callback;
 		}
 	
-		void onUpdate(OnUpdate callback)
-		{
-			_onUpdate = callback;
-		}
+		//void onUpdate(OnUpdate callback)
+		//{
+		//    _onUpdate = callback;
+		//}
 
 		Mat4f MVP() const
 		{
@@ -99,6 +101,14 @@ class Window : Widget
 		{
 			_renderTarget.position = pos;
 		}
+	}
+
+	Widget getWidget(string name)
+	{
+		auto w = name in widgetNameMap;
+		if (w is null)
+			return null;
+		return *w;
 	}
 
 	package string lookupWidgetName(WidgetID wid)
@@ -250,8 +260,9 @@ class Window : Widget
 				w.update();
 		}
 
-		if (_onUpdate !is null)
-			_onUpdate();
+		onUpdate.emit(this);
+		//if (_onUpdate !is null)
+		//    _onUpdate();
 	}
 
 	override void draw()
@@ -290,7 +301,8 @@ class Window : Widget
 		return createWidget(this, x, y, width, height);
 	}
 
-	package void register(Widget w)
+	// TODO: make private
+	void register(Widget w)
 	{
 		widgets[w.id] = w;
 		foreach (cw; w.children)

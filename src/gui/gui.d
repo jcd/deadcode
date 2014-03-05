@@ -2,6 +2,7 @@ module gui.gui;
 
 import animation.timeline;
 import core.command;
+import core.time;
 import gui._;
 import gui.locations;
 import gui.resources;
@@ -19,7 +20,43 @@ class GUI
 		Window[WindowID] _windows;
 		graphics.graphicssystem.GraphicsSystem _graphicsSystem;
 		EventQueue _eventQueue;
-		
+		Uint32 _lastTick;
+
+		class Timeout 
+		{
+			bool done;
+			uint msLeft;
+			abstract bool onTimeout();
+		}
+
+		class FnTimeout(Fn, Args...) : Timeout
+		{
+			Fn fn;
+			Args args;
+			uint msInit;
+
+			this(uint ms, Fn f, Args a)
+			{
+				done = false;
+				msLeft = ms;
+				msInit = ms;
+				fn = f;
+				args = a;
+			}
+
+			override bool onTimeout()
+			{
+				if (fn(args))
+				{
+					msLeft = msInit;
+					return true;
+				}
+				done = true;
+				return false;
+			}
+		}
+		Timeout[] _timeouts;
+
 		// not singleton as in global variable, but just here to prevent 
 		// two instances of application because opengl init doesn't
 		// like that.
@@ -109,6 +146,7 @@ class GUI
 		assert(!running);
 		timeline.start();
 		std.exception.enforceEx!Exception(_graphicsSystem.init(), "Error initializing graphics");
+		_lastTick = SDL_GetTicks();
 		SDL_StartTextInput();
 		running = true;
 	}
@@ -135,6 +173,11 @@ class GUI
 				std.stdio.writeln(std.conv.text("FPS ", 100.0 / secs));
 			}
 		}
+	}
+
+	void timeout(Fn, Args...)(Duration d, Fn fn, Args args)
+	{
+		_timeouts ~= new FnTimeout!(Fn,Args)(cast(uint)d.total!"msecs", fn, args);
 	}
 
 	void tick()
@@ -164,12 +207,63 @@ class GUI
 		
 	private void handleEvents(bool waitForEvents)
 	{
+		Uint32 curTick = SDL_GetTicks();
+		Uint32 msPassed = curTick - _lastTick;
+		_lastTick = curTick;
+
+		// Make sure we make progress no matter what
+		if (msPassed == 0)
+			msPassed = 1;
+
+		uint smallestTimeout = _timeouts.empty ? 0 : _timeouts[0].msLeft - msPassed;
+		int numTimedOut = 0;
+		bool timedOutThisTick = false;
+
+		foreach (ref t; _timeouts)
+		{
+			if (t.msLeft <= msPassed)
+			{
+				timedOutThisTick = !t.done;
+				if (timedOutThisTick)
+				{
+					if (t.onTimeout())
+					{
+						if (smallestTimeout > t.msLeft)
+							smallestTimeout = t.msLeft;
+					}
+				}
+				numTimedOut++;
+			}
+			else
+			{
+				t.msLeft -= msPassed;
+				if (smallestTimeout > t.msLeft)
+					smallestTimeout = t.msLeft;
+			}
+		}
+		
+		// Rebuild timeout list when there are too many dead entries
+		if (numTimedOut > 10)
+		{
+			Timeout[] to;
+			foreach (ref t; _timeouts)
+				if (!t.done)
+					to ~= t;
+		}
+
 		SDL_Event e; 
 		int pollResult = 0;
-		if (waitForEvents && _eventQueue.empty)
-			pollResult = SDL_WaitEvent(&e);
+		if (waitForEvents && _eventQueue.empty && !timedOutThisTick)
+		{
+			if (smallestTimeout != 0)
+				pollResult = SDL_WaitEventTimeout(&e, smallestTimeout);
+			else
+				pollResult = SDL_WaitEvent(&e);
+		}
 		else
+		{
 			pollResult = SDL_PollEvent(&e);
+		}
 		
 		do {
 			Event queuedEvent = _eventQueue.dequeue();

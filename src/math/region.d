@@ -62,6 +62,13 @@ struct Region
 		Assert(Region(0,10).cover(Region(15,100)), Region(0,100));
 	}
 	
+	/** Return return this region offset
+	*/
+	Region offset(int o)
+	{
+		return Region(a + o, b + o, id);
+	}
+
 	/** Return the intersection of the two regions
 	 */
 	Region intersect(Region r) const

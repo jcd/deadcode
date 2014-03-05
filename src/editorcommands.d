@@ -20,20 +20,6 @@ auto filesystemCompletions(string path)
 	return dirEntries(dirPath, SpanMode.shallow).map!(a => baseName(a.name))().filter!(a => a.startsWith(filenamePrefix))();
 }
 
-/*
-class ApplicationCommand : Command
-{
-	private @property app()
-	{
-		editorapplication
-	}
-
-	this(string name, string description)
-	{
-		super(name, description);
-	}
-}
-*/
 enum getBufferOrReturn = q{
 	auto b = app.currentBuffer;
 	if (b is null)
@@ -49,8 +35,9 @@ string createCmd(string name, string desc)
 	return res;
 }
 
-void register(CommandManager cmgr, Application _app)
+void register(Application _app)
 {
+	CommandManager cmgr = _app.commandManager;
 	GUIApplication app = cast(GUIApplication) _app;
 
 	// The default emacs key mappings
@@ -209,7 +196,8 @@ void register(CommandManager cmgr, Application _app)
 
 	class OpenFileCommand : Command
 	{
-		this (string name, string description) { super(name, description); }
+		override @property string name() const { return "edit.open"; }
+		override @property string description() const { return "Open file"; }
 
 		override void execute(Variant data)
 		{
@@ -223,12 +211,13 @@ void register(CommandManager cmgr, Application _app)
 		}
 	}
 
-	cmgr.add(new OpenFileCommand("edit.open", "Open file"));
+	cmgr.add(new OpenFileCommand);
 
 	class ShowBufferCommand : Command
 	{
-		this (string name, string description) { super(name, description); }
-		
+		override @property string name() const { return "edit.showBuffer"; }
+		override @property string description() const { return "Show named buffer in active window"; }
+
 		override void execute(Variant data)
 		{
 			auto path = data.get!string;
@@ -247,7 +236,7 @@ void register(CommandManager cmgr, Application _app)
 		}
 	}
 	
-	cmgr.add(new ShowBufferCommand("edit.showBuffer", "Show named buffer in active window"));
+	cmgr.add(new ShowBufferCommand);
 
 	/*
 	cmgr.create("edit.commitCompletion", "Commit the active completion", delegate(Variant data) {

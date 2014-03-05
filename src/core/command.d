@@ -8,15 +8,24 @@ import std.variant;
 
 class Command
 {
-	string name;
-	string description;
-	
-	this(string name, string desc)
+	@property
 	{
-		this.name = name;
-		this.description = desc;	
-	}
+		string name() const
+		{
+			return chomp(this.classinfo.name, "Command");
+		}
+		
+		string description() const
+		{
+			return name;
+		}
 
+		string shortcut() const
+		{ 
+			return null; 
+		}
+	}
+	
 	bool canExecute(Variant data)
 	{
 		return true;
@@ -33,13 +42,20 @@ class Command
 
 class DelegateCommand : Command
 {
+	private string _name;
+	private string _description;
+	
+	override @property string name() const { return _name; }
+	override @property string description() const { return _description; }
+
 	void delegate(Variant d) executeDel;
 	void delegate(Variant d) undoDel;
 	string[] delegate (Variant d) completeDel;
 
-	this(string name, string desc, void delegate(Variant) executeDel, void delegate(Variant) undoDel = null)
+	this(string nameIn, string descIn, void delegate(Variant) executeDel, void delegate(Variant) undoDel = null)
 	{
-		super(name, desc);
+		_name = nameIn;
+		_description = descIn;
 		this.executeDel = executeDel;
 		this.undoDel = undoDel;
 	}
@@ -66,11 +82,12 @@ class DelegateCommand : Command
 // First way to do it
 class CommandHello : Command
 {
-	this()
+	override @property const
 	{
-		super("test.hello", "Echo \"Hello\" to stdout");
+		string name() { return "test.hello"; }
+		string description() { return "Echo \"Hello\" to stdout"; }
 	}
-	
+		
 	override void execute(Variant data)
 	{
 		std.stdio.writeln("Hello");
@@ -120,12 +137,8 @@ class CommandManager
 	 * name = if not null then set as the name of the command. Else command.name is used.
 	 * description = if not null then set as the description of the command. Else command.description is used.
 	 */
-	void add(Command command, string name = null, string description = null)
+	void add(Command command)
 	{
-		if (name !is null)
-			command.name = name;
-		if (description !is null)
-			command.description = description;
 		enforceEx!Exception(!(command.name in commands), text("Trying to add existing command ", command.name));
 		commands[command.name] = command;
 	}
@@ -161,13 +174,8 @@ ApplicationCommand
 WindowCommand
 TextCommand
 */
-
-
-	
-/// Plugin:
-
-// Application wide command. One instance for the application.
 /*
+// Application wide command. One instance for the application.
 class ApplicationCommand : Command
 {
 	this(string name, string desc) { super(name, desc); }
@@ -181,8 +189,9 @@ class WindowCommand : Command
 }
 
 // Editor wide command. One instance per editor.
-class EditorCommand : Command
+class EditCommand : Command
 {
 	this(string name, string desc) { super(name, desc); }
 }
+
 */

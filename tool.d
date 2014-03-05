@@ -123,6 +123,20 @@ void dist(string[] args)
 
 	outputVersion = args[2];
 
+	// Make sure the Changelog has been updated
+	auto chlog = File("Changelog.txt");
+	bool isThisReleaseLine(char[] l)
+	{
+		auto r = l.startsWith("Release " ~ outputVersion.idup);
+		return r;
+	}
+	auto hasChangelogEntry = chlog.byLine().find!isThisReleaseLine;
+	if (hasChangelogEntry.empty)
+	{
+		writeln("Please update changelog with entries for " ~ outputVersion);
+		return;
+	}
+
 	auto osStr = to!string(std.system.os);
 	auto outputPath = buildPath("dist", format("ded-%s_%s.zip", outputVersion, osStr));
 	auto packRoot = buildPath("dist", "files-" ~ osStr);
@@ -137,7 +151,10 @@ void dist(string[] args)
 	std.file.write(buildPath(packRoot, "version"), outputVersion);
 	archive(packRoot, outputPath);
 	if (!skipUpload)
+	{
 		upload(outputPath, uploadPath);
+		upload("Changelog.txt", uploadPath);
+	}
 }
 
 void collect(string packRoot)

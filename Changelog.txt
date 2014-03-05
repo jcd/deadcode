@@ -2,97 +2,106 @@ Release 0.3 - 28 Feb 2014:
 
 Overview:
 
-	* Copy/Paste/PasteCycle support
-	* Unicode rendering support
-	* Stabilization
+    * Copy/Paste/PasteCycle support
+    * Unicode rendering support
+    * Stabilization
 
 Changes:
 
-	f7be8ce Make selection work on scrolled view and while scrolling as well. Fix rendering glich of selection background.
-	09b04f3 Fix start/end of line buffer methods
-	d623c9c Spelling error in comment
-	def26ee Migrate emacs keybindings to simple bindings API. Add emacs bindings for copy/paste/pasteCycle commands.
-	a16d96b Expose new BufferView methods as editor commands. Migrate insertNewline command to insert command that accepts a string.
-	45c3804 Add offsetByXXX methods to Buffer to make it easy to navigate using common boundaries such as char/word/line/buffer. Migrate last of BufferView methods to BufferViewActions. Migrated BufferView to new offsetBy methods. Added Copy/Paste/PasteCycle/Cut support to BufferView. Exposed selected text in BufferView. Added onCopy signal to BufferView. Tons of fixes to BufferViewAction to properly handle e.g. preferred column. Added lots of unittest to BufferViewActions.
-	6dfbe92 Fix issue with text still being drawn in the old style in addition to the new style when it changed style. Also call text layouter to allow it to update fontmaps if necessary.
-	3b7476d Add convenience methods to Widget for getting window to world transforms for the widget rect
-	e4f4c72 Make TextBoxLayout track fonts that needs to be rebuild because of missing glyphs in the fontmap
-	3bf5926 Change clear semantic on graphics buffers to only clear gpu buffers if there are no data pending for the buffer from the cpu
-	35a9ffa Let text model return info about missing glyphs in font
-	4dc3460 Fix Resource management unit test
-	2b3f57c Enable correct dirty tracking for BoxModel
-	c121fb8 Allow simpler key binding API
-	7edd83e Unicode rendering support for font
-	737f247 Better command shortcuts on commandcontrol
-	39b0967 Add padding on texteditor content
-	04b0401 Clear undo stack after loading file in order not to be able to undo the initial text insert
-	9bb31b2 Use test stats module
-	b11770e Improve test module with stats
-	2eb0db1 Better default font color
+    f7be8ce * Make selection work on scrolled view and while scrolling as well. 
+            * Fix rendering glich of selection background.
+    09b04f3 Fix start/end of line buffer methods
+    d623c9c Spelling error in comment
+    def26ee * Migrate emacs keybindings to simple bindings API. 
+            * Add emacs bindings for copy/paste/pasteCycle commands.
+    a16d96b Expose new BufferView methods as editor commands. Migrate insertNewline command to insert command that accepts a string.
+    45c3804 * Add offsetByXXX methods to Buffer to make it easy to navigate using common boundaries such as char/word/line/buffer. 
+            * Migrate last of BufferView methods to BufferViewActions. 
+            * Migrated BufferView to new offsetBy methods. 
+            * Added Copy/Paste/PasteCycle/Cut support to BufferView. 
+            * Exposed selected text in BufferView. Added onCopy signal to BufferView. 
+            * Tons of fixes to BufferViewAction to properly handle e.g. preferred column. 
+            * Added lots of unittest to BufferViewActions.
+    6dfbe92 * Fix issue with text still being drawn in the old style in addition to the new style when it changed style. 
+            * Also call text layouter to allow it to update fontmaps if necessary.
+    3b7476d Add convenience methods to Widget for getting window to world transforms for the widget rect
+    e4f4c72 Make TextBoxLayout track fonts that needs to be rebuild because of missing glyphs in the fontmap
+    3bf5926 Change clear semantic on graphics buffers to only clear gpu buffers if there are no data pending for the buffer from the cpu
+    35a9ffa Let text model return info about missing glyphs in font
+    4dc3460 Fix Resource management unit test
+    2b3f57c Enable correct dirty tracking for BoxModel
+    c121fb8 Allow simpler key binding API
+    7edd83e Unicode rendering support for font
+    737f247 Better command shortcuts on commandcontrol
+    39b0967 Add padding on texteditor content
+    04b0401 Clear undo stack after loading file in order not to be able to undo the initial text insert
+    9bb31b2 Use test stats module
+    b11770e Improve test module with stats
+    2eb0db1 Better default font color
 
 
 Release 0.2 - 17 Feb 2014:
 
 Overview:
 
-	* Undo system
-	* Dev tool to automatically setup,build,test,dist-upload
-	* Mouse click to set cursor
-	* Select using mouse/keyboard
-	* Text background highlighting
-	* Generic 9 patch box model
+    * Undo system
+    * Dev tool to automatically setup,build,test,dist-upload
+    * Mouse click to set cursor
+    * Select using mouse/keyboard
+    * Text background highlighting
+    * Generic 9 patch box model
 
 Changes:
 
-	e923c86 Use textselectionmodel in textrenderer
-	223249c Add new default box style
-	b1b8026 Always use halfway char method for determining what char index is hit
-	958690b Make emacs binding for del key
-	bea9159 Make bufferview.remove delete selection instead of next/prev chars if a selection exists.
-	aeafc41 Fix reversability of bufferviewactions by setting preferred column. 
-			Now using charOffset to offset instead of (a-b) because that will handle newlines properly.
-	2b3f3c0 Add convenice function to calculate an uv coord on a texture from pixel offsets. Also exposed size as a Vec2f on texture.
-	913a9be Use width of space instead of fontwidth for tabs and spaces. Added new TextSelectionModel for text selections.
-	b7db306 Make changes to boxrenderer to accomodate for changes i models.d
-	cc52d73 Change shader to support alpha textures
-	2acc09b Correct calculation of region end of a layed out line
-	f2b291e Refactoring models functions. Added BoxModel for 9 patching
-	119d47f Optimize array usage
-	c2bb7a3 Allow access to submodel on a model. Hacked support for blend modes
-	95dd247 Fixes to buffer.endOfLine/startOfLine
-	3bf5e12 Expose renderTarget on window
-	acdf51b Added empty() on Rect and new RectOffset type
-	4f7facf Added release config
-	acaa1f3 Tool support for building specific config
-	639f241 * Split Editor into TextEditor base and CodeEditor derived classes. 
-			* Moved styleSet from draw() parameters and into a member field for window. 
-			* Made onMouseGlyphXXX callbacks on TextEditor Added signals to BufferView for insertions and deletions 
-			* Added support for grouping a sequence of actions into a single undo step Moved away from std.container.
-			* Array and use a manual dlinked list instead because the former seems unreliable Support for keyboard selection. 
-			* Refactoring of textrendering/textlayout to make cleaner cut between layout and rendering and to expose glyph positions for text selections 
-			* Added getGlyphAt(pos) for textrenderer LRU info for TextEditors owned by GUIApplication 
-			* Added documentation about the different coord systems used throughout.
-	690ba2a added missing abc method for worldToWindow()
-	5ba0bf0 Fix worldSizeToPixel,worldToPixelPos and add new worldToWindow for renderwindow
-	3ef2b7c Fix bug in text styler when styling last part of text
-	ad65d45 Fix style inheritance bugs and added test to style.
-	5a9e64d Added vec4f alias
-	f3779ac Import Rect.contains to support negative sizes. Added posMax property to Rect.
-	ab9c894 Added expansion/contraction of regions based on point of insertion/deletion. 
-			Added new intersect method to region that returns the three parts of a intersection. 
-			Added length property to region.
-	7ad7a12 Fix key sequence matcher with mathing keys but different mods could match wrongly.
-	c9ce104 * Undo/redo system based on actionstack that can be used for macros later on. 
-			* Enable unit testing in dub 
-			* Migrate unittests to test.d framework 
-			* Fix key sequence matching 
-			* Fix file protocol url handling and file opening
-	5021e2b Improve project tool
-	71cd3c6 Better jsonx error messages
-	8b8c38d Add git ignore file
+    e923c86 Use textselectionmodel in textrenderer
+    223249c Add new default box style
+    b1b8026 Always use halfway char method for determining what char index is hit
+    958690b Make emacs binding for del key
+    bea9159 Make bufferview.remove delete selection instead of next/prev chars if a selection exists.
+    aeafc41 Fix reversability of bufferviewactions by setting preferred column. 
+            Now using charOffset to offset instead of (a-b) because that will handle newlines properly.
+    2b3f3c0 Add convenice function to calculate an uv coord on a texture from pixel offsets. Also exposed size as a Vec2f on texture.
+    913a9be Use width of space instead of fontwidth for tabs and spaces. Added new TextSelectionModel for text selections.
+    b7db306 Make changes to boxrenderer to accomodate for changes i models.d
+    cc52d73 Change shader to support alpha textures
+    2acc09b Correct calculation of region end of a layed out line
+    f2b291e Refactoring models functions. Added BoxModel for 9 patching
+    119d47f Optimize array usage
+    c2bb7a3 Allow access to submodel on a model. Hacked support for blend modes
+    95dd247 Fixes to buffer.endOfLine/startOfLine
+    3bf5e12 Expose renderTarget on window
+    acdf51b Added empty() on Rect and new RectOffset type
+    4f7facf Added release config
+    acaa1f3 Tool support for building specific config
+    639f241 * Split Editor into TextEditor base and CodeEditor derived classes. 
+            * Moved styleSet from draw() parameters and into a member field for window. 
+            * Made onMouseGlyphXXX callbacks on TextEditor Added signals to BufferView for insertions and deletions 
+            * Added support for grouping a sequence of actions into a single undo step Moved away from std.container.
+            * Array and use a manual dlinked list instead because the former seems unreliable Support for keyboard selection. 
+            * Refactoring of textrendering/textlayout to make cleaner cut between layout and rendering and to expose glyph positions for text selections 
+            * Added getGlyphAt(pos) for textrenderer LRU info for TextEditors owned by GUIApplication 
+            * Added documentation about the different coord systems used throughout.
+    690ba2a added missing abc method for worldToWindow()
+    5ba0bf0 Fix worldSizeToPixel,worldToPixelPos and add new worldToWindow for renderwindow
+    3ef2b7c Fix bug in text styler when styling last part of text
+    ad65d45 Fix style inheritance bugs and added test to style.
+    5a9e64d Added vec4f alias
+    f3779ac Import Rect.contains to support negative sizes. Added posMax property to Rect.
+    ab9c894 Added expansion/contraction of regions based on point of insertion/deletion. 
+            Added new intersect method to region that returns the three parts of a intersection. 
+            Added length property to region.
+    7ad7a12 Fix key sequence matcher with mathing keys but different mods could match wrongly.
+    c9ce104 * Undo/redo system based on actionstack that can be used for macros later on. 
+            * Enable unit testing in dub 
+            * Migrate unittests to test.d framework 
+            * Fix key sequence matching 
+            * Fix file protocol url handling and file opening
+    5021e2b Improve project tool
+    71cd3c6 Better jsonx error messages
+    8b8c38d Add git ignore file
 
 
 Release 0.1 - 02 Jan 2014:
 
-	* Initial release
+    * Initial release
 

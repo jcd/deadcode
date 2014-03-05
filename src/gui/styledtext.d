@@ -20,10 +20,13 @@ class DSourceStyler(Text) : TextStyler!Text
 		rset.clear();
 
 		// TODO: use ctRegex
-		enum decls = [ "alias"d, "auto", "assert", "class", "const", "enum", "extern", "for", "if", "import", "module", "new", "nothrow"
-			"private", "public", "pure", "return", "safe", "scope", "static", "struct", "template", "this", "union", "unittest", "version",
-			"while" ];
-		enum types = [ "byte"d, "char", "dchar", "int", "long", "short", "ubyte", "uint", "ulong", "ushort", "void", "wchar" ];
+		enum decls = [ 
+			"alias"d, "auto", "assert", "class", "const", "enum", "extern", "for", "if", "import", 
+			"module", "new", "nothrow", "private", "public", "pure", "return", "safe", "scope", 
+			"static", "struct", "template", "this", "union", "unittest", "version", "while" ];
+		enum types = [ 
+			"byte"d, "char", "dchar", "int", "long", "short", "size_t", "ubyte", "uint", "ulong", 
+			"ushort", "void", "wchar" ];
 		dstring re = "\\b(";
 		dstring delim = "";
 		foreach (tt; decls)

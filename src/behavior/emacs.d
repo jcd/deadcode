@@ -90,6 +90,8 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<ctrl> + b", "core.rebuildEditor");
 		set.setKeyBinding("<ctrl> + w", "app.toggleCommandArea");
 
+		set.setKeyBinding("<f7>", "dub.build");
+
 		//set.setKeyBinding("<tab>", "edit.
 	}
 

@@ -60,7 +60,7 @@ class CopyBuffer
 class BufferView
 {	
 	string name;
-	package TextGapBuffer buffer;     // This should be changeable to something else if wanted
+	TextGapBuffer buffer;     // This should be changeable to something else if wanted
 	// private GapBuffer!int lineStarts; // Indexes into buffer for all line starts. Purely a optimization.
 	
 	CopyBuffer copyBuffer;
@@ -298,15 +298,6 @@ class BufferView
 			cursorPoint = startOfLine + col;
 		else
 			cursorPoint = endOfLine;
-	}
-
-	@property void linesVisible(uint lines)
-	{
-		if (_visibleLineCount != lines)
-		{
-			_visibleLineCount = lines;
-			dirty = true;
-		}
 	}
 		
 	void insert(dchar item)

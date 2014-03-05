@@ -887,4 +887,40 @@ class TextGapBuffer
 		}
 		return index != uint.max && index < len ? index : uint.max;
 	}
+
+	uint lineNumberAt(uint index)
+	{
+		uint curLine = 0;
+		uint i = 0;
+		do 
+		{
+			i = startOfNextLine(i);
+			if (index < i)
+				break;
+			curLine++;
+		} 
+		while (i != length);
+		return curLine;
+	}
+
+	uint startAtLineNumber(uint lineNum)
+	{
+		uint curLine = 0;
+		uint i = 0;
+		do 
+		{
+			if (curLine == lineNum)
+				return i;
+			i = startOfNextLine(i);
+			curLine++;
+		}
+		while (i != length);
+		return offsetToStartOfLine(i);
+	}
+
+	const(dchar)[] lineContaining(uint index) const
+	{
+		return toArray(offsetToStartOfLine(index), offsetToEndOfLine(index));
+	}
+
 }

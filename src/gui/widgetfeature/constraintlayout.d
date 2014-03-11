@@ -164,6 +164,8 @@ class ConstraintLayout : WidgetFeature
 				float wx = (startRect.x + startRect.x2) * 0.5f;
 				dx = (relAnchor.x - wx) * k;
 				targetRect.x += dx;
+				if (lockedSize.x > 0)
+					targetRect.w += (lockedSize.x - startRect.w) * k;
 				break;
 			case HorizontalAnchor.Right:
 				dx = (relAnchor.x - startRect.x2) * k;

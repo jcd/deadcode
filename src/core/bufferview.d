@@ -72,7 +72,7 @@ class BufferView
 	alias immutable(TextGapBuffer.CharType)[] BufferString;
 
 	bool dirty;
-	uint bufferOffset; // char offset into the buffer from where to draw
+	uint _bufferOffset; // char offset into the buffer from where to draw
 	
 	// emit(this, text, insertedTextAfterThisIndex)
 	mixin Signal!(BufferView, BufferString, uint) onInsert;
@@ -138,11 +138,22 @@ class BufferView
 		}
 
 		// TODO: keep up to date
-		uint lineOffset()
+		ref uint lineOffset()
 		{
 			return _lineOffset;
 		}
 		
+		uint bufferOffset() const
+		{
+			return _bufferOffset;
+		}
+
+		void bufferOffset(uint o)
+		{
+			_bufferOffset = o;
+			_lineOffset = buffer.lineNumberAt(o);
+		}
+
 		// TODO: keep up to date and rename maybe
 		uint visibleLineCount()
 		{
@@ -407,7 +418,7 @@ class BufferView
 
 	void scrollUp()
 	{	
-		bufferOffset = buffer.offsetToStartOfLine(buffer.endOfPreviousLine(bufferOffset));
+		_bufferOffset = buffer.offsetToStartOfLine(buffer.endOfPreviousLine(bufferOffset));
 		if (_lineOffset > 0)
 			_lineOffset--;
 		dirty = true;
@@ -420,9 +431,9 @@ class BufferView
 			_lineOffset++;
 			auto newbo = buffer.startOfNextLine(bufferOffset);
 			if (newbo == bufferOffset)
-				_lineOffset++;
+				_lineOffset--;
 			else
-				bufferOffset = newbo;
+				_bufferOffset = newbo;
 			dirty = true;
 		}
 	}

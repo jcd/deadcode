@@ -393,7 +393,7 @@ class Window : Widget
 		assert(mouseGrabbedBy != NullWidgetID);
 		mouseGrabbedBy = NullWidgetID;
 	}
-
+/*
 	package void dispatchEvent(Event ev)
 	{
 		assert(ev.windowID == id);
@@ -410,7 +410,24 @@ class Window : Widget
 		if (!callbackUsedEvent)
 			dispatch(ev);
 	}
-/*
+*/
+	
+	package void dispatchEvent(Event ev)
+	{
+		assert(ev.windowID == id);
+		if (ev.type == EventType.Invalid)
+			return;
+
+		auto eventUsed = dispatch(ev);
+		if (eventUsed == EventUsed.yes)
+			return;
+		
+		if (_onEvent !is null)
+			_onEvent(ev);
+	}
+
+
+	/*
 TODO - Make event chains like osx in order to special handle "delete" and not only delete char but also update completions. 
 TODO - per default keyboardfocus widget should receive keyboard events. THink about propagating from parent to children and the other way around.
 TODO:

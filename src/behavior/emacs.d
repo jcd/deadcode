@@ -36,6 +36,7 @@ class EmacsBehavior : EditorBehavior
 	
 		// Register emacs behavior as an option
 		// set.setKeyBinding("<ctrl> + v", "edit.scrollPageDown"); 
+		set.setKeyBinding("<ctrl> + x <ctrl> + c", "core.quit");
 		set.setKeyBinding("<alt> + v", "edit.scrollPageUp");
 		set.setKeyBinding("<pagedown>", "edit.scrollPageDown");
 		set.setKeyBinding("<pageup>", "edit.scrollPageUp");

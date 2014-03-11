@@ -31,6 +31,7 @@ class TextRenderer(Text) : WidgetFeature
 	{
 		TextModel _model;
 		TextSelectionModel _selectionModel;
+		//Style _selectionStyle;
 
 		//TextSelectionModel _selectionModel;
 		StyledText!Text _styledText;
@@ -43,7 +44,6 @@ class TextRenderer(Text) : WidgetFeature
 
 	// Tmp solution until proper styleset and selectors are supported
 	Region selection;
-	Style selectionStyle;
 
 	bool cursorEnabled = true;
 
@@ -80,6 +80,22 @@ class TextRenderer(Text) : WidgetFeature
 		{
 			_textDirty = true;
 			_styledText.text = text;
+		}
+
+		StyledText!Text styledText()
+		{
+			return _styledText;
+		}
+
+		string selectionStyle()
+		{
+			return _selectionModel.styleName;
+		}
+
+		void selectionStyle(string name)
+		{
+			if (_selectionModel !is null)
+				_selectionModel.styleName = name;
 		}
 
 		ref bool multiLine()
@@ -168,8 +184,8 @@ class TextRenderer(Text) : WidgetFeature
 		//auto transform = Mat4f.makeTranslate(Vec3f(-1,1,0));
 		
 		StyleSet styleSet = widget.window.styleSet;
-		if (selectionStyle is null)
-			selectionStyle = styleSet.createStyle();
+		//if (selectionStyle is null)
+		//    selectionStyle = styleSet.createStyle();
 
 		static if (_isBasicText)
 		{
@@ -247,12 +263,15 @@ class TextRenderer(Text) : WidgetFeature
 
 		// _layout = TextBoxLayout(_model, Rectf(0, 0, worldSize.x, worldSize.y));
 		
-		Vec2f winSize = widget.window.size;
+		Vec2f winSize = widget.size;
 		_layout.updateFontMaps();
 		_layout = TextBoxLayout(_model, Rectf(0, 0, winSize.x, winSize.y));
 		
 		foreach (r; _styledText.regionSet)
 		{
+			if (_layout.lineCount > text.visibleLineCount)
+				break;
+
 			if (r.b <= textOffset) continue;
 			if (r.contains(textOffset))
 			{
@@ -272,12 +291,12 @@ class TextRenderer(Text) : WidgetFeature
 			if (!intersectParts.at.empty)
 			{
 				// selected
-				import graphics.color;
-				selectionStyle.parent = style;
+				//import graphics.color;
+//				selectionStyle.parent = style;
 				// selectionStyle.color = Color(0,0,1);
 				//selectionStyle.font.updateFontMap();
 				auto r2 = intersectParts.at;
-				_layout.add(text[r2.a .. r2.b], selectionStyle);
+				_layout.add(text[r2.a .. r2.b], style); // selectionStyle
 			}
 
 			if (!intersectParts.after.empty)
@@ -524,7 +543,8 @@ class TextRenderer(Text) : WidgetFeature
 
 @property auto content(Text)(Widget widget, Text view)
 {
-	auto styledText = new StyledText!Text(view, new DSourceStyler!Text());
+//	auto styledText = new StyledText!Text(view, new DSourceStyler!Text());
+	auto styledText = new StyledText!Text(view, DefaultStyler!Text.the);
 	auto tr = new TextRenderer!Text(styledText);
 	widget.features ~= tr;
 	return tr;

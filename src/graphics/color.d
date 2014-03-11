@@ -65,6 +65,11 @@ struct Color
 		uint res = (ur << 24) + (ug << 16) + (ub << 8) + 0xff;
 		return res;
 	}
+
+	Vec3f toVec3f()
+	{
+		return Vec3f(v);
+	}
 }
 
 Color stringToColor(string str)

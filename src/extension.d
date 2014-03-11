@@ -7,17 +7,21 @@ public import gui.widget;
 
 import core.command;
 
-private static IExtension[] g_Extensions;
+private static IBasicExtension[] g_Extensions;
 private static IBasicCommand[] g_Commands;
 private static TypeInfo_Class[] g_Widgets;
 
 void init(GUIApplication app)
 {
 	foreach (e; g_Extensions)
-		e.init(app);
+	{
+		e.app = app;
+		e.init();
+	}
 	foreach (c; g_Commands)
 	{
-		c.init(app);
+		c.app = app;
+		c.init();
 		app.commandManager.add(c);
 	}
 	foreach (wi; g_Widgets)
@@ -26,8 +30,21 @@ void init(GUIApplication app)
 		w.app = app;
 		app.guiRoot.activeWindow.register(w);
 		w.parent = app.guiRoot.activeWindow;
-		w.init(app);
+		w.init();
 	}
+}
+
+T getExtension(T)(string name)
+{
+	foreach (e; g_Extensions)
+	{
+		if (e.name == name)
+		{
+			T ce = cast(T) e;
+			return ce;
+		}
+	}
+	return null;
 }
 
 enum WidgetLocation
@@ -48,7 +65,7 @@ class IBasicWidget : Widget
 {
 	GUIApplication app;
 
-	abstract void init(GUIApplication app);
+	abstract void init();
 	abstract void onStart();
 	abstract void onStop();
 	abstract @property PreferredWidgetLocation preferredLocation();
@@ -69,9 +86,9 @@ class BasicWidget(T) : IBasicWidget
 		return cast(IBasicWidget)(w);
 	}
 
-	override void init(GUIApplication app)
+	override void init()
 	{
-	
+		// no-op
 	}
 
 	override void onStart()
@@ -92,7 +109,9 @@ class BasicWidget(T) : IBasicWidget
 
 class IBasicCommand : Command
 {
-	abstract void init(GUIApplication app);
+	GUIApplication app;
+
+	abstract void init();
 	abstract void onStart();
 	abstract void onStop();
 }
@@ -110,11 +129,9 @@ class BasicCommand(T) : IBasicCommand
 		return cast(IBasicWidget)(w);
 	}
 
-	GUIApplication app;
-
-	override void init(GUIApplication app)
+	override void init()
 	{
-		this.app = app;
+		// no-op		
 	}
 	
 	override void onStart()
@@ -128,33 +145,34 @@ class BasicCommand(T) : IBasicCommand
 	}
 }
 
-interface IExtension
+class IBasicExtension
 {
-	void init(GUIApplication app);
-	void onStart();
-	void onStop();
+	GUIApplication app;
+
+	abstract @property string name();
+	abstract void init();
+	abstract void onStart();
+	abstract void onStop();
 }
 
-class Extension(T)
+class BasicExtension(T) : IBasicExtension
 {
 	static this()
 	{
 		g_Extensions ~= new T;
 	}
 
-	GUIApplication app;
+	//override void ()
+	//{
+	//    // no-op		
+	//}
 
-	void init(GUIApplication app)
-	{
-		this.app = app;
-	}
-
-	void onStart()
+	override void onStart()
 	{
 		// no-op		
 	}
 
-	void onStop()
+	override void onStop()
 	{
 		// no-op		
 	}

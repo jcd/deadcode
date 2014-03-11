@@ -39,7 +39,7 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 		lines = 0;
 	}
 
-	override void init(GUIApplication app)
+	override void init()
 	{
 		name = "errorlist";
 		auto n = new NineGridRenderer("box");

@@ -18,4 +18,5 @@ public import gui.widgetfeature.dragger;
 public import gui.widgetfeature.textrenderer;
 public import gui.widgetfeature.windowdragger;
 public import gui.widgetfeature.windowresizer;
+public import gui.widgetfeature.ninegridrenderer;
 

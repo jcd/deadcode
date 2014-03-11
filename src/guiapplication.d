@@ -272,7 +272,9 @@ version (Windows)
 		if (w is null)
 		{
 			// create a new widget for this buffer
-			auto editorWidget = new TextEditor(_mainWidget, buf);	
+			auto editorWidget = new TextEditor(_mainWidget, buf);
+			editorWidget.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
+			editorWidget.alignTo(Anchor.BottomRight);
 			editors[buf.name] = EditorInfo(++EditorInfo.focusOrderCounter, editorWidget);
 			editorWidget.name = "editor-" ~ buf.name;
 			editorWidget.onKeyboardFocusCallback = (Event ev, Widget w) {
@@ -280,10 +282,21 @@ version (Windows)
 				currentBuffer = buf;
 				return EventUsed.yes;
 			};
+			auto styler = getTextStylerFromName(buf.name);
+			if (styler !is null)
+				editorWidget.renderer.styledText.textStyler = styler;
 			w = buf.name in editors;
 		}
 		w.editor.visible = true;
 		w.editor.setKeyboardFocusWidget();
 		currentBuffer = buf;
+	}
+
+	TextStyler!BufferView getTextStylerFromName(string name)
+	{
+		if (name.endsWith(".d"))
+			return new DSourceStyler!BufferView;
+		else 
+			return DefaultStyler!BufferView.the;
 	}
 }

@@ -31,8 +31,8 @@ class TextEditor : Widget
 		super(parent);
 		acceptsKeyboardFocus = true;
 		features ~= new BoxRenderer("edit-background");
-		this.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
-		this.alignTo(Anchor.BottomRight);
+		// this.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
+		// this.alignTo(Anchor.BottomRight);
 		renderer = (this.content = buf);
 		bufferView = buf;
 		bufferView.onInsert.connect(&this.onTextInserted);

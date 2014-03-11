@@ -1,12 +1,14 @@
 module controls.command;
 
 import guiapplication;
+import controls.texteditor;
 import core.bufferview;
 import core.command : CommandManager, Command;
 import graphics._;
 import gui.event;
 import gui.keycode;
 import gui.style;
+import gui.styledtext;
 import gui.widget;
 import gui.widgetfeature._;
 import math._;
@@ -15,6 +17,44 @@ import std.algorithm;
 import std.array;
 import std.conv;
 
+class CompletionListStyler(Text) : TextStyler!Text
+{
+	enum defaultID = 0;
+	enum seletedID = 2;
+
+	int lineHighlighted = 0;
+
+	override void update(RegionSet rset, Text text)
+	{
+		// Highlight the selected line and rest in default color
+		rset.clear();
+
+		auto ends = text.buffer.lineEndsAtLineNumber(lineHighlighted);
+		//uint lineStartIdx = text.buffer.startAtLineNumber(lineHighlighted);
+		//uint lineEndIdx = text.buffer.offsetToEndOfLine(lineStartIdx);
+				
+		//auto selRegion = Region(lineStartIdx, lineEndIdx);
+		//auto allRegion = Region(0, text.length);
+		//
+		//auto res = allRegion.intersect3(selRegion);
+		//
+		//if (!res.before.empty)
+		//    rset.add(res.before.a, res.before.b, defaultID);
+		//    rset.add(0, lineStartIdx, defaultID);
+
+		if (ends[1] == 0)
+			return;
+
+		if (ends[0] != 0)
+			rset.add(0, ends[0], defaultID);
+
+		rset.add(ends[0], ends[1], seletedID);
+		
+		if (ends[1] != text.length)
+			rset.add(ends[1], text.length, defaultID);
+	}
+}
+
 class CommandControl : Widget
 {
 	float height; // height when control is visible
@@ -22,13 +62,14 @@ class CommandControl : Widget
 	float contractDuration; //
 	core.bufferview.BufferView bufferView;
 	TextRenderer!(core.bufferview.BufferView) textRenderer; // to lookup glyph positions for bufferView
-	core.bufferview.BufferView completionView;
-	Widget completionWidget;
+	TextEditor completionWidget;
+	BufferView completionView;
+	CompletionListStyler!BufferView completionStyler;
 	WidgetID resumeWidgetID;
 	string[string] commandMap;
 	GUIApplication app;
 
-	Widget bottomWidget;
+	// Widget bottomWidget;
 
 	this(Widget parent, float _height, BufferView bufView, GUIApplication _app)
 	{
@@ -36,8 +77,8 @@ class CommandControl : Widget
 		app = _app;
 		commandMap = [ "f" : "edit.open", "b" : "edit.showBuffer" ];
 		
-		expandDuration = 0.2f;
-		contractDuration = 0.07f;
+		expandDuration = 0.15f;
+		contractDuration = 0.03f;
 		height = _height;
 
 		acceptsKeyboardFocus = true;
@@ -48,37 +89,55 @@ class CommandControl : Widget
 
 	private void init(StyleSet styleSet)
 	{
-		bottomWidget = new Widget(this);
-		bottomWidget.name = "commandBottom";
+		//bottomWidget = new Widget(this);
+		//bottomWidget.name = "commandBottom";
+		//auto renderer = new BoxRenderer("foobar");
+		////renderer.model.material = mat;
+		//bottomWidget.features ~= renderer;
 
 	//	bottomWidget.events[EventType.Update] = (Event ev, ref Widget w) {
 			//std.stdio.writeln("hello ", w.rect.pos.v, " ", w.rect.size.v);
 	//		return true;
 	//	};
 
-		bottomWidget.alignTo(this, Anchor.BottomRight, Vec2f(-1, 10));
-		this.alignToWindow(Anchor.TopRight);
-		this.alignToWindow(Anchor.TopLeft);
+		// bottomWidget.alignTo(this, Anchor.BottomRight, Vec2f(-1, 10));
+		// bottomWidget.alignTo(this, Anchor.BottomLeft);
+		this.alignToWindow(Anchor.TopCenter, Vec2f(600,-1), Vec2f(0,0));
+		//this.alignToWindow(Anchor.TopLeft, Vec2f(200,100), Vec2f(-100,0));
 
 		//auto mat =  styleSet.getStyle("builtin").background;
 
-		auto renderer = new BoxRenderer("edit-background");
+		import gui.models;
+
+		auto ren = new NineGridRenderer("box");
+		ren.model.topLeft = ren.model.left;
+		ren.model.top = ren.model.center;
+		ren.model.topRight= ren.model.right;
+		ren.color = Vec3f(0.25, 0.25, 0.25);
 		//renderer.model.material = mat;
 		
-		features ~= renderer;
+		features ~= ren;
 
 		// Need to rememer the text renderer in order to get the rect of the last char in buffer so that we know where to render completions
 		textRenderer = content(this, bufferView);
-		textRenderer.onLayoutChanged = (typeof(textRenderer) r) { handleBufferChanged(r.text); };
-		completionWidget = new Widget(this);
-		completionWidget.name = "commandCompletion";
-		completionWidget.alignTo(this, Anchor.TopRight);
+		bufferView.onInsert.connect(&handleBufferChanged);
+		bufferView.onRemove.connect(&handleBufferChanged);
+		//textRenderer.onLayoutChanged = (typeof(textRenderer) r) { handleBufferChanged(r.text); };
 		completionView = app.bufferViewManager.create();
-		auto textRenderer = completionWidget.content(completionView);
-		textRenderer.cursorEnabled = false;
+		completionWidget = new TextEditor(this, completionView);
+		completionStyler = new CompletionListStyler!BufferView;
+		completionWidget.renderer.styledText.textStyler = completionStyler;
+		completionWidget.renderer.cursorEnabled = false;
+		completionWidget.name = "commandCompletion";
+		completionWidget.alignTo(this, Anchor.TopRight, Vec2f(-1, -1), Vec2f(-2,20));
+		completionWidget.alignTo(this, Anchor.TopLeft, Vec2f(-1, -1), Vec2f(2,20));
+		completionWidget.alignTo(this, Anchor.BottomLeft, Vec2f(-1, -1), Vec2f(2,-10));
+
+		//auto textRenderer = completionWidget.content(completionView);
+		//textRenderer.cursorEnabled = false;
 
 		//completionView.append("this isa test");
-		completionWidget.visible = false;
+		//completionWidget.visible = false;
 
 		onKeyboardFocusCallback = (Event ev, Widget w) {
 			app.currentBuffer = bufferView;
@@ -93,19 +152,58 @@ class CommandControl : Widget
 		onTextCallback = (Event ev, Widget w) {
 			return EventUsed.no; // do not use the event
 		};
-		
-		renderer = new BoxRenderer("foobar");
-		//renderer.model.material = mat;
-		bottomWidget.features ~= renderer;
+
 		show = false;
+	}
+
+	override EventUsed onKeyDown(Event ev)
+	{
+		auto used = EventUsed.yes;
+
+		if (ev.keyCode == stringToKeyCode("up"))
+		{
+			if (completionStyler.lineHighlighted > 0)
+			{
+				completionStyler.lineHighlighted--;
+				if (completionStyler.lineHighlighted < completionView.lineOffset)
+					completionView.scrollUp();
+			}
+		}
+		else if (ev.keyCode == stringToKeyCode("down"))
+		{
+			auto lc = completionView.buffer.lineCount;			
+			if (lc > completionStyler.lineHighlighted)
+			{
+				completionStyler.lineHighlighted++;
+				if (completionStyler.lineHighlighted > (completionView.lineOffset + completionView.visibleLineCount))
+					completionView.scrollDown();
+			}
+		}
+		else if (ev.keyCode == stringToKeyCode("escape"))
+		{
+			toggleShown();
+		}
+		else if (ev.keyCode == stringToKeyCode("return"))
+		{
+			toggleShown();
+			executeCommand();
+		}
+		else
+		{
+			return EventUsed.no;
+		}
+		return used;
 	}
 
 	override void draw()
 	{
 		if (!visible)
 			return;
-		if (bottomWidget is null)
+		if (textRenderer is null)
 			init(window.styleSet);
+		auto tup = completionView.buffer.lineEndsAtLineNumber(completionStyler.lineHighlighted);
+		completionView.selection = Region(tup[0], tup[1], 0);
+		completionWidget.renderer.selectionStyle = "completionListBox";
 		super.draw();
 	}
 
@@ -131,7 +229,7 @@ class CommandControl : Widget
 			if (window is null || b && show || !b && !show)
 				return;
 
-			completionWidget.visible = b;
+			//completionWidget.visible = b;
 			//std.stdio.writeln("show ", b, " ", id, " ", h);
 
 			if (!app.guiRoot.timeline.hasPendingAnimation)
@@ -143,7 +241,7 @@ class CommandControl : Widget
 				else
 				{
 					app.guiRoot.timeline.animate!"h"(this, 0, contractDuration);
-					// app.guiRoot.timeline.event(contractDuration * 0.1, (int d) { this.visible = false; });
+					app.guiRoot.timeline.event(contractDuration * 0.1, (int d) { this.visible = false; });
 				}
 			}
 
@@ -167,7 +265,7 @@ class CommandControl : Widget
 
 	void setCommand(string cmd)
 	{
-		completionView.clear();
+		completionWidget.bufferView.clear();
 		bufferView.cursorToBeginningOfLine();
 		bufferView.deleteToEndOfLine();
 		bufferView.append(cmd);
@@ -201,31 +299,43 @@ class CommandControl : Widget
 		return result;
 	}
 
-	bool handleBufferChanged(BufferView b)
+	
+
+	//bool handleBufferChanged(BufferView b)
+	void handleBufferChanged(BufferView b, BufferView.BufferString,uint)
 	{
 		auto cmdData= getActiveCommand();
 		if (cmdData.cmd is null) 
 		{
-			completionWidget.visible = false;
-			return false;
+			// completionWidget.visible = false;
+			completionWidget.bufferView.clear();
+			return;
+			//return false;
 		}
 
-		completionWidget.visible = true;
+		//completionWidget.visible = true;
 		auto completions = cmdData.cmd.getCompletions(std.variant.Variant(cmdData.rest));
 
 		dstring comps;
 		foreach (c; completions)
-			comps ~= dtext(c ~ "\n");
-		completionView.clear(comps);
+			comps ~= dtext(c ~ " \n");
+
+		completionWidget.bufferView.clear(comps);
+		completionView.bufferOffset = 0;
+		completionStyler.lineHighlighted = 0;
+
 		// std.stdio.writeln("rest '", cmdData.rest, "'");
+version(oldvw)
+{
 		size_t offset = max(0, cmdData.rest.length);
 		auto worldRectRelativeToWidget = textRenderer.getRectForViewIndex(bufferView.length-1-offset);
 		auto p = worldRectRelativeToWidget.pos;
 		p.x += worldRectRelativeToWidget.w;
 		auto pixelRectRelativeToWidget = window.worldToPixelSize(p);
 		completionWidget.x = x + pixelRectRelativeToWidget.x;
+}
 		// std.stdio.writeln("Completions ", pixelRectRelativeToWidget.x, " ", bufferView.length, " ", completions);
-		return false;
+		//return false;
 	}
 
 	void completeCommand()
@@ -233,7 +343,7 @@ class CommandControl : Widget
 		auto cmdData= getActiveCommand();
 		if (cmdData.cmd is null) 
 		{
-			completionWidget.visible = false;
+			//completionWidget.visible = false;
 			return;
 		}
 		auto prefix = cmdData.rest;
@@ -274,8 +384,8 @@ class CommandControl : Widget
 		}
 
 		bufferView.remove(-prefix.length);
-		completionWidget.visible = true;
-		completionView.clear();
+		//completionWidget.visible = true;
+		completionWidget.bufferView.clear();
 		bufferView.insert(dtext(completionText));
 	}
 
@@ -286,12 +396,16 @@ class CommandControl : Widget
 		auto cmdData = getActiveCommand();
 		if (cmdData.cmd is null) 
 		{
-			completionWidget.visible = false;
+			//completionWidget.visible = false;
 			return;
 		}
 
+		import std.range;
+
 		auto cmd = getActiveCommand();
-		cmd.cmd.execute(std.variant.Variant(cmdData.rest));
+		auto completions = cmdData.cmd.getCompletions(std.variant.Variant(cmdData.rest));
+		auto res = completions.dropExactly(completionStyler.lineHighlighted);
+		cmd.cmd.execute(std.variant.Variant(res.front));
 		setCommand("");
 		//window.app.
 	}

@@ -45,7 +45,14 @@
 		"parent" : "",
 		"font" : "../fonts/default.font",
 		"material" : "../materials/nine-patch.material",
-		"color" : "#00ff00",
+		"color" : "#555555",
+		"padding" : "0 0 0 0"
+	},
+	"completionListBox" : {
+		"parent" : "",
+		"font" : "../fonts/default.font",
+		"material" : "../materials/nine-patch.material",
+		"color" : "#202020",
 		"padding" : "0 0 0 0"
 	},
 	"errorlist" : {

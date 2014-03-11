@@ -175,6 +175,11 @@ class GUI
 		}
 	}
 
+	void stop()
+	{
+		running = false;
+	}
+
 	void timeout(Fn, Args...)(Duration d, Fn fn, Args args)
 	{
 		_timeouts ~= new FnTimeout!(Fn,Args)(cast(uint)d.total!"msecs", fn, args);
@@ -309,8 +314,8 @@ class GUI
 					ev.windowID = e.wheel.windowID;
 					break;
 				case SDL_KEYDOWN:
-					if (e.key.keysym.sym == SDLK_ESCAPE)
-						running = false;
+					//if (e.key.keysym.sym == SDLK_ESCAPE)
+					//    running = false;
 					ev.type = EventType.KeyDown;
 					ev.keyCode = e.key.keysym.sym;
 					ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
@@ -319,8 +324,8 @@ class GUI
 					//std.stdio.writeln("got text " , SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))], " ", e.key.repeat, " ",e.key.state);
 					break;
 				case SDL_KEYUP:
-					if (e.key.keysym.sym == SDLK_ESCAPE)
-						running = false;
+					//if (e.key.keysym.sym == SDLK_ESCAPE)
+					//    running = false;
 					ev.type = EventType.KeyUp;
 					ev.keyCode = e.key.keysym.sym;
 					ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;

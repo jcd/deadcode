@@ -253,4 +253,15 @@ void register(Application _app)
 	            	//    The spawned instance will check if it is called xx then deserialize by piping to the running.exe, and then kill the original ded.exe running
 	            	// timeout starting and notify
 	            });
+
+	cmgr.create("core.quit", "Quit the application", delegate(Variant data) {
+		app.guiRoot.stop();		
+		//	            	build.buildIt();
+		// Serialize
+		// rename build version to xx
+		// start xx
+		//    The spawned instance will check if it is called xx then deserialize by piping to the running.exe, and then kill the original ded.exe running
+		// timeout starting and notify
+	});
+
 }

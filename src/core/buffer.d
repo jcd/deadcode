@@ -4,6 +4,8 @@ import std.algorithm;
 import std.conv;
 import std.exception;
 import std.range;
+import std.typecons;
+
 
 version (unittest) import test;
 
@@ -790,19 +792,23 @@ class TextGapBuffer
 		if (index == length)
 			return index;
 
-		// locate the next \n
-		size_t i = 0;
-		foreach (v; r)
-		{
-			if (v == '\n')
-				break;
-			i++;
-		}
-		
-		i = index + i + 1;
-		if (i >= gbuffer.length)
-			return gbuffer.length;
-		return i;
+		uint nc = offsetToEndOfLine(index);
+
+		nc = next(nc);
+		return nc;
+		//// locate the next \n
+		//size_t i = 0;
+		//foreach (v; r)
+		//{
+		//    if (v == '\n')
+		//        break;
+		//    i++;
+		//}
+		//
+		//i = index + i + 1;
+		//if (i >= gbuffer.length)
+		//    return gbuffer.length;
+		//return i;
 	}
 
 	uint endOfPreviousLine(uint index) const
@@ -903,7 +909,7 @@ class TextGapBuffer
 		return curLine;
 	}
 
-	uint startAtLineNumber(uint lineNum)
+	uint startAtLineNumber(uint lineNum) const
 	{
 		uint curLine = 0;
 		uint i = 0;
@@ -918,9 +924,21 @@ class TextGapBuffer
 		return offsetToStartOfLine(i);
 	}
 
+	auto lineEndsAt(uint index) const
+	{
+		return tuple(offsetToStartOfLine(index), offsetToEndOfLine(index));
+	}
+
+	auto lineEndsAtLineNumber(uint lineNum) const
+	{
+		auto start = startAtLineNumber(lineNum);
+		return tuple(start, offsetToEndOfLine(start));
+	}
+
 	const(dchar)[] lineContaining(uint index) const
 	{
-		return toArray(offsetToStartOfLine(index), offsetToEndOfLine(index));
+		auto ends = lineEndsAt(index);
+		return toArray(ends[0], ends[1]);
 	}
 
 }

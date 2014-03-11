@@ -92,6 +92,7 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<ctrl> + w", "app.toggleCommandArea");
 
 		set.setKeyBinding("<f7>", "dub.build");
+		set.setKeyBinding("<ctrl> + ,", "app.toggleCommandArea", "dub.quickopen ");
 
 		//set.setKeyBinding("<tab>", "edit.
 	}
@@ -118,7 +119,6 @@ class EmacsBehavior : EditorBehavior
 		{
 			setup();
 			currentKeySequence = new KeySequence("");
-			
 		}
 
 		switch (event.type)

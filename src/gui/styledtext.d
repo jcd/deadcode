@@ -9,6 +9,23 @@ interface TextStyler(Text)
 	void update(RegionSet rset, Text text);
 }
 
+class DefaultStyler(Text) : TextStyler!Text
+{
+	private static DefaultStyler!Text _the;
+	static @property DefaultStyler!Text the()
+	{
+		if (_the is null)
+			_the = new DefaultStyler!Text;
+		return _the;
+	}
+
+	override void update(RegionSet rset, Text text)
+	{
+		rset.clear();
+		rset.add(0, text.length, 0);
+	}
+}
+
 class DSourceStyler(Text) : TextStyler!Text
 {
 	enum defaultID = 0;
@@ -149,7 +166,7 @@ class DSourceStyler(Text) : TextStyler!Text
 	*/
 class StyledText(Text)
 {
-	private TextStyler!Text textStyler;
+	private TextStyler!Text _textStyler;
 	public RegionSet regionSet;
 	StyleSet styleSet;
 	public Text _text;
@@ -160,11 +177,16 @@ class StyledText(Text)
 		{
 			return _text;
 		}
+
+		ref TextStyler!Text textStyler()
+		{
+			return _textStyler;
+		}
 	}
 
 	this(Text textIn, TextStyler!Text styler /*, StyleSet styleSet */)
 	{
-		this.textStyler = styler;
+		this._textStyler = styler;
 		this._text = textIn;
 		this.styleSet = null; // styleSet;
 		this.regionSet = new RegionSet();
@@ -328,15 +350,16 @@ class StyledText(Text)
 	+/
 	void update(StyleSet styleSet)
 	{
-		if (textStyler is null)
-		{
-			regionSet.clear();
-			regionSet.add(0, text.length, 0);
-		}
-		else
-		{
-			textStyler.update(regionSet, _text);
-		}
+		if (_textStyler !is null)
+			_textStyler.update(regionSet, _text);
+		
+		//{
+		//    regionSet.clear();
+		//    regionSet.add(0, text.length, 0);
+		//}
+		//else
+		//{
+//		}
 	}
 }
 

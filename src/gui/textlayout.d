@@ -29,6 +29,11 @@ struct TextBoxLayout
 	Line[] lines;
 	private Line* curLine;
 
+	@property int lineCount()
+	{
+		return lines.length - (curLine !is null && curLine.region.empty ? 1 : 0);
+	}
+
 	private 
 	{
 		// One instance of this per line per style used in the line

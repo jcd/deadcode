@@ -19,10 +19,10 @@ class Font : GFont, IResource!Font
 		
 	}
 
-	private this(string path, size_t size)
-	{
-		super(path, size);
-	}
+	//private this(string path, size_t size)
+	//{
+	//    super(path, size);
+	//}
 	
 	@property 
 	{

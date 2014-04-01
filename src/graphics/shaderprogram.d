@@ -26,34 +26,78 @@ class ShaderProgram
 	}
 	
 	uint glProgramID = 0;
-	
+	Shader vertexShader;
+	Shader fragmentShader;
+
 	// if intoThis is null a new ShaderProgram is allocated
 	static ShaderProgram create(const(char)[] vertexSource = null, const(char)[] fragmentSource = null, ShaderProgram intoThis = null)
 	{
-		ShaderProgram pr = intoThis is null ? new ShaderProgram() : intoThis;
-		assert(pr.glProgramID == 0);
-
-		uint p = glCreateProgram(); 
-		if(p == 0){ 
-			writeln("Error: GL did not assign main shader program id"); 
-			return pr; 
-		} 
+		// ShaderProgram pr = intoThis is null ? new ShaderProgram() : intoThis;
+		scope ShaderProgram pr = new ShaderProgram();
 		
-		pr.glProgramID = p;
+		import std.conv;
+
+ 		// assert(pr.glProgramID == 0, "Shader program ID is null " ~ text(pr.glProgramID));
+
+		pr.glProgramID = glCreateProgram(); 
+		if(pr.glProgramID == 0)
+		{ 
+			writeln("Error: GL did not assign main shader program id"); 
+			return null; 
+		} 
 		
 		if (!vertexSource.empty)
 		{
-			pr.attach(new Shader(vertexSource, Shader.Type.Vertex));
+			pr.vertexShader = new Shader(vertexSource, Shader.Type.Vertex);
+			pr.attach(pr.vertexShader);
 		}
 		
 		if (!fragmentSource.empty)
 		{
-			pr.attach(new Shader(fragmentSource, Shader.Type.Fragment));
+			pr.fragmentShader = new Shader(fragmentSource, Shader.Type.Fragment);
+			pr.attach(pr.fragmentShader);
 		}
-		
-		return pr;
+	
+		if (intoThis is null)
+			intoThis = new ShaderProgram;
+		else
+			intoThis.deleteGLObjects();
+
+		if (pr.fragmentShader !is null && pr.vertexShader !is null)
+		{
+			if (!pr.link())
+			{
+				pr.deleteGLObjects();
+				return null;
+			}
+		}
+
+		// Steal pr content and put into this
+		intoThis.vertexShader = pr.vertexShader;
+		intoThis.fragmentShader = pr.fragmentShader;
+		intoThis.glProgramID = pr.glProgramID;
+
+		return intoThis;
 	}
 	
+	private void deleteGLObjects()
+	{
+		if (glProgramID != 0)
+			glDeleteProgram(glProgramID);
+		glProgramID = 0;
+
+		if (vertexShader && vertexShader.glShaderID != 0)
+		{
+			glDeleteShader(vertexShader.glShaderID);
+			vertexShader.glShaderID = 0;
+		}
+		if (fragmentShader && fragmentShader.glShaderID != 0)
+		{
+			glDeleteShader(fragmentShader.glShaderID);
+			fragmentShader.glShaderID = 0;
+		}
+	}
+
 	void attach(Shader shader)
 	{
 		assert(glProgramID > 0);
@@ -62,7 +106,7 @@ class ShaderProgram
 		enforce(glGetError() == GL_NO_ERROR, "Error setting shader source");
 	}
 	
-	bool link()
+	private bool link()
 	{
 		assert(glProgramID > 0);
 		glLinkProgram(glProgramID); 
@@ -74,9 +118,9 @@ class ShaderProgram
 			glGetShaderiv(glProgramID, GL_INFO_LOG_LENGTH, &len); 
 			char[] error=new char[len]; 
 			glGetProgramInfoLog(glProgramID, len, null, cast(char*)error); 
-			throw new Exception(error.idup);
-			//writeln(error); 
-			//return false; 
+			//throw new Exception(error.idup);
+			writeln(error); 
+			return false; 
 		}
 		return true;
 	} 

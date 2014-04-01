@@ -217,6 +217,8 @@ class GapBuffer(T = dchar)
 			
 			this(const(GapBuffer!T) gbuf, size_t f, size_t t)
 			{
+				assert(t <= gbuf.length);
+				assert(f <= t);
 				this.gbuf = gbuf;
 				this.from = f;
 				this.to = t > gbuf.length ? gbuf.length : t;				

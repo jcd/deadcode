@@ -95,7 +95,7 @@ class TextureManager : ResourceManager!Texture
 
 	void createBuiltinTexture()
 	{
-		declare("builtin", null, new BuiltinLoader);
+		declare("builtin",  new URI("builtin:default"), new BuiltinLoader);
 	}
 
 }

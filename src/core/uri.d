@@ -53,6 +53,11 @@ class URI
 		{
 			return _uri.extension;
 		}
+
+		string uriString()
+		{
+			return _uri;
+		}
 	}
 
 	this(string uriString)
@@ -65,10 +70,21 @@ class URI
 		assert(!isAbsolute);
 		assert(baseURI.isDir);
 		_uri = baseURI._uri ~ _uri;
+		normalize();
 	}
 	
-	bool opEquals(URI other) pure const nothrow
+	void normalize()
 	{
-		return _uri == other._uri;
+		import std.array;
+		import std.regex;
+		_uri = _uri.replace("\\","/");
+		auto com = regex(r"[^/]+/../","g");
+		_uri = replaceAll(_uri, com, "");
+	}
+
+	override bool opEquals(Object other) pure const nothrow
+	{
+		URI o = cast(URI)other;
+		return _uri == o._uri;
 	}
 }

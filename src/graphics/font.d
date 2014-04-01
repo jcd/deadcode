@@ -52,22 +52,30 @@ class Font //: Resource!Font
 	int fontDescent;
 	uint fontLineSkip;
 	
+	string path;
 	Texture fontMap;
 	size_t size;
 	
 	protected this()
 	{
+		updateNeeded = true;
 	}
 	
-	this(string path, size_t size)
+	//this(string path, size_t size)
+	//{
+	//	init(path, size);
+	//}
+	
+	public void init()
 	{
 		init(path, size);
 	}
-	
+
 	public void init(string path, size_t size)
 	{
 		import std.string;
 		this.size = size;
+		this.path = path;
 
 		SDL_ClearError();
 		//string p = "C:\\Users\\jonasd\\Documents\\Projects\\dteam\\ded\\bin\\Debug\\";

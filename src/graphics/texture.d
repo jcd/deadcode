@@ -157,9 +157,10 @@ class Texture
 	{		
 		import std.file; 
 		import derelict.sdl2.image;
+		import std.string;
 
 		assert(exists(path), path); 
-		SDL_Surface * s = IMG_Load(path.ptr); 
+		SDL_Surface * s = IMG_Load(toStringz(path));
 		
 		assert(s); 
 		auto texture = createFromSDLSurface(s, intoThis);
@@ -170,13 +171,13 @@ class Texture
 	// if intoThis is null a new texture is allocated
 	package static Texture createFromSDLSurface(SDL_Surface * s, Texture intoThis = null)
 	{
-		Texture texture = intoThis is null ? new Texture() : intoThis;
-		assert(texture.glTextureID == 0);
+		// assert(texture.glTextureID == 0);
 
+		GLuint texID;
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 4); 
-		glGenTextures(1, &(texture.glTextureID)); 
-		assert(texture.glTextureID > 0); 
-		glBindTexture(GL_TEXTURE_2D, texture.glTextureID); 
+		glGenTextures(1, &texID); 
+		// assert(texture.glTextureID > 0); 
+		glBindTexture(GL_TEXTURE_2D, texID); 
 		
 		int mode = GL_RGB; 
 		if(s.format.BytesPerPixel == 4) mode=GL_RGBA; 
@@ -189,9 +190,21 @@ class Texture
 		SDL_Surface * px =  flip(s);
 		glTexImage2D(GL_TEXTURE_2D, 0, mode, s.w, s.h, 0, mode, GL_UNSIGNED_BYTE, px.pixels); 
 		SDL_FreeSurface(px);
-		texture.width = s.w;
-		texture.height = s.h;
-		return texture;
+		
+		if (intoThis is null)
+		{
+			intoThis = new Texture();
+		}
+		else
+		{
+			if (intoThis.glTextureID != 0)
+			glDeleteTextures(1, &(intoThis.glTextureID));
+		}
+		
+		intoThis.glTextureID = texID;
+		intoThis.width = s.w;
+		intoThis.height = s.h;
+		return intoThis;
 	}
 	
 	void blitSDLSurface(Rectf rect, SDL_Surface * s, bool flipY = true)

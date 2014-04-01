@@ -28,6 +28,7 @@ enum EventType
 	KeyDown,    /// Key pressed down
 	KeyUp,      /// Key pressed down
 	Resize,     /// The window has been resized
+	Focus		/// The window has been focused
 }
 
 string ctGenerateEventCallbacks()
@@ -89,7 +90,7 @@ struct Event
 		{
 			dchar ch;
 			SDL_Keycode keyCode;
-			KeyMod  mod;
+			KeyMod mod;
 		}
 		struct 
 		{

@@ -60,6 +60,32 @@ class Material : graphics.material.Material, IResource!Material
 		{
 			return _manager.get("builtin");
 		}
+
+		override graphics.shaderprogram.ShaderProgram shader()
+		{
+			ShaderProgram p = cast(ShaderProgram) _shader;
+			if (_shader !is null)
+				p.ensureLoaded();
+			return _shader;
+		}
+		
+		override void shader(graphics.shaderprogram.ShaderProgram s)
+		{
+			_shader = s;
+		}
+
+		override graphics.texture.Texture texture()
+		{
+			Texture t = cast(Texture) _texture;
+			if (t !is null)
+				t.ensureLoaded();
+			return _texture;
+		}
+		
+		override void texture( graphics.texture.Texture t)
+		{
+			_texture = t;
+		}
 	}
 
 	void load()
@@ -84,9 +110,14 @@ class MaterialManager : ResourceManager!Material
 		return get("builtin");
 	}
 
+	ShaderProgramManager shaderProgramManager;
+	TextureManager textureManager;
+
 	static MaterialManager create(IOManager iom, ShaderProgramManager spm, TextureManager tm)
 	{
 		auto fm = new MaterialManager;
+		fm.shaderProgramManager = spm;
+		fm.textureManager = tm;
 		auto fp = new MaterialSerializer(spm, tm);
 		fm.ioManager = iom;
 		fm.addSerializer(fp);
@@ -98,28 +129,29 @@ class MaterialManager : ResourceManager!Material
 
 	private void createBuiltinMaterial(ShaderProgramManager spm, TextureManager tm)
 	{
-		auto mat = declare("builtin");
+		auto mat = declare("builtin", new URI("builtin:default"));
 		mat.shader = spm.builtinShaderProgram;
 		mat.texture = tm.builtinTexture;
 	}
 
 	/** Overriden load that will ensure sub resources of the material (e.g. texture and shaders)
 		are also loaded
-	*/
 	override bool load(ResourceState state)
 	{
 		super.load(state);
 
-		gui.resources.Texture tex = cast(gui.resources.Texture) state.resource.texture;
-		if (tex !is null)
-			tex.load();
-
-		gui.resources.ShaderProgram sp = cast(gui.resources.ShaderProgram) state.resource.shader;
-		if (sp !is null)
-			sp.load();
-
+		//// TODO: Remove since tex and shader are lazy loaded as well
+		//gui.resources.Texture tex = cast(gui.resources.Texture) state.resource.texture;
+		//if (tex !is null)
+		//    tex.ensureLoaded();
+		//
+		//gui.resources.ShaderProgram sp = cast(gui.resources.ShaderProgram) state.resource.shader;
+		//if (sp !is null)
+		//    sp.ensureLoaded();
+		//
 		return true;
 	}
+	*/
 }
 
 class MaterialSerializer : ResourceSerializer!Material

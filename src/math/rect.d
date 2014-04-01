@@ -121,8 +121,18 @@ struct Rect(T)
 	{
 		return size.y; 
 	}
-	
-	Rect!T clip(Rect!T toBeClipped)
+
+	Rect!T offset(RectOffset!T rectOffset) const pure nothrow
+	{
+		Rect!T r = this;
+		r.pos.x += rectOffset.left;
+		r.pos.y += rectOffset.top;
+		r.size.x -= rectOffset.horizontal;
+		r.size.y -= rectOffset.vertical;
+		return r;
+	}
+
+	Rect!T clip(Rect!T toBeClipped) const pure nothrow
 	{
 		toBeClipped.x = fmax(this.x, toBeClipped.x);
 		toBeClipped.y = fmax(this.y, toBeClipped.y);
@@ -202,10 +212,25 @@ unittest
 
 struct RectOffset(T)
 {
-	T top;
 	T left; 
-	T bottom;
+	T top;
 	T right;
+	T bottom;
+
+	@property T horizontal()
+	{
+		return left + right;
+	}
+
+	@property T vertical()
+	{
+		return top + bottom;
+	}
+
+	RectOffset!T reverse() const pure nothrow
+	{
+		return RectOffset!T(-left, -top, -right, -bottom);
+	}
 
 	@property bool empty() @safe nothrow
 	{

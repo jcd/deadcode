@@ -429,13 +429,13 @@ class Window : Widget
 		assert(ev.windowID == id);
 		if (ev.type == EventType.Invalid)
 			return;
+		
+		if (_onEvent !is null && _onEvent(ev) == EventUsed.yes)
+			return;
 
 		auto eventUsed = dispatch(ev);
 		if (eventUsed == EventUsed.yes)
 			return;
-		
-		if (_onEvent !is null)
-			_onEvent(ev);
 	}
 
 

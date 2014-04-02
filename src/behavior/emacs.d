@@ -72,6 +72,9 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<delete>", "edit.deleteCharAfter");
 		set.setKeyBinding("<ctrl> + x <ctrl> + p", "edit.clear");
 		
+		set.setKeyBinding("<ctrl> + <tab>", "app.cycleBuffers", "1");
+		set.setKeyBinding("<ctrl> + <shift> + <tab>", "app.cycleBuffers", "-1");
+		
 		set.setKeyBinding("<ctrl> + x <ctrl> + f", "app.toggleCommandArea", "edit.open ");
 		set.setKeyBinding("<ctrl> + x b", "app.toggleCommandArea", "edit.showBuffer ");
 		set.setKeyBinding("<ctrl> + x <ctrl> + s", "edit.save");

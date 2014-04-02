@@ -2,11 +2,13 @@ module controls.command;
 
 import guiapplication;
 import controls.texteditor;
+import controls.textfield;
 import core.bufferview;
 import core.command : CommandManager, Command;
 import graphics._;
 import gui.event;
 import gui.keycode;
+import gui.models;
 import gui.style;
 import gui.styledtext;
 import gui.widget;
@@ -19,15 +21,41 @@ import std.conv;
 
 class CompletionListStyler(Text) : TextStyler!Text
 {
-	enum defaultID = 0;
-	enum seletedID = 2;
+	enum CompletionStyle
+	{
+		other = 0,
+		seleted = 1
+	}
 
 	int lineHighlighted = 0;
+	int lastLineHighlighted = -1;
 
-	override void update(RegionSet rset, Text text)
+	this(Text text)
 	{
+		super(text);
+	}
+
+	override protected void textChangedCallback(BufferView b, BufferView.BufferString,uint)
+	{
+		reset();
+		update();
+	}
+
+	void reset()
+	{
+		lineHighlighted = 0;
+		lastLineHighlighted = -1;
+	}
+
+	override void update()
+	{
+		if (lastLineHighlighted == lineHighlighted)
+			return;
+		
+		lastLineHighlighted = lineHighlighted;
+
 		// Highlight the selected line and rest in default color
-		rset.clear();
+		regionSet.clear();
 
 		auto ends = text.buffer.lineEndsAtLineNumber(lineHighlighted);
 		//uint lineStartIdx = text.buffer.startAtLineNumber(lineHighlighted);
@@ -43,15 +71,31 @@ class CompletionListStyler(Text) : TextStyler!Text
 		//    rset.add(0, lineStartIdx, defaultID);
 
 		if (ends[1] == 0)
+		{
+			onChanged.emit();
 			return;
+		}
 
 		if (ends[0] != 0)
-			rset.add(0, ends[0], defaultID);
+			regionSet.merge(0, ends[0], CompletionStyle.other);
 
-		rset.add(ends[0], ends[1], seletedID);
+		regionSet.merge(ends[0], ends[1], CompletionStyle.seleted);
 		
 		if (ends[1] != text.length)
-			rset.add(ends[1], text.length, defaultID);
+			regionSet.merge(ends[1], text.length, CompletionStyle.other);
+		onChanged.emit();
+	}
+
+	override string styleIDToName(int id)
+	{
+		CompletionStyle styleID = cast(CompletionStyle)id;
+		final switch(styleID)
+		{
+			case CompletionStyle.other:
+				return "completion-other";
+			case CompletionStyle.seleted:
+				return "completion-selected";
+		}
 	}
 }
 
@@ -60,14 +104,24 @@ class CommandControl : Widget
 	float height; // height when control is visible
 	float expandDuration; //
 	float contractDuration; //
-	core.bufferview.BufferView bufferView;
-	TextRenderer!(core.bufferview.BufferView) textRenderer; // to lookup glyph positions for bufferView
+
+	TextField commandField;
 	TextEditor completionWidget;
-	BufferView completionView;
 	CompletionListStyler!BufferView completionStyler;
+	
 	WidgetID resumeWidgetID;
 	string[string] commandMap;
 	GUIApplication app;
+
+	// If > 0 we are cycling buffers on next app.cycleBuffers command and
+	// ending the cycling on <ctrl> key up. 
+	// TODO: figure out a way to not have <ctrl> up hardcoded as end event
+	int cycleBufferStartOffset; 
+	string[] cycleBufferNames; // only used while cycling buffers
+	@property bool isBufferCycleMode() const
+	{
+		return cycleBufferStartOffset >= 0;
+	}
 
 	// Widget bottomWidget;
 
@@ -80,106 +134,55 @@ class CommandControl : Widget
 		expandDuration = 0.15f;
 		contractDuration = 0.03f;
 		height = _height;
-
-		acceptsKeyboardFocus = true;
-		h = 200f;
-		bufferView = bufView;
-		visible = true;
-	}
-
-	private void init(StyleSet styleSet)
-	{
-		//bottomWidget = new Widget(this);
-		//bottomWidget.name = "commandBottom";
-		//auto renderer = new BoxRenderer("foobar");
-		////renderer.model.material = mat;
-		//bottomWidget.features ~= renderer;
-
-	//	bottomWidget.events[EventType.Update] = (Event ev, ref Widget w) {
-			//std.stdio.writeln("hello ", w.rect.pos.v, " ", w.rect.size.v);
-	//		return true;
-	//	};
-
-		// bottomWidget.alignTo(this, Anchor.BottomRight, Vec2f(-1, 10));
-		// bottomWidget.alignTo(this, Anchor.BottomLeft);
-		this.alignToWindow(Anchor.TopCenter, Vec2f(600,-1), Vec2f(0,0));
-		//this.alignToWindow(Anchor.TopLeft, Vec2f(200,100), Vec2f(-100,0));
-
-		//auto mat =  styleSet.getStyle("builtin").background;
-
-		import gui.models;
-
-		auto ren = new NineGridRenderer("box");
-		ren.model.topLeft = ren.model.left;
-		ren.model.top = ren.model.center;
-		ren.model.topRight= ren.model.right;
-		ren.color = Vec3f(0.25, 0.25, 0.25);
-		//renderer.model.material = mat;
 		
-		features ~= ren;
+		acceptsKeyboardFocus = true;
+		h = _height;
+		visible = false;
+		cycleBufferStartOffset = -1; // cycling off initially
 
-		// Need to rememer the text renderer in order to get the rect of the last char in buffer so that we know where to render completions
-		textRenderer = content(this, bufferView);
-		bufferView.onInsert.connect(&handleBufferChanged);
-		bufferView.onRemove.connect(&handleBufferChanged);
-		//textRenderer.onLayoutChanged = (typeof(textRenderer) r) { handleBufferChanged(r.text); };
-		completionView = app.bufferViewManager.create();
+		// Layout
+		features ~= new VerticalLayout;
+
+		// Command text entry field
+		commandField = new TextField(this, bufView);
+		commandField.bufferView.onInsert.connect(&handleBufferChanged);
+		commandField.bufferView.onRemove.connect(&handleBufferChanged);
+		commandField.name = "commandEntryField";
+		commandField.onCommandCallback = (Event event, Widget w) => onCommand(event);
+		commandField.onKeyDownCallback = (Event event, Widget w) => onKeyDown(event);
+		commandField.onKeyUpCallback = (Event event, Widget w) => onKeyUp(event);
+
+		// Child widget showing the completions
+		auto completionView = app.bufferViewManager.create();
 		completionWidget = new TextEditor(this, completionView);
-		completionStyler = new CompletionListStyler!BufferView;
-		completionWidget.renderer.styledText.textStyler = completionStyler;
+		completionStyler = new CompletionListStyler!BufferView(completionView);
+		completionWidget.renderer.textStyler = completionStyler;
 		completionWidget.renderer.cursorEnabled = false;
 		completionWidget.name = "commandCompletion";
-		completionWidget.alignTo(this, Anchor.TopRight, Vec2f(-1, -1), Vec2f(-2,20));
-		completionWidget.alignTo(this, Anchor.TopLeft, Vec2f(-1, -1), Vec2f(2,20));
-		completionWidget.alignTo(this, Anchor.BottomLeft, Vec2f(-1, -1), Vec2f(2,-10));
+		//completionWidget.h = 180; // TODO: vert layout should instead just use remaining space so we do not have to specify this.
 
-		//auto textRenderer = completionWidget.content(completionView);
-		//textRenderer.cursorEnabled = false;
-
-		//completionView.append("this isa test");
-		//completionWidget.visible = false;
+		// Background
+		//auto ren = new NineGridRenderer("box");
+		//ren.model.topLeft = ren.model.left;
+		//ren.model.top = ren.model.center;
+		//ren.model.topRight= ren.model.right;
+		//ren.color = Vec3f(0.25, 0.25, 0.25);
+		//background = ren;
 
 		onKeyboardFocusCallback = (Event ev, Widget w) {
-			app.currentBuffer = bufferView;
+			app.currentBuffer = commandField.bufferView;
 			return EventUsed.yes;
 		};
 
 		onKeyboardUnfocusCallback = (Event ev, Widget w) {
-		//	app.guiRoot.timeline.animate!"h"(this, 0, expandDuration);
+			//	app.guiRoot.timeline.animate!"h"(this, 0, expandDuration);
 			return EventUsed.yes;
 		};
-
-		onTextCallback = (Event ev, Widget w) {
-			return EventUsed.no; // do not use the event
-		};
-
-		show = false;
 	}
 
 	override EventUsed onKeyDown(Event ev)
 	{
-		auto used = EventUsed.yes;
-
-		if (ev.keyCode == stringToKeyCode("up"))
-		{
-			if (completionStyler.lineHighlighted > 0)
-			{
-				completionStyler.lineHighlighted--;
-				if (completionStyler.lineHighlighted < completionView.lineOffset)
-					completionView.scrollUp();
-			}
-		}
-		else if (ev.keyCode == stringToKeyCode("down"))
-		{
-			auto lc = completionView.buffer.lineCount;			
-			if (lc > completionStyler.lineHighlighted)
-			{
-				completionStyler.lineHighlighted++;
-				if (completionStyler.lineHighlighted > (completionView.lineOffset + completionView.visibleLineCount))
-					completionView.scrollDown();
-			}
-		}
-		else if (ev.keyCode == stringToKeyCode("escape"))
+		if (ev.keyCode == stringToKeyCode("escape"))
 		{
 			toggleShown();
 		}
@@ -188,38 +191,161 @@ class CommandControl : Widget
 			toggleShown();
 			executeCommand();
 		}
-		else
+		else if (ev.mod == 0 && isBufferCycleMode)
+		{
+			toggleShown();
+			endCycleBufferMode();
+		}
+		else 
 		{
 			return EventUsed.no;
 		}
-		return used;
+		return EventUsed.yes;
+	}
+
+	override EventUsed onKeyUp(Event ev)
+	{
+		if (ev.mod == 0 && isBufferCycleMode)
+		{
+			toggleShown();
+			endCycleBufferMode();
+		}
+		else 
+		{
+			return EventUsed.no;
+		}
+		return EventUsed.yes;
 	}
 
 	override void draw()
 	{
 		if (!visible)
 			return;
-		if (textRenderer is null)
-			init(window.styleSet);
-		auto tup = completionView.buffer.lineEndsAtLineNumber(completionStyler.lineHighlighted);
-		completionView.selection = Region(tup[0], tup[1], 0);
-		completionWidget.renderer.selectionStyle = "completionListBox";
+
+		auto tup = completionWidget.bufferView.buffer.lineEndsAtLineNumber(completionStyler.lineHighlighted);
+		completionWidget.bufferView.selection = Region(tup[0], tup[1], 0);
+		// completionWidget.renderer.selectionStyle = "completionListBox";
 		super.draw();
 	}
 
 	override EventUsed onCommand(Event event)
 	{
-		if (event.name == "edit.commitCompletion")
+		switch (event.name)
 		{
-			completeCommand();
+		case "edit.commitCompletion":
 			toggleShown();
 			executeCommand();
-		} 
-		else if (event.name == "edit.complete")
-		{
+			return EventUsed.yes;
+		case "edit.complete":
 			completeCommand();
+			return EventUsed.yes;
+		case "edit.incrFind":
+			if (visible)
+			{
+				
+			}
+			else
+			{
+				setCommand("edit.incrFind");
+				toggleShown();
+			}
+			return EventUsed.yes;
+		case "navigate.up":
+			navigateUp();
+			return EventUsed.yes;
+		case "navigate.down":
+			navigateDown();
+			return EventUsed.yes;
+		case "app.cycleBuffers":
+			import std.conv;
+
+			int val = 1;
+			auto valPtr = (*event.argument).peek!string();
+			if (valPtr !is null)
+				val = (*valPtr).to!int();
+	
+			cycleBuffers(val);
+			break;
+		default:
+			break;
 		}
-		return EventUsed.yes;
+		return EventUsed.no;
+	}
+
+	void navigateUp()
+	{
+		if (completionStyler.lineHighlighted > 0)
+		{
+			completionStyler.lineHighlighted--;
+			if (completionStyler.lineHighlighted < completionWidget.bufferView.lineOffset)
+				completionWidget.bufferView.scrollUp();
+			completionWidget.renderer.textStyler.update();
+		}	
+	}
+
+	void navigateDown()
+	{
+		auto lc = completionWidget.bufferView.buffer.lineCount;			
+		if (lc > completionStyler.lineHighlighted)
+		{
+			completionStyler.lineHighlighted++;
+			if (completionStyler.lineHighlighted > (completionWidget.bufferView.lineOffset + completionWidget.bufferView.visibleLineCount))
+				completionWidget.bufferView.scrollDown();
+			completionWidget.renderer.textStyler.update();
+		}	
+	}
+
+	void navigateTo(int idx)
+	{		
+		int prev = -1;
+		while (idx > completionStyler.lineHighlighted && prev != completionStyler.lineHighlighted)
+		{
+			prev = completionStyler.lineHighlighted;
+			navigateDown();
+		}
+		prev = -1;
+		while (idx < completionStyler.lineHighlighted && idx >= 0 && prev != completionStyler.lineHighlighted)
+		{
+			prev = completionStyler.lineHighlighted;
+			navigateUp();
+		}
+	}
+
+	void cycleBuffers(int i)
+	{
+		if (!isBufferCycleMode)
+		{
+			// Start cycling mode
+			setCommand("");
+			cycleBufferStartOffset = 0;
+			cycleBufferNames = app.getActiveBufferCompletions("");
+			displayStringList(cycleBufferNames);
+		}
+
+		// TODO: mod operation sign not same as dividend as defined in dlang spec!
+		if (i >= 0 || cycleBufferStartOffset > -i)
+		{
+			i = i % cycleBufferNames.length;
+			cycleBufferStartOffset = (cycleBufferStartOffset + i) % cycleBufferNames.length;
+		}
+		else 
+		{
+			i = -((-i) % cycleBufferNames.length);
+			i += cycleBufferStartOffset;
+			if (i < 0)
+				cycleBufferStartOffset = cycleBufferNames.length + i;
+			else
+				cycleBufferStartOffset = i;
+		}
+		app.previewBuffer(cycleBufferNames[cycleBufferStartOffset]);
+		navigateTo(cycleBufferStartOffset);
+	}
+
+	void endCycleBufferMode()
+	{
+		app.showBuffer(cycleBufferNames[cycleBufferStartOffset]);
+		cycleBufferNames.length = 0;
+		cycleBufferStartOffset = -1;
 	}
 
 	@property
@@ -248,7 +374,7 @@ class CommandControl : Widget
 			if (b)
 			{
 				resumeWidgetID = window.getKeyboardFocusWidget().id;
-				setKeyboardFocusWidget();
+				commandField.setKeyboardFocusWidget();
 				visible = true;
 			}
 			else
@@ -266,15 +392,15 @@ class CommandControl : Widget
 	void setCommand(string cmd)
 	{
 		completionWidget.bufferView.clear();
-		bufferView.cursorToBeginningOfLine();
-		bufferView.deleteToEndOfLine();
-		bufferView.append(cmd);
+		commandField.bufferView.cursorToBeginningOfLine();
+		commandField.bufferView.deleteToEndOfLine();
+		commandField.bufferView.append(cmd);
 	}
 
 	private auto getActiveCommand()
 	{
 		// Parse last line of buffer and offer autocomplete if possible
-		auto l = std.conv.text(bufferView.lastLine);
+		auto l = std.conv.text(commandField.bufferView.lastLine);
 		auto cmdName = std.string.munch(l, "^ ");
 		struct GetActiveCommandData
 		{
@@ -300,6 +426,15 @@ class CommandControl : Widget
 	}
 
 	
+	void displayStringList(string[] list)
+	{
+		dstring comps;
+		foreach (c; list)
+			comps ~= dtext(c ~ " \n");
+
+		completionWidget.bufferView.clear(comps);
+		completionWidget.bufferView.bufferOffset = 0;
+	}
 
 	//bool handleBufferChanged(BufferView b)
 	void handleBufferChanged(BufferView b, BufferView.BufferString,uint)
@@ -315,14 +450,7 @@ class CommandControl : Widget
 
 		//completionWidget.visible = true;
 		auto completions = cmdData.cmd.getCompletions(std.variant.Variant(cmdData.rest));
-
-		dstring comps;
-		foreach (c; completions)
-			comps ~= dtext(c ~ " \n");
-
-		completionWidget.bufferView.clear(comps);
-		completionView.bufferOffset = 0;
-		completionStyler.lineHighlighted = 0;
+		displayStringList(completions);
 
 		// std.stdio.writeln("rest '", cmdData.rest, "'");
 version(oldvw)
@@ -383,10 +511,10 @@ version(oldvw)
 			completionText = completions[0];
 		}
 
-		bufferView.remove(-prefix.length);
+		commandField.bufferView.remove(-prefix.length);
 		//completionWidget.visible = true;
 		completionWidget.bufferView.clear();
-		bufferView.insert(dtext(completionText));
+		commandField.bufferView.insert(dtext(completionText));
 	}
 
 	void executeCommand()
@@ -403,9 +531,10 @@ version(oldvw)
 		import std.range;
 
 		auto cmd = getActiveCommand();
-		auto completions = cmdData.cmd.getCompletions(std.variant.Variant(cmdData.rest));
+		auto var = std.variant.Variant(cmdData.rest);
+		auto completions = cmdData.cmd.getCompletions(var);
 		auto res = completions.dropExactly(completionStyler.lineHighlighted);
-		cmd.cmd.execute(std.variant.Variant(res.front));
+		cmd.cmd.execute(res.empty ? var : std.variant.Variant(res.front));
 		setCommand("");
 		//window.app.
 	}

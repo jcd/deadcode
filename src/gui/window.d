@@ -37,8 +37,8 @@ class Window : Widget
 
 	std.variant.Variant userData;
 	WindowID id;
-	StyleSet styleSet;
-	
+	StyleSheet styleSheet;
+
 	// emit(this)
 	mixin Signal!(Window) onUpdate;
 

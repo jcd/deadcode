@@ -34,7 +34,7 @@ class TextRenderer(Text) : WidgetFeature
 		//Style _selectionStyle;
 
 		//TextSelectionModel _selectionModel;
-		StyledText!Text _styledText;
+		TextStyler!Text _textStyler;
 		Model _cursorModel = null;
 		TextBoxLayout _layout;
 		bool _multiLine = true;
@@ -42,7 +42,7 @@ class TextRenderer(Text) : WidgetFeature
 		enum _isBasicText = ! hasMember!(Text, "dirty");
 	}
 
-	// Tmp solution until proper styleset and selectors are supported
+	// Tmp solution until proper stylesset and selectors are supported
 	Region selection;
 
 	bool cursorEnabled = true;
@@ -56,54 +56,94 @@ class TextRenderer(Text) : WidgetFeature
 			onLayoutChanged(this);
 	}
 
-	this(StyledText!Text _styledText)
+	this(TextStyler!Text _textStyler)
 	{
-		this._styledText = _styledText;
+		this._textStyler = _textStyler;
 		 // TODO: maybe model should be owner of styledText_
-		//assert(StyleSet.builtin.length != 0);
-		//assert(StyleSet.builtin[0].font !is null);
-		//Font f = StyleSet.builtin[0].font;
 		import util.system;
 		this._cursorModel = createQuad(Rectf(0,0,1, 1), gui.resources.material.Material.create(getRunningExecutablePath() ~ "white.png"));
 		// std.stdio.writeln(getRunningExecutablePath() ~ "white.png");
 		// this._cursorModel.material.texture = font.fontMap;
+		_textStyler.text.onInsert.connect(&setDirtyCallback);
+		_textStyler.text.onRemove.connect(&setDirtyCallback);
+		_textStyler.onChanged.connect(&setDirtyCallback);
+	}
+
+	private void setDirtyCallback(Text, Text.BufferString, uint)
+	{
+		_textDirty = true;
+	}
+
+	private void setDirtyCallback()
+	{
+		_textDirty = true;
 	}
 
 	@property 
 	{
 		Text text()
 		{
-			return _styledText.text;
+			return _textStyler.text;
 		}
 
 		void text(Text t)
 		{
 			_textDirty = true;
-			_styledText.text = text;
+			_textStyler.text = text;
 		}
 
-		StyledText!Text styledText()
+		TextStyler!Text textStyler()
 		{
-			return _styledText;
+			return _textStyler;
 		}
 
-		string selectionStyle()
+		void textStyler(TextStyler!Text styler)
 		{
-			return _selectionModel.styleName;
+			if (_textStyler !is null)
+				_textStyler.onChanged.disconnect(&setDirtyCallback);
+			_textStyler = styler;
+			styler.onChanged.connect(&setDirtyCallback);
+			styler.update();
+			_textDirty = true;
 		}
 
-		void selectionStyle(string name)
-		{
-			if (_selectionModel !is null)
-				_selectionModel.styleName = name;
-		}
+		//string selectionStyle()
+		//{
+		//    return _selectionModel.styleName;
+		//}
+		//
+		//void selectionStyle(string name)
+		//{
+		//    if (_selectionModel !is null)
+		//        _selectionModel.styleName = name;
+		//}
 
 		ref bool multiLine()
 		{
 			return _multiLine;
 		}
+
+		Vec2f layoutSize() 
+		{
+			if (_layout.lines.empty)
+				return Vec2f(0,0);
+			Vec2f topLeft = _layout.lines[0].rect.pos;
+			Vec2f bottomRight = _layout.lines[$-1].rect.posMax;
+			return bottomRight - topLeft;
+		}
+
+		bool textDirty() const
+		{
+			return _textDirty;
+		}
+
+		void textDirty(bool d)
+		{
+			_textDirty = d;
+		}
 	}
 	
+
 	/*
 	void runCommand(string commandName, Variant data)
 	{
@@ -118,28 +158,6 @@ class TextRenderer(Text) : WidgetFeature
 			c.execute(data);
 	}
 	*/
-
-	override EventUsed send(Event event, Widget widget)
-	{
-		if (!widget.isKeyboardFocusWidget())
-			return EventUsed.no;
-
-		switch (event.type)
-		{
-			case EventType.Text: // KeyBindings listen on KeyDown but here we listen on Text ie. last keybinding char gets here!! :(
-				text.insert(event.ch); // put text at cursor
-				//std.stdio.writeln(event.ch, " ", std.conv.to!string(event.mod));
-				return EventUsed.yes;
-			default:
-				break;
-		}
-
-		// TODO: isn't behavior just a event -> edit mapping e.g. command
-		// TODO: have several kinds of behaviours for app, window, textview. 
-		//       App and window should have the chance to grab events before textview
-		//EditorBehavior.current.onEvent(event, bufferView);
-		return EventUsed.no;
-	}
 	
 	override void update(Widget widget)
 	{
@@ -148,7 +166,15 @@ class TextRenderer(Text) : WidgetFeature
 
 	//BoxModel _box;
 
-	override void draw(Widget widget)
+	void ensureLayedOut(Widget widget)
+	{
+		import std.math;
+		float szX = isNaN(_layout.bounds.w) ? 100000 : _layout.bounds.w;
+		float szY = isNaN(_layout.bounds.h) ? 100000 : _layout.bounds.h;
+		updateLayout(widget, Vec2f(szX, szY));
+	}
+
+	private void updateLayout(Widget widget, Vec2f layoutSize)
 	{
 		// Issues: 
 		//   1, Cannot calc x offset correct when not using monotype because of the simple rendering we are doing.
@@ -167,72 +193,72 @@ class TextRenderer(Text) : WidgetFeature
 	
 		// Now calc the column and row of the cursor in order to find out the x and y coord:
 		// TODO: do
+		if (layoutSize.y == 0f || (!_textDirty && _layout.bounds.size == layoutSize))
+		  return;
+
+		//if (layoutSize.y == 0f)
+			//return;
 		
-		if (widget.rect.h == 0f)
-			return;
+		
 
-		if (_model is null)
-		{
-			_model = new TextModel; //(styleSet);
-			//_box = new BoxModel(Sprite(Rectf(0,0,16,16)), RectfOffset(6,6,6,6));
-			//_box = new BoxModel(Sprite(Rectf(0,0,16,16)));
-			//_box.color = Vec3f(0.7, 0.7, 0.7);
-		}
-
-		Mat4f transform;
-		widget.getScreenToWorldTransform(transform);
 		//auto transform = Mat4f.makeTranslate(Vec3f(-1,1,0));
-		
-		StyleSet styleSet = widget.window.styleSet;
-		//if (selectionStyle is null)
-		//    selectionStyle = styleSet.createStyle();
 
 		static if (_isBasicText)
 		{
 			if (_textDirty) 
 			{
-				updateTextModelMultiline(text, widget, styleSet, 0);			
+				updateTextModel(layoutSize, widget);	
 			}
 		}
 		else
 		{
 			if (true || _textDirty || text.dirty)
 			{
-				Style style = styleSet.getStyle(DefaultStyleName);
+				Style style = widget.style;
+				if (style is null)
+					return;
 				Font font = style.font;
-				text.visibleLineCount = _multiLine ? cast(uint) (widget.rect.size.y / font.fontLineSkip) : 1;
-				updateTextModelMultiline(text, widget, styleSet, text.bufferOffset);
+				text.visibleLineCount = _multiLine ? cast(uint) (layoutSize.y / font.fontLineSkip) : 1;
+				updateTextModel(layoutSize, widget);
 				text.dirty = false;
 			}
 		}
 
-		//_box.material = styleSet.getStyle("box").background;
-		//_box.rect = Rectf(0, 0, 64, 64);
-		//_box.draw(widget.window.MVP * transform);
-
 		if (_selectionModel is null)
 		{
-			_selectionModel = new TextSelectionModel(_layout, _styledText.text.selection);
-			_selectionModel.styleName = "box";
+			_selectionModel = new TextSelectionModel(_layout, _textStyler.text.selection);
+			_selectionModel.style = widget.getStyleForClass("selection");
 		}
 		else
 		{
+			//if (_selectionModel.style is null)
+				_selectionModel.style = widget.getStyleForClass("selection");
+			
 			_selectionModel.textLayout = _layout;
-//			if (_selectionModel.selection != _styledText.text.selection)
+//			if (_selectionModel.selection != _textStyler.text.selection)
 			//{
-				_selectionModel.selection = _styledText.text.selection;
-				_selectionModel.update(_styledText.text.bufferOffset);
+				_selectionModel.selection = _textStyler.text.selection;
+				_selectionModel.update(_textStyler.text.bufferOffset);
 			//}
 		}
 		
 		//Mat4f ofstransform;
 		//getOffsetTransform(widget, ofstransform);
+	}
+
+	override void draw(Widget widget)
+	{
+		Vec2f layoutSize = widget.rect.size;
+		RectfOffset padding = widget.style.padding;
+		updateLayout(widget, Vec2f(layoutSize.x - padding.horizontal, layoutSize.y - padding.vertical));
 
 		// Rectf wrect = widget.window.windowToWorld(widget.rect);
-		Mat4f trx = widget.window.MVP * transform;
-		
+		Mat4f transform;
+		widget.getScreenToWorldTransform(transform);
+		Mat4f trx = widget.window.MVP * transform;		
 		_selectionModel.draw(trx);
 		_model.draw(trx);
+		
 
 		//uint glyphLineIndex = view.cursorPoint - view.buffer.startOfLine(view.cursorPoint);
 		// float cursorLineOffset = _layout.lines[row].glyphWorldPos(glyphLineIndex).x;
@@ -242,18 +268,32 @@ class TextRenderer(Text) : WidgetFeature
 		{
 			if (cursorEnabled)
 			{
-				Style style = styleSet.getStyle(DefaultStyleName);
+				Style style = widget.style;
 				drawCursor(widget, transform, style.font.fontLineSkip);
 			}
 		}
 	}
-		
-	void updateTextModelMultiline(TextRange)(TextRange textRange, Widget widget, StyleSet styleSet, uint textOffset)
+	
+	void updateTextModelForWidth(float width, Widget widget)
 	{
+		updateTextModel(Vec2f(width, 1000000000), widget);
+	}
+
+	void updateTextModel(Vec2f layoutSize, Widget widget)
+	{
+
+		
+		if (_model is null)
+		{
+			_model = new TextModel; 
+			//_box = new BoxModel(Sprite(Rectf(0,0,16,16)), RectfOffset(6,6,6,6));
+			//_box = new BoxModel(Sprite(Rectf(0,0,16,16)));
+			//_box.color = Vec3f(0.7, 0.7, 0.7);
+		}
 
 		// Update style region set.
 		// TODO: only on changes
-		_styledText.update(styleSet);
+		//_textStyler.update();
 
 		// TODO: get transform
 		// Vec2f worldSize = widget.window.pixelSizeToWorld(widget.rect.size);
@@ -262,23 +302,34 @@ class TextRenderer(Text) : WidgetFeature
 		_model.resetGlyphPositions(); // TODO: this call should probably be part of clear()
 
 		// _layout = TextBoxLayout(_model, Rectf(0, 0, worldSize.x, worldSize.y));
-		
-		Vec2f winSize = widget.size;
+		RectfOffset padding = widget.style.padding;
 		_layout.updateFontMaps();
-		_layout = TextBoxLayout(_model, Rectf(0, 0, winSize.x, winSize.y));
+		_layout = TextBoxLayout(_model, Rectf(padding.left, padding.top, layoutSize.x, layoutSize.y));
 		
-		foreach (r; _styledText.regionSet)
+		static if (__traits(compiles, text.bufferOffset))
+			uint textOffset = text.bufferOffset;
+		else
+			uint textOffset = 0;
+
+		static if (__traits(compiles, text.visibleLineCount))
+			uint visibleLineCount = text.visibleLineCount;
+		else
+			uint visibleLineCount = 10000000;
+
+		foreach (r; _textStyler.regionSet)
 		{
-			if (_layout.lineCount > text.visibleLineCount)
+			if (_layout.lineCount > visibleLineCount)
 				break;
 
 			if (r.b <= textOffset) continue;
 			if (r.contains(textOffset))
 			{
-				r.a = text.bufferOffset;
+				r.a = textOffset;
 			}
 			
-			Style style = styleSet.getStyle(_styledText.styleIDToName(r.id));
+			string styleName = _textStyler.styleIDToName(r.id);
+			Style style = styleName is null ? widget.style : widget.getStyleForClass(styleName); //;
+
 			//style.font.updateFontMap();
 			auto intersectParts = r.intersect3(selection);
 			if (!intersectParts.before.empty)
@@ -321,32 +372,6 @@ class TextRenderer(Text) : WidgetFeature
 		layoutChanged();
 	}
 
-	/*
-	void updateTextModelSingleline(Widget widget, StyleSet styleSet)
-	{
-		// Update style region set.
-		// TODO: only on changes
-		_styledText.update(styleSet);
-
-		// TODO: get transform
-		Vec2f worldSize = widget.window.pixelSizeToWorld(widget.rect.size);
-		_model.resetGlyphPositions();
-
-		auto lb = TextModel.LineBox(Rectf(0, 0, worldSize.x, worldSize.y), false, true, false, float.init, 0);
-		size_t charsUsed = 0;
-
-		foreach (r; _styledText.regionSet)
-		{
-			if (charsUsed >= text.length || lb.isFull) break;
-			charsUsed += _model.add(lb, text.buffer[r.a .. r.b], styleSet[r.id]);	
-		}
-
-		if (charsUsed == 0)
-			_model.clear(); // Clear model buffers
-		
-		_textDirty = false;
-	}
-*/
 	// World rect relative to widget
 	Rectf getRectForViewIndex(uint idx)
 	{
@@ -480,7 +505,7 @@ class TextRenderer(Text) : WidgetFeature
 	{
 		// TODO: Maybe this should be handled by the textrenderer ie. click detection. Maybe not.
 		// Naive brute force finding of glyph pos
-		uint i = _styledText.text.bufferOffset;
+		uint i = _textStyler.text.bufferOffset;
 		// uint i = bufferView.bufferOffset;
 
 		// Vec2f mousePos = event.mousePos;
@@ -501,7 +526,7 @@ class TextRenderer(Text) : WidgetFeature
 		}
 		if (found)
 			return GlyphHit(true, i, glyphRect);
-		return GlyphHit(false, glyphRect.x == float.nan || _styledText.text.bufferOffset == i ? uint.max : i-1, glyphRect);
+		return GlyphHit(false, glyphRect.x == float.nan || _textStyler.text.bufferOffset == i ? uint.max : i-1, glyphRect);
 	}
 
 	void drawCursor(Widget widget, ref Mat4f transform, float fontLineSkip)
@@ -544,8 +569,8 @@ class TextRenderer(Text) : WidgetFeature
 @property auto content(Text)(Widget widget, Text view)
 {
 //	auto styledText = new StyledText!Text(view, new DSourceStyler!Text());
-	auto styledText = new StyledText!Text(view, DefaultStyler!Text.the);
-	auto tr = new TextRenderer!Text(styledText);
+	auto textStyler = new TextStyler!Text(view);
+	auto tr = new TextRenderer!Text(textStyler);
 	widget.features ~= tr;
 	return tr;
 }

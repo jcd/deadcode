@@ -74,7 +74,7 @@ class GUI
 	ShaderProgramManager shaderProgramManager;
 	MaterialManager materialManager;
 	FontManager fontManager;
-	StyleSetManager styleSetManager;
+	StyleSheetManager styleSheetManager;
 
 	/*
 	static @property GUI the()
@@ -101,13 +101,13 @@ class GUI
 		g.textureManager = TextureManager.create(g.ioManager);
 		g.materialManager = MaterialManager.create(g.ioManager, g.shaderProgramManager, g.textureManager);
 		
-		g.styleSetManager = StyleSetManager.create(g.ioManager, g.materialManager, g.fontManager);
+		g.styleSheetManager = StyleSheetManager.create(g.ioManager, g.materialManager, g.fontManager);
 
 		g.locationsManager.addListener(g.fontManager);
 		g.locationsManager.addListener(g.shaderProgramManager);
 		g.locationsManager.addListener(g.textureManager);
 		g.locationsManager.addListener(g.materialManager);
-		g.locationsManager.addListener(g.styleSetManager); 
+		g.locationsManager.addListener(g.styleSheetManager); 
 
 		return g;
 
@@ -120,11 +120,6 @@ class GUI
 		//       and let them decide what to manage.
 		// TODO: Make a resource config file. Contains folders to scan and urls to look into for resources.
 
-		// fm.declare("default");
-		// mm.declare("default");
-		// mm.declare("edit-background");
-
-		// ssm.createBuiltinStyleSet(fm, mm);
 	}
 
 	this(graphics.graphicssystem.GraphicsSystem gs)
@@ -401,8 +396,9 @@ class GUI
 		if (activeWindow is null)
 			activeWindow = win;
 		_windows[win.id] = win;
-		auto styleSet = styleSetManager.get("default");
-		win.styleSet = styleSet;
+
+		auto styleSheet = styleSheetManager.get("default");
+		win.styleSheet = styleSheet;
 
 		Event ev;
 		ev.type = EventType.Resize;

@@ -40,6 +40,7 @@ class NineGridRenderer : WidgetFeature
 	{
 		this.styleName = styleName;
 		model = new BoxModel(Sprite(0,0,16,16), RectfOffset(6,6,6,6));
+		// model = new BoxModel(Sprite(0,0,160,160), RectfOffset(6,6,6,6));
 		//model = createQuad(Rectf(0,0,1,1));
 	}
 /*
@@ -79,13 +80,13 @@ class NineGridRenderer : WidgetFeature
 		
 		auto wr = widget.rect;
 		model.rect = Rectf(0,0, wr.size);
-		Style style = widget.window.styleSet.getStyle(styleName);
+		Style style = widget.style; 
 		auto mat = style.background;
 		model.material = mat;
 		
 		model.draw(widget.window.MVP * transform);
 		
-		//Style style = widget.window.styleSet.getStyle(styleName);
+		//Style style = widget.window.styleddSet.getStyle(styleName);
 		//model.material = style.background;
 		//const Rectf r = Rectf(widget.rect);
 		//Rectf wrect = widget.window.windowToWorld(r);

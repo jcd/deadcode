@@ -7,6 +7,7 @@ import gui.widgetfeature.constraintlayout;
 import gui.widgetfeature.ninegridrenderer;
 import gui.widgetfeature.textrenderer;
 import gui.styledtext;
+import gui.style;
 import math.rect;
 import math.region;
 import math.smallvector;
@@ -48,15 +49,18 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 
 		auto v = app.bufferViewManager.create("Build messages");
 
-		auto styledText = new StyledText!BufferView(v, new ErrorListStyler!BufferView());
-		textRenderer = new TextRenderer!BufferView(styledText);
+		auto textStyler = new ErrorListStyler!BufferView(v);
+		textRenderer = new TextRenderer!BufferView(textStyler);
 		features ~= textRenderer;
 
 		// textRenderer = content(this, v);
-		size = Vec2f(-1, 200);
+		// size = Vec2f(-1, 200);
+		size = Vec2f(10, 200);
 		alignToWindow(this, Anchor.BottomRight, rect.size);
 		acceptsKeyboardFocus = true;
 		lines = 0;
+		// TODO: Remove line below to enable errorlist
+		visible = false;
 	}
 	
 	override EventUsed onMouseScroll(Event event)
@@ -128,10 +132,15 @@ class ErrorListStyler(Text) : TextStyler!Text
 	enum typeID = 2;
 
 	enum errorLineRe = "(.*?)(\\(\\d+\\)): (Error.*)"d;
-
-	override void update(RegionSet rset, Text text)
+	
+	this(Text text)
 	{
-		rset.clear();
+		super(text);
+	}
+
+	override void update()
+	{
+		regionSet.clear();
 
 		import std.array;
 		auto buf = array(text[0..text.length]);
@@ -150,22 +159,24 @@ class ErrorListStyler(Text) : TextStyler!Text
 			auto filePath = m.captures[1];
 			auto end = begin + filePath.length;
 			if (begin != lastEndIdx)
-				rset.add(lastEndIdx, begin, 0);
-			rset.add(begin, end, declarationID);			
+				regionSet.merge(lastEndIdx, begin, 0);
+			regionSet.merge(begin, end, declarationID);			
 
 			auto lineInFile = m.captures[2];
 			begin = end;
 			end = begin + lineInFile.length;
-			rset.add(begin, end, typeID);			
+			regionSet.merge(begin, end, typeID);			
 
 			auto errorMessage = m.captures[3];
 			begin = end + 1;
 			end = begin + errorMessage.length;
-			rset.add(begin, end, 0);
+			regionSet.merge(begin, end, 0);
 			lastEndIdx = end;
 		}
 
 		if (lastEndIdx != text.length)
-			rset.add(lastEndIdx, text.length, 0);
+			regionSet.merge(lastEndIdx, text.length, 0);
+
+		onChanged.emit();
 	}
 }

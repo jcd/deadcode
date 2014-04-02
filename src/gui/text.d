@@ -92,7 +92,8 @@ class TextModel
 		textModel.mesh.setBuffer(colorBuf, 2, 1);	
 		textModel.mesh.setBuffer(vertColBuf, 3, 2);	
 		textModel.blend = true;
-		
+		textModel.blendMode = 0;
+
 		textModel.material = mat.manager.declare();
 		textModel.material.shader = mat.shader;
 		textModel.material.texture = fontMap;
@@ -327,7 +328,7 @@ class TextSelectionModel
 	BoxModel[] models; // Model representing the selected area
 	TextBoxLayout textLayout;
 	Region selection;
-	string styleName = "default";
+	Style style;
 
 	this(TextBoxLayout layout, Region sel)
 	{
@@ -337,6 +338,9 @@ class TextSelectionModel
 	
 	void update(int textOffset)
 	{
+		if (style is null)
+			return;
+
 		// A region for each selected parts of the lines. Not that only the beginning and ending lines
 		// can have regions that are a partial line.
 		// TODO: use appender		
@@ -346,7 +350,6 @@ class TextSelectionModel
 			float lineHeight;
 		}
 		Line[] lines; 
-		Style style = Window.active.styleSet.getStyle(styleName);
 
 		// A region may span several lines and the linebox info must be probed to find out
 		// what part belongs where. Additionally the linebox knows about the layed out line height.
@@ -442,7 +445,9 @@ class TextSelectionModel
 
 	void draw(Mat4f transform)
 	{
-		Style style = Window.active.styleSet.getStyle(styleName);
+		if (style is null)
+			return;
+
 		auto mat = style.background;
 		foreach (m; models)
 		{

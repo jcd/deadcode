@@ -178,6 +178,41 @@ class Widget
 			return _rect;
 		}
 
+		//const(Rectf) rectStyled() 
+		//{
+		//    auto st = style;
+		//    switch (st.position)
+		//    {
+		//        case Style.Position.fixed:
+		//            return Rectf( style.left, style.top, _rect.w - style.positionOffset.horizontal, _rect.h - style.positionOffset.vertical);
+		//        case Style.Position.absolute:
+		//            Widget p = lookFirstPositionedParent();
+		//            Rectf posParentRect = p.rectStyled;
+		//            return Rectf(posParentRect.x + style.left, posParentRect.y + style.top, _rect.w - style.positionOffset.horizontal, _rect.h - style.positionOffset.vertical);
+		//        case Style.Position.relative:
+		//            return Rectf( _rect.x + style.left,  _rect.y + style.top, _rect.w - style.positionOffset.horizontal, _rect.h - style.positionOffset.vertical);
+		//        case Style.Position.static_:
+		//            break;
+		//    }
+		//    return _rect;
+		//}
+
+		// Like .rect but with padding applied
+		const(Rectf) contentRect()
+		{
+			auto st = style;
+			return _rect.offset(st.padding);
+		}
+
+		// Like .rect but with padding applied
+		void contentRect(Rectf r)
+		{
+			auto st = style;
+			rect = _rect.offset(st.padding.reverse());
+		}
+
+		
+
 		const(Vec2f) size() const
 		{
 			return _rect.size;

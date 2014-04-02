@@ -31,19 +31,19 @@ interface IOProtocol
 	IO open(URI uri);
 }
 
-class ScanProtocol : IOProtocol
-{
-	bool canHandle(URI uri)
-	{
-		import std.algorithm;
-		return uri.schema == "scan";
-	}
-
-	IO open(URI uri)
-	{
-		return null;
-	}
-}
+//class ScanProtocol : IOProtocol
+//{
+//    bool canHandle(URI uri)
+//    {
+//        import std.algorithm;
+//        return uri.schema == "scan";
+//    }
+//
+//    IO open(URI uri)
+//    {
+//        return null;
+//    }
+//}
 
 class IOManager
 {	

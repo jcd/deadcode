@@ -143,6 +143,33 @@ class Widget
 			size = Vec2f(sz.x, sz.y);
 		}
 
+		const(Vec2f) preferredSize() 
+		{
+			return size;
+		}
+
+		void preferredSize(Vec2f prefSize) 
+		{
+		}
+
+		const(Vec2f) minSize() 
+		{
+			return preferredSize;
+		}
+
+		void minSize(Vec2f mSize) 
+		{
+		}
+
+		const(Vec2f) maxSize() 
+		{
+			return preferredSize;
+		}
+
+		void maxSize(Vec2f mSize) 
+		{
+		}
+
 		ref float x() 
 		{
 			return _rect.x;

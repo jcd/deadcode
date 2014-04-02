@@ -384,6 +384,14 @@ class GUI
 			std.stdio.writeln("Event with no window target received ", e);
 	}
 
+	void repaintAllWindows()
+	{
+		foreach(winID, win; _windows)
+		{
+			win.repaint();
+		}
+	}
+
 	Window createWindow(string name = "MainWindow", int width = 1280, int height = 720)
 	{
 		Window win = new Window(name, width, height);

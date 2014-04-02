@@ -103,6 +103,13 @@ class Window : Widget
 		}
 	}
 
+	void repaint()
+	{
+		rect = rect;
+		foreach (wID, w; widgets)
+			w.rect = w.rect;
+	}
+
 	Widget getWidget(string name)
 	{
 		auto w = name in widgetNameMap;

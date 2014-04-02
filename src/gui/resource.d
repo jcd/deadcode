@@ -2,7 +2,9 @@ module gui.resource;
 
 import core.uri;
 
+import std.datetime;
 import std.exception;
+import std.signals;
 
 import io.iomanager;
 
@@ -24,7 +26,7 @@ interface IResource(T)
 	void unload();
 }
 
-/** Base class for a resource such as Texture or StyleSet
+/** Base class for a resource such as Texture or StyleSheet
 A Resource can be in different load states:
 * unknown  : an instance does not exists but this is the state for removed or unknown resources in a ResourceManager
 * declared : known by a ResourceManager by name/handle but no Resource available to reference
@@ -103,7 +105,7 @@ enum NullHandle = 0;
 
 interface IResourceManager
 {
-	void onLocationFound(URI uri);
+	void onLocationFound(URI uri, size_t size, SysTime lastModified);
 }
 
 
@@ -129,6 +131,11 @@ public:
 		}
 	}
 	
+	this()
+	{
+		_defaultLoader = new DefaultLoader;
+	}
+
 	// Declare a resource in the manager making it possible to get a reference to the unset/unloaded resource.
 	// If name is null a name will be generated
 	// An optional URI can be provided.
@@ -141,11 +148,20 @@ public:
 	
 	final private ResourceState lookup(URI uri)
 	{
+		import std.stdio;
 		foreach (k,v; _resourcesByHandle)
 		{
-			if (v.uri == uri)
+			URI theURI = uri;
+			string _name = v.resource.name;
+
+			//writeln("looking up " ~ uri.toString(), " ", v.uri is null ? "" : v.uri.toString());
+			if (v.uri !is null && v.uri == uri)
+			{
+				//writeln("could lookup " ~ uri.toString());
 				return v;
+			}
 		}
+		writeln("could NOT lookup " ~ uri.toString());
 		return null;
 	}
 
@@ -267,30 +283,37 @@ public:
 		return NullHandle;
 	}
 */
-	
+	class DefaultLoader : IResourceLoader!T
+	{
+		bool load(T r, URI uri)
+		{
+			enforceEx!ResourceException(_ioManager, std.string.format("IOManager not set on %s", this.stringof));
+
+			if (uri is null)
+				return false;
+
+			// TODO: Maybe just store a pointer to the serializer in ResourceState?
+			foreach (s; _serializers)
+			{
+				if (s.canHandle(uri))
+				{
+					IO io = _ioManager.open(uri);
+					s.deserialize(r, io);
+					return true;
+				}
+			}
+			return false;
+		}
+	}
+
 	protected bool load(ResourceState state)
 	{
 		state.state = LoadState.loading;
-		
-		if (state.loader !is null)
-			return state.loader.load(state.resource, state.uri);
 
-		enforceEx!ResourceException(_ioManager, std.string.format("IOManager not set on %s", this.stringof));
+		if (state.loader is null)
+			state.loader = _defaultLoader;
 		
-		if (state.uri is null)
-			return false;
-
-		// TODO: Maybe just store a pointer to the serializer in ResourceState?
-		foreach (s; _serializers)
-		{
-			if (s.canHandle(state.uri))
-			{
-				IO io = _ioManager.open(state.uri);
-				s.deserialize(state.resource, io);
-				return true;
-			}
-		}
-		return false;
+		return state.loader.load(state.resource, state.uri);
 	}
 
 	final bool load(string name, URI uri = null)
@@ -473,8 +496,18 @@ public:
 	loc.load(); // force Location to scan for files and in turn callback the manager
 	---
 	*/
-	void onLocationFound(URI uri)
+	void onLocationFound(URI uri, size_t size, SysTime lastModified)
 	{
+		// Maybe the resource is already registered and we need to update
+		foreach (k, v; _resourcesByHandle)
+		{
+			if (v.uri == uri && v.lastModified != lastModified)
+			{
+				onSourceChanged.emit(v.resource);
+				return;
+			}
+		}
+		
 		import std.path;
 		foreach (s; _serializers)
 		{
@@ -510,6 +543,21 @@ public:
 		locationManager.find(uriPattern);
 	}
 	+/
+
+	//void detectSourceChanges()
+	//{
+	//    foreach (k, v; _resourcesByHandle)
+	//    {
+	//        v.loader
+	//    }
+	//}
+
+	// The resource manager will detect if source has changed and emit this signal.
+	// It will not reload the resource since that could possible break current users
+	// of the resource. It is up to the signal listener to do that if needed by calling
+	// T.load().
+	// emit(T)
+	mixin Signal!(T) onSourceChanged;
 
 protected:
 	
@@ -549,6 +597,7 @@ protected:
 		T resource;
 		LoadState state;
 		Loader loader;
+		SysTime lastModified;
 	}
 	
 	Handle _nextHandle;
@@ -560,6 +609,7 @@ protected:
 	ResourceState[Handle] _resourcesByHandle;
 	ResourceState[string] _resourcesByName;
 	Serializer[] _serializers;
+	DefaultLoader _defaultLoader;
 	IOManager _ioManager; // Need an IO manager because resources can be loaded/unloaded at will
 }
 

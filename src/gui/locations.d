@@ -137,17 +137,75 @@ class Locations : Resource!Locations
 	}
 }
 
+/**
+Following happens:
+
+1, LocationsManager.scan get called with an uri pattern
+2, A new Locations resource is declared
+4, The LocationsManager scans the URI of the resource
+5, Files are added the the Locations resource
+6, Runs through files found and send a onLocationFound on all listeners (e.g. other ResourceManagers)
+7, Other ResourceManagers check if they support the file URI
+8, If supported then onSourceChanged is emitted in case URI is already known or the URI is declared with the ResourceManager
+*/
 class LocationsManager : ResourceManager!Locations
 {
 	private IResourceManager[] _listeners;
-
+	
+	enum char[4] globChars = ['*', '?', '[', '{' ];
+	
 	static LocationsManager create(IOManager iom)
 	{
 		auto lm = new LocationsManager;
-		auto s = new LocationsSerializer;
+	//	auto s = new LocationsSerializer;
 		lm.ioManager = iom;
-		lm.addSerializer(s);
+		//		lm.addSerializer(s);
 		return lm;
+	}
+
+	void scan(URI uriPattern)
+	{
+		// This will declare the Locations resource if needed
+		// Then call load(ResourceState) below
+		super.load(uriPattern.toString(), uriPattern); 
+	}
+
+	override protected bool load(ResourceState state)
+	{
+		if (state.uri is null)
+			return false;
+		
+		state.state = LoadState.loading;
+		scanIntoLocations(state.resource);
+		onResourceLoaded(state.resource, null);
+		return true;
+	}
+
+	void scanIntoLocations(Locations res)
+	{
+		import std.file;
+		import std.array;
+		import std.string;
+
+		//assert(res.uri.toString()[0..5] == "scan:");
+
+		// res.uriPattern = res.uri.toString()[5..$]; // strip "scan:"
+		res.uriPattern = res.uri.toString();
+		string baseURI = res._baseURI.toString();
+
+		auto locs = appender!(Location[])();
+
+		foreach (DirEntry e; dirEntries(baseURI, res._uriPattern[baseURI.length..$], SpanMode.depth, true))
+		{
+			if (!e.isFile)
+				continue;
+
+			string name = e.name.tr(r"\", "/");
+			locs.put(Location(new URI(name), cast(uint)e.size, e.timeLastModified));
+		}
+
+		res._locations = locs.data;
+		res.manager.onResourceLoaded(res, null);
 	}
 
 	LocationsManager addListener(IResourceManager mgr)
@@ -219,45 +277,20 @@ class LocationsManager : ResourceManager!Locations
 		foreach (listn; _listeners)
 		{
 			foreach (loc; res._locations)
-				listn.onLocationFound(loc.uri);
+				listn.onLocationFound(loc.uri, loc.size, loc.lastModified);
 		}
 	}
 }
 
-class LocationsSerializer: ResourceSerializer!Locations
-{
-	enum char[4] globChars = ['*', '?', '[', '{' ];
-
-	override bool canHandle(URI uri)
-	{
-		// TODO: restrict to local fs paths
-		return true;
-	}
-
-	override void deserialize(Locations res, IO io)
-	{
-		import std.file;
-		import std.array;
-		import std.string;
-
-		assert(res.uri.toString()[0..5] == "scan:");
-
-		res.uriPattern = res.uri.toString()[5..$]; // strip "scan:"
-		
-		string baseURI = res._baseURI.toString();
-
-		auto locs = appender!(Location[])();
-	
-		foreach (DirEntry e; dirEntries(baseURI, res._uriPattern[baseURI.length..$], SpanMode.depth, true))
-		{
-			if (!e.isFile)
-				continue;
-	
-			string name = e.name.tr(r"\", "/");
-			locs.put(Location(new URI(name), cast(uint)e.size, e.timeLastModified));
-		}
-
-		res._locations = locs.data;
-		res.manager.onResourceLoaded(res, this);
-	}
-}
+//class LocationsSerializer: ResourceSerializer!Locations
+//{
+//    
+//
+//    override bool canHandle(URI uri)
+//    {
+//        // TODO: restrict to local fs paths
+//        return true;
+//    }
+//
+//
+//}

@@ -356,6 +356,9 @@ class GUI
 							if (w !is null)
 								w.size = Vec2f(e.window.data1, e.window.data2);
 							break;
+						case SDL_WINDOWEVENT_FOCUS_GAINED:
+							ev.type = EventType.Focus;
+							break;
 						default:
 							break;
 					}

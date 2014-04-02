@@ -15,7 +15,7 @@ final class SubModel
 	
 	@property valid() const
 	{
-		return material.texture !is null;
+		return material.hasTexture;
 	}
 	
 	void draw(Mat4f transform)
@@ -56,6 +56,8 @@ final class Model
 	SubModel createSubModel()
 	{
 		auto sm = new SubModel();
+		sm.blend = true;
+		sm.blendMode = 1;
 		subModels ~= sm;
 		return sm;
 	}

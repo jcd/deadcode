@@ -7,17 +7,45 @@ import std.stdio;
 import std.string;
 import std.getopt;
 import std.array;
+import std.net.curl;
+import std.regex;
 
 void usage()
 {
-	auto usageTmpl = """tool [-h] <command> [command options...]
+	auto usageTmpl = """tool <command> [command options...]
 Commands
   setup  : Setup development env. e.g. create VS project files.
   build  : Compile and link libraries and executables
   test   : Run tests (building if necessary) optional filter can be provided
   dist   : Create and/or upload installer e.g. tool dist 1.3
+  help   : Takes one of the other commands as sole argument
+  listPublished : list published zips on server 
 """;
  write(usageTmpl);
+}
+
+void commandUsage(string cmd)
+{
+	switch (cmd)
+	{
+		case "setup":
+			setup([], true);
+			break;
+		case "build":
+			build([], true);
+			break;
+		case "test":
+			test([], true);
+			break;
+		case "dist":
+			dist([], true);
+			break;
+		case "listPublished":
+			break;
+		default:
+			writeln("Cannot display help for unknown command " ~ cmd);
+			break;
+	}
 }
 
 void main(string[] args)
@@ -47,8 +75,14 @@ void main(string[] args)
 		case "dist":
 			dist(args);
 			return;
+		case "listPublished":
+			listPublished();
+			return;
 		case "help":
-			usage();
+			if (args.length == 2)
+				usage();
+			else
+				commandUsage(args[2]);
 			return;
 		default:
 			break;
@@ -56,8 +90,14 @@ void main(string[] args)
 	write("Unknown command : " ~ args[1] ~ ". Use -h for help");
 }
 
-void setup(string[] args)
+void setup(string[] args, bool showUsage = false)
 {
+	if (showUsage)
+	{
+		writeln("tool setup");
+		writeln("generates or updates project files from dub file");
+		return;
+	}
 	auto cmd = "dub generate visuald";
 	writeln(cmd);
 	auto res = executeShell(cmd);
@@ -65,8 +105,15 @@ void setup(string[] args)
 	writeln(res.output);
 }
 
-void build(string[] args)
+void build(string[] args, bool showUsage = false)
 {
+	if (showUsage)
+	{
+		writeln("tool build");
+		writeln("build the project taking an optional build config argument");
+		return;
+	}
+
 	auto cmd = "dub build 2>&1";
 	if (args.length > 2)
 		cmd = "dub build --config=" ~ args[2] ~ " 2>&1";
@@ -77,8 +124,14 @@ void build(string[] args)
 //	writeln(res.output);
 }
 
-void test(string[] args)
+void test(string[] args, bool showUsage = false)
 {
+	if (showUsage)
+	{
+		writeln("tool test");
+		writeln("Run all unittest. Takes an optional argument used for filtering output.");
+		return;
+	}
 	
 	string filt = args.length > 2 ? args[2] : "";
 	auto cmd = "dub run --config=unittest";
@@ -94,26 +147,27 @@ void test(string[] args)
 	wait(res.pid);
 }
 
-void dist(string[] args)
+void dist(string[] args, bool showUsage = false)
 {
+	if (showUsage)
+	{
+		writeln("tool dist");
+		writeln("collects build results (but will not build), zips them up and uploads to server.");
+		writeln("accepts two optional arguments:\n\t--uploadTo|-u : a ssh destination dir to upload to");
+		writeln("\t--skipUpload|-s: if set to true the zip is not uploaded (dry run)");
+		return;
+	}
+
 	bool batchMode = false;
-	bool showUsage = false;
 	bool skipUpload = false;
 	string outputVersion = null;
 	auto uploadPath = "jcd@freeze.steamwinter.com:webdownloads/";
 
 	getopt(args,
-		"help|h", &showUsage,
 		"batch|b", &batchMode,
 		// "outputVersion|o", &outputVersion,
 		"uploadTo|u", &uploadPath,
 		"skipUpload|s", &skipUpload);
-
-	if (showUsage)
-	{
-		usage();
-		return;
-	}
 
 	if (args.length < 3)
 	{
@@ -154,8 +208,11 @@ void dist(string[] args)
 	{
 		upload(outputPath, uploadPath);
 		upload("Changelog.txt", uploadPath);
+
+		writeln("On server:");
+		listPublished();
 	}
-}
+}	
 
 void collect(string packRoot)
 {
@@ -288,4 +345,17 @@ bool upload(string from, string to, string pw)
 		writeln("\n\nUploaded to: ", to);
 	}
 	return result;
+}
+
+void listPublished()
+{
+	auto re = r"<a.*?>(.*?)</a>\s+(.*?)\s+(.*?)\s+(.*)";
+	foreach (l; byLine("http://freeze.steamwinter.com/downloads/"))
+	{
+		auto cap = matchFirst(l, re);
+		if (!cap.empty)
+		{
+			writeln(cap[1], " \t", cap[2], " ", cap[3], "\t", cap[4]);
+		}
+	}
 }

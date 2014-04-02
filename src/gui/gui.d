@@ -91,7 +91,7 @@ class GUI
 		auto g = new GUI(gs is null ? new graphics.graphicssystem.OpenGLSystem() : gs);
 
 		g.ioManager = new io.iomanager.IOManager;
-		g.ioManager.add(new io.iomanager.ScanProtocol);
+		// g.ioManager.add(new io.iomanager.ScanProtocol);
 		g.ioManager.add(new io.file.FileProtocol);
 		//io.add(new io.Http);
 

@@ -19,7 +19,7 @@ int main(string args[])
 	version (unittest) 
 	{ 	
 		import test;
-		printStats();
+		printStats(true);
 		return 0;
 	}
 

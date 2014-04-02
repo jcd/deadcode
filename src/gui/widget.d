@@ -52,6 +52,58 @@ class Widget
 	OnEvent[EventType] events;
 
 	WidgetFeature[] features;
+	BoxRenderer _background;
+
+	// Convenience accessors
+	@property BoxRenderer background()
+	{
+		if (style.background is null)
+		{
+			_background = null;
+			return null;
+		} 
+		else if (_background is null)
+		{
+			_background = new BoxRenderer();
+		}
+		return _background;
+	}
+
+	//    foreach (f; features)
+	//    {
+	//        NineGridRenderer r = cast(NineGridRenderer)f;
+	//        if (r)
+	//            return r;
+	//    }
+	//    return null;
+	//}
+
+	//@property bool backgroundEnabled()
+	//{
+	//    return background !is null;
+	//
+	//    foreach (ref f; features)
+	//    {
+	//        NineGridRenderer r = cast(NineGridRenderer)f;
+	//        if (r)
+	//        {
+	//            f = newBg;
+	//        }
+	//    }
+	//
+	//    WidgetFeature item = newBg;
+	//    features = [item] ~ features;
+	//}
+
+	@property Style style()
+	{
+		return window.styleSheet.getStyleForWidget(this);
+	}
+
+	Style getStyleForClass(string className)
+	{
+		return window.styleSheet.getStyleForWidget(this, [className]);
+	}
 
 	bool visible;
 
@@ -463,6 +515,10 @@ class Widget
 				used = (*handler)(event, this);
 		}
 
+		auto bg = background;
+		if (!used && bg !is null)
+			used = bg.send(event, this);
+
 		foreach (f; features)
 		{
 			if (used)
@@ -492,6 +548,10 @@ class Widget
 
 	protected void drawFeatures()
 	{
+		auto bg = background;
+		if (bg !is null)
+			bg.draw(this);
+
 		// Draw features
 		foreach (f; features)
 		{
@@ -539,10 +599,13 @@ class Widget
 			
 			//onLayout();
 			//for (int j = 0; j < 10000; j++) 
-				foreach (f; features)
-				{
-					f.update(this);
-				}			
+			auto bg = background;	
+			if (bg !is null)
+				bg.update(this);
+			foreach (f; features)
+			{
+				f.update(this);
+			}			
 		}
 
 		// TODO: remove from here since win.update runs on all widget ie. widget that does not

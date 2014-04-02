@@ -50,10 +50,10 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<ctrl> + <delete>", "edit.deleteWordAfter");
 		set.setKeyBinding("<ctrl> + <left>", "edit.cursorToWordBefore");
 		set.setKeyBinding("<ctrl> + <right>", "edit.cursorToWordAfter");
-		set.setKeyBinding("<left>", "edit.cursorToCharBefore");
-		set.setKeyBinding("<right>", "edit.cursorToCharAfter");
-		set.setKeyBinding("<up>", "edit.cursorToCharAbove");
-		set.setKeyBinding("<down>", "edit.cursorToCharBelow");
+		set.setKeyBinding("<left>", "navigate.left");
+		set.setKeyBinding("<right>", "navigate.right");
+		set.setKeyBinding("<up>", "navigate.up");
+		set.setKeyBinding("<down>", "navigate.down");
 		set.setKeyBinding("<shift> + <left>", "edit.selectToCharBefore");
 		set.setKeyBinding("<shift> + <right>", "edit.selectToCharAfter");
 		set.setKeyBinding("<shift> + <up>", "edit.selectToCharAbove");

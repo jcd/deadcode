@@ -4,7 +4,6 @@ import core.bufferview;
 import core.command : CommandManager;
 import graphics._;
 import gui.event;
-import gui.style;
 import gui.widget;
 import gui.widgetfeature._;
 import guiapplication;
@@ -30,7 +29,9 @@ class TextEditor : Widget
 	{
 		super(parent);
 		acceptsKeyboardFocus = true;
-		features ~= new BoxRenderer("edit-background");
+		// background = "edit-background"; 
+		
+		// features ~= new NineGridRenderer("edit-background");
 		// this.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
 		// this.alignTo(Anchor.BottomRight);
 		renderer = (this.content = buf);
@@ -38,6 +39,60 @@ class TextEditor : Widget
 		bufferView.onInsert.connect(&this.onTextInserted);
 		bufferView.onRemove.connect(&this.onTextRemoved);
 		_mouseStartSelectionIdx = uint.max;
+	}
+
+	override EventUsed onEvent(Event event)
+	{
+		if (event.type == EventType.Resize)
+			renderer.textDirty = true;
+		
+		if (!isKeyboardFocusWidget())
+		{
+			return super.onEvent(event);
+			//return EventUsed.no;
+		}
+
+		switch (event.type)
+		{
+			case EventType.Text: // KeyBindings listen on KeyDown but here we listen on Text ie. last keybinding char gets here!! :(
+				bufferView.insert(event.ch); // put text at cursor
+				//std.stdio.writeln(event.ch, " ", std.conv.to!string(event.mod));
+				return EventUsed.yes;
+			case EventType.Command:
+				switch (event.name)
+				{
+					case "navigate.left":
+						bufferView.cursorLeft(1);
+						return EventUsed.yes;
+					case "navigate.right":
+						bufferView.cursorRight(1);
+						return EventUsed.yes;
+					case "navigate.up":
+						bufferView.cursorUp(1);
+						uint lineNum = bufferView.lineNumber;
+						if (lineNum < bufferView.lineOffset)
+							bufferView.scrollUp();
+						return EventUsed.yes;
+					case "navigate.down":
+						bufferView.cursorDown();
+						uint lineNum = bufferView.lineNumber;
+						if (lineNum > (bufferView.lineOffset + bufferView.visibleLineCount))
+							bufferView.scrollDown();
+						return EventUsed.yes;
+					default:
+						break;
+				}
+				break;
+			default:
+				break;
+		}
+
+		// TODO: isn't behavior just a event -> edit mapping e.g. command
+		// TODO: have several kinds of behaviours for app, window, textview. 
+		//       App and window should have the chance to grab events before textview
+		//EditorBehavior.current.onEvent(event, bufferView);
+		return super.onEvent(event);
+		//return EventUsed.no;
 	}
 
 	override void draw()

@@ -228,10 +228,12 @@ void register(Application _app)
 		{
 			auto prefix = data.get!string();
 			auto a = app.getActiveBufferCompletions(prefix);
+			
 			// If the prefix is empty we know that the active buffer is the first entry. And we don't 
 			// want to return that since you never want to activate the current active buffer.
-			if (prefix.empty)
-				a = a[1..$];
+			//if (prefix.empty && app.currentBuffer !is null && !app.currentBuffer.name.empty)
+			//    a = a[1..$];
+
 			return a;
 		}
 	}

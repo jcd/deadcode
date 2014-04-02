@@ -240,9 +240,8 @@ version (Windows)
 	string[] getActiveBufferCompletions(string prefix)
 	{
 		// current buffer name is most likely "command" buffer and not an active editor
-		string currentBufferName = currentBuffer is null ? null : currentBuffer.name;
 		return editors.values
-					.filter!(a => a.editor.bufferView.name.startsWith(prefix) && a.editor.bufferView.name != currentBufferName)()
+					.filter!(a => a.editor.bufferView.name.startsWith(prefix))()
 					.array()
 					.sort!("a.focusOrder > b.focusOrder")()
 					.map!"a.editor.bufferView.name"()

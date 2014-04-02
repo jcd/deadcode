@@ -200,11 +200,16 @@ class Window : Widget
 
 	this(const(char)[] _name, int width, int height) 
 	{
+		auto renderWin = new RenderWindow(_name, width, height);
+		this(_name, width, height, renderWin);
+	}
+
+	this(const(char)[] _name, int width, int height, RenderTarget _renderTarget) 
+	{
 		super(0f,0f,width,height);
 		setWidgetName(this, _name.idup);
-		auto renderWin = new RenderWindow(_name, width, height);
-		_renderTarget = renderWin;
-		id = renderWin.id;
+		this._renderTarget = _renderTarget;
+		id = _renderTarget.id;
 		register(this);
 		keyboardFocusWidget = this.id;
 

@@ -18,6 +18,7 @@ class RenderTarget
 		{
 			_onRender = callback;
 		}
+		abstract uint id();
 		abstract Mat4f MVP() const;
 		abstract Vec2i size() const;
 		abstract void size(Vec2f s);

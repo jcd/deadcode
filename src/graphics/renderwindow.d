@@ -17,7 +17,7 @@ class RenderWindow : RenderTarget
 		Mat4f _MVP;
 	}
 
-	@property Uint32 id() 
+	override @property uint id() 
 	{
 		return SDL_GetWindowID(win);
 	}

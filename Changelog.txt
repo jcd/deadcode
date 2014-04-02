@@ -1,4 +1,101 @@
-Release 0.3 - 28 Feb 2014:
+Release 0.4 - 02 Apr 2014
+
+Overview:
+
+    * New extension module for custom extensions to the editor
+    * Dub build extension command
+    * ErrorList extension widget
+    * Quick open files in dub project
+    * New dropdown command console with completions
+    * Make editor able to edit its own source code, compile and reload
+    * Classic buffer cycling defaulting to ctrl+tab and shift+ctrl+tab
+    * Styling of editor is now done through stylesheets
+
+Changes:
+
+    71dc1f7 Implement buffer cycling 
+            Implement stylesheets for styling and get rid of stylesets (rules, selectors, cascading etc.) 
+            Migrate existing code that uses stylesets to stylesheets 
+            Add positioning and padding to styles 
+            Add inline font and material properties for styles 
+            Add directory watcher to automatically reload resources when changed outside editor e.g. stylesheet of the editor itself 
+            Add previewing of buffers instead of changing to a buffer for use in bufferCycling
+    856a756 New cycleBuffers command shortcuts
+    4349aab Make key navigation work in texteditor as widget event command
+    703dafa Include current buffer in completions
+    63eaa7d Default to blending when creating new models
+    c416f38 Move shader and texture into properties on material
+    31577de Expose command and keyup callbacks on widget
+    12f5cab Make background drawing feature explicit on widgets
+    d96a2ca Make shaderprogram more transactional in order for it to be able to reload
+    918b2bb Do not use scanprotocol anymore
+    f51dbd1 Pick up window focus events and dispatch
+    6879665 Let event callback handle window events before dispatching to widgets. This is reversing the old behavior of letting widgets    handle the event first.
+    f51fb88 Repaint methods for window to repaint all widgets
+    373e6d5 Require rendertargets to have an ID for better encapsulation
+    7507ccd Remove unneeded scan protocol after LocationsManager changes
+    eed7467 Let directional layout use preferred widget size instead of even split
+    8474a91 Simplify LocationsManager by getting rid of its serializer. 
+            Require lastModified and size for resource location finding callbacks. 
+            Let resources remember who loaded them in order to support reloading.
+    f4b8818 Show all tests and not only failing when printing stats
+    b9217f5 Remove non-default contructor of Font
+    8d371a2 Make builtin texture have a URI in order to reuse it.
+    4be7d53 Add toString() to region and regionset. 
+            Rename add() to merge() for region set. 
+            Add set() for regionset that will not merge a region but overlay/overwrite the region instead. 
+            Make intersect3() return a range.
+    ab1ce35 New Focus event
+    87d8776 Support lazy loading of shaders in materials.
+    5e40ed7 Rect.offset() method and RectOffset.reverse() method
+    2a3183b Make Shaders more transactional in order to support reload into existing shaders
+    20658ca Add AssertIsNot()
+    b3ebd33 Font now knows the path it has be loaded from in order to reload.
+    0644615 Add all css defined colors by name. 
+            Add support for alpha. 
+            Add support for HSL colors. 
+            Make Color take up less memory.
+    4065e91 Stabilize Texture a bit and make it more transactional in order to support reloads into existing Texture
+    2f0b05b Add assertions to buffer
+    8ae038f Correct URI opEquals(). Add URI.normalize() and URI.uriString()
+    2abe26e Improved backgrounds
+    5383c19 New resizer image
+    61c8055 Emacs keybindings for dub.quickopen
+    0a7aeb5 Dub Project extension that reads a dub.json/package.json configurations Dub quick open file command
+    c631b9a Changed command box to be narrow and have a dropdown list for completions that is keyboard navigatable.
+    a893fc3 Emacs keybindings for quit
+    a7e66f2 Assigning bufferOffset will set lineOffset as well. Fix scrollDown()
+    a6041a4 Added buffer methods lineEndsAt(), lineEndsAtLineNumber(). 
+            Fixes to Buffer.
+    3388b1b Move layouting out of TextEditor into GUIApplication that creates the editor Set TextStyler from buffer name ie. filename
+    b28aa74 Make app a member field of extension classes
+    a8ee30f Do not quit on esc but use a command for that
+    0a11bd7 Use style color in TextSelectionModel and not hardcoded color
+    a7fd83b Add toVec3f conveniece method to Color class
+    0169285 Expose linecount of TextLayout
+    ea04725 Add NineGridRenderer to widgetfeatures package
+    e296611 Fix center layouting
+    d868375 Expose selection style in TextRenderer Cull text layout when lines are out of bounds Default to DefaultStyler instead of DSourceStyler
+    f06d25f Dispatch to widgets before onEvent callback on window
+    5fc4e24 New DefaultStyler
+    8133c0d ErrorList widget extension that can be used by e.g. dub.build command
+    4ec3722 Emacs keybindings for dub.build command
+    1b01c8d Initial dub extension that adds a dub.build command
+    961c845 New extension module for (custom) extensions to the editor
+    f7fbcd5 New NineGridRenderer feature
+    1ab1b85 Correct method naming for addMessage() Make window show on top of any already existing instance to give the illusion of not restarting after compiling and restarting the editor itself.
+    bf22788 Upload changelog as part of 'dist' command Verify that changelog contains a section for the dist version before uploading
+    9a02cb3 Offset method for region
+    dbff594 onUpdate signal for windows Method window to lookup widget by name Make it globally possible to register a widget with a window
+    01df287 Source code wrapping cleanups
+    27f598f Added timeout callback support in GUI
+    a2229e5 Make name and description into properties instead of fields for Command
+    c96bb07 Remove double linesVisible() method on BufferView
+    6b5d004 New lineNumberAt, startAtLineNumber and lineContaining methods for buffer
+    0490364 tabs to spaces in changelog
+
+
+Release 0.3 - 28 Feb 2014
 
 Overview:
 
@@ -8,22 +105,22 @@ Overview:
 
 Changes:
 
-    f7be8ce * Make selection work on scrolled view and while scrolling as well. 
-            * Fix rendering glich of selection background.
+    f7be8ce Make selection work on scrolled view and while scrolling as well. 
+            Fix rendering glich of selection background.
     09b04f3 Fix start/end of line buffer methods
     d623c9c Spelling error in comment
-    def26ee * Migrate emacs keybindings to simple bindings API. 
-            * Add emacs bindings for copy/paste/pasteCycle commands.
+    def26ee Migrate emacs keybindings to simple bindings API. 
+            Add emacs bindings for copy/paste/pasteCycle commands.
     a16d96b Expose new BufferView methods as editor commands. Migrate insertNewline command to insert command that accepts a string.
-    45c3804 * Add offsetByXXX methods to Buffer to make it easy to navigate using common boundaries such as char/word/line/buffer. 
-            * Migrate last of BufferView methods to BufferViewActions. 
-            * Migrated BufferView to new offsetBy methods. 
-            * Added Copy/Paste/PasteCycle/Cut support to BufferView. 
-            * Exposed selected text in BufferView. Added onCopy signal to BufferView. 
-            * Tons of fixes to BufferViewAction to properly handle e.g. preferred column. 
-            * Added lots of unittest to BufferViewActions.
-    6dfbe92 * Fix issue with text still being drawn in the old style in addition to the new style when it changed style. 
-            * Also call text layouter to allow it to update fontmaps if necessary.
+    45c3804 Add offsetByXXX methods to Buffer to make it easy to navigate using common boundaries such as char/word/line/buffer. 
+            Migrate last of BufferView methods to BufferViewActions. 
+            Migrated BufferView to new offsetBy methods. 
+            Added Copy/Paste/PasteCycle/Cut support to BufferView. 
+            Exposed selected text in BufferView. Added onCopy signal to BufferView. 
+            Tons of fixes to BufferViewAction to properly handle e.g. preferred column. 
+            Added lots of unittest to BufferViewActions.
+    6dfbe92 Fix issue with text still being drawn in the old style in addition to the new style when it changed style. 
+            Also call text layouter to allow it to update fontmaps if necessary.
     3b7476d Add convenience methods to Widget for getting window to world transforms for the widget rect
     e4f4c72 Make TextBoxLayout track fonts that needs to be rebuild because of missing glyphs in the fontmap
     3bf5926 Change clear semantic on graphics buffers to only clear gpu buffers if there are no data pending for the buffer from the cpu
@@ -40,7 +137,7 @@ Changes:
     2eb0db1 Better default font color
 
 
-Release 0.2 - 17 Feb 2014:
+Release 0.2 - 17 Feb 2014
 
 Overview:
 
@@ -73,14 +170,14 @@ Changes:
     acdf51b Added empty() on Rect and new RectOffset type
     4f7facf Added release config
     acaa1f3 Tool support for building specific config
-    639f241 * Split Editor into TextEditor base and CodeEditor derived classes. 
-            * Moved styleSet from draw() parameters and into a member field for window. 
-            * Made onMouseGlyphXXX callbacks on TextEditor Added signals to BufferView for insertions and deletions 
-            * Added support for grouping a sequence of actions into a single undo step Moved away from std.container.
-            * Array and use a manual dlinked list instead because the former seems unreliable Support for keyboard selection. 
-            * Refactoring of textrendering/textlayout to make cleaner cut between layout and rendering and to expose glyph positions for text selections 
-            * Added getGlyphAt(pos) for textrenderer LRU info for TextEditors owned by GUIApplication 
-            * Added documentation about the different coord systems used throughout.
+    639f241 Split Editor into TextEditor base and CodeEditor derived classes. 
+            Moved styleSet from draw() parameters and into a member field for window. 
+            Made onMouseGlyphXXX callbacks on TextEditor Added signals to BufferView for insertions and deletions 
+            Added support for grouping a sequence of actions into a single undo step Moved away from std.container.
+            Array and use a manual dlinked list instead because the former seems unreliable Support for keyboard selection. 
+            Refactoring of textrendering/textlayout to make cleaner cut between layout and rendering and to expose glyph positions for text selections 
+            Added getGlyphAt(pos) for textrenderer LRU info for TextEditors owned by GUIApplication 
+            Added documentation about the different coord systems used throughout.
     690ba2a added missing abc method for worldToWindow()
     5ba0bf0 Fix worldSizeToPixel,worldToPixelPos and add new worldToWindow for renderwindow
     3ef2b7c Fix bug in text styler when styling last part of text
@@ -91,17 +188,17 @@ Changes:
             Added new intersect method to region that returns the three parts of a intersection. 
             Added length property to region.
     7ad7a12 Fix key sequence matcher with mathing keys but different mods could match wrongly.
-    c9ce104 * Undo/redo system based on actionstack that can be used for macros later on. 
-            * Enable unit testing in dub 
-            * Migrate unittests to test.d framework 
-            * Fix key sequence matching 
-            * Fix file protocol url handling and file opening
+    c9ce104 Undo/redo system based on actionstack that can be used for macros later on. 
+            Enable unit testing in dub 
+            Migrate unittests to test.d framework 
+            Fix key sequence matching 
+            Fix file protocol url handling and file opening
     5021e2b Improve project tool
     71cd3c6 Better jsonx error messages
     8b8c38d Add git ignore file
 
 
-Release 0.1 - 02 Jan 2014:
+Release 0.1 - 02 Jan 2014
 
     * Initial release
 

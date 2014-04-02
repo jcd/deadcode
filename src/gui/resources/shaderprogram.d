@@ -94,7 +94,7 @@ class ShaderProgramManager : ResourceManager!ShaderProgram
 		{
 			import graphics.shader;
 			ShaderProgram.create(Shader.builtInVertexShaderSource, Shader.builtInFragmentShaderSource, p);
-			p.link();
+			// p.link();
 			p.setUniform("colMap", 0);
 			p.manager.onResourceLoaded(p, null);
 			return true;
@@ -103,7 +103,7 @@ class ShaderProgramManager : ResourceManager!ShaderProgram
 
 	private void createBuiltinShaderProgram()
 	{
-		declare("builtin", null, new BuiltinLoader);
+		declare("builtin",  new URI("builtin:default"), new BuiltinLoader);
 	}
 }
 
@@ -131,8 +131,11 @@ class ShaderProgramSerializer : ResourceSerializer!ShaderProgram
 		auto spec = jsonDecode!ShaderProgramSpec(str);
 		
 		// TODO: Make explicit attach and link here!
-		ShaderProgram.create(spec.vertexShader, spec.fragmentShader, res).link();
-		res.manager.onResourceLoaded(res, this);
+		if (ShaderProgram.create(spec.vertexShader, spec.fragmentShader, res) !is null)
+		{
+			// Only signal resource loaded on success
+			res.manager.onResourceLoaded(res, this);
+		}
 	}
 }
 

@@ -558,6 +558,14 @@ SmallVector!(N, T) min(size_t N, T)(const SmallVector!(N, T) a, const SmallVecto
     return res;
 }
 
+SmallVector!(N, T) max(size_t N, T)(const SmallVector!(N, T) a, const SmallVector!(N, T) b) pure nothrow
+{
+    SmallVector!(N, T) res = void;
+    for(size_t i = 0; i < N; ++i)
+        res[i] = std.algorithm.max(a[i], b[i]);
+    return res;
+}
+
 // dot product
 T dot(size_t N, T)(const SmallVector!(N, T) a, const SmallVector!(N, T) b) pure nothrow
 {

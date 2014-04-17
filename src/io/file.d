@@ -12,6 +12,7 @@ class File : IO
 {
 	this(string path)
 	{
+		debug std.stdio.writeln("Opening ", path);
 		_handle = StdFile(path, "r");
 	}
 	
@@ -59,7 +60,15 @@ class FileProtocol : IOProtocol
 	bool canHandle(URI url)
 	{
 		string schema = url.schema;
-		return schema is null || schema == "file";
+		version (Windows)
+		{
+			auto isAbsPath = url.uriString.length > 3 && schema.length == 1 && url.uriString[1..3] == ":/";
+			return schema is null || schema == "file" || isAbsPath;
+		}
+		else
+		{
+			return schema is null || schema == "file";
+		}
 	}
 	
 	IO open(URI url)

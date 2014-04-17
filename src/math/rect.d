@@ -159,7 +159,23 @@ struct Rect(T)
 		mixin("this.pos.x" ~ OP ~ "= v.x;");
 		mixin("this.pos.y" ~ OP ~ "= v.y;");
 	}
-	
+
+	Rect!T scale(float s) const pure nothrow
+	{
+		Rect!T r = this;
+		r.pos *= s; 
+		r.size *= s;
+		return r;
+	}
+
+	Rect!T scale(Vec2!T s) const pure nothrow
+	{
+		Rect!T r = this;
+		r.pos *= s; 
+		r.size *= s;
+		return r;
+	}
+
 	bool contains(const(Vec2!T) point) const
 	{	
 		// Since size can be negative we need two paths

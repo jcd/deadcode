@@ -12,6 +12,7 @@ import math._; // Vec2f
 import std.algorithm;
 import std.array;
 import std.datetime;
+import std.path;
 import std.string;
 
 
@@ -32,7 +33,6 @@ extern (Windows)
 
 class DirectoryWatcher
 {
-	import std.path;
 	import std.datetime;
 
 	string path;
@@ -108,6 +108,7 @@ class GUIApplication : Application
 	EditorInfo[string] editors;
 	Widget _mainWidget;
 	DirectoryWatcher resourceDirWatcher;
+	string resourcesRoot;
 
 	class WindowData
 	{
@@ -117,6 +118,13 @@ class GUIApplication : Application
 	private this()
 	{
 		super();
+	}
+
+	URI resourceURI(string relativePath)
+	{
+		auto u = new URI(buildNormalizedPath(resourcesRoot, relativePath));
+		u.normalize();
+		return u;
 	}
 
 	static GUIApplication create(GUI gui = null)
@@ -131,13 +139,17 @@ class GUIApplication : Application
 
 	void run()
 	{		
+		setupResourcesRoot();
+		setupRegistryEntries();
+		
 		// guiRoot.locationsManager.baseURI = "resources/";
-		resourceDirWatcher = new DirectoryWatcher("resources");
+
+		resourceDirWatcher = new DirectoryWatcher(resourcesRoot);
 		guiRoot.timeout(dur!"msecs"(200), &checkDirForChanges);
 		
 		scanResources();
 		
-		guiRoot.styleSheetManager.load("default", new URI("resources/default.stylesheet"));
+		guiRoot.styleSheetManager.load("default", resourceURI("default.stylesheet"));
 		guiRoot.styleSheetManager.onSourceChanged.connect(&styleSheetSourceChanged);
 		guiRoot.textureManager.onSourceChanged.connect(&textureSourceChanged);
 
@@ -208,14 +220,72 @@ class GUIApplication : Application
 		static import extension;
 		extension.init(this);
 
-		openFile("resources/default.stylesheet");
+		openFile(buildNormalizedPath(resourcesRoot,"default.stylesheet"));
 
 		guiRoot.run();
 	}
 
+	void setupResourcesRoot()
+	{
+		import std.file;
+		resourcesRoot = absolutePath("resources", thisExePath().dirName());
+	}
+
+	void setupRegistryEntries()
+	{
+		import core.sys.windows.windows;
+		
+		HKEY pRegKey;
+		LONG lRtnVal = 0;
+		DWORD disposition;
+
+
+		// Call to RegCreateKeyEx
+		lRtnVal = RegCreateKeyExA(
+								 HKEY_CURRENT_USER,
+								 "Software\\Classes\\*\\shell\\Open with Dedit\\command",
+								 0,
+								 null,
+								 REG_OPTION_NON_VOLATILE,
+								 KEY_ALL_ACCESS,
+								 null,
+								 &pRegKey,
+								 &disposition);
+
+		// Check GetLastError to check error condition
+		if(lRtnVal != ERROR_SUCCESS)
+		{
+			addMessage("RegCreateKeyEx failed: %s\n", lRtnVal);
+			return;
+		}
+
+		scope (exit) RegCloseKey(pRegKey);
+
+		debug addMessage("Disposition: %d\n", disposition);
+		
+		if (disposition == REG_CREATED_NEW_KEY)
+		{
+			// set the value
+			string execPath = r"C:\Users\jonasd\Documents\Projects\D\ded>ded-debug_d.exe";
+			auto execPathC = execPath.toStringz();
+			lRtnVal = RegSetValueExA (pRegKey,
+						  null,	
+						  0,
+						  REG_SZ,
+						  cast(ubyte*)execPathC,
+						  execPath.length + 1);
+			
+			if(lRtnVal != ERROR_SUCCESS)
+			{
+				addMessage("RegSetValueEx failed: %s\n", lRtnVal);
+				return;
+			}
+		}
+	}
+
 	void scanResources()
 	{
-		guiRoot.locationsManager.scan(new URI("resources/*"));
+		guiRoot.locationsManager.scan(resourceURI("*"));
 	}
 
 	Window createWindow(string name = "mainWindow", int width = 1000, int height = 1000)
@@ -265,8 +335,6 @@ version (Windows)
 			win.size = existingRect.size;
 		}
 
-
-		
 		// A main widget
 		_mainWidget = new Widget(win, 100, 100, 20, 32);
 

@@ -101,7 +101,16 @@ class TextEditor : Widget
 			return;
 		
 		renderer.selection = bufferView.selection;
+		import derelict.opengl3.gl3;
+		
+		Rectf r = rect;
+		r.y = window.size.y - (r.h + r.y);
+
+		glScissor( cast(int)r.x, cast(int)r.y, cast(int)r.w, cast(int)r.h);
+		
+		glEnable(GL_SCISSOR_TEST);
 		super.draw();
+		glDisable(GL_SCISSOR_TEST);
 	}
 
 	override EventUsed onMouseScroll(Event event)

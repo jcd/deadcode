@@ -195,6 +195,8 @@ class LocationsManager : ResourceManager!Locations
 
 		auto locs = appender!(Location[])();
 
+		debug std.stdio.writeln("Scanning location ", baseURI);
+
 		foreach (DirEntry e; dirEntries(baseURI, res._uriPattern[baseURI.length..$], SpanMode.depth, true))
 		{
 			if (!e.isFile)

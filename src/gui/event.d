@@ -21,6 +21,7 @@ enum EventType
 	MouseUp,    /// Mouse up on a widget
 	MouseClick, /// Mouse click on a widget
 	MouseDoubleClick, /// Mouse double click on a widget
+	MouseTripleClick, /// Mouse triple click on a widget
 	MouseScroll, // Mouse scroll wheel
 	KeyboardFocus, // When keyboard focus is obtained
 	KeyboardUnfocus, // When keyboard focus is lost

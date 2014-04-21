@@ -289,6 +289,9 @@ class Window : Widget
 	
 	// The widget that has been clicked by the left mouse button
 	private WidgetID clickWidget = NullWidgetID;
+	
+	// Number of times the click widget has been clicked. To detext double/triple... clicks
+	private int clickWidgetClicks = 0;
 
 	private WidgetID mouseWidget = NullWidgetID;
 	private WidgetID mouseGrabbedBy = NullWidgetID;
@@ -496,7 +499,8 @@ TODO:
 					// goes away from the widget the click is aborted.
 					downButtonWidget = NullWidgetID;
 					clickWidget = NullWidgetID;
-					
+					clickWidgetClicks = 0;
+
 					// Handle mouse out events
 					if (lastMouseWidget != NullWidgetID)
 					{
@@ -531,6 +535,7 @@ TODO:
 					// goes away from the widget the click is aborted.
 					downButtonWidget = NullWidgetID;
 					clickWidget = NullWidgetID;				
+					clickWidgetClicks = 0;
 				}
 				break;
 			case EventType.MouseDown:
@@ -543,6 +548,7 @@ TODO:
 				{
 					downButtonWidget = NullWidgetID;
 					clickWidget = NullWidgetID;
+					clickWidgetClicks = 0;
 				}
 				break;
 			case EventType.MouseUp:
@@ -553,20 +559,26 @@ TODO:
 					{
 						TickDuration tdur = TickDuration.currSystemTick;
 						float doubleClickTime = tdur.to!("seconds",float)() - clickWidgetTime.to!("seconds",float)();
-						if (downButtonWidget == clickWidget && doubleClickTime < maxDoubleClickTime)
+						if (clickWidgetClicks != 3 && downButtonWidget == clickWidget && doubleClickTime < maxDoubleClickTime)
 						{
-							event.type = EventType.MouseDoubleClick;
-							used = overWidget.send(event) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;
-							clickWidget = 0;
+							clickWidgetClicks++;
+							
+							if (clickWidgetClicks == 2)
+								event.type = EventType.MouseDoubleClick;
+							else if (clickWidgetClicks == 3)
+								event.type = EventType.MouseTripleClick;
+
+							used = overWidget.send(event) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;							
 						}
 						else
 						{
+							clickWidgetClicks = 1;
 							event.type = EventType.MouseClick;
 							used = overWidget.send(event) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;
-							clickWidget = downButtonWidget;
-							clickWidgetTime = TickDuration.currSystemTick;
 							setKeyboardFocusWidget(clickWidget);
 						}
+						clickWidget = downButtonWidget;
+						clickWidgetTime = TickDuration.currSystemTick;
 					}
 				}
 				downButtonWidget = NullWidgetID;

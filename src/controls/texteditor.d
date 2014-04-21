@@ -139,6 +139,31 @@ class TextEditor : Widget
 		return EventUsed.yes;
 	}
 
+	override EventUsed onMouseDoubleClick(Event event)
+	{
+		auto info = renderer.getGlyphAt(this, event.mousePos);
+		if (info.isValid)
+		{
+			bufferView.cursorToWordBefore();
+			bufferView.selectToWordAfter();
+		}
+
+		return EventUsed.yes;
+	}
+
+	override EventUsed onMouseTripleClick(Event event)
+	{
+		auto info = renderer.getGlyphAt(this, event.mousePos);
+		if (info.isValid)
+		{
+			bufferView.cursorToBeginningOfLine();
+			bufferView.selectToEndOfLine();
+			bufferView.selectRight();
+		}
+
+		return EventUsed.yes;
+	}
+
 	override EventUsed onMouseMove(Event event)
 	{
 		if (_mouseStartSelectionIdx == uint.max)

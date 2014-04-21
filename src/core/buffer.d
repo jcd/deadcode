@@ -786,6 +786,14 @@ class TextGapBuffer
 		}
 	}
 
+	void removeRange(uint start, uint end)
+	{
+		enforceEx!Exception(start >= 0 && start <= end && end <= length, text("Index out of bounds 0 <= ", start , " <= ", end, " <= ", length));
+		auto idx = start;
+		while (start++ < end)
+			gbuffer.remove(idx);
+	}
+
 	uint startOfNextLine(uint index) const
 	{
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));

@@ -216,7 +216,7 @@ class InsertAction : Action
 	override void undo(BufferView bv)
 	{
 		bv._cursorPoint = bv.cursorPoint - text.length;
-		bv.buffer.remove(text.length, bv.cursorPoint);
+		bv.buffer.removeRange(bv.cursorPoint, text.length + bv.cursorPoint);
 		bv.preferredCursorColumn(preferredColumn);
 		// bv.setIndexFromPreferredCursorColumn();
 		bv.changed();
@@ -304,7 +304,7 @@ class RemoveAction : Action
 		else
 			text ~= t;
 
-		bv.buffer.remove(end-start, start);
+		bv.buffer.removeRange(start, end);
 		bv._cursorPoint = start;
 		bv.setPreferredCursorColumnFromIndex();
 		bv.changed();
@@ -406,7 +406,7 @@ class RemoveSelectedAction : Action
 		auto o = bv.selection.a;
 		cursorAtStartOfSelection = bv.cursorPoint == o;
 		text = array(bv.buffer[bv.selection.a..bv.selection.b]).idup;
-		bv.buffer.remove(l, o);
+		bv.buffer.removeRange(bv.selection.a, bv.selection.b);
 		bv.selection.b = bv.selection.a;
 		bv._cursorPoint = o;
 		bv.setPreferredCursorColumnFromIndex();

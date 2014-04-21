@@ -427,13 +427,13 @@ class BufferView
 	
 	void selectLeft(uint c = 1) 
 	{
-		selectTo(_cursorPoint - c);
+		selectTo(buffer.offsetByChar(_cursorPoint, -c));
 		_undoStack.push!CursorAction(this, TextBoundary.chr, -c);
 	}
 
 	void selectRight(uint c = 1)
 	{
-		selectTo(_cursorPoint + c);
+		selectTo(buffer.offsetByChar(_cursorPoint, c));
 		_undoStack.push!CursorAction(this, TextBoundary.chr, c);
 	}
 

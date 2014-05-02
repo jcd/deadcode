@@ -56,11 +56,6 @@ class Material : graphics.material.Material, IResource!Material
 			_manager = m;
 		}
 
-		Material builtinMaterial()
-		{
-			return _manager.get("builtin");
-		}
-
 		override graphics.shaderprogram.ShaderProgram shader()
 		{
 			ShaderProgram p = cast(ShaderProgram) _shader;
@@ -105,9 +100,11 @@ class Material : graphics.material.Material, IResource!Material
 
 class MaterialManager : ResourceManager!Material
 {
+	private Handle builtinMaterialHandle;
+
 	@property Material builtinMaterial()
 	{
-		return get("builtin");
+		return get(builtinMaterialHandle);
 	}
 
 	ShaderProgramManager shaderProgramManager;
@@ -129,9 +126,10 @@ class MaterialManager : ResourceManager!Material
 
 	private void createBuiltinMaterial(ShaderProgramManager spm, TextureManager tm)
 	{
-		auto mat = declare("builtin", new URI("builtin:default"));
+		auto mat = declare(new URI("builtin:default"));
 		mat.shader = spm.builtinShaderProgram;
 		mat.texture = tm.builtinTexture;
+		builtinMaterialHandle = mat.handle;
 	}
 
 	/** Overriden load that will ensure sub resources of the material (e.g. texture and shaders)
@@ -162,6 +160,8 @@ class MaterialSerializer : ResourceSerializer!Material
 		_textureManager = textureManager;
 	}	
 	
+	override bool canRead() pure const nothrow { return true; }
+
 	override bool canHandle(URI uri)
 	{
 		import std.path;
@@ -186,8 +186,8 @@ class MaterialSerializer : ResourceSerializer!Material
 		if (!texURI.isAbsolute)
 			texURI.makeAbsolute(baseURI);
 
-		res.shader = _shaderProgramManager.declare(null, spURI);
-		res.texture = _textureManager.declare(null, texURI);
+		res.shader = _shaderProgramManager.declare(spURI);
+		res.texture = _textureManager.declare(texURI);
 
 		res.manager.onResourceLoaded(res, this);
 	}

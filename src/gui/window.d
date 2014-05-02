@@ -105,9 +105,8 @@ class Window : Widget
 
 	void repaint()
 	{
-		rect = rect;
 		foreach (wID, w; widgets)
-			w.rect = w.rect;
+			w.forceDirty();
 	}
 
 	Widget getWidget(string name)
@@ -166,6 +165,14 @@ class Window : Widget
 		ev.type = EventType.Resize;
 		ev.width = cast(int)sz.x;
 		ev.height = cast(int)sz.y;
+		ev.windowID = this.id;
+		dispatchEvent(ev);
+	}
+
+	void onStyleSheetChanged()
+	{
+		Event ev;
+		ev.type = EventType.StyleSheetChanged;
 		ev.windowID = this.id;
 		dispatchEvent(ev);
 	}
@@ -543,6 +550,28 @@ TODO:
 				{
 					downButtonWidget = mouseWidget;
 					used = overWidget.send(event);
+					if (clickWidget != NullWidgetID)
+					{
+						// check for double and triple click
+						TickDuration tdur = TickDuration.currSystemTick;
+						float doubleClickTime = tdur.to!("seconds",float)() - clickWidgetTime.to!("seconds",float)();
+						if (clickWidgetClicks != 3 && downButtonWidget == clickWidget && doubleClickTime <= maxDoubleClickTime)
+						{
+							clickWidgetClicks++;
+
+							if (clickWidgetClicks == 2)
+								event.type = EventType.MouseDoubleClick;
+							else if (clickWidgetClicks == 3)
+								event.type = EventType.MouseTripleClick;
+
+							used = overWidget.send(event) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;							
+						}
+						else
+						{
+							clickWidgetClicks = 0;
+							clickWidget = NullWidgetID;
+						}
+					}
 				}
 				else
 				{
@@ -555,28 +584,16 @@ TODO:
 				if (overWidget)
 				{
 					used = overWidget.send(event);
-					if (downButtonWidget == mouseWidget)
-					{
-						TickDuration tdur = TickDuration.currSystemTick;
-						float doubleClickTime = tdur.to!("seconds",float)() - clickWidgetTime.to!("seconds",float)();
-						if (clickWidgetClicks != 3 && downButtonWidget == clickWidget && doubleClickTime < maxDoubleClickTime)
-						{
-							clickWidgetClicks++;
-							
-							if (clickWidgetClicks == 2)
-								event.type = EventType.MouseDoubleClick;
-							else if (clickWidgetClicks == 3)
-								event.type = EventType.MouseTripleClick;
+					TickDuration tdur = TickDuration.currSystemTick;
+					float doubleClickTime = tdur.to!("seconds",float)() - clickWidgetTime.to!("seconds",float)();
+					bool allowClick = clickWidgetClicks == 0; //  || (doubleClickTime > maxDoubleClickTime;
 
-							used = overWidget.send(event) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;							
-						}
-						else
-						{
-							clickWidgetClicks = 1;
-							event.type = EventType.MouseClick;
-							used = overWidget.send(event) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;
-							setKeyboardFocusWidget(clickWidget);
-						}
+					if (downButtonWidget == mouseWidget && allowClick)
+					{
+						clickWidgetClicks = 1;
+						event.type = EventType.MouseClick;
+						used = overWidget.send(event) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;
+						setKeyboardFocusWidget(clickWidget);
 						clickWidget = downButtonWidget;
 						clickWidgetTime = TickDuration.currSystemTick;
 					}

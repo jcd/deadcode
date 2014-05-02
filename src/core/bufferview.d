@@ -9,6 +9,7 @@ import std.exception;
 import std.range;
 import std.signals;
 import std.stdio;
+import std.variant;
 
 version(unittest) import test;
 
@@ -112,12 +113,15 @@ class BufferView
 	CopyBuffer copyBuffer;
 
 	uint selectionStartIndex;
-	Region selection;
+	private Region _selection;
 	// RegionSet selections;
 
 	alias immutable(TextGapBuffer.CharType)[] BufferString;
 
-	bool dirty;
+	Variant[string] userData;
+
+	private bool _dirty;
+	
 	uint _bufferOffset; // char offset into the buffer from where to draw
 	
 	// emit(this, text, insertedTextAfterThisIndex)
@@ -128,6 +132,50 @@ class BufferView
 
 	// emit(this, text, removedTextAfterThisIndex)
 	mixin Signal!(BufferView, BufferString, uint) onCopy;
+
+	// emi(this);
+	mixin Signal!(BufferView) onDirty;
+
+	@property 
+	{
+		void selection(Region r)
+		{
+			if (_selection == r)
+				return;
+			_selection = r;
+			navigated();
+
+		}
+
+		Region selection() const pure nothrow
+		{
+			return _selection;
+		}
+		void dirty(bool d)
+		{
+			if (d)
+				onDirty.emit(this);
+			_dirty = d;
+		}
+		
+		bool dirty() const pure nothrow
+		{
+			return _dirty;
+		}
+	}
+
+	void clearSelection()
+	{
+		if (_selection.empty)
+			return;
+		_selection.clear();
+		navigated();
+	}
+
+	package void navigated()
+	{
+		dirty = true;
+	}
 
 	package void changed()
 	{
@@ -170,7 +218,7 @@ class BufferView
 	this(TextGapBuffer buffer)
 	{
 		this.buffer = buffer;
-		dirty = true;
+		_dirty = true;
 		//selections = new RegionSet(true); // should be false
 		_undoStack = new ActionStack;
 		copyBuffer = new CopyBuffer;
@@ -189,15 +237,18 @@ class BufferView
 			return _lineOffset;
 		}
 		
-		uint bufferOffset() const
+		uint bufferOffset() const pure nothrow
 		{
 			return _bufferOffset;
 		}
 
 		void bufferOffset(uint o)
 		{
+			if (_bufferOffset == o)
+				return;
 			_bufferOffset = o;
 			_lineOffset = buffer.lineNumberAt(o);
+			navigated();
 		}
 
 		// TODO: keep up to date and rename maybe
@@ -211,7 +262,7 @@ class BufferView
 			if (_visibleLineCount != c)
 			{
 				_visibleLineCount = c;
-				dirty = true;
+				navigated();
 			}
 		}
 
@@ -287,14 +338,16 @@ class BufferView
 
 	void cursorToStart() 
 	{
-		selection.clear();
+		clearSelection();
 		_undoStack.push!CursorAction(this, TextBoundary.buffer, -1);
+		navigated();
 	}
 
 	void cursorToEnd() 
 	{
-		selection.clear();
+		clearSelection();
 		_undoStack.push!CursorAction(this, TextBoundary.buffer, 1);
+		navigated();
 	}
 
 	@property uint cursorPoint() const pure nothrow
@@ -305,8 +358,11 @@ class BufferView
 	@property void cursorPoint(uint v) 
 	{
 		assert(isValidCursorPoint(v), "Cursor out of range");
+		if (_cursorPoint == v)
+			return;
 		_cursorPoint = v;
-		
+		navigated();
+
 		//_undoStack.push!CursorRightAction(this, v - _cursorPoint);
 		// _cursorPoint = v;
 		// setPreferredCursorColumnFromIndex(v);
@@ -315,6 +371,11 @@ class BufferView
 	bool isValidCursorPoint(uint v)
 	{
 		return  buffer !is null && v >= 0 && v <= buffer.length;
+	}
+
+	bool isCursorAtEndOfline()
+	{
+		return _cursorPoint == buffer.offsetToEndOfLine(_cursorPoint);
 	}
 
 	/*
@@ -331,22 +392,32 @@ class BufferView
 
 	@property void preferredCursorColumn(uint col) 
 	{
+		if (_preferredCursorColumn == col)
+			return;
 		_preferredCursorColumn  = col;
+		navigated();
 	}
 
 	void setPreferredCursorColumnFromIndex(uint index = uint.max) 
 	{
 		if (index == uint.max)
 			index = _cursorPoint;
+	
 		//assert(buffer !is null && index >= 0 && index < buffer.length, text("Index out of bounds 0 <= ", index , " < ", buffer.length));
 		uint startOfLine = buffer.offsetToStartOfLine(index);
+		auto old = _preferredCursorColumn;
 		_preferredCursorColumn = index - startOfLine;
+		if (old != _preferredCursorColumn)
+			navigated();
 	}
 	
 	void setIndexFromPreferredCursorColumn(uint col = uint.max) 
 	{
 		if (col == uint.max)
 			col = _preferredCursorColumn;
+		
+		auto old = cursorPoint;
+
 		//assert(buffer !is null && index >= 0 && index < buffer.length, text("Index out of bounds 0 <= ", index , " < ", buffer.length));
 		uint startOfLine = buffer.offsetToStartOfLine(_cursorPoint);
 		uint endOfLine = buffer.offsetToEndOfLine(_cursorPoint);
@@ -355,6 +426,9 @@ class BufferView
 			cursorPoint = startOfLine + col;
 		else
 			cursorPoint = endOfLine;
+	
+		if (old == cursorPoint)
+			navigated();
 	}
 		
 	void insert(dchar item)
@@ -372,7 +446,7 @@ class BufferView
 			_undoStack.push!ActionGroupAction(this, 
 											  new RemoveSelectedAction(),
 											  new InsertAction(txt)
-												  );
+											);
 	}
 
 	void append(dstring items)
@@ -403,25 +477,25 @@ class BufferView
 	
 	void cursorLeft(uint c = 1) 
 	{
-		selection.clear();
+		clearSelection();
 		_undoStack.push!CursorAction(this, TextBoundary.chr, -c);
 	}	
 
 	void cursorRight(uint c = 1)
 	{
-		selection.clear();
+		clearSelection();
 		_undoStack.push!CursorAction(this, TextBoundary.chr, c);
 	}
 
 	void cursorUp(uint c = 1) 
 	{
-		selection.clear();
+		clearSelection();
 		_undoStack.push!CursorDownAction(this, -c);
 	}
 	
 	void cursorDown(uint c = 1)
 	{
-		selection.clear();
+		clearSelection();
 		_undoStack.push!CursorDownAction(this, c);
 	}
 	
@@ -456,10 +530,12 @@ class BufferView
 		if (selection.empty)
 			selectionStartIndex = cursorPoint;
 		
+		import std.algorithm;
+
 		if (selectionStartIndex < c)
-			selection = Region(selectionStartIndex, c);
+			selection = Region(selectionStartIndex, min(c, buffer.length));
 		else
-			selection = Region(c, selectionStartIndex);
+			selection = Region(max(c,0), selectionStartIndex);
 	}
 
 	void scrollUp()
@@ -467,7 +543,7 @@ class BufferView
 		_bufferOffset = buffer.offsetToStartOfLine(buffer.endOfPreviousLine(bufferOffset));
 		if (_lineOffset > 0)
 			_lineOffset--;
-		dirty = true;
+		navigated();
 	}
 
 	void scrollDown()
@@ -480,19 +556,19 @@ class BufferView
 				_lineOffset--;
 			else
 				_bufferOffset = newbo;
-			dirty = true;
+			navigated();
 		}
 	}
 
 	void cursorToBeginningOfLine()
 	{
-		selection.clear();
+		clearSelection();
 		_undoStack.push!CursorAction(this, TextBoundary.line, -1);
 	}
 	
 	void cursorToEndOfLine()
 	{
-		selection.clear();
+		clearSelection();
 		_undoStack.push!CursorAction(this, TextBoundary.line, 1);
 	}
 
@@ -514,7 +590,7 @@ class BufferView
 	
 	void cursorToWordBefore()
 	{
-		selection.clear();
+		clearSelection();
 		_undoStack.push!CursorAction(this, TextBoundary.word, -1);
 	}
 	
@@ -537,7 +613,7 @@ class BufferView
 
 	void cursorToWordAfter()
 	{
-		selection.clear();
+		clearSelection();
 		_undoStack.push!CursorAction(this, TextBoundary.word, 1);
 	}
 	
@@ -563,6 +639,16 @@ class BufferView
 			_undoStack.push!RemoveAction(this, TextBoundary.line, 1);
 		else
 		    _undoStack.push!RemoveSelectedAction(this);
+	}
+
+	uint incrementalFind(uint index, string str)
+	{
+		return 1;
+	}
+
+	uint[] findAll(string str)
+	{
+		return [1u,2,3];
 	}
 }
 

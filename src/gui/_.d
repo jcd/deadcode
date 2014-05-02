@@ -5,6 +5,7 @@ public import gui.gui;
 public import gui.keybinding;
 public import gui.keycode;
 public import gui.models;
+public import gui.resource;
 public import gui.ruleset;
 public import gui.style;
 public import gui.styledtext;

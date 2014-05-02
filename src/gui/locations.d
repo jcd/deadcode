@@ -167,7 +167,7 @@ class LocationsManager : ResourceManager!Locations
 	{
 		// This will declare the Locations resource if needed
 		// Then call load(ResourceState) below
-		super.load(uriPattern.toString(), uriPattern); 
+		super.load(uriPattern); 
 	}
 
 	override protected bool load(ResourceState state)

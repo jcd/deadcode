@@ -30,8 +30,10 @@ class NineGridRenderer : WidgetFeature
 {
 	string styleName;
 	BoxModel model;
+	private RectfOffset _spriteBorder;
+	private Rectf _spriteRect;
 
-	@property void color(Vec3f col) 
+	@property void color(Color col) 
 	{
 		model.color = col;
 	}
@@ -39,7 +41,6 @@ class NineGridRenderer : WidgetFeature
 	this(string styleName = DefaultStyleName)
 	{
 		this.styleName = styleName;
-		model = new BoxModel(Sprite(0,0,16,16), RectfOffset(6,6,6,6));
 		// model = new BoxModel(Sprite(0,0,160,160), RectfOffset(6,6,6,6));
 		//model = createQuad(Rectf(0,0,1,1));
 	}
@@ -47,7 +48,7 @@ class NineGridRenderer : WidgetFeature
 	Model createQuad(Rectf worldRect, Material mat = null)
 	{
 		auto m = new Model;
-		float[] vert = quadVertices(worldRect);
+	//	float[] vert = quadVertices(worldRect);
 		float[] uv = [
 			0f, 1f,
 			0f, 1f,
@@ -75,14 +76,35 @@ class NineGridRenderer : WidgetFeature
 */
 	override void draw(Widget widget)
 	{
+		Style style = widget.style; 
+		auto mat = style.background;
+		if (mat is null || mat.texture is null) 
+			return;
+
 		Mat4f transform;
 		widget.getScreenToWorldTransform(transform);
 		
-		auto wr = widget.rect;
-		model.rect = Rectf(0,0, wr.size);
-		Style style = widget.style; 
-		auto mat = style.background;
+		RectfOffset spriteBorder = style.backgroundSpriteBorder;
+		Rectf spriteRect = style.backgroundSprite;
+
+		if (model is null)
+		{
+			model = new BoxModel(Sprite(spriteRect),  spriteBorder);
+			_spriteBorder = spriteBorder;
+			_spriteRect = spriteRect;
+		} 
+		else if (_spriteRect != spriteRect || _spriteBorder != spriteBorder)
+		{
+		    model.borders = spriteBorder;
+			model.setupDefaultNinePatch(Sprite(spriteRect));
+			_spriteBorder = spriteBorder;
+			_spriteRect = spriteRect;
+		}
+
+		auto wr = widget.size;
+		model.rect =  Rectf(0, 0, wr);
 		model.material = mat;
+		color = style.backgroundColor;
 		
 		model.draw(widget.window.MVP * transform);
 		

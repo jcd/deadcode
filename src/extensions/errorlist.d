@@ -43,9 +43,9 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 	override void init()
 	{
 		name = "errorlist";
-		auto n = new NineGridRenderer("box");
-		n.color = Vec3f(0.25, 0.25, 0.25);
-		features ~= n;
+		//auto n = new NineGridRenderer("box");
+		//n.color = Vec3f(0.25, 0.25, 0.25);
+		//features ~= n;
 
 		auto v = app.bufferViewManager.create("Build messages");
 
@@ -54,8 +54,8 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 		features ~= textRenderer;
 
 		// textRenderer = content(this, v);
-		// size = Vec2f(-1, 200);
-		size = Vec2f(10, 200);
+		size = Vec2f(-1, 200);
+		// size = Vec2f(10, 200);
 		alignToWindow(this, Anchor.BottomRight, rect.size);
 		acceptsKeyboardFocus = true;
 		lines = 0;
@@ -127,9 +127,13 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 
 class ErrorListStyler(Text) : TextStyler!Text
 {
-	enum defaultID = 0;
-	enum declarationID = 1;
-	enum typeID = 2;
+	enum DStyle
+	{
+		other = 0,
+		lineNumber = 1,
+		error = 2,
+		warning = 3,
+	};
 
 	enum errorLineRe = "(.*?)(\\(\\d+\\)): (Error.*)"d;
 	
@@ -159,18 +163,18 @@ class ErrorListStyler(Text) : TextStyler!Text
 			auto filePath = m.captures[1];
 			auto end = begin + filePath.length;
 			if (begin != lastEndIdx)
-				regionSet.merge(lastEndIdx, begin, 0);
-			regionSet.merge(begin, end, declarationID);			
+				regionSet.merge(lastEndIdx, begin, DStyle.other);
+			regionSet.merge(begin, end, DStyle.lineNumber);			
 
 			auto lineInFile = m.captures[2];
 			begin = end;
 			end = begin + lineInFile.length;
-			regionSet.merge(begin, end, typeID);			
+			regionSet.merge(begin, end, DStyle.error);			
 
 			auto errorMessage = m.captures[3];
 			begin = end + 1;
 			end = begin + errorMessage.length;
-			regionSet.merge(begin, end, 0);
+			regionSet.merge(begin, end, DStyle.other);
 			lastEndIdx = end;
 		}
 
@@ -178,5 +182,21 @@ class ErrorListStyler(Text) : TextStyler!Text
 			regionSet.merge(lastEndIdx, text.length, 0);
 
 		onChanged.emit();
+	}
+
+	override string styleIDToName(int id)
+	{
+		DStyle styleID = cast(DStyle)id;
+		final switch(styleID)
+		{
+			case DStyle.other:
+				return "errorlist-other";
+			case DStyle.lineNumber:
+				return "errorlist-line-number";
+			case DStyle.error:
+				return "errorlist-error";
+			case DStyle.warning:
+				return "errorlist-warning";
+		}
 	}
 }

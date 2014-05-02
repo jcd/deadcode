@@ -14,10 +14,34 @@ import std.algorithm;
 auto filesystemCompletions(string path)
 {	
 	import std.file;
-	import std.path;
-	auto dirPath = dirName(absolutePath(path));
-	auto filenamePrefix = baseName(path);
-	return dirEntries(dirPath, SpanMode.shallow).map!(a => baseName(a.name))().filter!(a => a.startsWith(filenamePrefix))();
+	import std.path; 
+	import std.string;
+
+	string relDirPath = path;
+	string filenamePrefix;
+	if (!path.empty)
+	{
+		auto ch = path[$-1];
+		if (!isDirSeparator(ch))
+		{
+			relDirPath = dirName(path);
+			filenamePrefix = baseName(path);
+		}
+			
+		if (relDirPath == ".")
+			relDirPath = "";
+	}
+
+	//auto dirPath = dirName(absolutePath(path));
+	//	auto filenamePrefix = baseName(path);	
+
+	debug std.stdio.writeln(path, " ", relDirPath, " : ", filenamePrefix, " ", dirEntries(relDirPath, SpanMode.shallow));
+
+	return dirEntries(relDirPath, SpanMode.shallow)
+		.filter!(a => a.name.baseName.startsWith(filenamePrefix))
+		.map!(a => a.isDir ? tr(a.name, r"\", "/") ~ '/' : tr(a.name, r"\", "/"));
+		//.filter!(a => a.name.baseName.startsWith(filenamePrefix))
+		//.map!(a => a.isDir ? buildNormalizedPath(relDirPath, a.name.baseName, "") : a.name);
 }
 
 enum getBufferOrReturn = q{
@@ -205,9 +229,9 @@ void register(Application _app)
 			app.openFile(path);
 		}
 
-		override string[] getCompletions(Variant data)
+		override CompletionEntry[] getCompletions(Variant data)
 		{
-			return std.array.array(filesystemCompletions(data.get!string()));
+			return std.array.array(filesystemCompletions(data.get!string()).map!(a => CompletionEntry(a,a))());
 		}
 	}
 
@@ -224,7 +248,7 @@ void register(Application _app)
 			app.showBuffer(path);
 		}
 		
-		override string[] getCompletions(Variant data)
+		override CompletionEntry[] getCompletions(Variant data)
 		{
 			auto prefix = data.get!string();
 			auto a = app.getActiveBufferCompletions(prefix);
@@ -234,11 +258,52 @@ void register(Application _app)
 			//if (prefix.empty && app.currentBuffer !is null && !app.currentBuffer.name.empty)
 			//    a = a[1..$];
 
-			return a;
+			return a.toCompletionEntries();
 		}
 	}
 	
 	cmgr.add(new ShowBufferCommand);
+
+	class IncrementalSearchCommand : Command
+	{
+		override @property string name() const { return "edit.incrSearch"; }
+		override @property string description() const { return "Incremental search active buffer"; }
+
+		struct SearchData
+		{
+			uint startPos;
+			uint lastPos;
+		}
+
+		override void execute(Variant data)
+		{
+			// If command window is not open the open it with the command in place and no arg
+			// else
+			// if the command is already running then search for the next item from the end of current selection or
+			// cursorPoint in no selection. 
+			auto b = app.currentBuffer;
+			if (b is null)
+				return;
+			import std.stdio;
+			
+			if (b.name == "*CommandInput*")
+			{
+				writeln("got " ~ data.get!string());
+			}
+			else
+			{
+				auto cmd = app.commandManager.lookup("app.toggleCommandArea");
+				cmd.execute(Variant("edit.incrSearch "));
+			}
+		}
+
+		override CompletionEntry[] getCompletions(Variant data)
+		{
+			return [data.get!string()].toCompletionEntries();
+		}
+	}
+
+	// cmgr.add(new IncrementalSearchCommand);
 
 	/*
 	cmgr.create("edit.commitCompletion", "Commit the active completion", delegate(Variant data) {

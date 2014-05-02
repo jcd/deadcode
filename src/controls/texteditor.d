@@ -9,7 +9,6 @@ import gui.widgetfeature._;
 import guiapplication;
 import math._;
 
-
 alias TextRenderer!BufferView BufferViewRenderer;
 
 class TextEditor : Widget
@@ -39,6 +38,22 @@ class TextEditor : Widget
 		bufferView.onInsert.connect(&this.onTextInserted);
 		bufferView.onRemove.connect(&this.onTextRemoved);
 		_mouseStartSelectionIdx = uint.max;
+
+		import derelict.sdl2.sdl;
+		onKeyboardFocusSignal.connect((Event ev) {
+			SDL_Cursor* cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
+			SDL_SetCursor(cursor);
+		});
+
+		onKeyboardUnfocusSignal.connect((Event ev) {
+			SDL_Cursor* cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+			SDL_SetCursor(cursor);
+		});
+	}
+
+	void toggleCursorVisibility()
+	{
+		renderer.toggleCursorVisibility();
 	}
 
 	override EventUsed onEvent(Event event)
@@ -63,21 +78,25 @@ class TextEditor : Widget
 				{
 					case "navigate.left":
 						bufferView.cursorLeft(1);
+						renderer.cursorVisible = true;
 						return EventUsed.yes;
 					case "navigate.right":
 						bufferView.cursorRight(1);
+						renderer.cursorVisible = true;
 						return EventUsed.yes;
 					case "navigate.up":
 						bufferView.cursorUp(1);
 						uint lineNum = bufferView.lineNumber;
 						if (lineNum < bufferView.lineOffset)
 							bufferView.scrollUp();
+						renderer.cursorVisible = true;
 						return EventUsed.yes;
 					case "navigate.down":
 						bufferView.cursorDown();
 						uint lineNum = bufferView.lineNumber;
 						if (lineNum > (bufferView.lineOffset + bufferView.visibleLineCount))
 							bufferView.scrollDown();
+						renderer.cursorVisible = true;
 						return EventUsed.yes;
 					default:
 						break;
@@ -196,7 +215,7 @@ class TextEditor : Widget
 
 	EventUsed onGlyphMouseUp(Event event, GlyphHit hit)
 	{
-		_updateSelectionEnd(hit, event.mousePos);
+		//_updateSelectionEnd(hit, event.mousePos);
 		_mouseStartSelectionIdx = uint.max;
 		return EventUsed.yes;
 	}
@@ -226,6 +245,7 @@ class TextEditor : Widget
 
 		bufferView.cursorPoint = index;
 		bufferView.setPreferredCursorColumnFromIndex();
+		renderer.cursorVisible = true;
 	}
 
 	// TODO: move slots to bufferView

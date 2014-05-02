@@ -4,6 +4,7 @@ import graphics.model;
 import gui.resources.material : Material;
 import gui._;
 import math._;
+import core.time;
 import std.range;
 import std.variant;
 import std.conv;
@@ -36,16 +37,20 @@ class TextRenderer(Text) : WidgetFeature
 		//TextSelectionModel _selectionModel;
 		TextStyler!Text _textStyler;
 		Model _cursorModel = null;
+
 		TextBoxLayout _layout;
 		bool _multiLine = true;
 		bool _textDirty = true;
 		enum _isBasicText = ! hasMember!(Text, "dirty");
+
+		Rectf[] _glyphWindowRectCache;
+		uint _bufferOffsetForCurrentCache;
 	}
+
+	bool cursorVisible;
 
 	// Tmp solution until proper stylesset and selectors are supported
 	Region selection;
-
-	bool cursorEnabled = true;
 
 	alias void delegate(TextRenderer!Text) Callback;
 	
@@ -61,21 +66,38 @@ class TextRenderer(Text) : WidgetFeature
 		this._textStyler = _textStyler;
 		 // TODO: maybe model should be owner of styledText_
 		import util.system;
-		this._cursorModel = createQuad(Rectf(0,0,1, 1), gui.resources.material.Material.create(getRunningExecutablePath() ~ "white.png"));
+		_cursorModel = createQuad(Rectf(0,0,1, 1), gui.resources.material.Material.create(getRunningExecutablePath() ~ "white.png"));
+		cursorVisible = true;
 		// std.stdio.writeln(getRunningExecutablePath() ~ "white.png");
 		// this._cursorModel.material.texture = font.fontMap;
-		_textStyler.text.onInsert.connect(&setDirtyCallback);
-		_textStyler.text.onRemove.connect(&setDirtyCallback);
-		_textStyler.onChanged.connect(&setDirtyCallback);
+		//_textStyler.text.onInsert.connect(&onTextDirty);
+		//_textStyler.text.onRemove.connect(&onTextDirty);
+		_textStyler.text.onDirty.connect(&onTextDirty);
+		_textStyler.onChanged.connect(&onTextDirty);
+		_bufferOffsetForCurrentCache = uint.max;
 	}
 
-	private void setDirtyCallback(Text, Text.BufferString, uint)
+	override EventUsed send(Event event, Widget widget) 
+	{ 
+		// onTextDirty();
+		return EventUsed.no; 
+	}
+
+	private void onTextDirty(Text)
+	{
+		onTextDirty();
+	}
+
+	void onTextDirty()
 	{
 		_textDirty = true;
 	}
 
-	private void setDirtyCallback()
+	
+
+	void toggleCursorVisibility()
 	{
+		cursorVisible = !cursorVisible;
 		_textDirty = true;
 	}
 
@@ -100,9 +122,9 @@ class TextRenderer(Text) : WidgetFeature
 		void textStyler(TextStyler!Text styler)
 		{
 			if (_textStyler !is null)
-				_textStyler.onChanged.disconnect(&setDirtyCallback);
+				_textStyler.onChanged.disconnect(&onTextDirty);
 			_textStyler = styler;
-			styler.onChanged.connect(&setDirtyCallback);
+			styler.onChanged.connect(&onTextDirty);
 			styler.update();
 			_textDirty = true;
 		}
@@ -194,13 +216,11 @@ class TextRenderer(Text) : WidgetFeature
 		// Now calc the column and row of the cursor in order to find out the x and y coord:
 		// TODO: do
 		if (layoutSize.y == 0f || (!_textDirty && _layout.bounds.size == layoutSize))
-		  return;
+			return;
 
 		//if (layoutSize.y == 0f)
 			//return;
 		
-		
-
 		//auto transform = Mat4f.makeTranslate(Vec3f(-1,1,0));
 
 		static if (_isBasicText)
@@ -266,7 +286,7 @@ class TextRenderer(Text) : WidgetFeature
 	
 		static if (!_isBasicText)
 		{
-			if (cursorEnabled)
+			if (cursorVisible)
 			{
 				Style style = widget.style;
 				drawCursor(widget, transform, style.font.fontLineSkip);
@@ -274,12 +294,12 @@ class TextRenderer(Text) : WidgetFeature
 		}
 	}
 	
-	void updateTextModelForWidth(float width, Widget widget)
+	private void updateTextModelForWidth(float width, Widget widget)
 	{
 		updateTextModel(Vec2f(width, 1000000000), widget);
 	}
 
-	void updateTextModel(Vec2f layoutSize, Widget widget)
+	private void updateTextModel(Vec2f layoutSize, Widget widget)
 	{
 
 		
@@ -373,7 +393,7 @@ class TextRenderer(Text) : WidgetFeature
 	}
 
 	// World rect relative to widget
-	Rectf getRectForViewIndex(uint idx)
+	private Rectf getRectForViewIndex(uint idx)
 	{
 		auto relIdx = cast(int)idx - cast(int)text.bufferOffset;
 		Rectf rect = Rectf(0, 0, 0, 0);
@@ -420,7 +440,7 @@ class TextRenderer(Text) : WidgetFeature
 		return rect;
 	}
 
-	Mat4f getTransformForViewIndex(uint idx, ref Rectf rect)
+	private Mat4f getTransformForViewIndex(uint idx, ref Rectf rect)
 	{
 		rect = getRectForViewIndex(idx);
 		if (rect.x == float.nan)
@@ -429,13 +449,13 @@ class TextRenderer(Text) : WidgetFeature
 		return Mat4f.makeTranslate(Vec3f(rect.x, rect.y, 0f));
 	}
 
-	Mat4f getTransformForViewIndex(uint idx)
+	private Mat4f getTransformForViewIndex(uint idx)
 	{
 		Rectf rect = void;
 		return getTransformForViewIndex(idx, rect);
 	}
 
-	void getTransformForIdx(Widget widget, ref Mat4f transform, float fontLineSkip, uint idx)
+	private void getTransformForIdx(Widget widget, ref Mat4f transform, float fontLineSkip, uint idx)
 	{
 		Rectf rect = void;
 		auto posTrans = getTransformForViewIndex(idx, rect);
@@ -455,7 +475,7 @@ class TextRenderer(Text) : WidgetFeature
 		transform = transform * posTrans * scaleTrans;	
 	}
 
-	Rectf getGlyphRect(Widget widget, uint idx)
+	private Rectf getGlyphRect(Widget widget, uint idx)
 	{
 		Rectf rect = void;
 		auto posTrans = getTransformForViewIndex(idx, rect);
@@ -506,10 +526,36 @@ class TextRenderer(Text) : WidgetFeature
 		// TODO: Maybe this should be handled by the textrenderer ie. click detection. Maybe not.
 		// Naive brute force finding of glyph pos
 		uint i = _textStyler.text.bufferOffset;
+		uint bufOffset = i;
+
+		if (bufOffset != _bufferOffsetForCurrentCache)
+		{
+			// Clear cache
+			_bufferOffsetForCurrentCache = bufOffset;
+			_glyphWindowRectCache.length = 0;
+			assumeSafeAppend(_glyphWindowRectCache);
+		}
+		else
+		{
+			// Check if window rect for glyph is cached
+			foreach (r; _glyphWindowRectCache)
+			{
+				if (pos.y <= r.y2)
+					return GlyphHit(false, r.x == float.nan || bufOffset == i ? 
+									uint.max : i-1, r);
+
+				if (r.contains(pos))
+					return GlyphHit(true, i, r);
+
+				i++;
+			}
+		}
+		
 		// uint i = bufferView.bufferOffset;
 
 		// Vec2f mousePos = event.mousePos;
 		Rectf glyphRect = getGlyphRect(widget, i);
+		_glyphWindowRectCache ~= glyphRect;
 
 		// glyphRect.y is bottom 
 		bool found = false;
@@ -523,10 +569,11 @@ class TextRenderer(Text) : WidgetFeature
 			}
 			i++;
 			glyphRect = getGlyphRect(widget, i);
+			_glyphWindowRectCache ~= glyphRect;
 		}
 		if (found)
 			return GlyphHit(true, i, glyphRect);
-		return GlyphHit(false, glyphRect.x == float.nan || _textStyler.text.bufferOffset == i ? uint.max : i-1, glyphRect);
+		return GlyphHit(false, glyphRect.x == float.nan || bufOffset == i ? uint.max : i-1, glyphRect);
 	}
 
 	void drawCursor(Widget widget, ref Mat4f transform, float fontLineSkip)

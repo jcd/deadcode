@@ -1,11 +1,10 @@
 module extension;
 
-public import guiapplication;
-public import std.variant;
 public import core.bufferview;
+public import core.command;
+public import guiapplication;
 public import gui.widget;
-
-import core.command;
+public import std.variant;
 
 private static IBasicExtension[] g_Extensions;
 private static IBasicCommand[] g_Commands;

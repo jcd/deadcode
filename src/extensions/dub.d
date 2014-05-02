@@ -181,12 +181,16 @@ class Project : BasicExtension!Project
 	string activeConfiguration;
 	
 	string[] knownFiles;
+	string   knownFilesCommonPrefix;
 
 	override void init()
 	{
 		if (readDubFile() && !configurations.empty)
 		{
 			knownFiles = getConfigurationFiles(configurations.front.name);
+			knownFilesCommonPrefix = knownFiles.empty ? "" : knownFiles[0];
+			foreach (name; knownFiles)
+				knownFilesCommonPrefix = commonPrefix(name, knownFilesCommonPrefix);
 		}
 	}
 
@@ -372,7 +376,7 @@ class QuickOpenCommand : BasicCommand!QuickOpenCommand
 		app.openFile(path);
 	}
 
-	override string[] getCompletions(Variant data)
+	override CompletionEntry[] getCompletions(Variant data)
 	{
 		Project p = getExtension!Project("dub.project");
 		if (p is null) 
@@ -380,8 +384,9 @@ class QuickOpenCommand : BasicCommand!QuickOpenCommand
 		import std.typecons;
 
 		string prefix = data.get!string(); 
+		auto stripPrefix = p.knownFilesCommonPrefix.length;
 		auto r1 = p.knownFiles.map!(a => tuple(baseName(a),a))().filter!(a => a[0].startsWith(prefix))();
-		auto r2 = r1.map!(a => a[1])();
+		auto r2 = r1.map!(a => CompletionEntry(a[1][stripPrefix..$], a[1]))();
 		return std.array.array(r2);
 	}
 }

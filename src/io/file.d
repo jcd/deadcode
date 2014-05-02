@@ -5,17 +5,42 @@ import io.iomanager;
 import std.algorithm;
 
 import std.path;
-import std.range : empty;
-import std.stdio : StdFile = File;
+import std.range;
+import std.stdio : StdFile = File, ErrnoException;
 
 class File : IO
 {
-	this(string path)
+	static File open(string path, IOMode mode)
 	{
 		debug std.stdio.writeln("Opening ", path);
-		_handle = StdFile(path, "r");
+		string modeString;
+		
+		final switch (mode)
+		{
+			case IOMode.read:
+				modeString = "r";
+				break;
+			case IOMode.write:
+				modeString = "w";
+				break;
+			case IOMode.append:
+				modeString = "a";
+				break;
+		}
+		try
+		{
+			File f = new File;
+			f._handle = StdFile(path, modeString);
+			return f;
+		}
+		catch (ErrnoException e)
+		{
+			debug std.stdio.writeln("Cannot open", path);
+			return null;
+		}
 	}
-	
+
+
 	~this()
 	{
 		close();
@@ -27,7 +52,7 @@ class File : IO
 	}
 
 	//void readAll(InputRange)(InputRange r);
-	void readText(InputRange)(InputRange r)
+	void readText(OutputRange)(OutputRange r) if (isOutputRange!(OutputRange, immutable(char)))
 	{
 		auto sz = cast(size_t)_handle.size;
 		
@@ -41,6 +66,20 @@ class File : IO
 		r.put(buf);
 	}
 
+	void writeText(InputRange)(InputRange r) if (isInputRange!InputRange)
+	{
+		static if (hasSlicing!InputRange)
+		{
+			_handle.rawWrite(r[]);
+		}
+		else
+		{
+			foreach (elm; r)
+				_handle.write(elm);
+		}
+		_handle.flush();
+	}
+
 	//ubyte[] readAll();
 	
 	string readText()
@@ -49,6 +88,11 @@ class File : IO
 		auto res = appender!string();
 		readText(res);
 		return res.data;
+	}
+
+	void writeText(string output)
+	{
+		writeText!string(output);
 	}
 
 	private StdFile _handle;
@@ -71,9 +115,9 @@ class FileProtocol : IOProtocol
 		}
 	}
 	
-	IO open(URI url)
+	IO open(URI url, IOMode mode)
 	{
-		return new File(uriToPath(url));
+		return File.open(uriToPath(url), mode);
 	}
 
 	string readText(URI inUrl)
@@ -127,7 +171,7 @@ unittest
 	// ditto but through allocated File
 	foreach (p; paths)
 	{
-		auto f = fp.open(new URI(p));
+		auto f = fp.open(new URI(p), IOMode.read);
 		Assert(f.readText().startsWith("[Setup]"));
 	}
 }

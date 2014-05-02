@@ -6,6 +6,18 @@ import std.range : empty;
 import std.string;
 import std.variant;
 
+struct CompletionEntry
+{
+	string label;
+	string data;
+}
+
+CompletionEntry[] toCompletionEntries(string[] strs)
+{
+	import std.algorithm;
+	return std.array.array(strs.map!(a => CompletionEntry(a,a))());
+}
+
 class Command
 {
 	@property
@@ -34,7 +46,7 @@ class Command
 	abstract void execute(Variant data);
 	void undo(Variant data) { }
 
-	string[] getCompletions(Variant data)
+	CompletionEntry[] getCompletions(Variant data)
 	{
 		return null;
 	}
@@ -50,7 +62,7 @@ class DelegateCommand : Command
 
 	void delegate(Variant d) executeDel;
 	void delegate(Variant d) undoDel;
-	string[] delegate (Variant d) completeDel;
+	CompletionEntry[] delegate (Variant d) completeDel;
 
 	this(string nameIn, string descIn, void delegate(Variant) executeDel, void delegate(Variant) undoDel = null)
 	{
@@ -71,7 +83,7 @@ class DelegateCommand : Command
 			undoDel(data);
 	}
 
-	override string[] getCompletions(Variant data)
+	override CompletionEntry[] getCompletions(Variant data)
 	{
 		if (completeDel !is null)
 			return completeDel(data);

@@ -7,6 +7,8 @@ import gui.widgetfeature._;
 import gui.window;
 import math._; // Rectf;
 
+import std.signals;
+
 // widget
 // control
 
@@ -24,14 +26,15 @@ import math._; // Rectf;
 alias uint WidgetID;
 enum NullWidgetID = 0u;
 
-enum _traceDirty = false;
+enum _traceDirty = true;
 
 void _printDirty(lazy const(char)[] name)
 {
 	static if (_traceDirty)
 	{
 		import core.sys.windows.stacktrace;
-		std.stdio.writeln(name, " dirty ", new StackTrace());
+		//std.stdio.writeln(name, " dirty ", new StackTrace());
+		std.stdio.writeln(name);
 	}
 }
 
@@ -52,19 +55,23 @@ class Widget
 	OnEvent[EventType] events;
 
 	WidgetFeature[] features;
-	BoxRenderer _background;
+	NineGridRenderer _background;
+
+	mixin Signal!(Event) onKeyboardFocusSignal;
+	mixin Signal!(Event) onKeyboardUnfocusSignal;
 
 	// Convenience accessors
-	@property BoxRenderer background()
+	@property NineGridRenderer background()
 	{
-		if (style.background is null)
+		Style st = style;
+		if (st!is null && st.background is null)
 		{
 			_background = null;
 			return null;
 		} 
 		else if (_background is null)
 		{
-			_background = new BoxRenderer();
+			_background = new NineGridRenderer();
 		}
 		return _background;
 	}
@@ -168,14 +175,22 @@ class Widget
 		void rect(Rectf r)
 		{
 //			import core.sys.windows.stacktrace;
-			_printDirty("rect");
-			_sizeDirty = true;
-			_rect = r;
+			if (r != _rect)
+			{
+				_sizeDirty = true;
+				_rect = r;
+				_printDirty("rect");
+			}
 		}
 
 		const(Rectf) rect() const
 		{
 			return _rect;
+		}
+
+		package void forceDirty()
+		{
+			_sizeDirty = true;
 		}
 
 		//const(Rectf) rectStyled() 
@@ -289,12 +304,15 @@ class Widget
 			return _rect.w;
 		}
 
-		ref float h() 
+		void h(float value) 
 		{
 			//std.stdio.writeln("h ", name, " ", _rect.h);
-			_printDirty("h");
-			_sizeDirty = true;
-			return _rect.h;
+			if (_rect.h != value)
+			{
+				_printDirty("h");
+				_sizeDirty = true;
+				_rect.h = value;
+			}
 		}
 		
 		const(float) h() const
@@ -322,9 +340,12 @@ class Widget
 		void onKeyDownCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyDown, del); }
 		void onKeyUpCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyUp, del); }
 		void onTextCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.Text, del); }
+		void onCommandCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.Command, del); }
+
+			
+		/// XXX: Doing cursor shapes! But these callbacks need to be signals because several listeners must be possible!.
 		void onKeyboardFocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyboardFocus, del); }
 		void onKeyboardUnfocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyboardUnfocus, del); }
-		void onCommandCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.Command, del); }
 	}
 
 	void moveBy(float x, float y)
@@ -380,20 +401,19 @@ class Widget
 	
 	@property void parent(Widget newParent)
 	{
-		Window oldWindow = window;
-		removeFromParent();
-		_parent = newParent;
+		if (newParent is _parent)
+			return; // noop
 
-		if (oldWindow !is window)
+		if (newParent is null)
 		{
-			if (oldWindow !is null)
-				oldWindow.deregister(this);
 			if (window !is null)
-				window.register(this);
+				window.deregister(this);	
+			removeFromParent();
+			_parent = null;
+			return;
 		}
 
-		if (_parent !is null)
-			_parent.addChild(this);
+		newParent.addChild(this);		
 	}
 
 	/*
@@ -406,6 +426,16 @@ class Widget
 
 	private void addChild(Widget w)
 	{
+		Window oldWindow = w.window;
+		w.removeFromParent();
+		w._parent = this;
+
+		if (oldWindow !is null && oldWindow !is window)
+			oldWindow.deregister(w);
+
+		if (oldWindow !is window && window !is null)
+			window.register(w);
+
 		_children ~= w;
 	}
 
@@ -534,6 +564,14 @@ class Widget
 
 	final EventUsed send(Event event)
 	{
+		if (event.type == EventType.KeyboardFocus)		
+		{
+			onKeyboardFocusSignal.emit(event);
+		}
+		else if (event.type == EventType.KeyboardUnfocus)		
+		{
+			onKeyboardUnfocusSignal.emit(event);
+		}
 
 		//if (event.type == EventType.KeyDown)
 		//	std.stdio.writeln("event ", event, " to ", this.id);
@@ -620,7 +658,7 @@ class Widget
 		{
 			// Send resize event to children
 			_sizeDirty = false;
-
+			
 			if (window !is null)
 			{
 				window._sizeDirty = true;
@@ -660,7 +698,7 @@ class Widget
 
 		/*
 	//	Rectf wrect = Window.active.windowToWorld(rect);
-		float[] vert = quadVertices(wrect);
+	//	float[] vert = quadVertices(wrect);
 	//	float[] uv = quadUVs(wrect, activeStyle.model.material, Window.active);
 		activeStyle.model.mesh.buffers[0].setData(vert);
 		activeStyle.model.mesh.buffers[1].setData(uv);

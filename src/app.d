@@ -20,26 +20,35 @@ int main(string args[])
 	{ 	
 		import test;
 		printStats(true);
-		return 0;
 	}
-
-	try
+	else
 	{
-		auto app = GUIApplication.create();
-		// Create a text buffer and add show it in the mainWidget
-		//auto fileName = "testmath.d";
-		//app.mainWidget.content = std.file.readText(fileName); 
 
-		app.run();
-	} 
-	catch (Exception e)
-	{
-		std.stdio.writeln("Caught Exception: ", e);
-		version (Windows)
+		GUIApplication app;
+		try
 		{
-			import std.string;
-			import core.sys.windows.windows;
-			MessageBoxA(null, e.toString().toStringz(), "Caught Exception", MB_ICONERROR | MB_OK | MB_TASKMODAL);
+			app = GUIApplication.create();
+			// Create a text buffer and add show it in the mainWidget
+			//auto fileName = "testmath.d";
+			//app.mainWidget.content = std.file.readText(fileName); 
+
+			app.run();
+		} 
+		catch (Exception e)
+		{
+			std.stdio.writeln("Caught Exception: ", e);
+			version (Windows)
+			{
+				import std.string;
+				import core.sys.windows.windows;
+				string s = e.toString();
+				s ~= "\n" ~ "Help improve the editor by uploading this backtrace?";
+				int res = MessageBoxA(null, e.toString().toStringz(), "Caught Exception", MB_ICONERROR | MB_YESNO | MB_TASKMODAL);
+				if (res)
+				{
+					app.analyticException(e.toString()[0..700], true);
+				}
+			}
 		}
 	}
 	return 0; 

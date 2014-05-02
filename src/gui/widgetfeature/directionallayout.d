@@ -45,12 +45,29 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 			auto r = Rectf(rect.x, rect.y, rect.w, 0);
 			foreach (ref w; children)
 			{
+				// no more room to in parent widget to layout children
+				w.visible = r.y2 < rect.y2;
+				
 				r.h = w.preferredSize.y;
-				w.rect = r;
+				
+				if (r.y2 > rect.y2)
+				{
+					// This widget cannot fit. Make it smaller in order to fit.
+					float tmp = r.h;
+					r.y2 = rect.y2;
+					w.rect = r;
+					r.h = tmp;
+				}
+				else
+				{
+					w.rect = r;
+				}
+
 				r.pos.y += r.h;
 			}
 
-			if (children[$-1].rect.y2 < widget.rect.y2)
+			// If there is any space left then give it to the last widget
+			if (children[$-1].rect.y2 < rect.y2)
 			{
 				Rectf rr = children[$-1].rect;
 				rr.size.y += widget.rect.y2 - children[$-1].rect.y2;

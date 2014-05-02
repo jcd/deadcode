@@ -5,6 +5,7 @@ import core.uri;
 import std.datetime;
 import std.exception;
 import std.signals;
+import std.typecons;
 
 import io.iomanager;
 
@@ -14,7 +15,6 @@ interface IResource(T)
 	alias Manager.Handle Handle;
 
 	@property Handle handle();
-	@property string name();
 	@property Manager manager();
 	void load();
 
@@ -29,7 +29,7 @@ interface IResource(T)
 /** Base class for a resource such as Texture or StyleSheet
 A Resource can be in different load states:
 * unknown  : an instance does not exists but this is the state for removed or unknown resources in a ResourceManager
-* declared : known by a ResourceManager by name/handle but no Resource available to reference
+* declared : known by a ResourceManager by handle but no Resource available to reference
 * unloaded : A Resource is available to reference but has not been loaded
 * loading  : loading 
 * loaded   : loaded and ready
@@ -40,16 +40,6 @@ public:
 
 	@property 
 	{
-		string name()
-		{
-			return _name;
-		}
-
-		private void name(string name)
-		{
-			_name = name;
-		}
-		
 		public Handle handle()
 		{
 			return _handle;
@@ -81,6 +71,11 @@ public:
 		_manager.load(_handle);
 	}
 
+	void save()
+	{
+		_manager.save(_handle);
+	}
+
 	void unload()
 	{
 		_manager.unload(_handle);
@@ -89,7 +84,6 @@ public:
 protected:
 	Manager _manager;
 	Handle _handle;
-	string _name;
 }
 
 /** Resource specific exception
@@ -137,27 +131,33 @@ public:
 	}
 
 	// Declare a resource in the manager making it possible to get a reference to the unset/unloaded resource.
-	// If name is null a name will be generated
 	// An optional URI can be provided.
-	final T declare(string name = null, URI uri = null, Loader loader = null)
+	final T declare(URI uri, Loader loader = null)
 	{
-		auto r = declareImpl(name, uri);
+		auto r = declareImpl(uri)[0];
 		r.loader = loader;
 		return r.resource;
 	}
-	
+
+	final T declare(string uriString, Loader loader = null)
+	{
+		return declare(new URI(uriString), loader);
+	}
+
+	final T declare(Loader loader = null)
+	{
+		return declare(cast(URI)null, loader);
+	}
+
 	final private ResourceState lookup(URI uri)
 	{
 		import std.stdio;
 		foreach (k,v; _resourcesByHandle)
 		{
 			URI theURI = uri;
-			string _name = v.resource.name;
 
-			//writeln("looking up " ~ uri.toString(), " ", v.uri is null ? "" : v.uri.toString());
 			if (v.uri !is null && v.uri == uri)
 			{
-				//writeln("could lookup " ~ uri.toString());
 				return v;
 			}
 		}
@@ -165,47 +165,27 @@ public:
 		return null;
 	}
 
-	final private ResourceState declareImpl(string name = null, URI uri = null)
+	final private auto declareImpl(URI uri = null)
 	{
-		Handle h = NullHandle;
+		bool newlyDeclared = false;
 		ResourceState* rs = null;
-		if (name is null)
-		{
-			if (uri !is null)
-			{
-				auto uriMatchingResourceState = lookup(uri);
-				if (uriMatchingResourceState !is null)
-					rs = &uriMatchingResourceState;
-			}
 
-			if (rs is null)
-			{
-				h = createHandle();
-				int subItem = 0;
-				while (name is null || (name in _resourcesByName) !is null)
-				{
-					if (subItem == 0)
-						name = std.string.format("%s_%s", ResourceManager!T.stringof, h);
-					else
-						name = std.string.format("%s_%s_%s", ResourceManager!T.stringof, h, subItem++);
-				}
-			}
-		}
-		else
+		if (uri !is null)
 		{
-			rs = name in _resourcesByName;
+			auto uriMatchingResourceState = lookup(uri);
+			if (uriMatchingResourceState !is null)
+				rs = &uriMatchingResourceState;
 		}
 
 		if (rs is null)
 		{
+			newlyDeclared = true;
+			Handle h = createHandle();
 			auto newT = allocate();
 			auto newRs = new ResourceState(uri, newT, uri is null ? LoadState.declared : LoadState.unloaded);
 			rs = &newRs;
-			h = h == NullHandle ? createHandle() : h;
 			_resourcesByHandle[h] = newRs;
-			_resourcesByName[name] = newRs;
 			newT.handle = h;
-			newT.name = name;
 			newT.manager = this;
 		}
 		else if (uri !is null)
@@ -214,7 +194,7 @@ public:
 			if (rs.state == LoadState.declared)
 				rs.state = LoadState.unloaded;
 		}
-		return *rs;
+		return tuple(*rs, newlyDeclared);
 	}
 
 	/*
@@ -295,10 +275,36 @@ public:
 			// TODO: Maybe just store a pointer to the serializer in ResourceState?
 			foreach (s; _serializers)
 			{
-				if (s.canHandle(uri))
+				if (s.canRead() && s.canHandle(uri))
 				{
-					IO io = _ioManager.open(uri);
+					IO io = _ioManager.open(uri, IOMode.read);
+					if (io is null)
+						continue;
 					s.deserialize(r, io);
+					io.close();
+					return true;
+				}
+			}
+			return false;
+		}
+
+		bool save(T r, URI uri)
+		{
+			enforceEx!ResourceException(_ioManager, std.string.format("IOManager not set on %s", this.stringof));
+
+			if (uri is null)
+				return false;
+
+			// TODO: Maybe just store a pointer to the serializer in ResourceState?
+			foreach (s; _serializers)
+			{
+				if (s.canWrite() && s.canHandle(uri))
+				{
+					IO io = _ioManager.open(uri, IOMode.write);
+					if (io is null)
+						continue;
+					s.serialize(r, io);
+					io.close();
 					return true;
 				}
 			}
@@ -308,18 +314,46 @@ public:
 
 	protected bool load(ResourceState state)
 	{
+		LoadState preState = state.state;
 		state.state = LoadState.loading;
 
 		if (state.loader is null)
 			state.loader = _defaultLoader;
 		
-		return state.loader.load(state.resource, state.uri);
+		bool ok = true;
+		if (!state.loader.load(state.resource, state.uri))
+		{
+			state.state = preState;
+			ok = false;
+		}
+		return ok;
 	}
 
-	final bool load(string name, URI uri = null)
+	final T load(URI uri, Loader loader = null)
 	{
-		ResourceState rs = declareImpl(name, uri);
-		return load(rs);
+		auto res = declareImpl(uri);
+		ResourceState rs = res[0];
+		rs.loader = loader;
+		bool newlyDeclared = res[1];
+		
+		if (!load(rs))
+		{
+			// Unsuccessful load
+
+			if (newlyDeclared)
+			{
+				// Just remove resource if it has been newly declared because we don't care about it.
+				remove(rs.resource.handle);
+			}
+		}
+		
+		// Is null in case of newlyDeclared and unsuccessfull because of remove() above
+		return rs.resource; 
+	}
+
+	final T load(string uriString)
+	{
+		return load(new URI(uriString));
 	}
 
 	final bool load(Handle h)
@@ -339,9 +373,23 @@ public:
 		return load(*rs);
 	}
 
+	final bool save(Handle h)
+	{
+		ResourceState* rs = h in _resourcesByHandle;
+		enforceEx!ResourceException(rs, "Cannot save " ~ T.stringof ~ " resource from unknown handle");
+		
+		if (rs.loader is null)
+			rs.loader = _defaultLoader;
+
+		return rs.loader.save(rs.resource, rs.uri);
+	}
+
 	// Unload the specified resource from system. The resource can be loaded again using load().
 	final private bool unload(ResourceState rs)
 	{
+		if (rs.resource is null)
+			return true;
+
 		bool success = false;
 		final switch (rs.state)
 		{
@@ -353,13 +401,17 @@ public:
 			case LoadState.loading:
 				break;
 			case LoadState.loaded:
+				rs.state = LoadState.unloading;
 				rs.resource.unload();
+				rs.state = LoadState.unloaded;
 				success = true;
 				break;
 			case LoadState.preparing:
 				break;
 			case LoadState.prepared:
+				rs.state = LoadState.unloading;
 				rs.resource.unload();
+				rs.state = LoadState.unloaded;
 				success = true;
 				break;
 			case LoadState.unloading:
@@ -367,13 +419,6 @@ public:
 				break;
 		}
 		return success;
-	}
-
-	final bool unload(string name)
-	{
-		ResourceState* rs = name in _resourcesByName;
-		enforceEx!ResourceException(rs, "Cannot unload " ~ T.stringof ~ " resource of unknown name '" ~ name ~ "'");
-		return unload(*rs);
 	}
 
 	final bool unload(Handle h)
@@ -389,43 +434,24 @@ public:
 		return new T;
 	}
 
-	protected void deallocate(T res)
+	protected void deallocate(ref T res)
 	{
 		// default dealloc from GC
+		if (res is null) return;
 		destroy(res);
+		res = null;
 	}
 
 	// Remove resource from manager. After this the resource needs to be re-declared using declare(), set() or load().
-	final void remove(string name)
-	{
-		ResourceState* rs = name in _resourcesByName;
-		enforceEx!ResourceException(rs, "Cannot remove " ~ T.stringof ~ " resource of unknown name '" ~ name ~ "'");
-		unload(*rs);
-		deallocate(rs.resource);
-	}
-
 	final void remove(Handle h)
 	{
+		if (h == NullHandle)
+			return;
 		ResourceState* rs = h in _resourcesByHandle;
 		enforceEx!ResourceException(rs, "Cannot remove " ~ T.stringof ~ " resource with unknown handle");
 		unload(*rs);
 		deallocate(rs.resource);
-	}
-
-	final T get(string name, T def)
-	{
-		auto i = name in _resourcesByName;
-		if (i is null)
-			return def;
-	//	if (!prepare(*i))
-	//		return null;
-		return i.resource;
-	}
-
-	final T get(string name)
-	{
-		return enforceEx!ResourceException(get(name, null), 
-										   std.string.format("No %s named '%s' in manager", T.stringof, name));
+		_resourcesByHandle.remove(h);
 	}
 	
 	final T get(Handle h, T def)
@@ -489,7 +515,7 @@ public:
 
 	Example:
 	---
-	auto loc = locationsManager.declare("name", "file://foobar/dd/*");
+	auto loc = locationsManager.declare("file://foobar/dd/*");
 
 	// Make instance of MyManager get onLocationFound callbacks
 	loc.addListener(new MyManager);
@@ -504,6 +530,7 @@ public:
 			if (v.uri == uri && v.lastModified != lastModified)
 			{
 				onSourceChanged.emit(v.resource);
+				v.lastModified = lastModified;
 				return;
 			}
 		}
@@ -511,9 +538,11 @@ public:
 		import std.path;
 		foreach (s; _serializers)
 		{
-			if (s.canHandle(uri))
+			if (s.canRead() && s.canHandle(uri))
 			{
-				declare(uri.baseName.stripExtension, uri);
+				auto r = declare(uri);
+				auto rstate = _resourcesByHandle[r.handle];
+				rstate.lastModified = lastModified;
 				break;
 			}
 		}
@@ -564,8 +593,8 @@ protected:
 	enum LoadState
 	{
 		unknown,   // Previously declared but now removed resource
-		declared,  // Name and handle is known      (ie cannot be loaded)
-		unloaded,  // Name, handle and URI is known (ie. can be loaded now)
+		declared,  // Handle is known      (ie cannot be loaded)
+		unloaded,  // Handle and URI is known (ie. can be loaded now)
 		loading,   // Being loaded now
 		loaded,    // Done loading the resource from disk, net, whatever
 		preparing, // Processing, generating, converting resource before it is ready for use
@@ -607,7 +636,6 @@ protected:
 	}
 
 	ResourceState[Handle] _resourcesByHandle;
-	ResourceState[string] _resourcesByName;
 	Serializer[] _serializers;
 	DefaultLoader _defaultLoader;
 	IOManager _ioManager; // Need an IO manager because resources can be loaded/unloaded at will
@@ -618,27 +646,44 @@ interface IResourceLoader(T)
 	/** Custom loading of resources
 	*/
 	bool load(T r, URI uri);
+	bool save(T r, URI uri);
 }
 
-interface IResourceSerializer(T)
+class ResourceSerializer(T) 
 {
+	import std.array;
+
 	/** Serialization
 	Returns: 
 	false if the IO cannot handle the required resource
 	*/
-	bool canHandle(URI uri);
-
-	// void serialize(OuputRange)(T res, OutputRange or);
-	void deserialize(InputRange)(T res, InputRange ir);
-}
-
-class ResourceSerializer(T) : IResourceSerializer!T
-{
 	bool canHandle(URI uri) { return false; }
+	
+	bool canRead() pure const nothrow { return false; }
+	bool canWrite() pure const nothrow { return false; }
 
-	void deserialize(T res, string str)
+	void serialize(T res, Appender!string output)
 	{
 		throw new ResourceException("No string serializer implemeted");
+	}
+
+	void serialize(T res, IO io)
+	{
+		auto output = appender!string();
+		serialize(res, output);
+		io.writeText(output.data);
+	}
+
+	void serialize(OutputRange)(T res, OutputRange or)
+	{
+		auto output = appender!string();
+		deserialize(res, output);
+		or.put(output.data);
+	}
+
+	void deserialize(T res, string input)
+	{
+		throw new ResourceException("No string deserializer implemeted");
 	}
 
 	void deserialize(T res, IO io)
@@ -659,8 +704,9 @@ version(unittest)
 {
 	class Dummy : Resource!Dummy
 	{
-		this() { loaded = false; }
+		this() { loaded = false; saved = false;}
 		public bool loaded;
+		public bool saved;
 	}
 
 	class DummyManager : ResourceManager!Dummy
@@ -675,15 +721,27 @@ version(unittest)
 			r.loaded = true;
 			return true;
 		}
+		public bool save(Dummy r, URI uri)
+		{
+			r.saved = true;
+			return true;
+		}
 	}
 
 	class DummySerializer : ResourceSerializer!Dummy
 	{
+		override bool canRead() pure const nothrow { return true; }
+
 		override bool canHandle(URI uri)
 		{
 			return true;
 		}
 
+		override void serialize(Dummy res, Appender!string output)
+		{
+			
+		}
+			
 		override void deserialize(Dummy res, IO io)
 		{
 			res.manager.onResourceLoaded(res, this);
@@ -699,14 +757,16 @@ unittest
 	DummyLoader loader = new DummyLoader;
 
 	import test;
-	auto r = m.declare("dummy1", null, loader);
+	auto r = m.declare(cast(string)null, loader);
 	Assert(m.get(r.handle) is r, "Resource from declare same as resource gotten by handle from manager");
-	Assert(m.get(r.name) is r, "Resource from declare same as resource gotten by name from manager");
-	auto r2 = m.declare("dummy1", null, loader);
-	Assert(r is r2, "Redeclaring with same name results in same resource");
-	auto r3 = m.declare("dummy1", new URI("resources/dummies/dummy1.dummy"), loader);
-	Assert(r is r3, "Redeclaring with same name and a uri results in same resource");
+	//Assert(m.get(r.name) is r, "Resource from declare same as resource gotten by name from manager");
+	//auto r2 = m.declare("dummy1", null, loader);
+	//Assert(r is r2, "Redeclaring with same name results in same resource");
+	//auto r3 = m.declare("dummy1", new URI("resources/dummies/dummy1.dummy"), loader);
+	//Assert(r is r3, "Redeclaring with same name and a uri results in same resource");
 	Assert(r.loaded, false, "Resource is not loaded before calling load");
 	m.load(r.handle);
 	Assert(r.loaded, true, "Resource is loaded after calling load");
+	r.save();
+	Assert(r.saved, true, "Resource is loaded after calling load");
 }

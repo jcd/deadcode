@@ -19,6 +19,9 @@ import std.algorithm;
 import std.array;
 import std.conv;
 
+import std.string;
+import std.regex;
+
 class CompletionListStyler(Text) : TextStyler!Text
 {
 	enum CompletionStyle
@@ -99,10 +102,38 @@ class CompletionListStyler(Text) : TextStyler!Text
 	}
 }
 
+string cssifyName(string name)
+{
+	string res;
+	foreach (c; name)
+		if (c >= 'A' && c <= 'Z')
+		{
+			res ~= "-";
+			res ~= c.toLower();
+		}
+		else
+			res ~= c;
+	return res;
+}
+
+mixin template styleProperty(string type, string name)
+{
+	mixin(type ~ " _" ~ name ~ ";");
+	mixin("bool _" ~ name ~ "IsSet;");
+	mixin("void clear" ~ toUpper(name[0..1]) ~ name[1..$] ~ "() pure nothrow { _" ~ name ~ "IsSet = false; }");
+	mixin("@property " ~ type ~ " " ~ name ~ "() { " ~ 
+			" if ( _" ~ name ~ "IsSet) return _" ~ name ~ ";" ~
+			" else { " ~ type ~ " t; style.getProperty(\"" ~ cssifyName(name) ~ "\", t); return t; } }");
+	mixin("@property void " ~ name ~ "(" ~ type ~ " value) { _" ~ name ~ " = value; _" ~ name ~ "IsSet = true; }");
+}
+
 class CommandControl : Widget
 {
 	float height; // height when control is visible
-	float expandDuration; //
+
+	mixin styleProperty!("float", "expandDuration");
+
+	//float expandDuration; //
 	float contractDuration; //
 
 	TextField commandField;
@@ -131,12 +162,13 @@ class CommandControl : Widget
 		app = _app;
 		commandMap = [ "f" : "edit.open", "b" : "edit.showBuffer" ];
 		
-		expandDuration = 0.15f;
+		expandDuration = 0.10f;
+		clearExpandDuration();
 		contractDuration = 0.03f;
 		height = _height;
 		
 		acceptsKeyboardFocus = true;
-		h = _height;
+		h = 0;
 		visible = false;
 		cycleBufferStartOffset = -1; // cycling off initially
 
@@ -145,6 +177,7 @@ class CommandControl : Widget
 
 		// Command text entry field
 		commandField = new TextField(this, bufView);
+		commandField.h = 32;
 		commandField.bufferView.onInsert.connect(&handleBufferChanged);
 		commandField.bufferView.onRemove.connect(&handleBufferChanged);
 		commandField.name = "commandEntryField";
@@ -157,7 +190,7 @@ class CommandControl : Widget
 		completionWidget = new TextEditor(this, completionView);
 		completionStyler = new CompletionListStyler!BufferView(completionView);
 		completionWidget.renderer.textStyler = completionStyler;
-		completionWidget.renderer.cursorEnabled = false;
+		completionWidget.renderer.toggleCursorVisibility();
 		completionWidget.name = "commandCompletion";
 		//completionWidget.h = 180; // TODO: vert layout should instead just use remaining space so we do not have to specify this.
 
@@ -256,6 +289,23 @@ class CommandControl : Widget
 		case "navigate.down":
 			navigateDown();
 			return EventUsed.yes;
+		case "navigate.right":
+			if (commandField.bufferView.isCursorAtEndOfline())
+			{
+				completeCommand();
+				return EventUsed.yes;
+			}
+			break;
+		//case "edit.scrollPageUp":
+		//    auto scrollLineCount = to!int(completionWidget.bufferView.visibleLineCount * 0.70f);
+		//    foreach (i; 0..scrollLineCount)
+		//        navigateUp();
+		//    break;
+		//case "edit.scrollPageDown":
+		//    auto scrollLineCount = to!int(completionWidget.bufferView.visibleLineCount * 0.70f);
+		//    foreach (i; 0..scrollLineCount)
+		//        navigateDown();
+		//    break;
 		case "app.cycleBuffers":
 			import std.conv;
 
@@ -362,10 +412,12 @@ class CommandControl : Widget
 			{
 				if (b)
 				{
+					// style.getProperty("expand-duration", expandDuration);
 					app.guiRoot.timeline.animate!"h"(this, height, expandDuration);
 				}
 				else
 				{
+					//style.getProperty("contract-duration", expandDuration);
 					app.guiRoot.timeline.animate!"h"(this, 0, contractDuration);
 					app.guiRoot.timeline.event(contractDuration * 0.1, (int d) { this.visible = false; });
 				}
@@ -429,8 +481,16 @@ class CommandControl : Widget
 	void displayStringList(string[] list)
 	{
 		dstring comps;
+		size_t maxLen = reduce!( (a,b) => max(a, b.length) )(0, list);
+		size_t cutLen = 40;
+
 		foreach (c; list)
-			comps ~= dtext(c ~ " \n");
+		{
+			if (maxLen > cutLen && cutLen < c.length)
+				comps ~= dtext("..." ~ c[$-cutLen..$] ~ " \n");
+			else
+				comps ~= dtext(c ~ " \n");
+		}
 
 		completionWidget.bufferView.clear(comps);
 		completionWidget.bufferView.bufferOffset = 0;
@@ -450,7 +510,7 @@ class CommandControl : Widget
 
 		//completionWidget.visible = true;
 		auto completions = cmdData.cmd.getCompletions(std.variant.Variant(cmdData.rest));
-		displayStringList(completions);
+		displayStringList(completions.map!(a => a.label).array);
 
 		// std.stdio.writeln("rest '", cmdData.rest, "'");
 version(oldvw)
@@ -468,6 +528,7 @@ version(oldvw)
 
 	void completeCommand()
 	{
+		import std.range;
 		auto cmdData= getActiveCommand();
 		if (cmdData.cmd is null) 
 		{
@@ -476,7 +537,14 @@ version(oldvw)
 		}
 		auto prefix = cmdData.rest;
 		auto completions = cmdData.cmd.getCompletions(std.variant.Variant(prefix));
-
+		auto res = completions.dropExactly(completionStyler.lineHighlighted);
+		commandField.bufferView.remove(-prefix.length);
+		//completionWidget.visible = true;
+		completionWidget.bufferView.clear();
+		commandField.bufferView.insert(dtext(res.front.label));
+		return;
+version(NONE)
+{
 		// filter away active editor buffer name from list here.
 
 		if (completions.empty) return;
@@ -485,9 +553,9 @@ version(oldvw)
 		auto csLen = cs.length;
 
 		size_t cutIdx = 0;
-		foreach (idx; 0 .. completions[0].length)
+		foreach (idx; 0 .. completions[0].data.length) // TODO: .data really?
 		{
-			auto csNew = array(cs.filter!((a) => a[idx] == completions[0][idx])());
+			auto csNew = array(cs.filter!((a) => a.data[idx] == completions[0].data[idx])());
 			auto csNewLen = csNew.length;
 			if (csLen != csNewLen)
 				break;
@@ -498,9 +566,9 @@ version(oldvw)
 
 		// If no common prefix found then use first completion
 		if (cutIdx == 0)
-			cutIdx = completions[0].length;
+			cutIdx = completions[0].data.length; // TODO: .data really?
 
-		auto completionText = completions[0][0..cutIdx];
+		auto completionText = completions[0].data[0..cutIdx];
 		auto completionSameAsEnteredPrefix = completionText.length == prefix.length;
 		// TODO: when this condition is true also allow for further tabbing to switch between
 		//       entries that matched the original prefix. The first non-tab key should
@@ -508,13 +576,14 @@ version(oldvw)
 		if (completionSameAsEnteredPrefix)
 		{
 			// Complete using the first completion on double complete
-			completionText = completions[0];
+			completionText = completions[0].data;
 		}
 
 		commandField.bufferView.remove(-prefix.length);
 		//completionWidget.visible = true;
 		completionWidget.bufferView.clear();
 		commandField.bufferView.insert(dtext(completionText));
+}
 	}
 
 	void executeCommand()
@@ -534,7 +603,7 @@ version(oldvw)
 		auto var = std.variant.Variant(cmdData.rest);
 		auto completions = cmdData.cmd.getCompletions(var);
 		auto res = completions.dropExactly(completionStyler.lineHighlighted);
-		cmd.cmd.execute(res.empty ? var : std.variant.Variant(res.front));
+		cmd.cmd.execute(res.empty ? var : std.variant.Variant(res.front.data));
 		setCommand("");
 		//window.app.
 	}

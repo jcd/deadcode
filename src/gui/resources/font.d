@@ -85,9 +85,11 @@ version(Windows)
 
 class FontManager : ResourceManager!Font
 {
+	private Handle builtinFontHandle;
+
 	@property Font builtinFont()
 	{
-		return get("builtin");
+		return get(builtinFontHandle);
 	}
 	
 	static FontManager create(IOManager ioManager)
@@ -104,12 +106,12 @@ class FontManager : ResourceManager!Font
 	
 	private void createBuiltinFont()
 	{
-		declare("builtin", new URI(builtinFontPath));
+		builtinFontHandle = declare(builtinFontPath).handle;
 	}
 
-	Font create(string name, string path, size_t size = 16)
+	Font create(string path, size_t size = 16)
 	{
-		auto f = declare(name);
+		auto f = declare();
 		f.init(path, size);
 		return f;
 	}
@@ -117,6 +119,8 @@ class FontManager : ResourceManager!Font
 
 class JsonFontSerializer : ResourceSerializer!Font
 {
+	override bool canRead() pure const nothrow { return true; }
+
 	override bool canHandle(URI uri)
 	{
 		return uri.extension == ".font";
@@ -146,11 +150,10 @@ unittest
 	m.addSerializer(p);
 
 	import test;
-	auto r = m.declare("font1");
+	auto r = m.declare();
 	AssertIs(m.get(r.handle), r, "Resource from declare same as resource gotten by handle from manager");
-	AssertIs(m.get(r.name), r, "Resource from declare same as resource gotten by name from manager");
-	auto r2 = m.declare("font1");
-	AssertIs(r, r2, "Redeclaring with same name results in same resource");
-	auto r3 = m.declare("font1", new URI("resources/fonts/default.font"));
-	AssertIs(r, r3, "Redeclaring with same name and a uri results in same resource");
+	//auto r2 = m.declare("font1");
+	//AssertIs(r, r2, "Redeclaring with same name results in same resource");
+	//auto r3 = m.declare("font1", new URI("resources/fonts/default.font"));
+	//AssertIs(r, r3, "Redeclaring with same name and a uri results in same resource");
 }

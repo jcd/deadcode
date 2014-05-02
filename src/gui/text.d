@@ -396,13 +396,13 @@ class TextSelectionModel
 			{
 				box = new BoxModel(Sprite(0,0,16,16), RectfOffset(borderSize,borderSize,borderSize,borderSize));
 				//box = new BoxModel(Sprite(Rectf(6,6,4,4)));
-				box.color = style.color.toVec3f(); //Vec3f(0.25, 0.25, 0.25);
+				box.color = style.color; //Vec3f(0.25, 0.25, 0.25);
 				models[i] = box;
 			}
 			else
 			{
 				box.setupDefaultNinePatch(Sprite(0,0,16,16));
-				box.color = style.color.toVec3f();
+				box.color = style.color;
 			}
 
 			Vec2f size = Vec2f((endGlyphPos.pos.x + endGlyphPos.size.x) - beginGlyphPos.pos.x, line.lineHeight);

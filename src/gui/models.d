@@ -1,6 +1,7 @@
 module gui.models;
 
 import graphics.buffer;
+import graphics.color;
 import graphics.material;
 import graphics.model;
 import graphics.rendertarget;
@@ -42,7 +43,7 @@ Model createTriangle()
 float[] quadVertices(Rectf worldRect)
 {
 	float[] verts = [ 
-		worldRect.x,  worldRect.y,  0f,
+		worldRect.x,  worldRect.y,  0f, // lower 
 		worldRect.x,  worldRect.y2, 0f,
 		worldRect.x2, worldRect.y2, 0f, 
 		worldRect.x,  worldRect.y,  0f,
@@ -102,7 +103,7 @@ float[] quadUVForTextureMatchingRenderTargetPixels(Rectf worldRect, Vec2f winTex
 Model createRdenderTargetQuad(Rectf pixelRect, Material mat, RenderWindow win)
 {
 	Rectf rect = win.windowToWorld(pixelRect);
-	return createQuad(rect, mat);
+	//return createQuad(rect, mat);
 }
 */
 
@@ -203,10 +204,16 @@ struct Sprite
 {
 	Rectf rect; // Location on texture in pixels
 
+	this(Rectf r)
+	{
+		rect = r;
+	}
+
 	this(float x, float y, float w, float h)
 	{
 		rect = Rectf(x,y,w,h);
 	}
+
 }
 
 /**
@@ -239,12 +246,25 @@ class BoxModel
 			_model.material = m;
 		}
 
+		Color color() const pure nothrow
+		{
+			return _color;
+		}
+
+		void color(Color c) pure nothrow
+		{
+			if (c != _color)
+			{
+				_color = c;
+				_dirtyRect = true;
+			}
+		}
 	}
 
-	Vec3f color;
 
 	private 
 	{		
+		Color _color;
 		Model _model;
 		bool _dirtyRect;
 		bool _dirtyBorders;
@@ -292,7 +312,7 @@ class BoxModel
 
 	private void _init(Material mat)
 	{
-		color = Vec3f(1,1,1);
+		color = Color(1,1,1);
 		_dirtyRect = true;
 		
 		_borderFills[0] = ImageFill.fill;
@@ -325,19 +345,46 @@ class BoxModel
 		// If border size or fill behaviour has changed then always recalculate uvs.
 		// TODO: take into consideration that a resize of window will scale the rect but should recalc the
 		// uvs. Just a performance optimization.
-		bool recalcUVs = _dirtyBorders || (_dirtyRect && _centerFill != ImageFill.fill);
+		bool recalcUVs = _dirtyRect || _dirtyBorders || (_dirtyRect && _centerFill != ImageFill.fill);
 		
-		Rectf worldRect = _rect; //  renderTarget.windowToWorld(_rect);
+		Rectf worldRect = _rect;  //  renderTarget.windowToWorld(_rect);
+		
+		// world is negative downwards, win is positive
+		worldRect.y = -worldRect.y;
+		worldRect.h = -worldRect.h;
 		
 		// Swap coords from win to world x,y dir
-		worldRect.y = -(worldRect.y + worldRect.h); // world is negative downwards, win is positive
+		// worldSize.y = -(worldSize.y + worldSize.h); // world is negative downwards, win is positive
+		// worldSize.y = -worldSize.y;
 
 		void fillUVs(Sprite s)
 		{
-			Rectf r = material.texture.pixelRectToUVRect(s.rect);
+			auto tex = material.texture;
+			Rectf inRect = s.rect; 
+			inRect.y = -inRect.y;
+			inRect.h = -inRect.h;
+			// Vec2f screenPixScale = (renderTarget.size / Vec2f(tex.width, tex.height)) * 0.5;
+			// inRect = inRect.scale(screenPixScale);
+			Rectf r = tex.pixelRectToUVRect(inRect);
 			
-			uvs ~= [r.x, r.y2, r.x, r.y, r.x2, r.y,
-					r.x, r.y2, r.x2, r.y, r.x2, r.y2];
+			//Vec2f uv = (worldRect.size * 0.5) * winTexRatio;
+
+			////float[] c = [
+			////    0f, 1f,
+			////    0f, uv.y + 1f,
+			////    uv.x,  uv.y + 1f,
+			////    0f, 1f,
+			////    uv.x,  uv.y + 1f,
+			////    uv.x,  1f];
+
+			//r = r.scale();
+			
+			//uvs ~= [r.x, r.y2, r.x, r.y, r.x2, r.y,
+			//        r.x, r.y2, r.x2, r.y, r.x2, r.y2];
+
+			uvs ~= [r.x, r.y, r.x, r.y2, r.x2, r.y2,
+			        r.x, r.y, r.x2, r.y2, r.x2, r.y];
+
 			//uvs ~= [r.x, r.y, r.x, r.y2, r.x2, r.y2,
 			// r.x, r.y, r.x2, r.y2, r.x2, r.y];
 			//uvs ~= [
@@ -347,6 +394,42 @@ class BoxModel
 			//    0f, 0f,
 			//    1f,  1f,
 			//    1f,  0f];
+		}
+		void fillUVs2(Sprite s)
+		{
+			auto tex = material.texture;
+			Rectf inRect = s.rect; 
+			inRect.y = -inRect.y;
+			inRect.h = -inRect.h;
+			Rectf r = tex.pixelRectToUVRect(inRect);
+
+			// Scale uvs according to window dims
+			Vec2f screenPixScale = (renderTarget.size / Vec2f(inRect.w, -inRect.h));
+			auto uv = worldRect.scale(screenPixScale).size;
+			
+			uvs ~= [r.x, r.y, 
+					r.x, uv.y + r.y2, 
+					r.x2, uv.y + r.y2,
+					r.x, r.y, 
+					r.x2, uv.y + r.y2, 
+					r.x2, r.y];
+
+			//Vec2f uv = (worldRect.size * 0.5) * winTexRatio;
+
+			////float[] c = [
+			////    0f, 1f,
+			////    0f, uv.y + 1f,
+			////    uv.x,  uv.y + 1f,
+			////    0f, 1f,
+			////    uv.x,  uv.y + 1f,
+			////    uv.x,  1f];
+
+			//r = r.scale();
+
+			//uvs ~= [r.x, r.y2, r.x, r.y, r.x2, r.y,
+			//        r.x, r.y2, r.x2, r.y, r.x2, r.y2];
+
+			
 		}
 
 		//void tileUVs(Sprite s)
@@ -373,6 +456,8 @@ class BoxModel
 		}
 		else
 		{
+			version (None)
+			{
 			float left = _borders.left;
 			float right = _borders.right;
 			float top = _borders.top;
@@ -405,12 +490,53 @@ class BoxModel
 			r.x = worldRect.x;
 			appendQuadVertices(r, verts); // bottom left
 
-			appendQuadVertices(Rectf(worldRect.x, worldRect.y + bottom, 
-									 left, worldRect.h - top - bottom), verts); // left
+			//appendQuadVertices(Rectf(worldRect.x, worldRect.y + bottom, 
+			//                         left, worldRect.h - top - bottom), verts); // left
 
 			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y + bottom, 
 									 worldRect.w - left - right, worldRect.h - top - bottom), verts); // center
+			}
+			else
+			{
+			
+			float left = _borders.left;
+			float right = _borders.right;
+			float top = _borders.top;
+			float bottom = _borders.bottom;
 
+			//float left = renderTarget.pixelWidthToWorld(_borders.left);
+			//float right = renderTarget.pixelWidthToWorld(_borders.right);
+			//float top = renderTarget.pixelHeightToWorld(_borders.top);
+			//float bottom = renderTarget.pixelHeightToWorld(_borders.bottom);
+
+			Rectf r = Rectf(worldRect.x, worldRect.y, left, -top);
+
+			appendQuadVertices(r, verts); // top left
+
+			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y, 
+									 worldRect.w - right - left, -top), verts); // top
+
+			r.x = worldRect.x2 - right;
+			appendQuadVertices(r, verts); // top right
+
+			appendQuadVertices(Rectf(worldRect.x2 - right, worldRect.y - top, 
+									 right, worldRect.h + top + bottom), verts); // right
+
+			r.y = worldRect.y2 + bottom;
+			appendQuadVertices(r, verts); // bottom right
+
+			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y2 + bottom, 
+									 worldRect.w - right - left, -bottom), verts); // bottom
+
+			r.x = worldRect.x;
+			appendQuadVertices(r, verts); // bottom left
+
+			appendQuadVertices(Rectf(worldRect.x, worldRect.y - top, 
+									 left, worldRect.h + top + bottom), verts); // left
+
+			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y - top, 
+									 worldRect.w - left - right, worldRect.h + top + bottom), verts); // center
+			}
 			if (recalcUVs)
 			{
 				// TODO support tiling
@@ -433,9 +559,9 @@ class BoxModel
 		float[] cols = new float[verts.length];
 		foreach (i; 0..verts.length/3)
 		{
-			cols[i*3] = color.x;
-			cols[i*3+1] = color.y;
-			cols[i*3+2] = color.z;
+			cols[i*3] = _color.r;
+			cols[i*3+1] = _color.g;
+			cols[i*3+2] = _color.b;
 		}
 
 		// std.algorithm.fill(cols, 1.0f);

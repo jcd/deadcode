@@ -1,20 +1,22 @@
 module guiapplication;
 
 import application;
+import core.analytics;
 import core.bufferview;
 import core.uri;
 import controls.command;
 import controls.texteditor;
 import graphics._;
 import gui._;
+import gui.resources.generic;
 import math._; // Vec2f
 
 import std.algorithm;
 import std.array;
 import std.datetime;
+import std.file;
 import std.path;
 import std.string;
-
 
 import std.c.windows.windows;
 extern (Windows) 
@@ -23,6 +25,12 @@ extern (Windows)
 	nothrow export HANDLE FindFirstChangeNotificationA(LPCTSTR lpPathName, BOOL bWatchSubtree, DWORD dwNotifyFilter);
 	nothrow export BOOL FindNextChangeNotification(HANDLE hChangeHandle);
 	nothrow export BOOL FindCloseChangeNotificationA(HANDLE hChangeHandle);
+	nothrow export BOOL SHGetSpecialFolderPathA(
+											   HWND hwndOwner,
+											   LPTSTR lpszPath,
+											   int csidl,
+											   BOOL fCreate
+												   );
 	//nothrow export BOOL ReadDirectoryChangesW(HANDLE hDirect1ory, LPVOID lpBuffer, DWORD nBufferLength,
 	//                                  BOOL bWatchSubtree,
 	//                                  DWORD dwNotifyFilter,
@@ -94,21 +102,55 @@ class DirectoryWatcher
 	}
 }
 
+/** The location that is use as base for relative paths/URIs.
+*/
+enum ResourceBaseLocation
+{
+	currentDir,    /// The current working directory 
+	executableDir, /// The dir of this executable
+	resourceDir,  /// The default resources dir
+	userDataDir,   /// The user data dir which is platform specific
+	sessionDir,    /// Session temporary dir. Is cleared upon start and stop of app.
+}
+
+import jsonx;
 
 class GUIApplication : Application
 {
 	GUI guiRoot;
 
-	struct EditorInfo
+	static struct EditorInfo
 	{
-		static uint focusOrderCounter = 0;
+		this(uint fo, TextEditor ed)
+		{
+			focusOrder = fo;
+			editor = ed;
+		}
 		uint focusOrder; // LRU ordering
+		
+		@noSerialize
 		TextEditor editor;
 	}
-	EditorInfo[string] editors;
+
+	static class Editors
+	{
+		uint focusOrderCounter;
+		EditorInfo[string] editors;
+	}
+
+	enum appVersion = "0.4";
+	string analyticsKey;
+
+	Editors editors;
+
 	Widget _mainWidget;
 	DirectoryWatcher resourceDirWatcher;
 	string resourcesRoot;
+	StyleSheet defaultStyleSheet;
+	
+	GenericResource sessionData;
+
+	Analytics analytics;
 
 	class WindowData
 	{
@@ -117,12 +159,61 @@ class GUIApplication : Application
 
 	private this()
 	{
+		// This also sets up tracking keys for analytics
+		setupRegistryEntries();
+		
+		analytics = new GoogleAnalytics("UA-42266538-2", analyticsKey, "Ded", "com.streamwinter.ded", appVersion);
+		// analytics = new NullAnalytics;
+		analyticEvent("core", "start");
+		analyticStartTiming("core", "startup");
+
 		super();
+		editors = new Editors;
 	}
 
-	URI resourceURI(string relativePath)
+	~this()
 	{
-		auto u = new URI(buildNormalizedPath(resourcesRoot, relativePath));
+		analyticEvent("core", "stop");
+	}
+
+	URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+	{
+		if (isAbsolute(path))
+		{
+			auto res = new URI(path);
+			res.normalize();
+			return res;
+		}
+
+		import core.stdc.string;
+		string basePath;
+		final switch (base)
+		{
+			case ResourceBaseLocation.currentDir:
+				basePath = absolutePath(std.file.getcwd());
+				break;
+			case ResourceBaseLocation.executableDir:
+				basePath = absolutePath(thisExePath().dirName());
+				break;
+			case ResourceBaseLocation.resourceDir:
+				basePath = resourcesRoot;
+				break;
+			case ResourceBaseLocation.sessionDir:
+				// TODO: implement
+				addMessage("Implement sessionDir");
+				break;
+			case ResourceBaseLocation.userDataDir:
+				char[MAX_PATH] buffer;
+				auto CSIDL_COMMON_APPDATA = 35;
+				void* dummy;
+				if (SHGetSpecialFolderPathA(dummy, buffer.ptr, CSIDL_COMMON_APPDATA, 0) == TRUE)
+					basePath = buffer[0..strlen(buffer.ptr)].idup;
+				else
+					throw new Exception("Cannot get APPDATA dir");
+				break;
+		}
+		
+		auto u = new URI(buildNormalizedPath(basePath, path));
 		u.normalize();
 		return u;
 	}
@@ -134,13 +225,21 @@ class GUIApplication : Application
 				
 		auto app = new GUIApplication;
 		app.guiRoot = gui;
+		app.guiRoot.onFileDropped.connect(&app.onFileDropped);
 		return app;
+	}
+
+	void onFileDropped(string path)
+	{
+		analyticEvent("core", "fileDrop");
+		addMessage("Dropped file %s ", path);
+		path = path.replace(r"\", "/");
+		openFile(path);
 	}
 
 	void run()
 	{		
 		setupResourcesRoot();
-		setupRegistryEntries();
 		
 		// guiRoot.locationsManager.baseURI = "resources/";
 
@@ -149,7 +248,7 @@ class GUIApplication : Application
 		
 		scanResources();
 		
-		guiRoot.styleSheetManager.load("default", resourceURI("default.stylesheet"));
+		defaultStyleSheet = guiRoot.styleSheetManager.load(resourceURI("default.stylesheet", ResourceBaseLocation.resourceDir));
 		guiRoot.styleSheetManager.onSourceChanged.connect(&styleSheetSourceChanged);
 		guiRoot.textureManager.onSourceChanged.connect(&textureSourceChanged);
 
@@ -222,75 +321,39 @@ class GUIApplication : Application
 
 		openFile(buildNormalizedPath(resourcesRoot,"default.stylesheet"));
 
+		loadSession();
+		analyticStopTiming("core", "startup");
 		guiRoot.run();
+		saveSession();
 	}
 
 	void setupResourcesRoot()
 	{
-		import std.file;
 		resourcesRoot = absolutePath("resources", thisExePath().dirName());
 	}
 
 	void setupRegistryEntries()
 	{
-		import core.sys.windows.windows;
-		
-		HKEY pRegKey;
-		LONG lRtnVal = 0;
-		DWORD disposition;
+		import std.uuid;
+		import core.config;
 
-
-		// Call to RegCreateKeyEx
-		lRtnVal = RegCreateKeyExA(
-								 HKEY_CURRENT_USER,
-								 "Software\\Classes\\*\\shell\\Open with Dedit\\command",
-								 0,
-								 null,
-								 REG_OPTION_NON_VOLATILE,
-								 KEY_ALL_ACCESS,
-								 null,
-								 &pRegKey,
-								 &disposition);
-
-		// Check GetLastError to check error condition
-		if(lRtnVal != ERROR_SUCCESS)
-		{
-			addMessage("RegCreateKeyEx failed: %s\n", lRtnVal);
-			return;
-		}
-
-		scope (exit) RegCloseKey(pRegKey);
-
-		debug addMessage("Disposition: %d\n", disposition);
-		
-		if (disposition == REG_CREATED_NEW_KEY)
-		{
-			// set the value
-			string execPath = r"C:\Users\jonasd\Documents\Projects\D\ded>ded-debug_d.exe";
-			auto execPathC = execPath.toStringz();
-			lRtnVal = RegSetValueExA (pRegKey,
-						  null,	
-						  0,
-						  REG_SZ,
-						  cast(ubyte*)execPathC,
-						  execPath.length + 1);
-			
-			if(lRtnVal != ERROR_SUCCESS)
-			{
-				addMessage("RegSetValueEx failed: %s\n", lRtnVal);
-				return;
-			}
-		}
+		setupRegistryEntry(r"Software\Classes\*\shell\Open with Dedit\command", 
+						   r"C:\Users\jonasd\Documents\Projects\D\ded>ded-debug_d.exe");
+		analyticsKey = setupRegistryEntry(r"Software\SteamWinter\Ded", 
+										  randomUUID().toString());		
 	}
+	
 
 	void scanResources()
 	{
-		guiRoot.locationsManager.scan(resourceURI("*"));
+		guiRoot.locationsManager.scan(resourceURI("*", ResourceBaseLocation.resourceDir));
 	}
 
 	Window createWindow(string name = "mainWindow", int width = 1000, int height = 1000)
 	{
-		return guiRoot.createWindow(name, width, height);
+		auto win = guiRoot.createWindow(name, width, height);
+		win.styleSheet = defaultStyleSheet;
+		return win;
 	}
 
 	/**
@@ -346,6 +409,9 @@ version (Windows)
 		Widget _draggerWidget = new Widget(win, 0, 0, 20, 32);
 		_draggerWidget.features ~= new WindowDragger();
 		
+		// A widget that can be mousedowned and move the window
+		Widget _draggerRightWidget = new Widget(win, 0, 0, 20, 32);
+		_draggerRightWidget.features ~= new WindowDragger();
 
 		/*
 	ScalarExpr e = new ScalarExpr(mainWidget, WidgetAnchor.Top, 10);
@@ -378,13 +444,18 @@ version (Windows)
 		_resizerWidget.name = "resizer";
 
 		// Layout setting dragger widget fill top 20px of mainWidget
-		_draggerWidget.alignToWindow(Anchor.TopRight, Vec2f(-1f, _draggerWidget.rect.size.y), Vec2f(0,-8f));
+		_draggerWidget.alignToWindow(Anchor.TopLeft, Vec2f(220, 24), Vec2f(0,0f));
 		_draggerWidget.name = "dragger";
+
+		_draggerRightWidget.alignTo(_draggerWidget, Anchor.TopRight, Anchor.TopLeft, Vec2f(-1, 24));
+		_draggerRightWidget.alignTo(NullWidgetID, Anchor.TopRight, Anchor.TopRight);
+		_draggerRightWidget.name = "draggerRight";
+
 		
 		// _mainWidget.features ~= new BoxRenderer("window-main");
 		
 		// _draggerWidget.features ~= new BoxRenderer("window-head");
-		_resizerWidget.features ~= new BoxRenderer("window-resizer");
+		// _resizerWidget.features ~= new BoxRenderer("window-resizer");
 		
 		_draggerWidget.onMouseClickCallback = (Event e, Widget w) 
 		{
@@ -401,7 +472,7 @@ version (Windows)
 		auto winData = new WindowData();
 		win.userData = winData;
 		BufferView bufferView = bufferViewManager["*CommandInput*"];
-		CommandControl cc = new CommandControl(win, 200f, bufferView, this);
+		CommandControl cc = new CommandControl(win, 379f, bufferView, this);
 		cc.name = "command";
 		cc.alignToWindow(Anchor.TopCenter, Vec2f(600,-1), Vec2f(0,0));
 		// cc.visible = false;
@@ -423,6 +494,19 @@ version (Windows)
 			//    return used;
 			//return cc.onCommand(ev);
 		};
+	}
+
+	GenericResource load(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+	{
+		return guiRoot.genericResourceManager.load(resourceURI(path, base));
+	}	
+
+	GenericResource loadOrCreate(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+	{
+		// predeclare to sure that unsuccessful loads return a valid resource anyway.
+		auto res = guiRoot.genericResourceManager.declare(resourceURI(path, base));
+		guiRoot.genericResourceManager.load(resourceURI(path, base));
+		return res;
 	}
 
 	BufferView openFile(string path)
@@ -466,7 +550,7 @@ version (Windows)
 	string[] getActiveBufferCompletions(string prefix)
 	{
 		// current buffer name is most likely "command" buffer and not an active editor
-		return editors.values
+		return editors.editors.values
 					.filter!(a => a.editor.bufferView.name.startsWith(prefix))()
 					.array()
 					.sort!("a.focusOrder > b.focusOrder")()
@@ -482,22 +566,23 @@ version (Windows)
 	private auto setBufferVisible(BufferView buf)
 	{
 		_mainWidget.hideChildren();
-		EditorInfo* w = buf.name in editors;
+		EditorInfo* w = buf.name in editors.editors;
 		if (w is null)
 		{
-			// create a new widget for this buffer
+			//a create a new widget for this buffer
 			auto editorWidget = new TextEditor(_mainWidget, buf);
+			guiRoot.timeout(dur!"msecs"(500), () { editorWidget.toggleCursorVisibility(); return true; });
 			editorWidget.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
 			editorWidget.alignTo(Anchor.BottomRight);
-			editors[buf.name] = EditorInfo(++EditorInfo.focusOrderCounter, editorWidget);
+			editors.editors[buf.name] = EditorInfo(++editors.focusOrderCounter, editorWidget);
 			editorWidget.name = "editor-" ~ buf.name;
 			editorWidget.onKeyboardFocusCallback = (Event ev, Widget w) {
-				editors[buf.name].focusOrder = ++EditorInfo.focusOrderCounter;
+				editors.editors[buf.name].focusOrder = ++editors.focusOrderCounter;
 				currentBuffer = buf;
 				return EventUsed.yes;
 			};
 			editorWidget.renderer.textStyler = getTextStylerFromName(buf);
-			w = buf.name in editors;
+			w = buf.name in editors.editors;
 		}
 		w.editor.visible = true;
 		return w;
@@ -505,7 +590,7 @@ version (Windows)
 	
 	BufferView getVisibleBuffer()
 	{
-		foreach (k,v; editors)
+		foreach (k,v; editors.editors)
 		{
 			if (v.editor.visible)
 				return v.editor.bufferView;
@@ -561,11 +646,15 @@ version (Windows)
 	
 	private void styleSheetSourceChanged(StyleSheet sheet)
 	{
+		analyticEvent("core", "changed", "stylesheet", sheet.uri.uriString);
 		sheet.load();
+		guiRoot.activeWindow.onStyleSheetChanged();
+		guiRoot.activeWindow.repaint();
 	}
 
 	private void textureSourceChanged(gui.resources.Texture tex)
 	{
+		analyticEvent("core", "changed", "texture", tex.uri.uriString);
 		tex.load();
 	}
 
@@ -574,5 +663,93 @@ version (Windows)
 		if (resourceDirWatcher.wait(dur!"seconds"(0)))
 			scanResources();
 		return true;
+	}
+	
+	static class SessionBuffer
+	{
+		this() {}
+		int focusOrder;
+		string path;
+		uint cursorPoint;
+		uint bufferOffset;
+	}
+	
+	static class SessionData
+	{
+		int focusOrderCounter;
+		SessionBuffer[] buffers;
+	}
+
+	void saveSession()
+	{
+		auto s = sessionData.get!SessionData();
+		s.focusOrderCounter = editors.focusOrderCounter;
+		foreach (key, ed; editors.editors)
+		{
+			if (key == "*Messages*")
+				continue;
+			SessionBuffer data = new SessionBuffer;
+			data.focusOrder = ed.focusOrder;
+			data.path = key;
+			data.cursorPoint = ed.editor.bufferView.cursorPoint;
+			data.bufferOffset = ed.editor.bufferView.bufferOffset;
+			s.buffers ~= data;
+		}
+		sessionData.save();
+	}
+
+	void loadSession()
+	{
+		sessionData = loadOrCreate(".ded");
+		auto s = sessionData.get!SessionData();
+		if (s is null)
+		{
+			s = new SessionData;
+			sessionData.set(s);
+		}
+
+		editors.focusOrderCounter = s.focusOrderCounter;
+
+		string showBufferName;
+
+		foreach (l; s.buffers)
+		{
+			openFile(l.path);
+			if (l.focusOrder == s.focusOrderCounter)
+				showBufferName = l.path;
+			auto ed = editors.editors[l.path];
+			ed.focusOrder = l.focusOrder;
+			ed.editor.bufferView.cursorPoint = l.cursorPoint;
+			ed.editor.bufferView.bufferOffset = l.bufferOffset;
+		}
+		if (!showBufferName.empty)
+			showBuffer(showBufferName);
+		
+		editors.focusOrderCounter = s.focusOrderCounter;
+	}
+
+	void analyticEvent(string category, string action, string label = null, string value = null)
+	{
+		analytics.addEvent(category, action, label, value);
+	}
+
+	void analyticTiming(string category, string variable, Duration d)
+	{
+		analytics.addTiming(category, variable, d);
+	}
+
+	void analyticStartTiming(string category, string variable)
+	{
+		analytics.startTiming(category, variable);
+	}
+
+	void analyticStopTiming(string category, string variable)
+	{
+		analytics.stopTiming(category, variable);
+	}
+
+	void analyticException(string description, bool isFatal)
+	{
+		analytics.addException(description, isFatal);
 	}
 }

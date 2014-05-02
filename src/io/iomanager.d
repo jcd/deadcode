@@ -19,16 +19,25 @@ interface IO
 	void close();
 
 	//void readAll(InputRange)(InputRange r);
-	void readText(InputRange)(InputRange r);
+	void readText(OutputRange)(OutputRange r);
+	void writeText(InputRange)(InputRange r);
 
 	//ubyte[] readAll();
 	string readText();
+	void writeText(string output);
+}
+
+enum IOMode
+{
+	read,
+	write,
+	append
 }
 
 interface IOProtocol
 {
 	bool canHandle(URI uri);
-	IO open(URI uri);
+	IO open(URI uri, IOMode mode);
 }
 
 //class ScanProtocol : IOProtocol
@@ -47,10 +56,10 @@ interface IOProtocol
 
 class IOManager
 {	
-	IO open(URI uri)
+	IO open(URI uri, IOMode mode)
 	{
 		auto iop = getProtocol(uri);
-		return iop.open(uri);
+		return iop.open(uri, mode);
 	}
 
 	IOProtocol getProtocol(URI uri)

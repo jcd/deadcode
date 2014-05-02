@@ -71,9 +71,11 @@ class ShaderProgram : graphics.material.ShaderProgram, IResource!ShaderProgram
 
 class ShaderProgramManager : ResourceManager!ShaderProgram
 {
+	private Handle builtinShaderProgramHandle;
+
 	@property ShaderProgram builtinShaderProgram()
 	{
-		return get("builtin");
+		return get(builtinShaderProgramHandle);
 	}
 	
 	static ShaderProgramManager create(IOManager ioManager)
@@ -99,16 +101,24 @@ class ShaderProgramManager : ResourceManager!ShaderProgram
 			p.manager.onResourceLoaded(p, null);
 			return true;
 		}
+		
+		bool save(ShaderProgram p, URI uri)
+		{
+			throw new Exception("Cannot save shader programs");
+		}
 	}
 
 	private void createBuiltinShaderProgram()
 	{
-		declare("builtin",  new URI("builtin:default"), new BuiltinLoader);
+		auto res = declare(new URI("builtin:default"), new BuiltinLoader);
+		builtinShaderProgramHandle = res.handle;
 	}
 }
 
 class ShaderProgramSerializer : ResourceSerializer!ShaderProgram
 {
+	override bool canRead() pure const nothrow { return true; }
+
 	override bool canHandle(URI uri)
 	{
 		import std.path;

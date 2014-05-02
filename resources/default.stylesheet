@@ -1,0 +1,141 @@
+* {
+	color : #ff0000;
+	background-color: #ffffff;
+	background : materials/default.shaderprogram;
+	background-sprite-border: 0 0 0 0;
+	font : fonts/cour.ttf 16;
+	padding : 0 0 0 0;
+}
+
+TextEditor {
+	color: #f8f8f2;
+}
+
+ErrorListWidget {
+	padding : 0 0 0 0;
+	background: materials/white-small-nine-patch.png;
+	background-color: #0a272d;
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	color: #ff0000;
+}
+
+#main {
+	background: materials/bgplain.png;
+}
+
+#command {
+}
+
+.selection {
+	background: materials/white-small-nine-patch.png;
+	color: #0a272d;
+}
+
+.errorlist-other {
+	color: #f8f8f2;
+}
+
+.errorlist-line-number {
+	color: #a0ffa0;
+}
+
+.errorlist-error {
+	color: #ff9eb9;
+}
+
+.errorlist-warning {
+	color: #ffffb9;
+}
+
+.dsource-other {
+	color: #f8f8f2;
+}
+
+.dsource-declaration {
+	color: #2a9eb9;
+}
+
+.dsource-type {
+	color: #a0ffa0;
+}
+
+.stylesheet-other {
+	color: #f8f8f2;
+}
+
+.stylesheet-style-key {
+	color: #2a9eb9;
+}
+
+.stylesheet-type {
+	color: #a0ffa0;
+}
+
+.changelog-other {
+	color: #f8f8f2;
+}
+
+.changelog-subtitle {
+	color: #2a9eb9;
+}
+
+.changelog-releasetitle { 
+	color: #05ff05;
+	font : fonts/cour.ttf 26;
+}
+
+.changelog-changeset { 
+	color: #a8a8a2;
+}
+
+.changelog-bullet { 
+	color: #a0e0a0;
+}
+
+.completion-other {
+	color: #a8a8a2;
+}
+
+CommandControl
+{
+	expand-duration: 0.1;
+}
+
+TextEditor#commandCompletion.completion-selected {
+	color: #c8c8c2;
+}
+
+TextEditor#commandCompletion.selection {
+	background: materials/white-small-nine-patch.png;
+	color: #07171d;
+}
+
+TextEditor#commandCompletion {
+	background: materials/white-small-nine-patch.png;
+	color: #a8a8a2;
+	padding : 6 6 6 0;
+	background-color: #0a272d;
+	background-sprite: 0 6 16 10;
+	background-sprite-border: 6 6 6 6;
+}
+
+TextField#commandEntryField {
+	color: #f8f8f2;
+	padding : 6 2 6 0;
+	background: materials/bgplain.png;
+}
+
+#dragger {
+	background : materials/bg.png;
+	background-sprite: 0 8 220 24;
+}	
+
+#draggerRight {
+	background : materials/bg.png;
+	background-sprite: 0 8 5 24;
+}
+
+#resizer {
+	background : materials/resizer.png;
+}

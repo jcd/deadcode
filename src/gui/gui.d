@@ -6,11 +6,11 @@ import core.time;
 import gui._;
 import gui.locations;
 import gui.resources;
-//import gui.resources;
 import io.iomanager;
 import math._; // Vec2f
 import derelict.sdl2.sdl; 
 import std.range;
+import std.signals;
 
 class GUI
 {
@@ -75,6 +75,9 @@ class GUI
 	MaterialManager materialManager;
 	FontManager fontManager;
 	StyleSheetManager styleSheetManager;
+	GenericResourceManager genericResourceManager;
+
+	mixin Signal!string onFileDropped;
 
 	/*
 	static @property GUI the()
@@ -102,6 +105,7 @@ class GUI
 		g.materialManager = MaterialManager.create(g.ioManager, g.shaderProgramManager, g.textureManager);
 		
 		g.styleSheetManager = StyleSheetManager.create(g.ioManager, g.materialManager, g.fontManager);
+		g.genericResourceManager = GenericResourceManager.create(g.ioManager);
 
 		g.locationsManager.addListener(g.fontManager);
 		g.locationsManager.addListener(g.shaderProgramManager);
@@ -111,7 +115,7 @@ class GUI
 
 		return g;
 
-		//locs.declare(null, "file://foobar/lars/*");
+		//locs.declare("file://foobar/lars/*");
 
 
 		// Setup builtin stuff
@@ -142,6 +146,7 @@ class GUI
 		timeline.start();
 		std.exception.enforceEx!Exception(_graphicsSystem.init(), "Error initializing graphics");
 		_lastTick = SDL_GetTicks();
+		SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
 		SDL_StartTextInput();
 		running = true;
 	}
@@ -265,6 +270,8 @@ class GUI
 			pollResult = SDL_PollEvent(&e);
 		}
 		
+		int count = 10;
+
 		do {
 			Event queuedEvent = _eventQueue.dequeue();
 			while (queuedEvent.type != EventType.Invalid)
@@ -358,6 +365,15 @@ class GUI
 							break;
 					}
 					break;
+				case SDL_DROPFILE:
+					import std.c.string;
+					auto file = e.drop.file[0..strlen(e.drop.file)].idup;
+					onFileDropped.emit(file);
+					// TODO FIX: SDL_free(e.drop.file);
+					break;
+				case SDL_QUIT:
+					stop();
+					break;
 				default: 
 					std.stdio.writeln("unhandled event ", e.type);
 					break; 
@@ -370,7 +386,7 @@ class GUI
 			
 			pollResult = SDL_PollEvent(&e);
 			
-		} while (true);
+		} while (count-- > 0);
 	}
 
 	private void dispatchEvent(Event e)
@@ -396,9 +412,6 @@ class GUI
 		if (activeWindow is null)
 			activeWindow = win;
 		_windows[win.id] = win;
-
-		auto styleSheet = styleSheetManager.get("default");
-		win.styleSheet = styleSheet;
 
 		Event ev;
 		ev.type = EventType.Resize;

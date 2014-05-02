@@ -68,9 +68,11 @@ class Texture : graphics.material.Texture, IResource!Texture
 
 class TextureManager : ResourceManager!Texture
 {
+	private Handle builtinTextureHandle;
+
 	@property Texture builtinTexture()
 	{
-		return get("builtin");
+		return get(builtinTextureHandle);
 	}
 
 	static TextureManager create(IOManager ioManager)
@@ -91,17 +93,25 @@ class TextureManager : ResourceManager!Texture
 			graphics.texture.Texture.create(8, 8, Color.magenta, t);
 			return true;
 		}
+
+		bool save(Texture p, URI uri)
+		{
+			throw new Exception("Cannot save textures");
+		}
 	}
 
 	void createBuiltinTexture()
 	{
-		declare("builtin",  new URI("builtin:default"), new BuiltinLoader);
+		auto res = declare(new URI("builtin:default"), new BuiltinLoader);
+		builtinTextureHandle = res.handle;
 	}
 
 }
 
 class TextureSerializer : ResourceSerializer!Texture
 {
+	override bool canRead() pure const nothrow { return true; }
+
 	override bool canHandle(URI uri)
 	{
 		import std.path;

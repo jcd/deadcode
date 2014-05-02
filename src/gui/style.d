@@ -12,6 +12,8 @@ import gui.resource;
 import gui.resources.material;
 import gui.resources.font : Font, FontManager;
 
+import animation.mutator;
+
 import io.iomanager;
 
 import std.algorithm;
@@ -31,8 +33,95 @@ alias string StyleID;
 immutable StyleID NullStyleName = "";
 immutable StyleID DefaultStyleName = "default";
 
+alias string PropertyID;
+
+/** Specifies the name, type and default value of a style property
+*/
+interface IPropertySpecification
+{
+
+	@property 
+	{
+		PropertyID id() const pure nothrow;
+		bool inherited() const pure nothrow;
+	}
+	abstract void parse(StyleSheetParser parser, Style style);
+}
+
+abstract class PropertySpecificationBase(T) : IPropertySpecification
+{
+	private
+	{
+		PropertyID _id;
+		T _default;
+		bool _inherited;
+	}
+
+	@property 
+	{
+		PropertyID id() const pure nothrow
+		{
+			return _id;
+		}
+		bool inherited() const pure nothrow
+		{
+			return _inherited;
+		}
+	}
+
+	this(PropertyID _id, T _default, bool _inherited)
+	{
+		this._id = _id;
+		this._default = _default;
+		this._inherited = _inherited;
+	}
+
+	void getDefault(ref T _default) 
+	{
+		_default = this._default;
+	}
+}
+
+class PropertySpecification(T : float) : PropertySpecificationBase!T
+{
+	this(PropertyID _id, T _default, bool _inherited = false)
+	{
+		super(_id, _default, _inherited);
+	}
+
+	void parse(StyleSheetParser parser, Style style)
+	{
+		style._fields.floats[id] = parser.curToken == "-" ? float.nan : parser.curToken.to!float();
+	}	
+}
+
+class PropertySpecification(T : Rectf) : PropertySpecificationBase!T
+{
+	this(PropertyID _id, T _default, bool _inherited = false)
+	{
+		super(_id, _default, _inherited);
+	}
+
+	void parse(StyleSheetParser parser, Style style)
+	{
+		Rectf r;
+		r.x = parser.curToken == "-" ? float.nan : parser.curToken.to!float();
+		parser.requireNextToken();
+		r.y = parser.curToken == "-" ? float.nan : parser.curToken.to!float();
+		parser.requireNextToken();
+		r.w = parser.curToken == "-" ? float.nan : parser.curToken.to!float();
+		parser.requireNextToken();
+		r.h = parser.curToken == "-" ? float.nan : parser.curToken.to!float();
+		style._fields.rects[id] = r;
+	}
+}
+
 struct StyleFields
 {
+	
+	Rectf[PropertyID] rects;
+	float[PropertyID] floats;
+
 	Style.Position _position;
 	RectfOffset _positionOffset;
 
@@ -43,8 +132,12 @@ struct StyleFields
 	// value types
 	bool _wordWrap;  // bit 0
 	Color _color;    // bit 1
+	Color _backgroundColor;    // bit 2
 	
 	RectfOffset _padding;  
+	RectfOffset _backgroundSpriteBorder;
+	Rectf       _backgroundSprite;
+
 	// float _glyphPadding; etc....
 
 	// bitmask. One bit set unset for each by value property that does not support null values should be null. 
@@ -91,6 +184,14 @@ struct StyleFields
 		setValid(src.bottom, dst.bottom);
 	}
 
+	private void setValid(Rectf src, ref Rectf dst)
+	{
+		setValid(src.x, dst.x);
+		setValid(src.y, dst.y);
+		setValid(src.w, dst.w);
+		setValid(src.h, dst.h);
+	}
+
 	// Copy all fields of this into sf where this.field is set 
 	// and return the result.
 	StyleFields overlay(StyleFields sf)
@@ -116,11 +217,20 @@ struct StyleFields
 		if (_nullFields & 2)
 			sf._color = _color;
 
+		if (_nullFields & 4)
+			sf._backgroundColor = _backgroundColor;
+
 		setValid(_padding, sf._padding);
+		setValid(_backgroundSpriteBorder, sf._backgroundSpriteBorder);
+		setValid(_backgroundSprite, sf._backgroundSprite);
 		setValid(_positionOffset, sf._positionOffset);
 
 		if (_position != Style.Position.invalid)
 			sf._position = _position;
+
+		foreach (key, value; floats)
+			if (!value.isNaN())
+				sf.floats[key] = value;
 
 		return sf;
 	}
@@ -139,19 +249,7 @@ class Style
 		absolute
 	}
 
-	private 
-	{
-		enum Field
-		{
-			font,
-			background,
-			color,
-			wordWrap,
-			padding
-		}
-		
-		StyleFields _fields; // Fields set on this style
-	}
+	private StyleFields _fields; // Fields set on this style
 
 	@property 
 	{	
@@ -232,6 +330,17 @@ class Style
 			_fields._color = c;
 		}
 		
+		Color backgroundColor() const
+		{
+			return _fields._backgroundColor;
+		}
+
+		void backgroundColor(Color c)
+		{
+			_fields._nullFields |= 4;
+			_fields._backgroundColor = c;
+		}
+
 		bool wordWrap() const
 		{
 			return _fields._wordWrap;
@@ -253,6 +362,45 @@ class Style
 		{
 			_fields._padding = w;
 		}
+		
+		RectfOffset backgroundSpriteBorder() const
+		{
+			return _fields._backgroundSpriteBorder;
+		}
+
+		void backgroundSpriteBorder(RectfOffset w)
+		{
+			_fields._backgroundSpriteBorder = w;
+		}
+
+		Rectf backgroundSprite() 
+		{
+			Rectf r = _fields._backgroundSprite;
+			Vec2f sz;
+			if (background !is null && background.texture !is null)
+				sz = background.texture.size;
+			else
+				sz = Vec2f(0,0);
+
+			if (r.x.isNaN())
+				r.x = 0; // default to 0 offset
+			
+			if (r.y.isNaN())
+				r.y = 0; // default to 0 offset
+			
+			if (r.w.isNaN())
+				r.w = sz.x; 
+			
+			if (r.h.isNaN())
+				r.h = sz.y; 
+			
+			return r;
+		}
+
+		void backgroundSprite(Rectf w)
+		{
+			_fields._backgroundSprite = w;
+		}
 	
 		string name() const
 		{
@@ -272,6 +420,33 @@ class Style
 		styleSheet = s;
 	}
 
+	bool getProperty(PropertyID id, ref float value) const pure nothrow
+	{
+		auto v = id in _fields.floats;
+		if (v is null)
+			return false;
+		value = *v;
+		return true;
+	}
+
+	//bool getPropertyDef(PropertyID id, ref float value) const pure nothrow
+	//{
+	//    auto v = id in _fields.floats;
+	//    if (v is null)
+	//        return styleSheet.manager
+	//    value = *v;
+	//    return true;
+	//}
+
+	bool getProperty(PropertyID id, ref Rectf value) 
+	{
+		auto v = id in _fields.rects;
+		if (v is null)
+			return false;
+		value = *v;
+		return true;
+	}
+
 	// Reset to init state ie. having all fields "null" values
 	void clear()
 	{
@@ -281,6 +456,14 @@ class Style
 		_fields._background = null;
 		_fields._nullFields = 0;
 		_fields._padding = RectfOffset.init;
+		_fields._backgroundSpriteBorder = RectfOffset.init;
+		_fields._backgroundSprite = Rectf.init;
+		
+		foreach (ref v; _fields.floats)
+			v = float.init;
+		
+		foreach (ref v; _fields.rects)
+			v = Rectf.init;
 	}
 	
 	// reset in the same state as s
@@ -291,9 +474,18 @@ class Style
 		_fields._font = s._fields._font;
 		_fields._background = s._fields._background;
 		_fields._color = s._fields._color;
+		_fields._backgroundColor = s._fields._backgroundColor;
 		_fields._wordWrap = s._fields._wordWrap;
 		_fields._nullFields = s._fields._nullFields;
 		_fields._padding = s._fields._padding;
+		_fields._backgroundSpriteBorder = s._fields._backgroundSpriteBorder;
+		_fields._backgroundSprite = s._fields._backgroundSprite;
+	
+		foreach (key, ref v; _fields.floats)
+			v = s._fields.floats[key];
+
+		foreach (key, ref v; _fields.rects)
+			v = s._fields.rects[key];
 	}
 
 	// Merge s into this but only set fields that are not null set on s
@@ -574,7 +766,9 @@ class StyleSheet : Resource!StyleSheet
 	}
 
 	Rule[] rules;
-	Style[size_t] styleCache;
+	
+	alias immutable(size_t)[] RuleSetID;
+	Style[RuleSetID] styleCache;
 
 	void clear()
 	{
@@ -589,7 +783,7 @@ class StyleSheet : Resource!StyleSheet
 	void swap(StyleSheet other)
 	{
 		Rule[] r = rules;
-		Style[size_t] sc = styleCache;
+		Style[RuleSetID] sc = styleCache;
 		rules = other.rules;
 		styleCache = other.styleCache;
 		other.rules = rules;
@@ -606,16 +800,23 @@ class StyleSheet : Resource!StyleSheet
 		}
 
 		Match[] matches;
-		size_t hash = 0;
+		RuleSetID matchedRules;
 		foreach (i, s; rules)
 		{
 			if (s.match(w, classNames))
 			{
 				matches ~= Match(s, i);
-				hash += s.toHash();
+				matchedRules ~= s.toHash();
 			}
 		}
-		
+
+		//if (classNames.length != 0 && classNames[0] == "commandEntryField" )
+		//if (w.name == "commandEntryField" || w.name == "command")
+		//{
+		//    string wname = w.name;
+		//    int a = 3;
+		//}
+
 		if (matches.empty) 
 			return null;
 		
@@ -623,14 +824,11 @@ class StyleSheet : Resource!StyleSheet
 			return matches[0].rule.style;
 
 		// Get cached or create style for this selector set (cascading)
-		Style* cachedStyle = hash in styleCache;
+		Style* cachedStyle = matchedRules in styleCache;
 		if (cachedStyle)
 		    return *cachedStyle;
 
-		if (classNames.length != 0 && classNames[0] == "completion-selected" )
-		{
-			int a = 3;
-		}
+		//std.stdio.writeln("hashes ", w.name, " ", matchedRules);
 
 		// Resolve conflicts if any
 		import std.algorithm;
@@ -642,9 +840,10 @@ class StyleSheet : Resource!StyleSheet
 		version(unittest) {}
 		else 
 		{
-			st.background = mgr.materialManager.declare(null,null, CustomMaterialLoader.singleton);
+			st.background = mgr.materialManager.declare(CustomMaterialLoader.singleton);
 		}
-		styleCache[hash] = st;
+
+		styleCache[matchedRules] = st;
 
 		uint lastSpecificity = uint.max;
 		foreach (m; rng)
@@ -723,6 +922,8 @@ class StyleSheetManager : ResourceManager!StyleSheet
 	{
 		FontManager _fontManager;  // TODO: No need for managers I think. Let the ones why create styles know about that
 		MaterialManager _materialManager;
+		IPropertySpecification[PropertyID] _propertySpecifications;
+		Handle builtinStyleSheetHandle;
 	}
 
 	@property 
@@ -730,12 +931,12 @@ class StyleSheetManager : ResourceManager!StyleSheet
 
 		FontManager fontManager()
 		{
-		return _fontManager;
+			return _fontManager;
 		}
 
 		MaterialManager materialManager()
 		{
-		return _materialManager;
+			return _materialManager;
 		}
 
 	}
@@ -750,13 +951,16 @@ class StyleSheetManager : ResourceManager!StyleSheet
 		ssm.addSerializer(new StyleSheetSerializer(mm, fm));
 
 		ssm.createBuiltinStyleSheet(mm, fm);
-
+		
+		ssm.addPropertySpecification!float("expand-duration", 0.10);
+		
 		return ssm;
 	}
 
 	private void createBuiltinStyleSheet(MaterialManager mm, FontManager fm)
 	{
-		StyleSheet ss = declare("builtin",  new URI("builtin:default"));
+		StyleSheet ss = declare(new URI("builtin:default"));
+		builtinStyleSheetHandle = ss.handle;
 
 		Rule sel = new Rule;
 		ss.rules ~= sel;
@@ -765,12 +969,32 @@ class StyleSheetManager : ResourceManager!StyleSheet
 		lbase.font = fm.builtinFont;
 		lbase.background = mm.builtinMaterial;
 		lbase.color = Color.red;
+		lbase.backgroundColor = Color.white;
 		lbase.padding = RectfOffset(0, 0, 0, 0);
+		lbase.backgroundSpriteBorder = RectfOffset(0, 0, 0, 0);
+		lbase.backgroundSprite = Rectf.init;
 
 		sel.style = lbase;
 		sel.widgetSelectors ~= new WidgetSelector(null, null); // select all
 		
 		onResourceLoaded(ss, null);
+	}
+
+	void addPropertySpecification(IPropertySpecification spec)
+	{
+		_propertySpecifications[spec.id] = spec;
+	}
+
+	void addPropertySpecification(T)(PropertyID pid, T _default, bool inherited = false)
+	{
+		_propertySpecifications[pid] = new PropertySpecification!T(pid, _default, inherited);
+	}
+
+	IPropertySpecification lookupPropertySpecification(PropertyID pid)
+	{
+		auto ps = pid in _propertySpecifications;
+		if (ps is null) return null;
+		return *ps;
 	}
 }
 
@@ -801,6 +1025,12 @@ class CustomMaterialLoader : IResourceLoader!Material
 		r.manager.onResourceLoaded(r, null);
 		return true;
 	}
+
+	bool save(Material p, URI uri)
+	{
+		throw new Exception("Cannot save materials");
+	}
+
 }
 
 class CustomFontLoader : IResourceLoader!Font
@@ -820,6 +1050,11 @@ class CustomFontLoader : IResourceLoader!Font
 		r.init();
 		r.manager.onResourceLoaded(r, null);
 		return true;
+	}
+
+	bool save(Font p, URI uri)
+	{
+		throw new Exception("Cannot save fonts");
 	}
 }
 
@@ -926,14 +1161,14 @@ class StyleSheetParser
 			if (!theURI.isAbsolute)
 				theURI.makeAbsolute(baseURI);
 
-			style.font = fontManager.declare(null, theURI);
+			style.font = fontManager.declare(theURI);
 			requireNextToken();
 		}
 		else
 		{
 			// Create a custom font and use a dummy loader for that
 			if (style._fields._font is null)
-				style.font = fontManager.declare(null, null, CustomFontLoader.singleton);
+				style.font = fontManager.declare(CustomFontLoader.singleton);
 
 			while (theStr != ";" && theStr != "}")
 			{
@@ -978,22 +1213,22 @@ class StyleSheetParser
 		if (theURI.extension == ".material")
 		{
 			// Let material manager handle this for us
-			style.background = materialManager.declare(null, theURI);
+			style.background = materialManager.declare(theURI);
 			requireNextToken();
 		}
 		else 
 		{
 			// Create a custom material and use a dummy loader for that
 			if (style._fields._background is null)
-				style.background = materialManager.declare(null, null, CustomMaterialLoader.singleton);			
+				style.background = materialManager.declare(CustomMaterialLoader.singleton);			
 			
 			while (theURIStr != ";" && theURIStr != "}")
 			{
 
 				if (theURI.extension == ".png")
-					style._fields._background.texture = materialManager.textureManager.declare(null, theURI);
+					style._fields._background.texture = materialManager.textureManager.declare(theURI);
 				else if (theURI.extension == ".shaderprogram")
-					style._fields._background.shader = materialManager.shaderProgramManager.declare(null, theURI);
+					style._fields._background.shader = materialManager.shaderProgramManager.declare(theURI);
 				else
 				{
 					addError("Unsupported file extension for background style " ~ theURI.extension, line);
@@ -1010,7 +1245,7 @@ class StyleSheetParser
 		}
 	}
 
-	void parseColorPropertyValue(Style style)
+	void parseColorPropertyValue(ref Color color)
 	{
 		string c;
 		// get all txt until ';'
@@ -1026,7 +1261,7 @@ class StyleSheetParser
 		auto col = Color.fromCSSString(c);
 		if (col[1])
 		{
-			style.color = col[0];
+			color = col[0];
 		}
 		else
 		{
@@ -1038,18 +1273,27 @@ class StyleSheetParser
 	{
 		style.wordWrap = curToken == "true";
 	}
-
-	void parsePaddingPropertyValue(Style style)
+	
+	void parseRectPropertyValue(ref Rectf r)
 	{
-		RectfOffset r;
-		r.left = curToken.to!float();
+		r.x = curToken == "-" ? float.nan : curToken.to!float();
 		requireNextToken();
-		r.top = curToken.to!float();
+		r.y = curToken == "-" ? float.nan : curToken.to!float();
 		requireNextToken();
-		r.right = curToken.to!float();
+		r.w = curToken == "-" ? float.nan : curToken.to!float();
 		requireNextToken();
-		r.bottom = curToken.to!float();
-		style.padding = r;
+		r.h = curToken == "-" ? float.nan : curToken.to!float();
+	}
+
+	void parseRectOffsetPropertyValue(ref RectfOffset r)
+	{
+		r.left = curToken == "-" ? float.nan : curToken.to!float();
+		requireNextToken();
+		r.top = curToken == "-" ? float.nan : curToken.to!float();
+		requireNextToken();
+		r.right = curToken == "-" ? float.nan : curToken.to!float();
+		requireNextToken();
+		r.bottom = curToken == "-" ? float.nan : curToken.to!float();
 	}
 
 	void parsePositionPropertyValue(Style style)
@@ -1159,13 +1403,24 @@ class StyleSheetParser
 					parseBackgroundPropertyValue(rule.style);
 					continue;
 				case "color":
-					parseColorPropertyValue(rule.style);
+					parseColorPropertyValue(rule.style._fields._color);
+					rule.style._fields._nullFields |= 2;
+					continue;
+				case "background-color":
+					parseColorPropertyValue(rule.style._fields._backgroundColor);
+					rule.style._fields._nullFields |= 4;
 					continue;
 				case "wordWrap":
 					parseWordWrapPropertyValue(rule.style);
 					break;
 				case "padding":
-					parsePaddingPropertyValue(rule.style);
+					parseRectOffsetPropertyValue(rule.style._fields._padding);
+					break;
+				case "background-sprite":
+					parseRectPropertyValue(rule.style._fields._backgroundSprite);
+					break;
+				case "background-sprite-border":
+					parseRectOffsetPropertyValue(rule.style._fields._backgroundSpriteBorder);
 					break;
 				case "position":
 					parsePositionPropertyValue(rule.style);
@@ -1187,10 +1442,19 @@ class StyleSheetParser
 						continue;
 					break;
 				default:
-					addError("Unknown style key '" ~ key ~ "'", line);
-					while (curToken != ";" && curToken != "}" && !curToken.empty)
-						requireNextToken();				
-					continue;
+					auto mgr = sheet.manager;
+					auto spec = (cast(StyleSheetManager)mgr).lookupPropertySpecification(key);
+					if (spec !is null)
+					{
+						spec.parse(this, rule.style);
+					} 
+					else
+					{
+						addError("Unknown style key '" ~ key ~ "'", line);
+						while (curToken != ";" && curToken != "}" && !curToken.empty)
+							requireNextToken();				
+						continue;
+					}
 			}
 
 			requireNextToken();
@@ -1380,6 +1644,8 @@ class StyleSheetSerializer : ResourceSerializer!StyleSheet
 		_fontManager = fontManager;
 	}	
 
+	override bool canRead() pure const nothrow { return true; }
+
 	override bool canHandle(URI uri)
 	{
 		return uri.extension == ".stylesheet";
@@ -1389,10 +1655,12 @@ class StyleSheetSerializer : ResourceSerializer!StyleSheet
 	{
 		URI baseURI = res.uri.dirName;
 		scope StyleSheet tmpSheet = new StyleSheet;
+		tmpSheet.manager = res.manager;
 		auto parser = new StyleSheetParser(str, tmpSheet, baseURI, fontManager, materialManager);
 		if (parser.parse())
 		{
 			res.swap(tmpSheet);
+			tmpSheet.clear();
 			res.manager.onResourceLoaded(res, this);
 		}
 		else

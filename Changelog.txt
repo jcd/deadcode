@@ -1,3 +1,61 @@
+Release 0.5 - 02 May 2014
+
+Overview:
+    
+    * Custom stylesheet properties that extensions can register
+    * Open with - using windows context menu
+    * Drag'n drop files
+    * Persistence of session
+    * Double/triple click selection
+    * Lots of fixes 
+
+Changes:
+
+    c02c4a0 Use new analytics module to send info about exceptions and startups speed 
+            Use new custom stylesheet property to specify expand duration of command dropdown 
+            Allow right arrow to complete in command dropdown 
+            Use ellipsis on long lines in command dropdown completions 
+            Change cursor to IBEAM when over text areas 
+            Cursor does not blink while moving it anymore 
+            Double and triple click now activates on mouse down and not mouse up 
+            Optimized char mouse picking which caused slow selection on the lower part of the screen 
+            Add dirty signal to buffer views
+            Now a completion entry have both a label and the completion string to use
+            Filesystem completions have their common prefix paths stripped
+            Project completions have their common prefix paths stripped 
+            Errorlist styler up to date with rest of stylers
+            Support for dropping file on editor
+            Support for generic resource that will serialize into json file to be used for e.g. extensions and editor sessions state
+            Get rid of vec3f as color fields and use Color struct instead
+            Fix ninepatch model rendering
+            Get rid of name on resources and only use handle and uri
+            Support for saving resources (current only generic resource supports this)
+            Added keyboard(un)focus signals to widget
+            Added command callback on widget
+            Use ninegrid instead of box renderer for widget backgrounds
+            Cull children of directional layout that is out of area
+            Support for using relative paths with different bases such as cwd, userdata dir, executable dir, session dir and resource dir
+            Use new generic resource for session persistence. Persist open buffers, buffer LRU info and caret positions Make command dropdown longer Make caret blink New TextField control New config module
+    6a3c84c New shortcuts for incr find and an additional for undo
+    84acb23 Disable unused import
+    3955bbe New stylesheet properties: background-color, background-sprite, background-sprite-border. Additionally custom properties can now be registered (only floats and rects for now).
+    4d8a4cf New stylesheet changed event
+    28549b2 Added analytics support to figure out how the editor is being used and to improve workflow
+    42f5ac5 No dependency on sdlang anymore
+    70bf694 Correct selectLeft and right across line boundaries
+    f2fe616 Integrate system clipboard
+    1939a77 Select word on double click and line on triple click
+    554f30a New triple click event
+    68e40fa Introduce removeRange on buffer that does not take endlines etc. into account but simply removes the range.
+    ac17912 Add Locations debug
+    c7f8cdd Support C:\ in file protocol handler
+    50eb700 Scale support for rects
+    2ecdac4 max() support for vectors
+    ec2f718 Add win context menu for open in ded on file explorer
+    7033401 Clip text editor using scissors
+    8f74f75 Improve dev tool with help usage and ability to list published zips
+
+
 Release 0.4 - 02 Apr 2014
 
 Overview:

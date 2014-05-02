@@ -29,7 +29,8 @@ enum EventType
 	KeyDown,    /// Key pressed down
 	KeyUp,      /// Key pressed down
 	Resize,     /// The window has been resized
-	Focus		/// The window has been focused
+	Focus,		/// The window has been focused
+	StyleSheetChanged, // The stylesheet has been changed
 }
 
 string ctGenerateEventCallbacks()
@@ -102,11 +103,14 @@ struct Event
 		{
 			Vec2f scroll;
 		}
-
 		struct 
 		{
 			string name;
 			Variant* argument;
+		}
+		struct
+		{
+			string file;
 		}
 	}
 

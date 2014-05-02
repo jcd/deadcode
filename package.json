@@ -9,7 +9,6 @@
 	],
 	"buildRequirements": ["allowWarnings"],
 	"dependencies": {
-		"sdlang-d": ">=0.8.4",
 		"derelict-gl3": "~master",
 		"derelict-sdl2": "~master",
 		"derelict-ft": "~master"

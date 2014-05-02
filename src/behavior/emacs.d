@@ -96,6 +96,9 @@ class EmacsBehavior : EditorBehavior
 
 		set.setKeyBinding("<f7>", "dub.build");
 		set.setKeyBinding("<ctrl> + ,", "app.toggleCommandArea", "dub.quickopen ");
+		set.setKeyBinding("<ctrl> + i", "edit.incrFind");
+
+		set.setKeyBinding("<alt> + /", "edit.undo");
 
 		//set.setKeyBinding("<tab>", "edit.
 	}

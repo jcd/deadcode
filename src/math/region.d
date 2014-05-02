@@ -6,7 +6,7 @@ import std.container;
 import std.exception;
 import std.typecons;
 
-import core.buffer;
+//import core.buffer;
 
 version(unittest) import test;
 

@@ -127,6 +127,7 @@ class DubBuildCommand : BasicCommand!DubBuildCommand
 		if (!newExecPath.empty)
 		{
 			scope (exit) newExecPath = null;
+			app.saveSession();
 			respawn(newExecPath);
 			return false;
 		}

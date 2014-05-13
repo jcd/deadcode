@@ -3,6 +3,7 @@ module guiapplication;
 import application;
 import core.analytics;
 import core.bufferview;
+import core.copybuffer;
 import core.uri;
 import controls.command;
 import controls.texteditor;
@@ -13,6 +14,7 @@ import math._; // Vec2f
 
 import std.algorithm;
 import std.array;
+import std.conv;
 import std.datetime;
 import std.file;
 import std.path;
@@ -674,16 +676,23 @@ version (Windows)
 		uint bufferOffset;
 	}
 	
+	static class SessionCopyBuffer
+	{
+		string[] entries;
+	}
+
 	static class SessionData
 	{
 		int focusOrderCounter;
 		SessionBuffer[] buffers;
+		SessionCopyBuffer copyBuffer;
 	}
 
 	void saveSession()
 	{
 		auto s = sessionData.get!SessionData();
 		s.focusOrderCounter = editors.focusOrderCounter;
+		s.buffers.length = 0;
 		foreach (key, ed; editors.editors)
 		{
 			if (key == "*Messages*")
@@ -695,6 +704,15 @@ version (Windows)
 			data.bufferOffset = ed.editor.bufferView.bufferOffset;
 			s.buffers ~= data;
 		}
+
+		auto scb = new SessionCopyBuffer;
+		auto cb = bufferViewManager.copyBuffer;
+		foreach (entry; cb.entries)
+		{
+			scb.entries ~= entry.txt.to!string;
+		}
+		s.copyBuffer = scb;
+
 		sessionData.save();
 	}
 
@@ -726,6 +744,17 @@ version (Windows)
 			showBuffer(showBufferName);
 		
 		editors.focusOrderCounter = s.focusOrderCounter;
+
+		auto cb = bufferViewManager.copyBuffer;
+
+		if (s.copyBuffer !is null)
+		{
+			foreach (data; s.copyBuffer.entries)
+			{
+				cb.entries ~= new CopyBuffer.Entry(data.to!dstring);
+			}
+		}
+
 	}
 
 	void analyticEvent(string category, string action, string label = null, string value = null)

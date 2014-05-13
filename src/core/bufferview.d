@@ -1,7 +1,8 @@
 module core.bufferview;
 
-import core.buffer; // : TextGapBuffer;
+import core.buffer; // : TextBuffer;
 import core.bufferviewaction;
+import core.copybuffer;
 import math.region;
 import std.container;
 import std.conv;
@@ -12,87 +13,6 @@ import std.stdio;
 import std.variant;
 
 version(unittest) import test;
-
-class CopyBuffer
-{
-	import derelict.sdl2.functions;
-
-	static class Entry
-	{
-		this(dstring t)
-		{
-			txt = t;
-		}
-		dstring txt;
-	}
-	Entry[] entries;
-
-	@property bool empty() const
-	{
-		return entries.empty && !SDL_HasClipboardText();
-	}
-
-	@property size_t length() const
-	{
-		if (SDL_HasClipboardText())
-		{
-			if (entries.empty)
-			{
-				return 1;
-			}
-			else if (entries[$-1].txt.to!string() == SDL_GetClipboardText().to!string())
-			{
-				return entries.length;
-			}
-			else
-			{
-				return entries.length + 1;
-			}
-		}
-		else
-		{
-			return entries.length;
-		}
-	}
-
-	void add(dstring t)
-	{
-		import std.string;
-		entries ~= new Entry(t);
-		SDL_SetClipboardText(to!string(t).toStringz());
-	}
-
-	Entry get(int offset)
-	{
-		auto len =  length;
-		if (offset >= len)
-			return null;
-
-		if (SDL_HasClipboardText())
-		{
-			if (entries.empty)
-			{
-				return new Entry(to!string(SDL_GetClipboardText()).to!dstring());
-			}
-			else if (entries[$-1].txt.to!string() == SDL_GetClipboardText().to!string())
-			{
-				return entries[$-offset-1];
-			}
-			else if (offset == 0)
-			{
-				return new Entry(to!string(SDL_GetClipboardText()).to!dstring);
-			} 
-			else
-			{
-				return entries[$-offset];
-			}
-		}
-		else
-		{
-			return entries[$-offset-1];
-		}
-	}
-}
 
 // TODO:
 //  * Cannot page down until out after buffer length. Think buffer.startOfLine/endOfLine are guilty
@@ -107,7 +27,7 @@ class CopyBuffer
 class BufferView
 {	
 	string name;
-	TextGapBuffer buffer;     // This should be changeable to something else if wanted
+	TextBuffer buffer;     // This should be changeable to something else if wanted
 	// private GapBuffer!int lineStarts; // Indexes into buffer for all line starts. Purely a optimization.
 	
 	CopyBuffer copyBuffer;
@@ -116,7 +36,23 @@ class BufferView
 	private Region _selection;
 	// RegionSet selections;
 
-	alias immutable(TextGapBuffer.CharType)[] BufferString;
+	
+	enum LineTag
+	{
+		none,
+		test,
+	}
+	
+	struct LineInfo
+	{
+		uint number; // zero indexed
+		LineTag tag;
+	}
+	
+	// NOTE: make this into gap buffer if performance becomes and issue
+	LineInfo[] _lineInfo;
+
+	alias immutable(TextBuffer.CharType)[] BufferString;
 
 	Variant[string] userData;
 
@@ -212,16 +148,19 @@ class BufferView
 	this(string txt)
 	{
 		import std.conv;
-		this(new TextGapBuffer(to!dstring(txt), 10));
+		this(new TextBuffer(to!dstring(txt), 10));
 	}
 
-	this(TextGapBuffer buffer)
+	this(TextBuffer buffer)
 	{
 		this.buffer = buffer;
+		buffer.lbuffer.onLinesInserted.connect(&this.onLinesInserted);
+		buffer.lbuffer.onLinesRemoved.connect(&this.onLinesRemoved);
+
 		_dirty = true;
 		//selections = new RegionSet(true); // should be false
 		_undoStack = new ActionStack;
-		copyBuffer = new CopyBuffer;
+		// copyBuffer = new CopyBuffer;
 	}
 	
 	@property 
@@ -271,12 +210,12 @@ class BufferView
 			return buffer.length;
 		}	
 
-		const(TextGapBuffer.CharType)[] lastLine() const
+		const(TextBuffer.CharType)[] lastLine() const
 		{
 			return buffer.lastLine;
 		}
 
-		const(TextGapBuffer.CharType)[] selectedText() const
+		const(TextBuffer.CharType)[] selectedText() const
 		{
 			return buffer.toArray(selection.a, selection.b);
 		}
@@ -323,7 +262,7 @@ class BufferView
 										  new RemoveSelectedAction());
 	}
 
-	void clear(immutable(TextGapBuffer.CharType)[] dl)
+	void clear(immutable(TextBuffer.CharType)[] dl)
 	{
 		clear();
 		_undoStack.push!InsertAction(this, dl);
@@ -650,12 +589,61 @@ class BufferView
 	{
 		return [1u,2,3];
 	}
+
+	// TODO: Use more performant container for line info supporting quick lookups
+	auto getLineInfo(uint lineNumber)
+	{
+		foreach (ref info; _lineInfo)
+		{
+			if (lineNumber == info.number)
+				return info;
+		}
+		return LineInfo();
+	}
+	
+	void setLineInfo(LineInfo i)
+	{
+		foreach (ref info; _lineInfo)
+		{
+			if (i.number == info.number)
+			{
+				info = i;
+				return;
+			}
+		}
+		_lineInfo ~= i;
+	}
+
+	void onLinesInserted(uint lineNumber, uint lineCount)
+	{
+		foreach (ref info; _lineInfo)
+		{
+			if (info.number >= lineNumber)
+				info.number += lineCount;
+		}
+	}
+
+	void onLinesRemoved(uint lineNumber, uint lineCount)
+	{
+		foreach (ref info; _lineInfo)
+		{
+			if (info.number >= lineNumber)
+				info.number -= lineCount;
+		}
+	}
 }
 
 class BufferViewManager
 {
 	BufferView[string] buffers;
 	uint _namingSeq;
+
+	CopyBuffer copyBuffer;
+	
+	this()
+	{
+		copyBuffer = new CopyBuffer;
+	}
 
 	private string uniqueName()
 	{
@@ -674,17 +662,19 @@ class BufferViewManager
 			name = uniqueName();
 		enforceEx!Exception(! (name in buffers), text("A buffer with the name ", name, "already exists"));
 		auto b = new BufferView(content);
+		b.copyBuffer = copyBuffer;
 		buffers[name] = b;
 		b.name = name;
 		return b;
 	}
 
-	auto create(TextGapBuffer buf, string name = null)
+	auto create(TextBuffer buf, string name = null)
 	{
 		if (name is null)
 			name = uniqueName();
 		enforceEx!Exception(! (name in buffers), text("A buffer with the name ", name, "already exists"));
 		auto b = new BufferView(buf);
+		b.copyBuffer = copyBuffer;
 		buffers[name] = b;
 		b.name = name;
 		return b;
@@ -700,7 +690,7 @@ class BufferViewManager
 		auto b = create(name is null ? path : name);
 		auto f = std.stdio.File(path, "rb");
 		ulong size = f.size();
-		b.buffer.ensureGapCapacity(cast(uint)size);
+		b.buffer.reserve(cast(size_t)size);
 		auto range = f.byLine!(dchar,char)(std.stdio.KeepTerminator.yes, '\n');
 		foreach (line; range)
 		{

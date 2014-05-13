@@ -5,7 +5,8 @@ import std.conv;
 import std.exception;
 import std.range;
 import std.typecons;
-
+import std.signals;
+import math.region;
 
 version (unittest) import test;
 
@@ -39,12 +40,17 @@ class GapBuffer(T = dchar)
 		return gapStart;
 	}
 
-	@safe @property length() const nothrow 
+	@safe @property length() const pure nothrow 
 	{
 		return buffer.length - (gapEnd - gapStart);
 	}
 		
-	@safe @property empty() const nothrow 
+	@safe @property gapSize() const pure nothrow
+	{
+		return gapEnd - gapStart;
+	}
+
+	@safe @property empty() const pure nothrow 
 	{
 		return length == 0;
 	}
@@ -70,7 +76,7 @@ class GapBuffer(T = dchar)
 		// Move gap in correct direction
 		if (index < gapStart)
 		{
-			// Move wchars from before gap to end of gap thereby creating a gap a index.
+			// Move wchars from before gap to end of gap thereby creating a gap at index.
 			auto count = gapStart - index;
 			auto gapSize = gapEnd - gapStart;
 			auto deltaCount =  gapSize < count ? gapSize : count;
@@ -83,7 +89,7 @@ class GapBuffer(T = dchar)
 		}
 		else
 		{
-			// Move wchars from after gap to beginning of gap thereby creating a gap a index.
+			// Move wchars from after gap to beginning of gap thereby creating a gap at index.
 			auto count = index - gapStart;
 			auto gapSize = gapEnd - gapStart;
 			auto deltaIndex =  index > gapEnd ? index : gapEnd;
@@ -175,7 +181,7 @@ class GapBuffer(T = dchar)
 	void remove(uint index = uint.max)
 	{
 		if (index == uint.max)
-			index = gapStart - 1;
+			index = gapStart - 1; // TODO: -1 ! Really?
 		enforceEx!Exception(index >= 0 && index < length, text("Index out of bounds 0 <= ", index , " < ", length));
 		placeGapStart(index);
 		buffer[gapEnd] = T.init;
@@ -187,7 +193,7 @@ class GapBuffer(T = dchar)
 		
 	}
 	
-	T opIndex(size_t index) const
+	T opIndex(size_t index) const pure
 	{
 		enforceEx!Exception(index >= 0 && index < length, text("Index out of bounds 0 <= ", index , " < ", length));
 		if (index >= gapStart)
@@ -204,7 +210,7 @@ class GapBuffer(T = dchar)
 		return item;
 	}
 
-	auto opSlice(size_t from, size_t to) const
+	auto opSlice(size_t from, size_t to) const pure
 	{
 		static struct Range
 		{
@@ -215,13 +221,23 @@ class GapBuffer(T = dchar)
 				size_t to;
 			}
 			
-			this(const(GapBuffer!T) gbuf, size_t f, size_t t)
+			this(const(GapBuffer!T) gbuf, size_t f, size_t t) pure nothrow
 			{
 				assert(t <= gbuf.length);
 				assert(f <= t);
 				this.gbuf = gbuf;
 				this.from = f;
 				this.to = t > gbuf.length ? gbuf.length : t;				
+			}
+
+			@property size_t firstIndex() 
+			{
+				return from;
+			}
+
+			@property size_t endIndex() 
+			{
+				return to;
 			}
 
 			@property size_t length()
@@ -265,7 +281,7 @@ class GapBuffer(T = dchar)
 	}
 
 
-	T[] toArray(size_t from, size_t to) const
+	T[] toArray(size_t from, size_t to) const pure
 	{
 		size_t gapSize = gapEnd - gapStart;
 
@@ -282,12 +298,166 @@ class GapBuffer(T = dchar)
 		return res;
 	}
 
-	T[] toArray()
+	T[] toArray() const pure nothrow
 	{
 		T[] res;
 		res ~= buffer[0..gapStart];
 		res ~= buffer[gapEnd..$];
 		return res;
+	}
+}
+
+/** A line buffer used for keeping an index of the newline chars
+*/
+class LineBuffer(T) : GapBuffer!uint
+{
+	alias T CharType;
+	
+	private
+	{
+		uint _lastTextBufferEditPoint;
+	}
+	
+	/** Signal when a newline has been inserted
+		
+		The first argument send with the signal is new line number of the 
+		first inserted line zero indexed. Second argument is the number of new lines
+		following the first line that has been inserted.
+	*/
+	mixin Signal!(uint,uint) onLinesInserted;
+
+	/** Signal when a newline has been inserted
+
+		The first argument send with the signal is line number of the 
+		first removed line zero indexed. Second argument in the number of new lines
+		following the first line that has been removed.
+	*/
+	mixin Signal!(uint,uint) onLinesRemoved;
+
+	this(size_t initialGapSize)
+	{
+		super([0], initialGapSize);
+		moveEditPointToEnd();
+		_lastTextBufferEditPoint = 0;
+	}
+
+	void textInserted(const(CharType)[] txt, uint index)
+	{
+		// Scan for new lines '\n' and update lineIndex accordingly
+		auto len = length;
+		
+		uint curLineIndex = editPoint;
+		assert(curLineIndex > 0, "Line index < 1");
+
+		if (index != _lastTextBufferEditPoint)
+		{
+			// Need to locate the lineIndex for the index.
+			while (curLineIndex < len && this[curLineIndex] <= index)
+				curLineIndex++;
+
+			while (curLineIndex > 1 && index < this[curLineIndex-1])
+				curLineIndex--;
+		}
+
+		placeGapStart(curLineIndex);
+		auto txtLen = txt.length;
+
+		// Correct all line entries after the new inserting to reflect shifted text buffer indexes
+		foreach (i; curLineIndex..len)
+		{
+			auto newVal = this[i] + txtLen;
+			this[i] = newVal;		
+		}
+
+		auto prevNewlineTextBufferIndex = this[curLineIndex - 1];
+
+		uint firstInsertedLineNumber = 0;
+		uint linesInserted = 0;
+
+		// Insert any new lines
+		foreach (i, c; txt)
+		{
+			if (c == '\n')
+			{
+				auto textBufferIndex = index + i;
+				auto lineStartIndex = textBufferIndex + 1;
+				
+				insert(lineStartIndex);
+				
+				bool isAtStartOfLine = 
+					prevNewlineTextBufferIndex == textBufferIndex;
+
+				if (linesInserted == 0)
+					firstInsertedLineNumber = isAtStartOfLine ? editPoint - 2 : editPoint - 1;
+				
+				linesInserted++;
+
+				prevNewlineTextBufferIndex = lineStartIndex; // + 1 to get past \n as start of line
+			}
+		}
+
+		auto endPoint = editPoint;
+
+		_lastTextBufferEditPoint = index + txtLen;
+
+		if (linesInserted != 0)
+			onLinesInserted.emit(firstInsertedLineNumber, linesInserted);
+	}
+
+	void textRemoved(uint begin, uint end)
+	{
+		auto len = length;
+
+		uint curLineIndex = editPoint;
+		assert(curLineIndex > 0, "Line index < 1");
+
+		auto cc = this.buffer;
+
+		if (begin != _lastTextBufferEditPoint)
+		{
+			// Need to locate the lineIndex for the index.
+			while (curLineIndex < len && this[curLineIndex] <= begin)
+				curLineIndex++;
+
+			while (curLineIndex > 1 && begin < this[curLineIndex-1])
+				curLineIndex--;
+		}
+
+		auto beginIsFirstCharOnLine = this[curLineIndex - 1] == begin;
+		auto endIsAtEndOfBuffer = false; // TODO: get this
+		
+		uint firstRemovedLineNumber = 0;
+		uint linesRemoved = 0;
+		
+		// Special handling for when remove an entire line. 
+		// In that case the line reported to have been removed that line number.
+		// All following 
+		if (beginIsFirstCharOnLine && 
+			((curLineIndex < len && this[curLineIndex] <= end) || endIsAtEndOfBuffer) )
+		{
+			remove(curLineIndex);
+			firstRemovedLineNumber = curLineIndex - 1;
+			linesRemoved++;
+			len--;
+		}
+
+		// Remove deleted new lines indexes
+		while (curLineIndex < len && this[curLineIndex] <= end)
+		{
+			if (linesRemoved == 0)
+				firstRemovedLineNumber = curLineIndex;
+			remove(curLineIndex);
+			linesRemoved++;
+			len--;
+		}
+
+		// Update text buffer indexes
+		auto txtLen = end - begin;
+		foreach (i; curLineIndex..len)
+			this[i] = this[i] - txtLen;
+
+		if (linesRemoved != 0)
+			onLinesRemoved.emit(firstRemovedLineNumber, linesRemoved);
 	}
 }
 
@@ -299,17 +469,28 @@ enum TextBoundary
 	buffer,
 }
 
-class TextGapBuffer
+class TextBuffer
 {
-	GapBuffer!dchar gbuffer;
-	alias gbuffer this;
+	alias dchar CharType;
+	GapBuffer!CharType gbuffer;
 	
-	this(const(dchar)[] str, size_t initialGapSize)
+	// Offsets of first char in lines in gbuffer. For quick navigation by line.
+	LineBuffer!CharType lbuffer; 
+
+	this(const(CharType)[] str, size_t initialGapSize)
 	{
-		gbuffer = new GapBuffer!dchar(str, initialGapSize);
+		gbuffer = new GapBuffer!CharType(str, initialGapSize);
+		lbuffer = new LineBuffer!CharType(initialGapSize);
+		if (!str.empty)
+			lbuffer.textInserted(str, 0);
 	}
 
-	@property dchar[] beforeGap()
+	@safe @property length() const pure nothrow
+	{
+		return gbuffer.length;
+	}
+
+	@property CharType[] beforeGap()
 	{
 		return gbuffer.buffer[0..gbuffer.gapStart];
 	}
@@ -321,10 +502,10 @@ class TextGapBuffer
 
 	@property const(dchar)[] lastLine() const
 	{
-		return toArray(offsetToStartOfLine(length), length);
+		return gbuffer.toArray(offsetToStartOfLine(length), length);
 	}
 
-	@property size_t lineCount() 
+	@property size_t lineCount() const
 	{
 		int count = -1;
 		uint index = length;
@@ -336,7 +517,7 @@ class TextGapBuffer
 		return count;
 	}
 
-	@property size_t charCount() 
+	@property size_t charCount() const
 	{
 		uint lastIdx = 0;
 		uint count = 0;
@@ -351,6 +532,33 @@ class TextGapBuffer
 		while(true);
 
 		return count;
+	}
+
+	CharType opIndex(size_t index) const
+	{
+		return gbuffer.opIndex(index);
+	}
+
+	auto opSlice(size_t from, size_t to) const
+	{
+		return gbuffer.opSlice(from, to);
+	}
+
+	void reserve(size_t cap)
+	{
+		size_t s = gbuffer.length + gbuffer.gapSize;
+		if (s < cap)
+			gbuffer.ensureGapCapacity(gbuffer.gapSize + (cap - s));
+	}
+
+	CharType[] toArray(size_t from, size_t to) const
+	{
+		return gbuffer.toArray(from, to);
+	}
+
+	CharType[] toArray() const pure nothrow
+	{
+		return gbuffer.toArray();
 	}
 
 	uint prev(int index) const
@@ -384,13 +592,13 @@ class TextGapBuffer
 		return index;
 	}
 
-	bool isWordChar(int index)
+	bool isWordChar(int index) const
 	{
 		return std.algorithm.canFind(WORDCHARS, this[index]);
 	}
 	
 
-	uint offsetBy(uint index, int count, TextBoundary bound)
+	uint offsetBy(uint index, int count, TextBoundary bound) const
 	{
 		final switch (bound)
 		{
@@ -407,7 +615,7 @@ class TextGapBuffer
 
 	// Return the startIndex moved diff characters taking
 	// the clamping on start and end.
-	uint offsetByChar(uint startIndex, int diff = 1)
+	uint offsetByChar(uint startIndex, int diff = 1) const
 	{
 		while (diff > 0)
 		{
@@ -430,7 +638,7 @@ class TextGapBuffer
 
 	unittest
 	{
-		auto b = new TextGapBuffer("Hello world\r\nHow are you\r\ntoday\nwell"d, 3);
+		auto b = new TextBuffer("Hello world\r\nHow are you\r\ntoday\nwell"d, 3);
 		
 		Assert(0, b.offsetByChar(0,0));
 		Assert(1, b.offsetByChar(0,1));
@@ -463,7 +671,7 @@ class TextGapBuffer
 	// This is unlike vs. which always places the result index at the
 	// start of the work no matter the direction.
 	//
-	uint offsetByWord(uint startIndex, int offs = 1)
+	uint offsetByWord(uint startIndex, int offs = 1) const
 	{
 		while (offs < 0)
 		{
@@ -499,7 +707,7 @@ class TextGapBuffer
 
 	unittest
 	{
-		auto b = new TextGapBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell"d, 3);
+		auto b = new TextBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell"d, 3);
 
 		Assert(7, b.offsetByWord(2,1));
 		Assert(0, b.offsetByWord(2,-1));
@@ -550,7 +758,7 @@ class TextGapBuffer
 
 	unittest
 	{
-		auto b = new TextGapBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell\ndd\nfdsas"d, 3);
+		auto b = new TextBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell\ndd\nfdsas"d, 3);
 
 		Assert(14, b.offsetByLine(0,1));
 		Assert(27, b.offsetByLine(14,1));
@@ -605,7 +813,7 @@ class TextGapBuffer
 
 	unittest
 	{
-		auto b = new TextGapBuffer("  Hello woerld\r\nHow are you\r\n\nwell\ndd\nfdsas"d, 3);
+		auto b = new TextBuffer("  Hello woerld\r\nHow are you\r\n\nwell\ndd\nfdsas"d, 3);
 		Assert(30, b.offsetVertically(0, 3));
 	}
 
@@ -651,7 +859,7 @@ class TextGapBuffer
 
 	//unittest
 	//{
-	//    auto b = new TextGapBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell"d, 3);
+	//    auto b = new TextBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell"d, 3);
 	//
 	//    Assert(2, b.offsetToWord(0, false));
 	//    Assert(6, b.offsetToWord(2, false));
@@ -750,49 +958,7 @@ class TextGapBuffer
 	
 	}
 */
-	// Remove count characters from the buffers starting at index 
-	// If count is negative the characters are moved backwards
-	void remove(int count, uint index)
-	{
-		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " < ", length));
 
-		if (count > 0)
-		{
-			while (count--)
-			{
-				uint idx = next(index);
-
-				uint diff = idx - index;
-				if (diff == 0)
-					break;
-				while (diff--)
-					gbuffer.remove(index);
-			}
-		}
-		else if (count < 0)
-		{
-			while (count++)
-			{
-				uint idx = prev(index);
-				uint diff = index - idx;
-				if (diff == 0)
-					break;
-				while (diff--) // TODO: optimize this because it moves the gap all the time
-				{
-					index--;
-					gbuffer.remove(index);
-				}
-			}
-		}
-	}
-
-	void removeRange(uint start, uint end)
-	{
-		enforceEx!Exception(start >= 0 && start <= end && end <= length, text("Index out of bounds 0 <= ", start , " <= ", end, " <= ", length));
-		auto idx = start;
-		while (start++ < end)
-			gbuffer.remove(idx);
-	}
 
 	uint startOfNextLine(uint index) const
 	{
@@ -904,7 +1070,24 @@ class TextGapBuffer
 		return index != uint.max && index < len ? index : uint.max;
 	}
 
-	uint lineNumberAt(uint index)
+	Region regionForLineNumber(uint lineNum)
+	{
+		if (lbuffer.length > lineNum)
+		{
+			auto begin = lbuffer[lineNum];
+			if (lbuffer.length > (lineNum+1))
+				return Region(begin, prev(lbuffer[lineNum+1]));
+			else
+				return Region(begin, offsetToEndOfLine(begin));
+		}
+		else
+		{
+			auto i = lbuffer[lbuffer.length - 1];
+			return Region(i, offsetToEndOfLine(i));
+		}
+	}
+
+	uint lineNumberAt(uint index) const
 	{
 		uint curLine = 0;
 		uint i = 0;
@@ -919,7 +1102,7 @@ class TextGapBuffer
 		return curLine;
 	}
 
-	uint startAtLineNumber(uint lineNum) const
+	uint startAtLineNumberScan(uint lineNum) const
 	{
 		uint curLine = 0;
 		uint i = 0;
@@ -932,6 +1115,14 @@ class TextGapBuffer
 		}
 		while (i != length);
 		return offsetToStartOfLine(i);
+	}
+
+	uint startAtLineNumber(uint lineNum) const
+	{
+		if (lbuffer.length > lineNum)
+			return lbuffer[lineNum];
+		else
+			return lbuffer[lbuffer.length - 1];
 	}
 
 	auto lineEndsAt(uint index) const
@@ -948,7 +1139,194 @@ class TextGapBuffer
 	const(dchar)[] lineContaining(uint index) const
 	{
 		auto ends = lineEndsAt(index);
-		return toArray(ends[0], ends[1]);
+		return gbuffer.toArray(ends[0], ends[1]);
 	}
 
+	///
+	/// Mutating methods below
+	///
+
+	void insert(const(CharType)[] items, uint index = uint.max)
+	{
+		index = index == uint.max ? gbuffer.editPoint : index;
+		gbuffer.insert(items, index);
+		lbuffer.textInserted(items, index);
+	}
+
+	unittest
+	{
+		class LineListener
+		{
+			uint[] expect;
+			int nextIdx;
+
+			void onLinesInserted(uint lineNum, uint lineCount)
+			{
+				Assert(lineNum, expect[nextIdx*2], "Line num match test " ~ to!string(nextIdx));
+				Assert(lineCount, expect[nextIdx*2+1], "Line num match test " ~ to!string(nextIdx));
+				nextIdx++;
+			}
+		}
+		
+		auto ll = new LineListener;
+		ll.expect = [ 
+			0, 1,
+			1, 1,
+			0, 1,
+			3, 1,
+			4, 1, 
+			6, 1,
+			7, 3,
+		];
+		
+		TextBuffer b1 = new TextBuffer(""d, 40);
+		b1.lbuffer.onLinesInserted.connect(&ll.onLinesInserted);
+		
+		Assert(b1.lbuffer.editPoint, 1, "Line editpoint is initially 1");
+		Assert(b1.lbuffer.length, 1, "Line len is initially 1");
+
+		b1.insert("\n");
+		Assert(b1.lbuffer.editPoint, 2, "Line editpoint is 2 after inserting lf");
+		Assert(b1.lbuffer.length, 2, "Line len is 2");
+
+		b1.insert("\n");
+		Assert(b1.lbuffer.editPoint, 3, "Line editpoint is 3 after inserting lf");
+		Assert(b1.lbuffer.length, 3, "Line len is 3");
+
+		b1.insert("\n", 0);
+		Assert(b1.lbuffer.editPoint, 2, "Line editpoint is 2 after inserting lf at beginning");
+		Assert(b1.lbuffer.length, 4, "Line len is 4");
+
+		b1.insert("\n", 3);
+		Assert(b1.lbuffer.editPoint, 5, "Line editpoint is 5 after inserting lf after third lf");
+		Assert(b1.lbuffer.length, 5, "Line len is 5");
+
+		b1.insert("\n", b1.length);
+		Assert(b1.lbuffer.editPoint, 6, "Line editpoint is 6 after inserting lf at end");
+		Assert(b1.lbuffer.length, 6, "Line len is 6");
+
+		b1.insert("foobar", b1.length);
+		b1.insert("\n", b1.length);
+		Assert(b1.lbuffer.editPoint, 7, "Line editpoint is 7 after inserting lf after text at end");
+		Assert(b1.lbuffer.length, 7, "Line len is 7");
+
+		b1.insert("one\ntwo\nthree\n", b1.length);
+		Assert(b1.lbuffer.editPoint, 10, "Line editpoint is 10 after inserting 3 text and lf at end");
+		Assert(b1.lbuffer.length, 10, "Line len is 10");
+
+
+		TextBuffer b = new TextBuffer(""d, 40);		
+		b.insert("one");
+		Assert(b.lbuffer.editPoint, 1, "Line editpoint is 0 after non-lf string");
+		// Assert(b.lbuffer[b.lbuffer.editPoint], 0, "Line editpoint value is 0 after non-lf string");
+		b.insert("two\nthree");
+		Assert(b.lbuffer.editPoint, 2, "Line editpoint is 1 after lf string");
+		Assert(b.lbuffer.length, 2, "Line editpoint length is 2 after lf string");
+	}
+
+	// Remove count characters from the buffers starting at index 
+	// If count is negative the characters are moved backwards
+	void remove(int count, uint index)
+	{
+		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " < ", length));
+
+		if (count > 0)
+		{
+			while (count--)
+			{
+				uint idx = next(index);
+
+				uint diff = idx - index;
+				if (diff == 0)
+					break;
+
+				lbuffer.textRemoved(index, index + diff);
+
+				while (diff--)
+					gbuffer.remove(index);
+			}
+		}
+		else if (count < 0)
+		{
+			while (count++)
+			{
+				uint idx = prev(index);
+				uint diff = index - idx;
+				if (diff == 0)
+					break;
+				index -= diff;
+
+				lbuffer.textRemoved(index, index + diff);
+
+				while (diff--)
+					gbuffer.remove(index);
+			}
+		}
+	}
+
+	void removeRange(uint start, uint end)
+	{
+		enforceEx!Exception(start >= 0 && start <= end && end <= length, text("Index out of bounds 0 <= ", start , " <= ", end, " <= ", length));
+		auto idx = start;
+		while (idx++ < end)
+			gbuffer.remove(start);
+		lbuffer.textRemoved(start, end);
+	}
+
+	unittest
+	{
+		class LineListener
+		{
+			uint[] expect;
+			int nextIdx;
+
+			void onLinesRemoved(uint lineNum, uint lineCount)
+			{
+				Assert(lineNum, expect[nextIdx*2], "Line num match test " ~ to!string(nextIdx));
+				Assert(lineCount, expect[nextIdx*2+1], "Line count match test " ~ to!string(nextIdx));
+				nextIdx++;
+			}
+		}
+
+		auto ll = new LineListener;
+		ll.expect = [ 
+			0, 1,
+			2, 1,
+			2, 2,
+		];
+
+		TextBuffer b1 = new TextBuffer(""d, 40);
+		b1.lbuffer.onLinesRemoved.connect(&ll.onLinesRemoved);
+
+		b1.insert("\nSecond line\nThird line\nFourth line\n");
+		Assert(b1.lbuffer.editPoint, 5, "Line editpoint is 5 after inserting 4 x text+lf : " ~ b1.toArray().replace("\n", r"\n").to!string);
+		Assert(b1.lbuffer.length, 5, "Line len is 5");
+
+		// remove "\n"
+		b1.removeRange(0,1);
+		Assert(b1.lbuffer.editPoint, 1, "Line editpoint is 1 after removing 1st lf : " ~ b1.toArray().replace("\n", r"\n").to!string);
+		Assert(b1.lbuffer.length, 4, "Line len is 4");
+
+		// remove "Se"
+		b1.removeRange(0,2);
+		Assert(b1.lbuffer.editPoint, 1, "Line editpoint is 1 after removing 2 chars : " ~ b1.toArray().replace("\n", r"\n").to!string);
+		Assert(b1.lbuffer.length, 4, "Line len is 4");
+
+		// remove "cond line"
+		b1.removeRange(0, 9);
+		Assert(b1.lbuffer.editPoint, 1, "Line editpoint is 1 after removing chars until newline : " ~ b1.toArray().replace("\n", r"\n").to!string);
+		Assert(b1.lbuffer.length, 4, "Line len is 4");
+
+		// remove "hird line\nFourt"
+		b1.removeRange(2, 17);
+		Assert(b1.lbuffer.editPoint, 2, "Line editpoint is 2 after removing chars and until newline and then some chars : " ~ b1.toArray().replace("\n", r"\n").to!string);
+		Assert(b1.lbuffer.length, 3, "Line len is 3");
+
+		b1.insert("Fifth line\nSixth Line\nSeventh line", b1.length);
+		
+		// remove "\nTh line\nFifth line\nSixth L"
+		b1.removeRange(2, 27);
+		Assert(b1.lbuffer.editPoint, 2, "Line editpoint is 2 after inserting and removing : " ~ b1.toArray().replace("\n", r"\n").to!string);
+		Assert(b1.lbuffer.length, 3, "Line len is 3");
+	}
 }

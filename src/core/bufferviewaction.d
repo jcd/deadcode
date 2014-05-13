@@ -103,6 +103,7 @@ unittest
 {
 	// Test reversibility
 	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
+	v.copyBuffer = new CopyBuffer;
 	Action i1 = new CursorDownAction(1);
 
 	// ""01234\n67\n9ABCDEF\n""
@@ -177,10 +178,10 @@ unittest
 
 class InsertAction : Action
 {
-	immutable(TextGapBuffer.CharType)[] text;
+	immutable(TextBuffer.CharType)[] text;
 	uint preferredColumn;
 	
-	this(immutable(TextGapBuffer.CharType)[] txt)
+	this(immutable(TextBuffer.CharType)[] txt)
 	{
 		text = txt;
 	}
@@ -188,7 +189,7 @@ class InsertAction : Action
 	// Update this insert action by adding txt to existing text and redo action with
 	// the concatenated text. Note that a redo() must have been performed on the existings text
 	// before calling this as it is assumed that text is already in buffer.
-	private bool update(BufferView bv, immutable(TextGapBuffer.CharType)[] txt)
+	private bool update(BufferView bv, immutable(TextBuffer.CharType)[] txt)
 	{
 		if (txt == " " || txt == "\t" || txt == "\r\n" || txt == "\n")
 			return false; // force undo entry for each word
@@ -197,7 +198,7 @@ class InsertAction : Action
 		return true;
 	}
 
-	private void perform(BufferView bv, immutable(TextGapBuffer.CharType)[] txt)
+	private void perform(BufferView bv, immutable(TextBuffer.CharType)[] txt)
 	{
 		auto insertPoint = bv.cursorPoint;
 		bv.buffer.insert(txt, insertPoint);
@@ -228,6 +229,7 @@ unittest
 {
 	// Test reversibility
 	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
+	v.copyBuffer = new CopyBuffer;
 	Action i1 = new InsertAction("XY"d);
 
 	// ""01234\n67\n9ABCDEF\n""
@@ -266,7 +268,7 @@ class RemoveAction : Action
 {
 	uint preferredColumn;
 	int count;
-	immutable(TextGapBuffer.CharType)[] text; // used to remember what to undo
+	immutable(TextBuffer.CharType)[] text; // used to remember what to undo
 	TextBoundary boundary;
 
 	this(TextBoundary b, int cnt = 1)
@@ -337,6 +339,7 @@ unittest
 {
 	// Test reversibility
 	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
+	v.copyBuffer = new CopyBuffer;
 	Action i1 = new RemoveAction(TextBoundary.chr, 2);
 
 	// ""01234\n67\n9ABCDEF\n""
@@ -389,7 +392,7 @@ class RemoveSelectedAction : Action
 {
 	uint preferredColumn;
 	bool cursorAtStartOfSelection;
-	immutable(TextGapBuffer.CharType)[] text; // used to remember what to undo
+	immutable(TextBuffer.CharType)[] text; // used to remember what to undo
 
 	private bool update(BufferView bv)
 	{
@@ -443,6 +446,7 @@ unittest
 	
 	// Test reversibility
 	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
+	v.copyBuffer = new CopyBuffer;
 	Action i1 = new RemoveSelectedAction();
 
 	// ""01234\n67\n9ABCDEF\n""
@@ -637,6 +641,7 @@ unittest
 {
 	// Test reversibility
 	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
+	v.copyBuffer = new CopyBuffer;
 	Action i1 = new CursorAction(TextBoundary.word, 1);
 
 	// ""01234\n67\n9ABCDEF\n""
@@ -704,6 +709,7 @@ unittest
 {
 	// Misc. mixed actions on BufferView
 	BufferView v = new BufferView("");
+	v.copyBuffer = new CopyBuffer;
 	Action i1 = new InsertAction("testing");
 
 	// Testing insertion redo and undo
@@ -988,6 +994,7 @@ version(unittest)
 unittest
 {
 	auto v = new BufferView("");
+	v.copyBuffer = new CopyBuffer;
 	auto st = new ActionStack();
 
 	st.insert(v, "testing"d);
@@ -1043,6 +1050,7 @@ unittest
 unittest
 {
 	auto v = new BufferView("");
+	v.copyBuffer = new CopyBuffer;
 	v.insert("testing"d);
 	Assert(v.buffer.toArray(), "testing"d);
 

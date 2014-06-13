@@ -144,7 +144,22 @@ struct Rect(T)
 			toBeClipped.size.y = 0f;
 		return toBeClipped;
 	}
-	
+
+	Rect!T makeUnion(Rect!T other) const pure nothrow
+	{
+		import std.algorithm;
+		Rectf result;
+		result.x = min(this.x, other.x, this.x2, other.x2);
+		result.y = min(this.y, other.y, this.y2, other.y2);
+		result.x2 = max(this.x, other.x, this.x2, other.x2);
+		result.y2 = max(this.y, other.y, this.y2, other.y2);
+		//if (other.w < 0)
+		//    other.size.x = 0f;
+		//if (other.h < 0)
+		//    other.size.y = 0f;
+		return result;
+	}
+
 	//	Rect!T opBinary(string OP)(Vec2!T v) const
 	Rect!T opBinary(string OP)(SmallVector!(2u,T) v) const pure nothrow
 	{

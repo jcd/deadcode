@@ -1,3 +1,46 @@
+Release 0.6 - 13 June 2014
+
+Overview:
+    
+    * Text line achor support
+    * Initial dlang unittest run directly from text buffers
+    * Performance optimization for line operations
+    * Fixes
+
+Changes:
+
+    ca1f239 Unittest image
+    26cf7bf New unittest extension in the works
+    0e5e978 Store more info about Asserts in unittests to prepare for own test running 
+            Registering of unittests at start
+    a6af5bc Fix for getting glyph rect relative to bufferview area 
+            Batch updates to TextStylers 
+            Fix regions after inserted/removed text in stylers not being offset 
+            Support for restyling of a region and not just the entire buffer
+    e68b5a7 Subtract region support for region and regionsets
+    0676ce9 makeUnion method on Region
+    0843c46 Throw attributes added
+    dfa64c6 Commenting
+    f04a37a Convenience property for text editor in extensions
+    35f9d09 Missing import for unittesting
+    37878cc Stylesheet updates for TextAnchors
+    e5cbc2b Support for line anchors 
+            Fixes for LineBuffer event handlers 
+            Unittests for LineBuffer 
+            Use line offset as offset to render BufferView instead of char offset 
+            Add create/destroy signals to BufferViewManager 
+            Vec2f parsing support in stylesheets 
+            Offset definition support in stylesheets for text anchors 
+            Fix analytics thread crash on shutdown
+    6bab4fa Support for explicit stop on analytics classes
+    48f70b5 Add nothrow attribute
+    04473fa Save session upon successful build reload
+    40592d7 Refactored copybuffer 
+            Renamed TextGapBuffer to TextBuffer 
+            Added new LineBuffer used by the TextBuffer for easy/speedy line handling 
+            Made all buffer share same copybuffer
+
+
 Release 0.5 - 02 May 2014
 
 Overview:

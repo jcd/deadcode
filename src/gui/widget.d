@@ -179,7 +179,7 @@ class Widget
 			{
 				_sizeDirty = true;
 				_rect = r;
-				_printDirty("rect");
+				//_printDirty("rect");
 			}
 		}
 
@@ -381,7 +381,7 @@ class Widget
 	}
 
 
-	@property Window window()
+	@property Window window() nothrow
 	{
 		return _parent is null ? null : _parent.window;
 	}
@@ -399,7 +399,7 @@ class Widget
 		return _parent;
 	}
 	
-	@property void parent(Widget newParent)
+	@property void parent(Widget newParent) nothrow
 	{
 		if (newParent is _parent)
 			return; // noop
@@ -419,12 +419,12 @@ class Widget
 	/*
 	 * Returns: true if this widget was removed from a parent ie. it had a parent
 	 */
-	private bool removeFromParent()
+	private bool removeFromParent() nothrow
 	{
 		return _parent !is null && _parent.removeChild(this);
 	}
 
-	private void addChild(Widget w)
+	private void addChild(Widget w) nothrow
 	{
 		Window oldWindow = w.window;
 		w.removeFromParent();
@@ -442,14 +442,14 @@ class Widget
 	/*
 	 * Returns: true is toRemove was removed from this widget ie. was a child
 	 */
-	private bool removeChild(Widget toRemove)
+	protected bool removeChild(Widget toRemove) nothrow
 	{
 		size_t len = _children.length;
 		_children = std.array.array(std.algorithm.filter!((Widget tw) { return tw.id != toRemove.id; })(_children));
 		return len != _children.length;
 	}
 
-	@property Widgets children()
+	@property Widgets children() nothrow
 	{
 		return _children;
 	}
@@ -532,7 +532,7 @@ class Widget
 		}
 	}
 */
-	package this(WidgetID _id, Widget _parent, float x = 0, float y = 0, float width = 100, float height = 100)
+	package this(WidgetID _id, Widget _parent, float x = 0, float y = 0, float width = 100, float height = 100) nothrow
 	{
 		assert(_parent !is null);
 		this(_id, x, y, width, height);
@@ -541,7 +541,7 @@ class Widget
 //			window.register(this);
 	}
 
-	package this(WidgetID _id, float x = 0, float y = 0, float width = 100, float height = 100)
+	package this(WidgetID _id, float x = 0, float y = 0, float width = 100, float height = 100) nothrow
 	{
 		//this(Rectf(x, y, x+w, y+h), _parentId);
 		visible = true;
@@ -552,12 +552,12 @@ class Widget
 		this.acceptsKeyboardFocus = false;
 	}
 
-	this(Widget _parent, float x = 0, float y = 0, float width = 100, float height = 100)
+	this(Widget _parent, float x = 0, float y = 0, float width = 100, float height = 100) nothrow
 	{
 		this(NullWidgetID, _parent, x, y, width, height);
 	}
 
-	this(float x = 0, float y = 0, float width = 100, float height = 100)
+	this(float x = 0, float y = 0, float width = 100, float height = 100) nothrow
 	{
 		this(NullWidgetID, x, y, width, height);
 	}

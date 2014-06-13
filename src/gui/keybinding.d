@@ -13,6 +13,8 @@ import std.string;
 
 import derelict.sdl2.sdl;
 
+/** KeySequence 
+*/
 class KeySequence
 {
 	struct Key

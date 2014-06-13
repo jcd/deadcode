@@ -260,6 +260,88 @@ struct Region
 			return "Region(invalid)";
 	}
 	
+	
+	/** Returns two regions in a struct called before, after where zero, one or both may be empty.
+	    returns this - r;
+		If regions are not overlapping 
+	*/
+	auto subtract(Region r)
+	{
+		// Legend:
+		// - this region
+		// | r region
+		// + overlap of this and r regions
+
+
+		// case 1: -----||||| or |||||-----
+		if (this.b <= r.a || this.a >= r.b)
+			return tuple(this, Region(0,0)); // not overlapping
+		
+		if (this.b <= r.b)
+		{
+			if (this.a <= r.a)
+			{
+				// case 2: ----+++++||||||
+				return tuple(Region(this.a, r.a), Region(0,0));
+			}
+			else
+			{
+				// case 3: ||||+++++|||||	
+				return tuple(Region(this.a, this.a), Region(0,0));
+			}
+		}
+		else
+		{
+			if (this.a < r.a)
+			{
+				// case 4: ----++++++-----
+				return tuple(Region(this.a, r.a), Region(r.b, this.b));
+			}
+			else
+			{
+				// case 5: ||||+++++-----
+				return tuple(Region(r.b, this.b), Region(0,0));
+			}
+		}
+	}
+
+	///ditto
+	auto subtract(uint ra, uint rb)
+	{
+		return subtract(Region(ra, rb));
+	}
+
+	unittest
+	{
+		// case 1
+		auto r = Region(0,10).subtract(10,20);
+		Assert(r[0], Region(0,10), "Subtract case 1");
+		Assert(r[1].empty);
+
+		r = Region(10,20).subtract(0,10);
+		Assert(r[0], Region(10,20));
+		Assert(r[1].empty);
+
+		// case 2
+		r = Region(10,20).subtract(15,25);
+		Assert(r[0], Region(10,15), "Subtract case 2");
+		Assert(r[1].empty);
+
+		// case 3
+		r = Region(10,20).subtract(0,30);
+		Assert(r[0].empty, "Subtract case 3");
+		Assert(r[1].empty);
+
+		// case 4
+		r = Region(0,30).subtract(10,20);
+		Assert(r[0], Region(0,10), "Subtract case 4");
+		Assert(r[1], Region(20,30));
+
+		// case 5
+		r = Region(15,25).subtract(10,20);
+		Assert(r[0], Region(20,25), "Subtract case 5");
+		Assert(r[1].empty);
+	}
 
 	/+
 	/** Returns two regions in a struct called before, after where zero, one or both may be empty */
@@ -370,6 +452,15 @@ class RegionSet
 		assert(mergeIntersectingRegions);
 	}
 
+	// this(Args...)(Args args) if (is(args[0] : uint) && (args.length % 2 == 0) )
+	this(Args...)(Args args) if ( (args.length % 2 == 0) )
+	{
+		auto rs = new RegionSet();
+		auto len = args.length;
+		for (size_t i = 0; i < len; i += 2)
+			rs.set(args[0], args[1]);
+	}
+
 	// Update all affected regions by shifting their endpoints or expanding because of new 
 	// entries are inserted on what the regions describe
 	void entriesInserted(uint pos, uint len)
@@ -461,7 +552,7 @@ class RegionSet
 		regions.insertBack(r); // no elements already or incoming region is to be the last element
 	}
 	
-	void set(uint a, uint b, int id)
+	void set(uint a, uint b, int id = 0)
 	{
 		set(Region(a, b, id));
 	}
@@ -802,40 +893,120 @@ class RegionSet
 		Assert(s2[2], Region(40,50));
 	}
 	
-	// TODO fix
-	void substract(Region r) 
+	void subtract(Region r) 
 	{ 
 		int startIdx = -1;
+		int endIdx = -1;
 		for (int i = 0; i < regions.length; ++i)
 		{
 			auto cur = regions[i];
-			Region ins = cur.intersect(r);
-			if (!ins.empty)
+			if (cur.b <= r.a)
+				continue; // Region is before r
+
+			if (cur.a >= r.b)
+				break; // done
+			
+			auto subr = cur.subtract(r);
+
+			if (subr[0].empty)
 			{
 				if (startIdx == -1)
-				{
-					regions[i].b = ins.a;
-					if (regions[i].empty)
-						startIdx = i;
-					else
-						startIdx = i+1;
-				}
-			} else if (startIdx != -1)
+					startIdx = i;
+				endIdx = i;
+			}
+			else
 			{
-				regions.linearRemove(regions[startIdx..i]);
-				break;
+				regions[i] = subr[0];
+				if (!subr[1].empty)
+				{
+					assert(startIdx == -1);
+					regions.insertBefore(regions[i+1..regions.length], subr[1]);
+				}
 			}
 		}
+
+		if (startIdx != -1)
+			regions.linearRemove(regions[startIdx..endIdx+1]);
 	}
+
+	void subtract(uint ra, uint rb) 
+	{
+		subtract(Region(ra, rb));
+	}
+
+	unittest
+	{
+		RegionSet getSet()
+		{
+			auto s1 = new RegionSet;
+			s1.set(5, 10);
+			s1.set(20, 30);
+			s1.set(40, 50);
+			return s1;
+		}
+
+		auto rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(0,5);
+		Assert(rs, new RegionSet(5, 10, 20, 30, 40, 50), "Subtract: Region before set");
+
+		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(50,60);
+		Assert(rs, new RegionSet(5, 10, 20, 30, 40, 50), "Subtract: Region after set");
+
+		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(20,30);
+		Assert(rs, new RegionSet(5, 10, 40, 50), "Subtract: One center region in set");
+
+		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(15,35);
+		Assert(rs, new RegionSet(5, 10, 40, 50), "Subtract: One center region in set (surround)");
+
+		rs = new RegionSet(5, 10, 20, 30, 32, 35, 40 ,50);
+		rs.subtract(10,40);
+		Assert(rs, new RegionSet(5, 10, 40, 50), "Subtract: Two center regions in set");
+
+		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(2, 7);
+		Assert(rs, new RegionSet(7, 10, 20, 30, 40, 50), "Subtract: First part of first region in set");
+
+		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(7, 15);
+		Assert(rs, new RegionSet(5, 7, 20, 30, 40, 50), "Subtract: Last part of first region in set");
+
+		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(25, 45);
+		Assert(rs, new RegionSet(5, 10, 20, 30, 45, 50), "Subtract: First part of last region in set");
+
+		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(45, 55);
+		Assert(rs, new RegionSet(5, 10, 20, 30, 40, 45), "Subtract: Last part of last region in set");
+
+		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(22, 25);
+		Assert(rs, new RegionSet(5, 10, 20, 22, 25, 30, 40, 45), "Subtract: Center part of center region in set");
+
+		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(22, 22);
+		Assert(rs, new RegionSet(5, 10, 20, 30, 40, 45), "Subtract: Empty part of center region in set");
 	
-	// TODO fix
+		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(0, 50);
+		Assert(rs, new RegionSet(), "Subtract: All regions in set");
+	}
+
+	override bool opEquals(Object o) const nothrow
+	{
+		auto other = cast(RegionSet) o;
+		return regions == other.regions;
+	}
+
 	bool contains(Region r) 
 	{ 
 		for (int i = 0; i < regions.length; ++i)
 		{
 			auto re = regions[i];
 			if (r.b <= re.a) break;
-			if (r.contains(re)) return true;
+			if (r.intersects(re)) return true;
 		}
 		return false;
 	}
@@ -884,7 +1055,7 @@ class RegionSet
 		return rs; 
 	}
 
-	override string toString()  
+	override string toString() 
 	{
 		string res;
 		foreach (r; regions[])

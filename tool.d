@@ -14,11 +14,12 @@ void usage()
 {
 	auto usageTmpl = """tool <command> [command options...]
 Commands
-  setup  : Setup development env. e.g. create VS project files.
-  build  : Compile and link libraries and executables
-  test   : Run tests (building if necessary) optional filter can be provided
-  dist   : Create and/or upload installer e.g. tool dist 1.3
-  help   : Takes one of the other commands as sole argument
+  setup   : Setup development env. e.g. create VS project files.
+  build   : Compile and link libraries and executables
+  test    : Run tests (building if necessary) optional filter can be provided
+  dist    : Create and/or upload installer e.g. tool dist 1.3
+  help    : Takes one of the other commands as sole argument
+  changes : Git git changeset comments since provided tag
   listPublished : list published zips on server 
 """;
  write(usageTmpl);
@@ -41,6 +42,9 @@ void commandUsage(string cmd)
 			dist([], true);
 			break;
 		case "listPublished":
+			break;
+		case "changes":
+			changes([], true);
 			break;
 		default:
 			writeln("Cannot display help for unknown command " ~ cmd);
@@ -77,6 +81,9 @@ void main(string[] args)
 			return;
 		case "listPublished":
 			listPublished();
+			return;
+		case "changes":
+			changes(args);
 			return;
 		case "help":
 			if (args.length == 2)
@@ -357,5 +364,35 @@ void listPublished()
 		{
 			writeln(cap[1], " \t", cap[2], " ", cap[3], "\t", cap[4]);
 		}
+	}
+}
+
+void changes(string[] args, bool showUsage = false)
+{
+	if (showUsage)
+	{
+		writeln("tool changes <tag name>");
+		writeln("Display changes since tag name");
+		return;
+	}
+
+	if (args.length < 3)
+	{
+		writeln("Missing tag name argument");
+		return;
+	}
+
+	string tagName = args[2];
+
+	auto cmd = "git log --oneline " ~ tagName ~ "..HEAD";
+	writeln(cmd);
+	auto res = executeShell(cmd);
+	if (res.status)
+	{
+		writeln(format("Error code %s:", res.status));
+	}
+	else
+	{
+		writeln(res.output);
 	}
 }

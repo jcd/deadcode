@@ -39,6 +39,12 @@ struct Region
 		Assert(!Region(0,1).empty);
 	}
 		
+	/// Make the region into an empty region
+	void clear() pure nothrow @safe
+	{
+		a = b;
+	}
+
 	/** Return a region that contains this region and the given region. 
 	 * 
 	 * Note that this is not a union of the regions because there may be

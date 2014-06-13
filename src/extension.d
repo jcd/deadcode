@@ -4,6 +4,7 @@ public import core.bufferview;
 public import core.command;
 public import guiapplication;
 public import gui.widget;
+public import controls.texteditor;
 public import std.variant;
 
 private static IBasicExtension[] g_Extensions;
@@ -63,7 +64,7 @@ struct PreferredWidgetLocation
 class IBasicWidget : Widget
 {
 	GUIApplication app;
-
+	this() nothrow {}
 	abstract void init();
 	abstract void onStart();
 	abstract void onStop();
@@ -147,6 +148,16 @@ class BasicCommand(T) : IBasicCommand
 class IBasicExtension
 {
 	GUIApplication app;
+	
+	@property BufferView currentBuffer()
+	{
+		return app.currentBuffer;
+	}
+
+	@property TextEditor currentTextEditor()
+	{
+		return app.getCurrentTextEditor();
+	}
 
 	abstract @property string name();
 	abstract void init();

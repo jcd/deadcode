@@ -29,14 +29,13 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 		textRenderer.text.insert(to!dstring(msg ~ "\n"));
 		lines++;
 		if ((textRenderer.text.visibleLineCount - preferredEmptyBottomLines) < lines)
-			textRenderer.text.bufferOffset = 
-				textRenderer.text.buffer.startOfNextLine(textRenderer.text.bufferOffset);
+			textRenderer.text.scrollDown(); 
 	}
 
 	void clear()
 	{
 		textRenderer.text.clear();
-		textRenderer.text.bufferOffset = 0;
+		textRenderer.text.lineOffset = 0;
 		lines = 0;
 	}
 
@@ -99,11 +98,9 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 				uint errorLine = to!uint(m.captures[2][1..$-1]) - 1; // lines are 0 indexed in buffer but 1 indexed in error message
 				uint errorStartOfLineIndex = bv.buffer.startAtLineNumber(errorLine);
 				bv.cursorPoint = errorStartOfLineIndex;
-				bv.bufferOffset = errorStartOfLineIndex;
+				bv.lineOffset = errorLine;
 			}
 
-			//uint lineNum = textRenderer.text.buffer.lineNumber(info.index);
-			// uint offsetLineNum = textRenderer.text.buffer.lineNumber(textRenderer.text.bufferOffset);
 			writeln(line);
 		}
 		return EventUsed.yes;

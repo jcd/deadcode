@@ -33,6 +33,31 @@ alias string StyleID;
 immutable StyleID NullStyleName = "";
 immutable StyleID DefaultStyleName = "default";
 
+string cssifyName(string name)
+{
+	string res;
+	foreach (c; name)
+		if (c >= 'A' && c <= 'Z')
+		{
+			res ~= "-";
+			res ~= c.toLower();
+		}
+		else
+			res ~= c;
+	return res;
+}
+
+mixin template styleProperty(string type, string name)
+{
+	mixin(type ~ " _" ~ name ~ ";");
+	mixin("bool _" ~ name ~ "IsSet;");
+	mixin("void clear" ~ toUpper(name[0..1]) ~ name[1..$] ~ "() pure nothrow { _" ~ name ~ "IsSet = false; }");
+	mixin("@property " ~ type ~ " " ~ name ~ "() { " ~ 
+		  " if ( _" ~ name ~ "IsSet) return _" ~ name ~ ";" ~
+		  " else { " ~ type ~ " t; style.getProperty(\"" ~ cssifyName(name) ~ "\", t); return t; } }");
+	mixin("@property void " ~ name ~ "(" ~ type ~ " value) { _" ~ name ~ " = value; _" ~ name ~ "IsSet = true; }");
+}
+
 alias string PropertyID;
 
 /** Specifies the name, type and default value of a style property
@@ -92,7 +117,56 @@ class PropertySpecification(T : float) : PropertySpecificationBase!T
 	void parse(StyleSheetParser parser, Style style)
 	{
 		style._fields.floats[id] = parser.curToken == "-" ? float.nan : parser.curToken.to!float();
-	}	
+	}
+
+	static void overlay(ref T[PropertyID] dest, PropertyID key, const(T) value)
+	{
+		if (!value.isNaN())
+			dest[key] = value;
+	}
+}
+
+class PropertySpecification(T : Vec2f) : PropertySpecificationBase!T
+{
+	this(PropertyID _id, T _default, bool _inherited = false)
+	{
+		super(_id, _default, _inherited);
+	}
+
+	void parse(StyleSheetParser parser, Style style)
+	{
+		Vec2f r;
+		r.x = parser.curToken == "-" ? float.nan : parser.curToken.to!float();
+		parser.requireNextToken();
+		r.y = parser.curToken == "-" ? float.nan : parser.curToken.to!float();
+		style._fields.vec2fs[id] = r;
+	}
+
+	static void overlay(ref T[PropertyID] dest, PropertyID key, const(T) value)
+	{
+		T* v = key in dest;
+		T res;
+		
+		if (v)
+			res = v;
+
+		bool changed = false;
+		
+		if (!value.x.isNaN())
+		{
+			changed = true;
+			res.x = value.x;
+		}
+		
+		if (!value.y.isNaN())
+		{
+			changed = true;
+			res.y = value.y;
+		}
+
+		if (changed)
+			dest[key] = res;
+	}
 }
 
 class PropertySpecification(T : Rectf) : PropertySpecificationBase!T
@@ -114,6 +188,44 @@ class PropertySpecification(T : Rectf) : PropertySpecificationBase!T
 		r.h = parser.curToken == "-" ? float.nan : parser.curToken.to!float();
 		style._fields.rects[id] = r;
 	}
+
+	static void overlay(ref T[PropertyID] dest, PropertyID key, const(T) value)
+	{
+		T* v = key in dest;
+		T res;
+
+		if (v)
+			res = *v;
+
+		bool changed = false;
+
+		if (!value.x.isNaN())
+		{
+			changed = true;
+			res.x = value.x;
+		}
+
+		if (!value.y.isNaN())
+		{
+			changed = true;
+			res.y = value.y;
+		}
+
+		if (!value.w.isNaN())
+		{
+			changed = true;
+			res.size.x = value.w;
+		}
+
+		if (!value.h.isNaN())
+		{
+			changed = true;
+			res.size.y = value.h;
+		}
+
+		if (changed)
+			dest[key] = res;
+	}
 }
 
 struct StyleFields
@@ -121,6 +233,7 @@ struct StyleFields
 	
 	Rectf[PropertyID] rects;
 	float[PropertyID] floats;
+	Vec2f[PropertyID] vec2fs;
 
 	Style.Position _position;
 	RectfOffset _positionOffset;
@@ -229,8 +342,15 @@ struct StyleFields
 			sf._position = _position;
 
 		foreach (key, value; floats)
-			if (!value.isNaN())
-				sf.floats[key] = value;
+			PropertySpecification!float.overlay(sf.floats, key, value);
+			//if (!value.isNaN())
+			//    sf.floats[key] = value;
+
+		foreach (key, value; rects)
+			PropertySpecification!Rectf.overlay(sf.rects, key, value);
+		
+		foreach (key, value; vec2fs)
+			PropertySpecification!Vec2f.overlay(sf.vec2fs, key, value);
 
 		return sf;
 	}
@@ -429,6 +549,15 @@ class Style
 		return true;
 	}
 
+	bool getProperty(PropertyID id, ref Vec2f value) const pure nothrow
+	{
+		auto v = id in _fields.vec2fs;
+		if (v is null)
+			return false;
+		value = *v;
+		return true;
+	}
+
 	//bool getPropertyDef(PropertyID id, ref float value) const pure nothrow
 	//{
 	//    auto v = id in _fields.floats;
@@ -464,6 +593,9 @@ class Style
 		
 		foreach (ref v; _fields.rects)
 			v = Rectf.init;
+
+		foreach (ref v; _fields.vec2fs)
+			v = Vec2f.init;
 	}
 	
 	// reset in the same state as s
@@ -486,6 +618,9 @@ class Style
 
 		foreach (key, ref v; _fields.rects)
 			v = s._fields.rects[key];
+		
+		foreach (key, ref v; _fields.vec2fs)
+			v = s._fields.vec2fs[key];
 	}
 
 	// Merge s into this but only set fields that are not null set on s
@@ -953,7 +1088,8 @@ class StyleSheetManager : ResourceManager!StyleSheet
 		ssm.createBuiltinStyleSheet(mm, fm);
 		
 		ssm.addPropertySpecification!float("expand-duration", 0.10);
-		
+		ssm.addPropertySpecification!Vec2f("offset", Vec2f(0,0));
+
 		return ssm;
 	}
 

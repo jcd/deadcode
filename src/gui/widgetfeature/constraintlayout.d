@@ -32,6 +32,45 @@ enum Anchor
 	BottomRight = HorizontalAnchor.Right | VerticalAnchor.Bottom
 }
 
+Vec2f anchorPosition(Rectf rect, Anchor a)
+{
+	Vec2f result = rect.pos;
+	final switch (a)
+	{
+		case Anchor.TopLeft:
+			break;
+		case Anchor.TopCenter:
+			result.x += rect.w * 0.5;
+			break;
+		case Anchor.TopRight:
+			result.x += rect.w;
+			break;
+		case Anchor.MiddleLeft:
+			result.y += rect.h * 0.5;
+			break;
+		case Anchor.MiddleCenter:
+			result.y += rect.h * 0.5;
+			result.x += rect.w * 0.5;
+			break;
+		case Anchor.MiddleRight:
+			result.y += rect.h * 0.5;
+			result.x += rect.w;
+			break;
+		case Anchor.BottomLeft:
+			result.y += rect.h;
+			break;
+		case Anchor.BottomCenter:
+			result.y += rect.h;
+			result.x += rect.w * 0.5;
+			break;
+		case Anchor.BottomRight:
+			result.y += rect.h;
+			result.x += rect.w;
+			break;
+	}
+	return result;
+}
+
 // TODO: Think this is too complex. Maybe do several simpler ones that can be combined
 //       Maybe build constraints from a string...?
 class ConstraintLayout : WidgetFeature

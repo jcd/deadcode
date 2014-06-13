@@ -1,13 +1,19 @@
 module controls.texteditor;
 
+import core.buffer;
 import core.bufferview;
 import core.command : CommandManager;
 import graphics._;
 import gui.event;
+import gui.style;
 import gui.widget;
 import gui.widgetfeature._;
+import gui.window;
 import guiapplication;
 import math._;
+
+import std.conv;
+import std.string;
 
 alias TextRenderer!BufferView BufferViewRenderer;
 
@@ -22,6 +28,10 @@ class TextEditor : Widget
 	 */
 	BufferView bufferView;
 	BufferViewRenderer renderer;
+
+	// Child widget of TextEditor
+	TextEditorAnchor[] visibleAnchorsChildWidgets;
+
 	private uint _mouseStartSelectionIdx;
 
 	this(Widget parent, BufferView buf)
@@ -37,18 +47,32 @@ class TextEditor : Widget
 		bufferView = buf;
 		bufferView.onInsert.connect(&this.onTextInserted);
 		bufferView.onRemove.connect(&this.onTextRemoved);
+		
+		// bufferView.onDirty.connect(&this.onBufferViewDirty);
+		
+		bufferView.onAnchorVisibilityChanged.connect(&onAnchorVisibilityChanged);
+
 		_mouseStartSelectionIdx = uint.max;
 
-		import derelict.sdl2.sdl;
-		onKeyboardFocusSignal.connect((Event ev) {
-			SDL_Cursor* cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
-			SDL_SetCursor(cursor);
-		});
+		//onKeyboardFocusSignal.connect((Event ev) {
+		//    //window.mouseCursor(MouseCursor.iBeam);
+		//});
 
-		onKeyboardUnfocusSignal.connect((Event ev) {
-			SDL_Cursor* cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
-			SDL_SetCursor(cursor);
-		});
+		//onKeyboardUnfocusSignal.connect((Event ev) {
+		//    window.mouseCursor(MouseCursor.arrow);
+		//});
+	}
+
+	override EventUsed onMouseOver(Event e)
+	{
+		window.mouseCursor(MouseCursor.iBeam);
+		return EventUsed.no;
+	}
+
+	override EventUsed onMouseOut(Event e)
+	{
+		window.mouseCursor(MouseCursor.arrow);
+		return EventUsed.no;
 	}
 
 	void toggleCursorVisibility()
@@ -250,14 +274,178 @@ class TextEditor : Widget
 
 	// TODO: move slots to bufferView
 	// Text inserted at pos and forward
-	void onTextInserted(BufferView v, BufferView.BufferString text, uint pos)
+	private void onTextInserted(BufferView v, BufferView.BufferString text, uint pos)
 	{
 		bufferView.selection.entriesInserted(pos, text.length);
 	}
 
 	// Text remove from pos and forward
-	void onTextRemoved(BufferView v, BufferView.BufferString text, uint pos)
+	private void onTextRemoved(BufferView v, BufferView.BufferString text, uint pos)
 	{
 		bufferView.selection.entriesRemoved(pos, text.length);
+	}
+
+	//private void onBufferViewDirty(BufferView bv)
+	//{
+	//    foreach (_childWidget; visibleAnchorsChildWidgets)
+	//        _childWidget.recalculateRect(this);
+	//}
+
+	private void onAnchorAdded(TextBuffer buf, TextBufferAnchor anchor)
+	{
+		// Dirty will rescan for anchor visibility and include this newly 
+		// added anchor if visible
+		bufferView.dirty = true;
+	}
+
+	private void onAnchorRemoved(TextBuffer buf, TextBufferAnchor anchor)
+	{
+		string candidateName = anchor.id.to!string ~ "-textBufferAnchor";
+		foreach (c; children)
+		{
+			if (c.name == candidateName)
+			{
+				removeChild(c);
+				return;
+			}
+		}
+	}
+	
+	private void onAnchorVisibilityChanged(BufferView bufferView, TextBufferAnchor[] newAnchors)
+	{
+		import std.algorithm;
+
+		foreach (_childWidget; visibleAnchorsChildWidgets)
+		{
+			_childWidget.visible = false;
+		}
+
+		visibleAnchorsChildWidgets.length = 0;
+		assumeSafeAppend(visibleAnchorsChildWidgets);
+
+		// Show widgets that became visible
+		foreach (a; newAnchors)
+		{
+			auto aw = ensureAnchorWidget(a);
+			if (aw !is null)
+			{
+				aw.textAnchor = a;
+				aw.visible = true;
+				visibleAnchorsChildWidgets ~= aw;
+			}
+		}
+	}
+
+	// Returns true if the widget is present after the call
+	private TextEditorAnchor ensureAnchorWidget(TextBufferAnchor anchor)
+	{
+		string candidateName = anchor.id.to!string ~ "-textBufferAnchor";
+		foreach (c; children)
+		{
+			if (c.name == candidateName)
+				return cast(TextEditorAnchor) c;
+		}
+		
+		if (anchor.owner !is null)
+		{
+			TextEditorAnchorOwner anchorOwner = cast(TextEditorAnchorOwner) anchor.owner;
+			if (anchorOwner !is null)
+			{
+				auto w = anchorOwner.createAnchorWidget(anchor);
+				if (w !is null)
+				{
+					w.parent = this;
+					w.name = candidateName;
+					return w;
+				}
+			}
+		}
+		return null;
+	}
+
+	void setLineAnchor(uint lineNumber, TextBufferAnchorOwner owner)
+	{
+		bufferView.buffer.ensureLineAnchor(lineNumber, owner);
+	}
+
+	void unsetLineAnchor(uint lineNumber, string type)
+	{
+		auto anchor = bufferView.buffer.getLineAnchor(lineNumber);
+		if (anchor.id == uint.max)
+			return; // no anchor
+		bufferView.buffer.removeLineAnchorByLine(anchor.id); // TODO: optimize
+	}
+
+	Rectf lineRect(uint lineIdx)
+	{
+		auto lineStart = bufferView.buffer.startAtLineNumber(lineIdx);
+		auto lineEnd = bufferView.buffer.endAtLineNumber(lineIdx);
+		if (lineStart < bufferView.bufferStartOffset)
+			return Rectf();
+		Rectf startGlyphRect = glyphRect(lineStart);
+		Rectf endGlyphRect = glyphRect(lineEnd);
+		return startGlyphRect.makeUnion(endGlyphRect);
+	}
+
+	Rectf glyphRect(uint idx)
+	{
+		return renderer.getGlyphRect(this, idx);
+	}
+}
+
+import gui.widgetfeature.constraintlayout;
+
+interface TextEditorAnchorOwner : TextBufferAnchorOwner
+{
+	TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor);
+}
+
+class TextEditorAnchor : Widget
+{
+	TextBufferAnchor textAnchor;
+	Anchor widgetAnchor;
+	mixin styleProperty!("Vec2f", "offset");
+	// Vec2f offset;
+	
+	bool inView;
+
+	this()
+	{
+		super();
+		widgetAnchor = Anchor.BottomLeft;
+		w = 16; // This should be loaded from stylesheet
+		h = 16;
+		// offset = Vec2f(0,0);
+		inView = false;
+	}
+
+	override void draw()
+	{		
+		if (!visible)
+			return;
+
+		recalculateRect();
+		if (inView)
+			super.draw();
+	}
+
+	void recalculateRect()
+	{
+		TextEditor editor = cast(TextEditor) parent;
+		Rectf lineRect = editor.lineRect(textAnchor.number);
+		inView = ! lineRect.x.isNaN;
+		if (!inView)
+			return;
+
+		lineRect += offset;
+		
+		Rectf r = rect;
+		r.pos = Vec2f(0,0);
+		Rectf lr = lineRect;
+		lr.pos = Vec2f(0,0);
+		// Vec2f lineOffset = anchorPosition(lr, widgetAnchor);
+		r.pos = lineRect.pos - anchorPosition(r, widgetAnchor); // - lineOffset;
+		r.pos.x += lineRect.w;
+		rect = r;
 	}
 }

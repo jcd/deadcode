@@ -35,30 +35,14 @@ class BufferView
 	uint selectionStartIndex;
 	private Region _selection;
 	// RegionSet selections;
-
 	
-	enum LineTag
-	{
-		none,
-		test,
-	}
-	
-	struct LineInfo
-	{
-		uint number; // zero indexed
-		LineTag tag;
-	}
-	
-	// NOTE: make this into gap buffer if performance becomes and issue
-	LineInfo[] _lineInfo;
-
 	alias immutable(TextBuffer.CharType)[] BufferString;
 
 	Variant[string] userData;
 
+	TextBufferAnchor[] visibleAnchors;
+
 	private bool _dirty;
-	
-	uint _bufferOffset; // char offset into the buffer from where to draw
 	
 	// emit(this, text, insertedTextAfterThisIndex)
 	mixin Signal!(BufferView, BufferString, uint) onInsert;
@@ -66,11 +50,14 @@ class BufferView
 	// emit(this, text, removedTextAfterThisIndex)
 	mixin Signal!(BufferView, BufferString, uint) onRemove;
 
-	// emit(this, text, removedTextAfterThisIndex)
+	// emit(this, text, copiedTextAfterThisIndex)
 	mixin Signal!(BufferView, BufferString, uint) onCopy;
 
-	// emi(this);
+	// emit(this);
 	mixin Signal!(BufferView) onDirty;
+
+	// emit(this, TextBufferAnchor[])
+	mixin Signal!(BufferView, TextBufferAnchor[]) onAnchorVisibilityChanged;
 
 	@property 
 	{
@@ -90,7 +77,10 @@ class BufferView
 		void dirty(bool d)
 		{
 			if (d)
+			{
+				signalVisibleAnchors();
 				onDirty.emit(this);
+			}
 			_dirty = d;
 		}
 		
@@ -140,7 +130,8 @@ class BufferView
 	private 
 	{
 		uint _preferredCursorColumn;	
-		uint _lineOffset;   // line offset into the buffer from where to draw. Could be derived from bufferOffset.
+		uint _lineOffset;   // line offset into the buffer from where to draw.
+		uint _bufferStartOffset; // Cached value of index of first char on line specified by lineOffset
 		uint _visibleLineCount;    // Number of lines to visible in view
 		ActionStack _undoStack;
 	}
@@ -154,44 +145,55 @@ class BufferView
 	this(TextBuffer buffer)
 	{
 		this.buffer = buffer;
-		buffer.lbuffer.onLinesInserted.connect(&this.onLinesInserted);
-		buffer.lbuffer.onLinesRemoved.connect(&this.onLinesRemoved);
-
 		_dirty = true;
 		//selections = new RegionSet(true); // should be false
 		_undoStack = new ActionStack;
 		// copyBuffer = new CopyBuffer;
+	
+		buffer.onAnchorAdded.connect(&onAnchorAdded);
+		buffer.onAnchorRemoved.connect(&onAnchorRemoved);
 	}
 	
 	@property 
 	{
-		uint lineNumber()
+		uint lineNumber() const
 		{
 			return buffer.lineNumber(_cursorPoint);
 		}
 
 		// TODO: keep up to date
-		ref uint lineOffset()
+		//ref uint lineOffset()
+		//{
+		//    return _lineOffset;
+		//}
+		
+		uint bufferStartOffset() const pure nothrow
+		{
+			return _bufferStartOffset;
+		}
+
+		uint bufferEndOffset() const 
+		{
+			return buffer.endAtLineNumber(lineNumber + visibleLineCount);
+		}
+
+		uint lineOffset() const pure nothrow
 		{
 			return _lineOffset;
 		}
-		
-		uint bufferOffset() const pure nothrow
-		{
-			return _bufferOffset;
-		}
 
-		void bufferOffset(uint o)
+		void lineOffset(uint o)
 		{
-			if (_bufferOffset == o)
+			if (_lineOffset == o || o >= (buffer.lineCount - _visibleLineCount))
 				return;
-			_bufferOffset = o;
-			_lineOffset = buffer.lineNumberAt(o);
+			
+			_lineOffset = o;
+			_bufferStartOffset = buffer.startAtLineNumber(o);
 			navigated();
 		}
 
 		// TODO: keep up to date and rename maybe
-		uint visibleLineCount()
+		uint visibleLineCount() const pure nothrow
 		{
 			return _visibleLineCount;
 		}
@@ -316,13 +318,6 @@ class BufferView
 	{
 		return _cursorPoint == buffer.offsetToEndOfLine(_cursorPoint);
 	}
-
-	/*
-	@property int cursorPointRelative() const pure nothrow
-	{
-		return cast(int)cursorPoint - cast(int)bufferOffset;
-	}
-	*/
 
 	@property uint preferredCursorColumn() const pure nothrow
 	{
@@ -479,24 +474,12 @@ class BufferView
 
 	void scrollUp()
 	{	
-		_bufferOffset = buffer.offsetToStartOfLine(buffer.endOfPreviousLine(bufferOffset));
-		if (_lineOffset > 0)
-			_lineOffset--;
-		navigated();
+		lineOffset = lineOffset - 1;
 	}
 
 	void scrollDown()
 	{
-		if (_lineOffset < (buffer.lineCount - _visibleLineCount))
-		{
-			_lineOffset++;
-			auto newbo = buffer.startOfNextLine(bufferOffset);
-			if (newbo == bufferOffset)
-				_lineOffset--;
-			else
-				_bufferOffset = newbo;
-			navigated();
-		}
+		lineOffset = lineOffset + 1;
 	}
 
 	void cursorToBeginningOfLine()
@@ -590,47 +573,56 @@ class BufferView
 		return [1u,2,3];
 	}
 
-	// TODO: Use more performant container for line info supporting quick lookups
-	auto getLineInfo(uint lineNumber)
+	TextBufferAnchor getLineAnchor(uint lineNum)
 	{
-		foreach (ref info; _lineInfo)
-		{
-			if (lineNumber == info.number)
-				return info;
-		}
-		return LineInfo();
+		return buffer.getLineAnchor(lineNum);
 	}
-	
-	void setLineInfo(LineInfo i)
+
+	TextBufferAnchor createLineAnchor(uint lineNum)
 	{
-		foreach (ref info; _lineInfo)
+		return buffer.createLineAnchor(lineNum);
+	}
+
+	private void onAnchorAdded(TextBuffer buf, TextBufferAnchor anchor)
+	{
+		// TODO: if this becomes a performance problem the do not just dirty
+		dirty = true;
+	}
+
+	private void onAnchorRemoved(TextBuffer buf, TextBufferAnchor anchor)
+	{
+		// TODO: if this becomes a performance problem the do not just dirty
+		dirty = true;
+	}
+
+	private void signalVisibleAnchors()
+	{
+		import std.algorithm;		
+		// Find visible anchor in view and emit signal if changed since last time
+		auto as = buffer.getAnchorsForLines(lineOffset, visibleLineCount);
+		auto sortedAs = as.sort!("a.number < b.number");
+		
+		if (as.length != visibleAnchors.length)
 		{
-			if (i.number == info.number)
+			visibleAnchors = array(sortedAs);
+			onAnchorVisibilityChanged.emit(this, visibleAnchors);
+			return;
+		}
+
+		TextBufferAnchor[] existing = visibleAnchors[];
+		
+		foreach (a; sortedAs)
+		{
+			if (existing.empty || existing.front != a)
 			{
-				info = i;
-				return;
+				visibleAnchors = array(sortedAs);
+				onAnchorVisibilityChanged.emit(this, visibleAnchors);
+				break;
 			}
-		}
-		_lineInfo ~= i;
-	}
-
-	void onLinesInserted(uint lineNumber, uint lineCount)
-	{
-		foreach (ref info; _lineInfo)
-		{
-			if (info.number >= lineNumber)
-				info.number += lineCount;
+			existing.popFront();
 		}
 	}
 
-	void onLinesRemoved(uint lineNumber, uint lineCount)
-	{
-		foreach (ref info; _lineInfo)
-		{
-			if (info.number >= lineNumber)
-				info.number -= lineCount;
-		}
-	}
 }
 
 class BufferViewManager
@@ -639,7 +631,13 @@ class BufferViewManager
 	uint _namingSeq;
 
 	CopyBuffer copyBuffer;
+
+	mixin Signal!BufferView onBufferViewCreated;
+	mixin Signal!BufferView onBufferViewDestroyed;
 	
+	// BufferView has beem renamed from the second parameter to BufferView.name
+	mixin Signal!(BufferView, string) onBufferViewRenamed;
+
 	this()
 	{
 		copyBuffer = new CopyBuffer;
@@ -665,6 +663,7 @@ class BufferViewManager
 		b.copyBuffer = copyBuffer;
 		buffers[name] = b;
 		b.name = name;
+		onBufferViewCreated.emit(b);
 		return b;
 	}
 
@@ -677,6 +676,7 @@ class BufferViewManager
 		b.copyBuffer = copyBuffer;
 		buffers[name] = b;
 		b.name = name;
+		onBufferViewCreated.emit(b);
 		return b;
 	}
 
@@ -719,13 +719,17 @@ class BufferViewManager
 		buffers.remove(from);
 		buffers[to] = b;
 		b.name = to;
+		onBufferViewRenamed.emit(b, from);
 	}
 
 	void destroy(string name)
 	{
 		auto b = name in buffers;
 		if (b)
+		{
 			buffers.remove(name); // TODO: make sure dependent actors get notified? or rely on GC?
+			onBufferViewDestroyed.emit(*b);
+		}
 	}
 	
 	void destroy(BufferView b)

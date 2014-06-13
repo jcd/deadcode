@@ -6,6 +6,7 @@ import std.exception;
 import std.range;
 import std.typecons;
 import std.signals;
+import std.variant;
 import math.region;
 
 version (unittest) import test;
@@ -307,17 +308,24 @@ class GapBuffer(T = dchar)
 	}
 }
 
-/** A line buffer used for keeping an index of the newline chars
+/** A line buffer used for keeping an index of the first char in a line
 */
-class LineBuffer(T) : GapBuffer!uint
+class LineBuffer(T, Text) : GapBuffer!uint
 {
 	alias T CharType;
 	
 	private
 	{
 		uint _lastTextBufferEditPoint;
+		Text _text;
 	}
 	
+	/** Signal when a line has been modified
+
+		The argument send with the signal is new line number of the line modified.
+	*/
+	mixin Signal!(uint) onLineModified;
+
 	/** Signal when a newline has been inserted
 		
 		The first argument send with the signal is new line number of the 
@@ -334,18 +342,17 @@ class LineBuffer(T) : GapBuffer!uint
 	*/
 	mixin Signal!(uint,uint) onLinesRemoved;
 
-	this(size_t initialGapSize)
+	this(Text text, size_t initialGapSize)
 	{
 		super([0], initialGapSize);
 		moveEditPointToEnd();
 		_lastTextBufferEditPoint = 0;
+		_text = text;
 	}
 
-	void textInserted(const(CharType)[] txt, uint index)
+	private uint getEditPoint(uint index)
 	{
-		// Scan for new lines '\n' and update lineIndex accordingly
 		auto len = length;
-		
 		uint curLineIndex = editPoint;
 		assert(curLineIndex > 0, "Line index < 1");
 
@@ -358,10 +365,39 @@ class LineBuffer(T) : GapBuffer!uint
 			while (curLineIndex > 1 && index < this[curLineIndex-1])
 				curLineIndex--;
 		}
+		return curLineIndex;
+	}
 
+	void textInserted(const(CharType)[] txt, uint index)
+	{		
+		if (txt.empty)
+			return;
+		
+		// Scan for new lines '\n' and update lineIndex accordingly
+		auto len = length;
+		uint curLineIndex = getEditPoint(index);
+		
 		placeGapStart(curLineIndex);
 		auto txtLen = txt.length;
 
+		auto prevNewlineTextBufferIndex = this[curLineIndex - 1];
+		bool startLineModified;
+		
+		{
+			bool startsAtStartOfLine = prevNewlineTextBufferIndex == index;
+
+			auto curNewlineTextBufferIndex = curLineIndex < len ? this[curLineIndex] : _text.length;
+			bool startsAtEndOfLine = 
+				curNewlineTextBufferIndex - 1 == index || 
+				curNewlineTextBufferIndex == _text.length ||
+				(curNewlineTextBufferIndex - 2 >= 0 && _text[curNewlineTextBufferIndex - 2] == '\r');
+
+			bool firstCharInsertedIsNewline = 
+				txt[0] == '\n' || (txt.length > 1 && txt[0] == '\r' && txt[1] == '\n');
+			
+			startLineModified = !firstCharInsertedIsNewline || !(startsAtStartOfLine || startsAtEndOfLine);
+		}
+		
 		// Correct all line entries after the new inserting to reflect shifted text buffer indexes
 		foreach (i; curLineIndex..len)
 		{
@@ -369,14 +405,23 @@ class LineBuffer(T) : GapBuffer!uint
 			this[i] = newVal;		
 		}
 
-		auto prevNewlineTextBufferIndex = this[curLineIndex - 1];
-
 		uint firstInsertedLineNumber = 0;
 		uint linesInserted = 0;
 
 		// Insert any new lines
-		foreach (i, c; txt)
+		for (size_t i = 0; i < txt.length; i++)
 		{
+		//foreach (i, c; txt)
+		//{
+			CharType c = txt[i];
+
+			// Force skip of \r in case it is part or \r\n sequence
+			if (c == '\r' && txt.length > i + 1 && txt[i+1] == '\n')
+			{
+				i++;
+				c = '\n';
+			}
+
 			if (c == '\n')
 			{
 				auto textBufferIndex = index + i;
@@ -384,15 +429,15 @@ class LineBuffer(T) : GapBuffer!uint
 				
 				insert(lineStartIndex);
 				
-				bool isAtStartOfLine = 
-					prevNewlineTextBufferIndex == textBufferIndex;
-
 				if (linesInserted == 0)
+				{
+					
+					bool isAtStartOfLine = prevNewlineTextBufferIndex == textBufferIndex;
 					firstInsertedLineNumber = isAtStartOfLine ? editPoint - 2 : editPoint - 1;
-				
-				linesInserted++;
+				}
 
-				prevNewlineTextBufferIndex = lineStartIndex; // + 1 to get past \n as start of line
+				linesInserted++;
+				// prevNewlineTextBufferIndex = lineStartIndex; // + 1 to get past \n as start of line
 			}
 		}
 
@@ -400,28 +445,187 @@ class LineBuffer(T) : GapBuffer!uint
 
 		_lastTextBufferEditPoint = index + txtLen;
 
+		if (startLineModified)
+		{
+		    onLineModified.emit(curLineIndex-1); 
+		}
+
 		if (linesInserted != 0)
 			onLinesInserted.emit(firstInsertedLineNumber, linesInserted);
+		
+	}
+
+	version (unittest)
+	{
+		static class SignalRecorder
+		{
+			string result;
+			LineBuffer!(dchar,dstring) lb;
+			void onLineModified(uint lineNum)
+			{
+				result ~= "m" ~ text(lineNum);
+			}
+
+			void onLinesInserted(uint lineNum, uint lineCount)
+			{
+				result ~= "i" ~ text(lineNum, ":", lineCount);
+			}
+
+			void onLinesRemoved(uint lineNum, uint lineCount)
+			{
+				result ~= "r" ~ text(lineNum, ":", lineCount);
+			}
+		}
+
+		static auto createTestRunner(string baseString)
+		{
+			auto bs = dtext(baseString);
+			auto lb = new LineBuffer!(dchar,dstring)(bs, 40);
+			lb.textInserted(bs, 0);
+			auto rec = new SignalRecorder();
+			rec.lb = lb;
+			lb.onLinesInserted.connect(&rec.onLinesInserted);
+			lb.onLinesRemoved.connect(&rec.onLinesRemoved);
+			lb.onLineModified.connect(&rec.onLineModified);
+			return rec;
+		}
+
+	}
+
+	unittest
+	{
+		string base = 
+q"(line1
+line2
+line3)";
+
+		/*
+		line1
+		line2
+		line3
+		*/
+		auto tr = createTestRunner("");
+		tr.lb.textInserted(dtext(base), 0);
+		Assert(tr.result, "m0i1:2", "LineBuffer initial lines");
+
+		/*
+		insertline1
+		line2
+		line3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textInserted("insert"d, 0);
+		Assert(tr.result, "m0", "LineBuffer insert at front");
+
+		/*
+		liinsertne1
+		line2
+		line3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textInserted("insert"d, 2);
+		Assert(tr.result, "m0", "LineBuffer insert at front + 2 chars");
+
+		/*
+		line1insert
+		line2
+		line3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textInserted("insert"d, 5);
+		Assert(tr.result, "m0", "LineBuffer insert at first eol");
+
+		/*
+		<blank>
+		line1
+		line2
+		line3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textInserted("\n"d, 0);
+		Assert(tr.result, "i0:1", "LineBuffer insert blank newline at front");
+
+		/*
+		line1
+		insert
+		line2
+		line3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textInserted("\ninsert"d, 5);
+		Assert(tr.result, "i1:1", "LineBuffer insert newline at end and then insert");
+
+		tr = createTestRunner(base);
+		tr.lb.textInserted("insert\n"d, 6);
+		Assert(tr.result, "m1i2:1", "LineBuffer insert at start of line 1 and then newline");
+
+		/*
+		insert
+		line1
+		line2
+		line3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textInserted("insert\n"d, 0);
+		Assert(tr.result, "m0i1:1", "LineBuffer insert at start of line 0 and then newline");
+
+		/*
+		ins
+		ertline1
+		line2
+		line3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textInserted("ins\nert"d, 0);
+		Assert(tr.result, "m0i1:1", "LineBuffer insert 'ins\\nert' at start of line 0");
+
+		/*
+		liinsert
+		ne1
+		line2
+		line3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textInserted("ins\nert"d, 2);
+		Assert(tr.result, "m0i1:1", "LineBuffer insert 'ins\\nert' at mid of line 0");
+
+		/*
+		line1
+		line2
+		liinsert
+		ne3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textInserted("insert\n"d, 14);
+		Assert(tr.result, "m2i3:1", "LineBuffer insert 'insert\\n' at mid of line 2");
+
+		/*
+		line1
+		line2
+		line3insert
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textInserted("insert"d, 17);
+		Assert(tr.result, "m2", "LineBuffer insert 'insert' at end of buffer");
+
+		/*
+		line1
+		line2
+		line3insert
+		test
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textInserted("insert\ntest"d, 17);
+		Assert(tr.result, "m2i3:1", "LineBuffer insert 'insert\\ntest' at end of buffer");
 	}
 
 	void textRemoved(uint begin, uint end)
 	{
+		if (begin == end)
+			return;
+
 		auto len = length;
-
-		uint curLineIndex = editPoint;
-		assert(curLineIndex > 0, "Line index < 1");
-
-		auto cc = this.buffer;
-
-		if (begin != _lastTextBufferEditPoint)
-		{
-			// Need to locate the lineIndex for the index.
-			while (curLineIndex < len && this[curLineIndex] <= begin)
-				curLineIndex++;
-
-			while (curLineIndex > 1 && begin < this[curLineIndex-1])
-				curLineIndex--;
-		}
+		uint curLineIndex = getEditPoint(begin);
 
 		auto beginIsFirstCharOnLine = this[curLineIndex - 1] == begin;
 		auto endIsAtEndOfBuffer = false; // TODO: get this
@@ -445,7 +649,7 @@ class LineBuffer(T) : GapBuffer!uint
 		while (curLineIndex < len && this[curLineIndex] <= end)
 		{
 			if (linesRemoved == 0)
-				firstRemovedLineNumber = curLineIndex;
+				firstRemovedLineNumber = beginIsFirstCharOnLine ? curLineIndex - 1 : curLineIndex;
 			remove(curLineIndex);
 			linesRemoved++;
 			len--;
@@ -456,8 +660,77 @@ class LineBuffer(T) : GapBuffer!uint
 		foreach (i; curLineIndex..len)
 			this[i] = this[i] - txtLen;
 
+		if (!beginIsFirstCharOnLine || linesRemoved == 0)
+				onLineModified.emit(curLineIndex-1);
+
 		if (linesRemoved != 0)
 			onLinesRemoved.emit(firstRemovedLineNumber, linesRemoved);
+	}
+
+	unittest
+	{
+		string base = 
+			q"(line1
+			line2
+			line3)";
+
+		/*
+		ine1
+		line2
+		line3
+		*/
+		auto tr = createTestRunner(base);
+		tr.lb.textRemoved(0,1);
+		Assert(tr.result, "m0", "LineBuffer remove first char");
+
+		/*
+		line2
+		line3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textRemoved(0,6);
+		Assert(tr.result, "r0:1", "LineBuffer remove first line");
+
+		/*
+		le1
+		line2
+		line3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textRemoved(1,3);
+		Assert(tr.result, "m0", "LineBuffer remove second and third char");
+
+		/*
+		line1line2
+		line3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textRemoved(5,6);
+		Assert(tr.result, "m0r1:1", "LineBuffer remove first newline");
+
+		/*
+		lineine2
+		line3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textRemoved(4,7);
+		Assert(tr.result, "m0r1:1", "LineBuffer remove first newline and surrounding chars");
+
+		/*
+		line1
+		line2
+		line
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textRemoved(16,17);
+		Assert(tr.result, "m2", "LineBuffer remove last char in buffer");
+
+		/*
+		linne3
+		*/
+		tr = createTestRunner(base);
+		tr.lb.textRemoved(3,15);
+		Assert(tr.result, "m0r1:2", "LineBuffer remove mid first line to mid last line");
 	}
 }
 
@@ -469,20 +742,53 @@ enum TextBoundary
 	buffer,
 }
 
+
+enum TextBufferAnchorType : byte
+{
+	none,
+	character,
+	line,
+}
+
+interface TextBufferAnchorOwner
+{
+}
+
+struct TextBufferAnchor
+{
+	static uint nextID = 1;
+	TextBufferAnchorType type;
+	uint id;
+	uint number; // zero indexed
+	TextBufferAnchorOwner owner;
+}
+
 class TextBuffer
 {
 	alias dchar CharType;
 	GapBuffer!CharType gbuffer;
 	
+	Variant[string] userData;
+
 	// Offsets of first char in lines in gbuffer. For quick navigation by line.
-	LineBuffer!CharType lbuffer; 
+	LineBuffer!(CharType,TextBuffer) lbuffer; 
+
+	// NOTE: make this into gap buffer if performance becomes and issue
+	private TextBufferAnchor[] _anchors;
+
+	mixin Signal!(TextBuffer, TextBufferAnchor) onAnchorAdded;
+
+	mixin Signal!(TextBuffer, TextBufferAnchor) onAnchorRemoved;
 
 	this(const(CharType)[] str, size_t initialGapSize)
 	{
 		gbuffer = new GapBuffer!CharType(str, initialGapSize);
-		lbuffer = new LineBuffer!CharType(initialGapSize);
+		lbuffer = new LineBuffer!(CharType, TextBuffer)(this, initialGapSize);
 		if (!str.empty)
 			lbuffer.textInserted(str, 0);
+
+		lbuffer.onLinesInserted.connect(&this.onLinesInserted);
+		lbuffer.onLinesRemoved.connect(&this.onLinesRemoved);
 	}
 
 	@safe @property length() const pure nothrow
@@ -561,6 +867,13 @@ class TextBuffer
 		return gbuffer.toArray();
 	}
 
+	bool isNewline(uint index) const 
+	{
+		dchar c = gbuffer[index]; 
+		
+		return c == '\r' || (c == '\n' && ( index == 0 || gbuffer[index-1] != '\r') ); 
+	}
+
 	uint prev(int index) const
 	{
 		assert(index <= gbuffer.length);
@@ -572,7 +885,7 @@ class TextBuffer
 		// Magic to handle \r\n newlines
 		// If we landed on a \n and a \r is preceeding the do one more 
 		// step to land on the \r.
-		// If we landed on a \n the do one more step to land before the \r
+		// If we landed on a \r the do one more step to land before the \r
 		if (index > 0 && 
 			((c == '\n' && gbuffer[index-1] == '\r') || c == '\r') )
 			index--; // \r\n. eat both
@@ -1125,6 +1438,17 @@ class TextBuffer
 			return lbuffer[lbuffer.length - 1];
 	}
 
+	uint endAtLineNumber(uint lineNum) const
+	{
+		lineNum++;
+		uint idx = 0;
+		if (lbuffer.length > lineNum)
+			idx = lbuffer[lineNum];
+		else
+			return length;
+		return prev(idx);
+	}
+
 	auto lineEndsAt(uint index) const
 	{
 		return tuple(offsetToStartOfLine(index), offsetToEndOfLine(index));
@@ -1140,6 +1464,12 @@ class TextBuffer
 	{
 		auto ends = lineEndsAt(index);
 		return gbuffer.toArray(ends[0], ends[1]);
+	}
+	
+	const(dchar)[] lineString(uint lineNumber) const
+	{
+		return gbuffer.toArray(startAtLineNumber(lineNumber), 
+							   endAtLineNumber(lineNumber));
 	}
 
 	///
@@ -1328,5 +1658,110 @@ class TextBuffer
 		b1.removeRange(2, 27);
 		Assert(b1.lbuffer.editPoint, 2, "Line editpoint is 2 after inserting and removing : " ~ b1.toArray().replace("\n", r"\n").to!string);
 		Assert(b1.lbuffer.length, 3, "Line len is 3");
+	}
+
+	// TODO: Use more performant container for line info supporting quick lookups etc.
+	auto getLineAnchor(uint lineNumber, TextBufferAnchorOwner owner = null)
+	{
+		bool ownerIsNull = owner is null;
+		foreach (ref info; _anchors)
+		{
+			if (info.type == TextBufferAnchorType.line && 
+				lineNumber == info.number && 
+				(ownerIsNull || owner is info.owner))
+				return info;
+		}
+		return TextBufferAnchor(TextBufferAnchorType.none, uint.max);
+	}
+
+	auto createLineAnchor(uint lineNumber, TextBufferAnchorOwner owner = null)
+	{
+		auto id = TextBufferAnchor.nextID++;
+		auto a = TextBufferAnchor(TextBufferAnchorType.line, id, lineNumber, owner);
+		_anchors ~= a;
+		onAnchorAdded.emit(this, a);
+		return a;
+	}
+
+	auto ensureLineAnchor(uint lineNumber, TextBufferAnchorOwner owner = null)
+	{
+		auto la = getLineAnchor(lineNumber, owner);
+		if (la.id != uint.max)
+			return la;
+		return createLineAnchor(lineNumber, owner);
+	}
+
+	void removeLineAnchorByID(uint lineAnchorID)
+	{
+		foreach (i, ref info; _anchors)
+		{
+			if (info.id == lineAnchorID)
+			{
+				info = _anchors[$-1];
+				_anchors.length = _anchors.length-1;
+				return;
+			}
+		}	
+	}
+
+	void removeLineAnchorByLine(uint lineNumber, TextBufferAnchorOwner owner = null)
+	{
+		bool ownerIsNull = owner is null;
+		foreach (ref info; _anchors)
+		{
+			if (info.type == TextBufferAnchorType.line && 
+				lineNumber == info.number && 
+				(ownerIsNull || owner is info.owner))
+			{
+				info = _anchors[$-1];
+				_anchors.length = _anchors.length-1;
+				return;
+			}
+		}
+	}
+
+	TextBufferAnchor[] getAnchorsForLines(uint lineOffset, uint visibleLineCount)
+	{
+		auto res = appender!(TextBufferAnchor[]);
+		auto endLine = lineOffset + visibleLineCount;
+		foreach (ref info; _anchors)
+		{
+			if (info.number >= lineOffset && info.number < endLine)
+				res.put(info);
+		}
+		return res.data;
+	}
+
+	bool hasAnchors() const
+	{
+		return !_anchors.empty;
+	}
+
+	private void onLinesInserted(uint lineNumber, uint lineCount)
+	{
+		foreach (ref info; _anchors)
+		{
+			if (info.type == TextBufferAnchorType.line && info.number >= lineNumber)
+				info.number += lineCount;
+		}
+	}
+
+	private void onLinesRemoved(uint lineNumber, uint lineCount)
+	{
+		foreach (ref info; _anchors)
+		{
+			if (info.type == TextBufferAnchorType.line && info.number >= lineNumber)
+			{
+				if (info.number - lineCount < lineNumber)
+				{
+					onAnchorRemoved.emit(this, info);
+					info.number = uint.max; // TODO: bad... fix
+				}
+				else
+				{
+					info.number -= lineCount;
+				}
+			}
+		}
 	}
 }

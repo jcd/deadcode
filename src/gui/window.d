@@ -13,6 +13,22 @@ import std.signals;
 import std.stdio;
 import std.typecons;
 
+enum MouseCursor
+{
+	arrow,
+    iBeam,
+    wait,
+    crossHair,
+    waitArrow,
+    sizeNWSE,
+    sizeNESW,
+    sizeWE,
+    sizeNS,
+    sizeAll,
+    no,
+    hand,
+}
+
 alias uint WindowID;
 
 class Window : Widget
@@ -100,6 +116,17 @@ class Window : Widget
 		void position(Vec2f pos)
 		{
 			_renderTarget.position = pos;
+		}
+
+		void mouseCursor(MouseCursor c)
+		{
+			SDL_Cursor* cursor = SDL_CreateSystemCursor(c);
+			SDL_SetCursor(cursor);
+		}
+
+		MouseCursor mouseCursor()
+		{
+			return cast(MouseCursor) SDL_GetCursor();
 		}
 	}
 
@@ -324,14 +351,14 @@ class Window : Widget
 	}
 
 	// TODO: make private
-	void register(Widget w)
+	void register(Widget w) nothrow
 	{
 		widgets[w.id] = w;
 		foreach (cw; w.children)
 			register(cw);
 	}
 
-	package void deregister(Widget w)
+	package void deregister(Widget w) nothrow
 	{
 		widgets.remove(w.id);
 		foreach (cw; w.children)
@@ -415,6 +442,7 @@ class Window : Widget
 		assert(mouseGrabbedBy != NullWidgetID);
 		mouseGrabbedBy = NullWidgetID;
 	}
+
 /*
 	package void dispatchEvent(Event ev)
 	{

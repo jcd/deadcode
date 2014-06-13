@@ -175,7 +175,6 @@ class GUIApplication : Application
 
 	~this()
 	{
-		analyticEvent("core", "stop");
 	}
 
 	URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
@@ -326,6 +325,8 @@ class GUIApplication : Application
 		loadSession();
 		analyticStopTiming("core", "startup");
 		guiRoot.run();
+		analyticEvent("core", "stop");
+		analytics.stop();
 		saveSession();
 	}
 
@@ -535,6 +536,7 @@ version (Windows)
 		}
 		auto view = bufferViewManager.create("", path);
 		view.ensureCapacity(cast(uint)file.size);
+		showBuffer(view);
 		//view.buffer.gbuffer.ensureGapCapacity(cast(uint)file.size);
 		auto r = file.byLine!(char,	char)(std.stdio.KeepTerminator.yes, '\x0a');
 		foreach (line; r)
@@ -544,7 +546,6 @@ version (Windows)
 		view.cursorToStart();
 		view.clearUndoStack();
 		addMessage("Read %s", view.name);
-		showBuffer(view);
 		return view;
 		//Application.activeEditor.show(view);			
 	}
@@ -590,14 +591,20 @@ version (Windows)
 		return w;
 	}
 	
-	BufferView getVisibleBuffer()
+	TextEditor getCurrentTextEditor()
 	{
 		foreach (k,v; editors.editors)
 		{
 			if (v.editor.visible)
-				return v.editor.bufferView;
+				return v.editor;
 		}
 		return null;
+	}
+
+	BufferView getVisibleBuffer()
+	{
+		auto e = getCurrentTextEditor();
+		return e is null ? null : e.bufferView;
 	}
 
 	void previewBuffer(string name)
@@ -673,7 +680,7 @@ version (Windows)
 		int focusOrder;
 		string path;
 		uint cursorPoint;
-		uint bufferOffset;
+		uint lineOffset;
 	}
 	
 	static class SessionCopyBuffer
@@ -701,7 +708,7 @@ version (Windows)
 			data.focusOrder = ed.focusOrder;
 			data.path = key;
 			data.cursorPoint = ed.editor.bufferView.cursorPoint;
-			data.bufferOffset = ed.editor.bufferView.bufferOffset;
+			data.lineOffset = ed.editor.bufferView.lineOffset;
 			s.buffers ~= data;
 		}
 
@@ -738,7 +745,7 @@ version (Windows)
 			auto ed = editors.editors[l.path];
 			ed.focusOrder = l.focusOrder;
 			ed.editor.bufferView.cursorPoint = l.cursorPoint;
-			ed.editor.bufferView.bufferOffset = l.bufferOffset;
+			ed.editor.bufferView.lineOffset = l.lineOffset;
 		}
 		if (!showBufferName.empty)
 			showBuffer(showBufferName);

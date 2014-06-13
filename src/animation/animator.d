@@ -4,7 +4,7 @@ import animation.interpolate;
 
 class Animator
 {
-	this()
+	this() nothrow
 	{
 		// Constructor code
 	}

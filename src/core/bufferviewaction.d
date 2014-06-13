@@ -9,7 +9,11 @@ import std.container;
 import std.range;
 import std.typecons;
 
-version(unittest) import test;
+version(unittest) 
+{
+	import test;
+	import core.copybuffer;
+}
 
 // An action is revisible in regards to 
 // cursor position, preferredColumn and text content.

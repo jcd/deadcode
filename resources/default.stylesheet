@@ -5,6 +5,7 @@
 	background-sprite-border: 0 0 0 0;
 	font : fonts/cour.ttf 16;
 	padding : 0 0 0 0;
+	offset: 0 0;
 }
 
 TextEditor {
@@ -18,6 +19,21 @@ ErrorListWidget {
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	color: #ff0000;
+} 
+
+TextEditorAnchor
+{
+	background-color: #0a272d;
+	background-sprite: 0 0 16 16; 
+	background-sprite-border: 6 6 6 6;
+
+}
+ 
+UnittestAnchor {
+	background-color: #0a770d;
+	background-sprite: 16 16 16 16;
+	background: materials/unittest-start.png;	
+	offset: -8 18;
 }
 
 #main {

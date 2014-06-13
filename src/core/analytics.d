@@ -18,6 +18,8 @@ class Analytics
 		StopWatch[string] runningTimings;
 	}
 
+	void stop() {}
+
 	void startTiming(string category, string variable)
 	{
 		StopWatch sw;
@@ -93,6 +95,8 @@ class GoogleAnalytics : Analytics
 
 	~this()
 	{
+		if (!running)
+			return;
 		running = false;
 		worker.send("");
 	}
@@ -105,8 +109,10 @@ class GoogleAnalytics : Analytics
 
 	// void foo() {}
 
-	void stop()
+	override void stop()
 	{
+		if (!running)
+			return;
 		running = false;
 		worker.send("");
 	}

@@ -9,183 +9,116 @@ import std.string;
 
 class TextStyler(Text)
 {
-	RegionSet regionSet;
 	Text text;
+
+	private RegionSet _regionSet;
+	private Region _dirtyRegion;
+
+	@property RegionSet regionSet()
+	{
+		if (!_dirtyRegion.empty)
+		{
+			update(_dirtyRegion);
+			_dirtyRegion.a = _dirtyRegion.b;
+		}
+		return _regionSet;
+	}
 
 	mixin Signal!() onChanged;
 
 	this(Text text)
 	{
 		this.text = text;
-		this.regionSet = new RegionSet();
-		//this.regionSet.add(0, uint.max);
+		this._regionSet = new RegionSet();
+		
 		static if ( is(Text : BufferView) )
 		{
-			text.onInsert.connect(&textChangedCallback);
-			text.onRemove.connect(&textChangedCallback);
+			text.onInsert.connect(&textInsertedCallback);
+			text.onRemove.connect(&textRemovedCallback);
 		}
 	}
 
 	static if ( is(Text : BufferView) )
 	{
-		protected void textChangedCallback(BufferView b, BufferView.BufferString,uint)
+		protected void textInsertedCallback(BufferView b, BufferView.BufferString str,uint from)
 		{
-			update();
+			// Update region set
+			_regionSet.entriesInserted(from, str.length);
+
+			scheduleRegion(Region(from, from + str.length));
+		}
+
+		protected void textRemovedCallback(BufferView b, BufferView.BufferString str,uint from)
+		{
+			// Update region set
+			_regionSet.entriesRemoved(from, str.length);
+			
+			// Just dirty something on the same line
+			if (from > 0)
+			{
+				scheduleRegion(Region(from-1, from));
+			}
+			else if (b.length)
+			{
+				scheduleRegion(Region(0, 1));
+			}
+			else
+			{
+				// Empty buffer. We can clear the regions set and dirty area
+				_regionSet.clear();
+				_dirtyRegion.a = _dirtyRegion.b;
+			}
 		}
 	}
 
-	// A Region specifying the composed style of several styles 
-	//static struct StyledRegion
-	//{
-	//    Region _reg;
-	//    alias _reg this;
-	//    StyleFields styleFields;
-	//    this(uint a, uint b, StyleFields styleFields)
-	//    {
-	//        this.a = a;
-	//        this.b = b;
-	//        this.styleFields = styleFields;
-	//    }
-	//}
+	void scheduleRegion(Region r)
+	{
+		_dirtyRegion = _dirtyRegion.cover(r);
+		if (_dirtyRegion.b > text.length)
+			_dirtyRegion.b = text.length;
+	}
+
+	void scheduleAll()
+	{
+		_dirtyRegion.a = 0;
+		_dirtyRegion.b = text.length;
+	}
 
 	string styleIDToName(int id)
 	{
 		return null;
 	}
-	/+
-	// This slice can be used to iterate over composed style regions lazyly. 
-	auto opSlice(uint from, uint to)
+
+	protected void styleRegion(Region r)
 	{
-	struct Range
-	{
-	// The regionSet must be non-partial overlapping ie. like xml markup is since this
-	// makes it possible to keep the style state in stack form with the top item being the
-	// current active styled region.
-	private
-	{
-	RegionSet.Range regionSetRange;
-	Array!StyledRegion stack_;
-	StyledRegion curRegion_;
-	uint to_;
-	StyldeSet stdyleSet_;
-	RegionSet regionSet_;
+		_regionSet.merge(r.a, r.b, 0);
 	}
 
-	
+	protected void update(Region r)
 	{
-	styleSdet_ = sset;
-	regionSet_ = rset;
-	curRegion_.a = f;
-	curRegion_.b = t;
-	stack_.insertBack(curRegion_);
+		// Look for the preceeding and succeeding whitespace and form a region using that 
+		// to use for restyling.
+		// Restyle entire lines
+		static if ( is(Text : BufferView) )
+		{
+			
+			uint a = text.buffer.findOneOfReverse(r.a, "\r\n");
+			uint b = text.buffer.findOneOf(r.b, "\r\n");
+			a = a == uint.max ? 0 : a;
+			b = b == uint.max ? text.length : b;
+			styleRegion(Region(a, b));
+			//styleRegion(Region(0, text.length));
+		}
+		else
+		{
+			styleRegion(Region(0, text.length));
+		}
+	}
 
-	regionSetRange = regionSet_.regions[];
-
-	while (!regionSetRange.empty)
+	protected void update()
 	{
-	auto r = regionSetRange.front;
-
-	if (r.a >= f)
-	{
-	// Reached or exceeded the start point
-	if (!stack_.empty)
-	{
-	// f is not within a region and the upcoming region is the current one
-	curRegion_.b = r.a;
-	popFront(); // prime
-
-	//stack_.insertBack(StyledRegion(r.a, r.b, curRegion_.styleFields));
-	//curRegion_.a = r.a;
-	//curRegion_.b = r.b;
-	//curRegion_.styleFields = styledSet[r.id].computedFields;
-	}
-	break;
-	}
-	else if (r.b > f) // implicit r.a < f 
-	{
-	// Region r overlaps f 
-	StyleFields sf = curRegion_.styleFields.overlayUnset(stdyleSet_.styles[r.id].computedFields);
-	stack_.insertBack(StyledRegion(r.a, r.b, sf));
-	curRegion_.styleFields = sf;
-	curRegion_.b = r.b;
-	}
-
-	//t					regionsSetRange.popFront();						
-	}
-	/*t				
-	if (_curRegion.b >= t)
-	{
-	// No regions
-	stack_.clear();
-	}
-	*/
-	}
-
-	void popFront()
-	{
-	/*t
-	assert(!empty);
-
-	uint curEnd = curRegion_.b;	
-	curRegion_.a = curEnd;
-
-	while (!stack.empty && stack_.back().b == curEnd)
-	stack.popBack();
-
-	if (stack.empty) return; // reached the end since the bottom stack Region ends at destination
-
-	// Now the next region is either from the end of curRegion to the
-	// end of the region of the top of the stack. Or from the curRegion to
-	// the next item in the range.
-
-	if (regionSetRange.empty || stack.back().b <= regionSetRange.front.a)
-	{
-	// Definitely the stack that should be used for the next region
-	curRegion_.styleFields = stack_.back().styleFields;
-	curRegion_.b = stack_.back().b;
-	return;
-	}
-
-
-	auto r = regionSetRange.front;
-	if (r.a == curEnd)
-	{
-	// The last region is right next to the next region
-	regionSetRange.popFront();
-	StyleFields sf = curRegion_.styleFields.overlayUnset(stydleSet[r.id].computedFields);
-	stack.insertBack(StyledRegion(r.a, r.b, sf));
-	curRegion_.b = regionSetRange.empty || regionSetRange.front.a > r.b ? r.b : regionSetRange.front.a;
-	}
-	else
-	{
-	curRegion_.b =  r.a;
-	}
-	curRegion_.styleFields = stack_.back().styleFields;
-	*/
-	}
-
-	@property 
-	{
-	bool empty() const 
-	{
-	return stack_.empty;
-	}
-
-	@safe StyledRegion front() nothrow
-	{
-	//t					assert(!empty);
-	return curRegion_;
-	}
-	}
-	}
-
-	return Range(from, to, styledSet, regionSet);
-	}
-	+/
-	void update()
-	{
-		regionSet.clear();
-		regionSet.merge(0, text.length, 0);
+		_regionSet.clear();
+		update(Region(0, text.length, 0));
 	}
 }
 
@@ -203,10 +136,8 @@ class DSourceStyler(Text) : TextStyler!Text
 		super(text);
 	}
 	
-	override void update()
+	override protected void styleRegion(Region r)
 	{
-		regionSet.clear();
-
 		// TODO: use ctRegex
 		enum decls = [ "@property"d, 
 			"alias", "auto", "assert", "break", "case", "class", "const", "default", "do", "else", "enum", "extern", "for", "foreach", "goto", "if", "import", "in", "interface", "is", "!is",
@@ -241,9 +172,10 @@ class DSourceStyler(Text) : TextStyler!Text
 			templates[t] = DStyle.type;
 
 		import std.array;
-		auto buf = array(text[0..text.length]);
+		auto buf = array(text[r.a..r.b]); // TODO: make request for adding string like support to std.regex
 
 		size_t lastEndIdx = 0;
+		size_t offset = r.a;
 
 		foreach (m; match(buf, ctr))
 		{
@@ -251,15 +183,14 @@ class DSourceStyler(Text) : TextStyler!Text
 			auto begin = m.pre.length;
 			auto end = begin + m.hit.length;
 			if (begin != lastEndIdx)
-				regionSet.set(lastEndIdx, begin, DStyle.other);
-			regionSet.set(begin, end, t);
+				_regionSet.set(offset + lastEndIdx, offset + begin, DStyle.other);
+			_regionSet.set(offset + begin, offset + end, t);
 			lastEndIdx = end;
 		}
 
 		if (lastEndIdx != text.length)
-			regionSet.set(lastEndIdx, text.length, DStyle.other);
+			_regionSet.set(offset + lastEndIdx, r.b, DStyle.other);
 
-	
 		onChanged.emit();
 	}
 		
@@ -319,10 +250,8 @@ class StyleSheetStyler(Text) : TextStyler!Text
 		super(text);
 	}
 
-	override void update()
+	protected override void styleRegion(Region r)
 	{
-		regionSet.clear();
-
 		// TODO: use ctRegex
 		enum keys = [ "background"d, "color", "font", "padding" ];
 		enum types = [ "#"d, "\\\\." ];
@@ -353,9 +282,10 @@ class StyleSheetStyler(Text) : TextStyler!Text
 			templates[t] = StyleSheetStyle.type;
 
 		import std.array;
-		auto buf = array(text[0..text.length]);
-
+		auto buf = array(text[r.a .. r.b]);
+		
 		size_t lastEndIdx = 0;
+		size_t offset = r.a;
 
 		foreach (m; match(buf, ctr))
 		{
@@ -369,13 +299,13 @@ class StyleSheetStyler(Text) : TextStyler!Text
 			}
 
 			if (begin != lastEndIdx)
-				regionSet.set(lastEndIdx, begin, StyleSheetStyle.other);
-			regionSet.set(begin, end, t);
+				_regionSet.merge(offset + lastEndIdx, offset + begin, StyleSheetStyle.other);
+			_regionSet.merge(offset + begin, offset + end, t);
 			lastEndIdx = end;
 		}
 
 		if (lastEndIdx != text.length)
-			regionSet.set(lastEndIdx, text.length, StyleSheetStyle.other);
+			_regionSet.merge(offset + lastEndIdx, r.b, StyleSheetStyle.other);
 
 		onChanged.emit();
 	}
@@ -411,32 +341,32 @@ class ChangeLogStyler(Text) : TextStyler!Text
 		super(text);
 	}
 
-	private void setStyleByRegex(dstring re, Styling styling)
+	private void setStyleByRegex(Region r, dstring re, Styling styling)
 	{
 		import std.regex;		
 		//auto ctr = regex(r"\s+([a-f0-9]+)\*?\s+ ", "mg");		
 		auto ctr = regex(re, "mg");		
 
 		import std.array;
-		auto buf = array(text[0..text.length]);
+		auto buf = array(text[r.a .. r.b]);
+		size_t offset = r.a;
 
 		foreach (m; match(buf, ctr))
 		{
 			auto begin = m.pre.length + m[1].length;
 			auto end = begin + m[2].length;
-			regionSet.set(begin, end, styling);
+			_regionSet.merge(offset + begin, offset + end, styling);
 		}
 	}
 
-	override void update()
+	protected override void styleRegion(Region r)
 	{
 		import std.stdio;
-		regionSet.clear();
-		regionSet.set(0, text.length, Styling.other);
-		setStyleByRegex(r"^()(Changes:|Overview:)\s*$"d, Styling.subTitle);
-		setStyleByRegex(r"^()(Release.*?\s+[\.0-9]+\s.*)$"d, Styling.releaseTitle);	
-		setStyleByRegex(r"^(\s+)([0-9a-f]+)\s"d, Styling.changeset);
-		setStyleByRegex(r"(\s)(\*)\s"d, Styling.bullet);
+		_regionSet.set(r.a, r.b, Styling.other);
+		setStyleByRegex(r, r"^()(Changes:|Overview:)\s*$"d, Styling.subTitle);
+		setStyleByRegex(r, r"^()(Release.*?\s+[\.0-9]+\s.*)$"d, Styling.releaseTitle);	
+		setStyleByRegex(r, r"^(\s+)([0-9a-f]+)\s"d, Styling.changeset);
+		setStyleByRegex(r, r"(\s)(\*)\s"d, Styling.bullet);
 		onChanged.emit();
 	}
 

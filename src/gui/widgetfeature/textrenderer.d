@@ -93,8 +93,6 @@ class TextRenderer(Text) : WidgetFeature
 		_textDirty = true;
 	}
 
-	
-
 	void toggleCursorVisibility()
 	{
 		cursorVisible = !cursorVisible;
@@ -125,7 +123,7 @@ class TextRenderer(Text) : WidgetFeature
 				_textStyler.onChanged.disconnect(&onTextDirty);
 			_textStyler = styler;
 			styler.onChanged.connect(&onTextDirty);
-			styler.update();
+			styler.scheduleAll();
 			_textDirty = true;
 		}
 
@@ -258,7 +256,7 @@ class TextRenderer(Text) : WidgetFeature
 //			if (_selectionModel.selection != _textStyler.text.selection)
 			//{
 				_selectionModel.selection = _textStyler.text.selection;
-				_selectionModel.update(_textStyler.text.bufferOffset);
+				_selectionModel.update(_textStyler.text.bufferStartOffset);
 			//}
 		}
 		
@@ -326,8 +324,8 @@ class TextRenderer(Text) : WidgetFeature
 		_layout.updateFontMaps();
 		_layout = TextBoxLayout(_model, Rectf(padding.left, padding.top, layoutSize.x, layoutSize.y));
 		
-		static if (__traits(compiles, text.bufferOffset))
-			uint textOffset = text.bufferOffset;
+		static if (__traits(compiles, text.bufferStartOffset))
+			uint textOffset = text.bufferStartOffset;
 		else
 			uint textOffset = 0;
 
@@ -384,18 +382,21 @@ class TextRenderer(Text) : WidgetFeature
 				break;
 		}
 		
+		// Invalidate glyphRect cache
+		_bufferOffsetForCurrentCache = uint.max;
+
 		_textDirty = false;
 
 		if (_layout.lines.empty)
 			_model.clear(); // Clear model buffers
-		
+
 		layoutChanged();
 	}
 
 	// World rect relative to widget
 	private Rectf getRectForViewIndex(uint idx)
 	{
-		auto relIdx = cast(int)idx - cast(int)text.bufferOffset;
+		auto relIdx = cast(int)idx - cast(int)text.bufferStartOffset;
 		Rectf rect = Rectf(0, 0, 0, 0);
 
 		if (relIdx < 0)
@@ -475,7 +476,7 @@ class TextRenderer(Text) : WidgetFeature
 		transform = transform * posTrans * scaleTrans;	
 	}
 
-	private Rectf getGlyphRect(Widget widget, uint idx)
+	private Rectf getGlyphRectRelative(Widget widget, uint idx)
 	{
 		Rectf rect = void;
 		auto posTrans = getTransformForViewIndex(idx, rect);
@@ -508,6 +509,42 @@ class TextRenderer(Text) : WidgetFeature
 		//return result;
 	}
 
+	Rectf getGlyphRect(Widget w, uint idx)
+	{
+		uint bufOffset = _textStyler.text.bufferStartOffset;
+		assert(idx >= bufOffset, "getGlyphRect() out of bounds. Too small.");
+		// assert(idx >= bufOffset, "getGlyphRect() out of bounds. Too large.");
+
+		uint i = idx - bufOffset;
+
+		if (bufOffset != _bufferOffsetForCurrentCache)
+		{
+			// Clear cache
+			_bufferOffsetForCurrentCache = bufOffset;
+			_glyphWindowRectCache.length = 0;
+			assumeSafeAppend(_glyphWindowRectCache);
+		}
+
+		if (i < _glyphWindowRectCache.length)
+		{
+			return _glyphWindowRectCache[i];
+		}
+		else
+		{
+			uint nextIdx = _glyphWindowRectCache.length;
+
+			Rectf glyphRect = void;
+
+			while (nextIdx <= i)
+			{
+				glyphRect = getGlyphRectRelative(w, nextIdx + bufOffset);
+				_glyphWindowRectCache ~= glyphRect;
+				nextIdx++;
+			}
+			return glyphRect;
+		}
+	}
+
 	/** Get glyph index into buffer that is a window position
 		
 		Params:
@@ -525,7 +562,7 @@ class TextRenderer(Text) : WidgetFeature
 	{
 		// TODO: Maybe this should be handled by the textrenderer ie. click detection. Maybe not.
 		// Naive brute force finding of glyph pos
-		uint i = _textStyler.text.bufferOffset;
+		uint i = _textStyler.text.bufferStartOffset;
 		uint bufOffset = i;
 
 		if (bufOffset != _bufferOffsetForCurrentCache)
@@ -554,7 +591,7 @@ class TextRenderer(Text) : WidgetFeature
 		// uint i = bufferView.bufferOffset;
 
 		// Vec2f mousePos = event.mousePos;
-		Rectf glyphRect = getGlyphRect(widget, i);
+		Rectf glyphRect = getGlyphRectRelative(widget, i);
 		_glyphWindowRectCache ~= glyphRect;
 
 		// glyphRect.y is bottom 
@@ -568,7 +605,7 @@ class TextRenderer(Text) : WidgetFeature
 				break;
 			}
 			i++;
-			glyphRect = getGlyphRect(widget, i);
+			glyphRect = getGlyphRectRelative(widget, i);
 			_glyphWindowRectCache ~= glyphRect;
 		}
 		if (found)

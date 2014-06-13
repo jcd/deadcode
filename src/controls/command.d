@@ -38,7 +38,13 @@ class CompletionListStyler(Text) : TextStyler!Text
 		super(text);
 	}
 
-	override protected void textChangedCallback(BufferView b, BufferView.BufferString,uint)
+	override protected void textInsertedCallback(BufferView b, BufferView.BufferString,uint)
+	{
+		reset();
+		update();
+	}
+
+	override protected void textRemovedCallback(BufferView b, BufferView.BufferString,uint)
 	{
 		reset();
 		update();
@@ -50,8 +56,10 @@ class CompletionListStyler(Text) : TextStyler!Text
 		lastLineHighlighted = -1;
 	}
 
-	override void update()
+	protected override void styleRegion(Region r)
 	{
+		// Region ignored. Just restyle all.
+
 		if (lastLineHighlighted == lineHighlighted)
 			return;
 		
@@ -100,31 +108,6 @@ class CompletionListStyler(Text) : TextStyler!Text
 				return "completion-selected";
 		}
 	}
-}
-
-string cssifyName(string name)
-{
-	string res;
-	foreach (c; name)
-		if (c >= 'A' && c <= 'Z')
-		{
-			res ~= "-";
-			res ~= c.toLower();
-		}
-		else
-			res ~= c;
-	return res;
-}
-
-mixin template styleProperty(string type, string name)
-{
-	mixin(type ~ " _" ~ name ~ ";");
-	mixin("bool _" ~ name ~ "IsSet;");
-	mixin("void clear" ~ toUpper(name[0..1]) ~ name[1..$] ~ "() pure nothrow { _" ~ name ~ "IsSet = false; }");
-	mixin("@property " ~ type ~ " " ~ name ~ "() { " ~ 
-			" if ( _" ~ name ~ "IsSet) return _" ~ name ~ ";" ~
-			" else { " ~ type ~ " t; style.getProperty(\"" ~ cssifyName(name) ~ "\", t); return t; } }");
-	mixin("@property void " ~ name ~ "(" ~ type ~ " value) { _" ~ name ~ " = value; _" ~ name ~ "IsSet = true; }");
 }
 
 class CommandControl : Widget
@@ -329,7 +312,7 @@ class CommandControl : Widget
 			completionStyler.lineHighlighted--;
 			if (completionStyler.lineHighlighted < completionWidget.bufferView.lineOffset)
 				completionWidget.bufferView.scrollUp();
-			completionWidget.renderer.textStyler.update();
+			completionWidget.renderer.textStyler.scheduleAll();
 		}	
 	}
 
@@ -341,7 +324,7 @@ class CommandControl : Widget
 			completionStyler.lineHighlighted++;
 			if (completionStyler.lineHighlighted > (completionWidget.bufferView.lineOffset + completionWidget.bufferView.visibleLineCount))
 				completionWidget.bufferView.scrollDown();
-			completionWidget.renderer.textStyler.update();
+			completionWidget.renderer.textStyler.scheduleAll();
 		}	
 	}
 
@@ -493,7 +476,7 @@ class CommandControl : Widget
 		}
 
 		completionWidget.bufferView.clear(comps);
-		completionWidget.bufferView.bufferOffset = 0;
+		completionWidget.bufferView.lineOffset = 0;
 	}
 
 	//bool handleBufferChanged(BufferView b)

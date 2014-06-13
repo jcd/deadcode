@@ -70,7 +70,7 @@ class BufferView
 
 		}
 
-		Region selection() const pure nothrow
+		const(Region) selection() const pure nothrow
 		{
 			return _selection;
 		}

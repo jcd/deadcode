@@ -276,13 +276,17 @@ class TextEditor : Widget
 	// Text inserted at pos and forward
 	private void onTextInserted(BufferView v, BufferView.BufferString text, uint pos)
 	{
-		bufferView.selection.entriesInserted(pos, text.length);
+		Region r = bufferView.selection;
+		r.entriesInserted(pos, text.length);
+		bufferView.selection = r;
 	}
 
 	// Text remove from pos and forward
 	private void onTextRemoved(BufferView v, BufferView.BufferString text, uint pos)
 	{
-		bufferView.selection.entriesRemoved(pos, text.length);
+		Region r = bufferView.selection;
+		r.entriesRemoved(pos, text.length);
+		bufferView.selection = r;
 	}
 
 	//private void onBufferViewDirty(BufferView bv)

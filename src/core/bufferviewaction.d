@@ -2,6 +2,7 @@ module core.bufferviewaction;
 
 import core.buffer;
 import core.bufferview;
+import math.region;
 
 import std.algorithm;
 import std.array;
@@ -414,7 +415,7 @@ class RemoveSelectedAction : Action
 		cursorAtStartOfSelection = bv.cursorPoint == o;
 		text = array(bv.buffer[bv.selection.a..bv.selection.b]).idup;
 		bv.buffer.removeRange(bv.selection.a, bv.selection.b);
-		bv.selection.b = bv.selection.a;
+		bv.clearSelection();
 		bv._cursorPoint = o;
 		bv.setPreferredCursorColumnFromIndex();
 		bv.changed();
@@ -430,14 +431,12 @@ class RemoveSelectedAction : Action
 		
 		if (cursorAtStartOfSelection)
 		{
-			bv.selection.a = bv._cursorPoint;
-			bv.selection.b = bv._cursorPoint + text.length;
+			bv.selection = Region(bv._cursorPoint, bv._cursorPoint + text.length);
 		}
 		else
 		{
 			bv._cursorPoint += text.length; 
-			bv.selection.b = bv._cursorPoint;
-			bv.selection.a = bv._cursorPoint - text.length;
+			bv.selection = Region(bv._cursorPoint, bv._cursorPoint - text.length);
 		}
 		bv.preferredCursorColumn(preferredColumn);
 		//bv.setIndexFromPreferredCursorColumn();

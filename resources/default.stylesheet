@@ -19,14 +19,13 @@ ErrorListWidget {
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	color: #ff0000;
-} 
+}
 
 TextEditorAnchor
 {
 	background-color: #0a272d;
 	background-sprite: 0 0 16 16; 
-	background-sprite-border: 6 6 6 6;
-
+ 	background-sprite-border: 6 6 6 6;
 }
  
 UnittestAnchor {
@@ -34,6 +33,23 @@ UnittestAnchor {
 	background-sprite: 16 16 16 16;
 	background: materials/unittest-start.png;	
 	offset: -8 18;
+}
+
+UnittestAnchor:hover {
+	background-color: #fa770d;
+	offset: -8 18;
+}
+
+UnittestAnchor:active {
+	background-color: #ffffff;
+}
+
+UnittestfAfnchor:disabled {
+	
+}
+
+UnittestAfnchor:focus {
+	
 }
 
 #main {

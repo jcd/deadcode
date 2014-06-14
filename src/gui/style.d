@@ -121,7 +121,7 @@ class PropertySpecification(T : float) : PropertySpecificationBase!T
 
 	static void overlay(ref T[PropertyID] dest, PropertyID key, const(T) value)
 	{
-		if (!value.isNaN())
+		if (!value.isNaN() && key !in dest)
 			dest[key] = value;
 	}
 }
@@ -152,13 +152,13 @@ class PropertySpecification(T : Vec2f) : PropertySpecificationBase!T
 
 		bool changed = false;
 		
-		if (!value.x.isNaN())
+		if (res.x.isNaN() && !value.x.isNaN())
 		{
 			changed = true;
 			res.x = value.x;
 		}
 		
-		if (!value.y.isNaN())
+		if (res.y.isNaN() && !value.y.isNaN())
 		{
 			changed = true;
 			res.y = value.y;
@@ -199,25 +199,25 @@ class PropertySpecification(T : Rectf) : PropertySpecificationBase!T
 
 		bool changed = false;
 
-		if (!value.x.isNaN())
+		if (res.x.isNaN() && !value.x.isNaN())
 		{
 			changed = true;
 			res.x = value.x;
 		}
 
-		if (!value.y.isNaN())
+		if (res.y.isNaN() && !value.y.isNaN())
 		{
 			changed = true;
 			res.y = value.y;
 		}
 
-		if (!value.w.isNaN())
+		if (res.w.isNaN() && !value.w.isNaN())
 		{
 			changed = true;
 			res.size.x = value.w;
 		}
 
-		if (!value.h.isNaN())
+		if (res.h.isNaN() && !value.h.isNaN())
 		{
 			changed = true;
 			res.size.y = value.h;
@@ -283,76 +283,82 @@ struct StyleFields
 		return sf;
 	}
 */
-	private void setValid(float src, ref float dst)
+	private void setInvalid(float src, ref float dst)
 	{
-		if (!src.isNaN())
-			dst = src; 
+		if (dst.isNaN())
+			dst = src;
 	}
 
-	private void setValid(RectfOffset src, ref RectfOffset dst)
+	private void setInvalid(RectfOffset src, ref RectfOffset dst)
 	{
-		setValid(src.left, dst.left);
-		setValid(src.top, dst.top);
-		setValid(src.right, dst.right);
-		setValid(src.bottom, dst.bottom);
+		setInvalid(src.left, dst.left);
+		setInvalid(src.top, dst.top);
+		setInvalid(src.right, dst.right);
+		setInvalid(src.bottom, dst.bottom);
 	}
 
-	private void setValid(Rectf src, ref Rectf dst)
+	private void setInvalid(Rectf src, ref Rectf dst)
 	{
-		setValid(src.x, dst.x);
-		setValid(src.y, dst.y);
-		setValid(src.w, dst.w);
-		setValid(src.h, dst.h);
+		setInvalid(src.x, dst.x);
+		setInvalid(src.y, dst.y);
+		setInvalid(src.w, dst.w);
+		setInvalid(src.h, dst.h);
 	}
 
-	// Copy all fields of this into sf where this.field is set 
-	// and return the result.
-	StyleFields overlay(StyleFields sf)
+	// Copy all fields of sf to this where this hasn't got
+	// a value itself yet.
+	void overlay(StyleFields sf)
 	{
-		if (_font !is null)
-			sf._font = _font;
-		if (_background !is null)
+		if (_font is null)
+			_font = sf._font;
+		
+		if (sf._background !is null)
 		{
-			if (sf._background is null)
-				sf._background = _background; // TODO: hmmm. could this make _background be modified later because of a second overlay?
+			if (_background is null)
+				_background = sf._background; // TODO: hmmm. could this make _background be modified later because of a second overlay?
 			else 
 			{
-				if (_background.shader !is null)
-					sf._background.shader = _background.shader;
-				if (_background.texture !is null)
-					sf._background.texture = _background.texture;
+				if (_background.shader is null)
+					_background.shader = sf._background.shader;
+				if (_background.texture is null)
+					_background.texture = sf._background.texture;
 			}
 		}
 		
-		if (_nullFields & 1)
-			sf._wordWrap = _wordWrap;		
+		if (!(_nullFields & 1) && (sf._nullFields & 1))
+		{
+			_wordWrap = sf._wordWrap;
+			_nullFields |= 1;
+		}
 
-		if (_nullFields & 2)
-			sf._color = _color;
+		if (!(_nullFields & 2) && (sf._nullFields & 2) )
+		{
+			_color = sf._color;
+			_nullFields |= 2;
+		}
 
-		if (_nullFields & 4)
-			sf._backgroundColor = _backgroundColor;
+		if (! (_nullFields & 4) && (sf._nullFields & 4) )
+		{
+			_backgroundColor = sf._backgroundColor;
+			_nullFields |= 4;
+		}
 
-		setValid(_padding, sf._padding);
-		setValid(_backgroundSpriteBorder, sf._backgroundSpriteBorder);
-		setValid(_backgroundSprite, sf._backgroundSprite);
-		setValid(_positionOffset, sf._positionOffset);
+		setInvalid(sf._padding, _padding);
+		setInvalid(sf._backgroundSpriteBorder, _backgroundSpriteBorder);
+		setInvalid(sf._backgroundSprite, _backgroundSprite);
+		setInvalid(sf._positionOffset, _positionOffset);
 
-		if (_position != Style.Position.invalid)
-			sf._position = _position;
+		if (_position == Style.Position.invalid)
+			_position = sf._position;
 
-		foreach (key, value; floats)
-			PropertySpecification!float.overlay(sf.floats, key, value);
-			//if (!value.isNaN())
-			//    sf.floats[key] = value;
+		foreach (key, value; sf.floats)
+			PropertySpecification!float.overlay(floats, key, value);
 
-		foreach (key, value; rects)
-			PropertySpecification!Rectf.overlay(sf.rects, key, value);
+		foreach (key, value; sf.rects)
+			PropertySpecification!Rectf.overlay(rects, key, value);
 		
-		foreach (key, value; vec2fs)
-			PropertySpecification!Vec2f.overlay(sf.vec2fs, key, value);
-
-		return sf;
+		foreach (key, value; sf.vec2fs)
+			PropertySpecification!Vec2f.overlay(vec2fs, key, value);
 	}
 }
 
@@ -626,7 +632,8 @@ class Style
 	// Merge s into this but only set fields that are not null set on s
 	void overlay(Style s)
 	{
-		_fields = s._fields.overlay(_fields);
+		// _fields = s._fields.overlay(_fields);
+		_fields.overlay(s._fields);
 	}
 }
 
@@ -670,13 +677,42 @@ class WidgetSelector
 	bool fullyQualifiedType;
 	string widgetName;
 	string className;
+	
+	enum PseudoClass : byte
+	{
+		none,
+		hover,
+		active,
+		disabled,
+		focus
+	}
 
-	this(string wtype, string wname, string cname = null)
+	PseudoClass pseudoClass;
+
+	this(string wtype, string wname, string cname = null, string pseudoName = null)
 	{
 		widgetTypeName = wtype == "*" ? null : wtype;
 		fullyQualifiedType = false;
 		widgetName = wname;
 		className = cname;
+		switch (pseudoName)
+		{
+			case "hover":
+				pseudoClass = PseudoClass.hover;
+				break;
+			case "active":
+				pseudoClass = PseudoClass.active;
+				break;
+			case "disabled":
+				pseudoClass = PseudoClass.disabled;
+				break;
+			case "focus":
+				pseudoClass = PseudoClass.focus;
+				break;
+			default:
+				pseudoClass = PseudoClass.none;
+				break;
+		}
 	}
 
 	Widget match(Widget w, string[] classNames)
@@ -684,6 +720,26 @@ class WidgetSelector
 		auto nameMatch = widgetName.empty ? true : widgetName == w.name;
 		auto typeMatch = widgetTypeName.empty;
 		auto classMatch = className.empty ? true : classNames.canFind(className);
+		auto pseudoMatch = true;
+		
+		final switch (pseudoClass)
+		{
+			case PseudoClass.none:
+				break;
+			case PseudoClass.hover:
+				pseudoMatch = w.isMouseOver();
+				break;
+			case PseudoClass.active:
+				pseudoMatch = w.isMouseDown();
+				break;
+			case PseudoClass.disabled:
+				break;
+			case PseudoClass.focus:
+				break;
+		}
+
+		if (!(nameMatch && classMatch && pseudoMatch))
+			return null;
 
 		if (!typeMatch)
 		{
@@ -693,7 +749,7 @@ class WidgetSelector
 				ci = ci.base;
 			typeMatch = ci !is null;
 		}
-		return nameMatch && classMatch && typeMatch ? w : null;
+		return typeMatch ? w : null;
 	}
 	
 	private bool matchName(TypeInfo_Class ci)
@@ -752,9 +808,9 @@ unittest
 
 class ChildSelector : WidgetSelector
 {
-	this(string tname, string wname, string cname = null)
+	this(string tname, string wname, string cname = null, string pseudoName = null)
 	{
-		super(tname, wname, cname);
+		super(tname, wname, cname, pseudoName);
 	}
 
 	override Widget match(Widget w, string[] classNames)
@@ -785,9 +841,9 @@ unittest
 
 class DescendantSelector : WidgetSelector
 {
-	this(string tname, string wname, string cname = null)
+	this(string tname, string wname, string cname = null, string pseudoName = null)
 	{
-		super(tname, wname, cname);
+		super(tname, wname, cname, pseudoName);
 	}
 
 	override Widget match(Widget w, string[] classNames)
@@ -868,6 +924,8 @@ class Rule
 				specificity += 0x01_00_00_00;
 			if (s.className !is null)
 				specificity += 0x00_01_00_00;
+			if (s.pseudoClass != WidgetSelector.PseudoClass.none)
+				specificity += 0x00_01_00_00;
 			if (s.widgetTypeName !is null)
 				specificity += 0x00_00_01_00;
 		}
@@ -921,7 +979,7 @@ class StyleSheet : Resource!StyleSheet
 		Style[RuleSetID] sc = styleCache;
 		rules = other.rules;
 		styleCache = other.styleCache;
-		other.rules = rules;
+		other.rules = r;
 		other.styleCache = sc;
 	}
 
@@ -967,12 +1025,12 @@ class StyleSheet : Resource!StyleSheet
 
 		// Resolve conflicts if any
 		import std.algorithm;
-		auto rng = matches.sort!((a,b) => a.rule.specificity < b.rule.specificity || (a.rule.specificity == b.rule.specificity && a.order >	 b.order))();
+		auto rng = matches.sort!((a,b) => a.rule.specificity > b.rule.specificity || (a.rule.specificity == b.rule.specificity && a.order >	b.order))();
 		
 		Style st = new Style(this); // createStyle(matching[0].style);
 		// TODO: prime background material to make it unique
 		StyleSheetManager mgr = cast(StyleSheetManager)manager;
-		version(unittest) {}
+		version(dunittest) {}
 		else 
 		{
 			st.background = mgr.materialManager.declare(CustomMaterialLoader.singleton);
@@ -1245,7 +1303,8 @@ class StyleSheetParser
 		import std.algorithm;
 		auto space = munch(txt, spaceChars);
 		line += space.count('\n');
-		if (!txt.empty && (txt[0] == '}' || txt[0] == '{' || txt[0] == ';' || txt[0] == ':' || txt[0] == '#' || txt[0] == '\'' || txt[0] == '"' || txt[0] == ')'))
+		//if (!txt.empty && (txt[0] == '}' || txt[0] == '{' || txt[0] == ';' || txt[0] == ':' || txt[0] == '#' || txt[0] == '\'' || txt[0] == '"' || txt[0] == ')'))
+		if (!txt.empty && tokenChars.canFind(txt[0]))
 		{
 			curToken = txt[0..1];
 			txt = txt[1..$];
@@ -1612,77 +1671,50 @@ class StyleSheetParser
 			string widgetTypeName = null;
 			string widgetName = null;
 			string className = null;
+			string pseudoClassName = null;
 
 			string token = curToken ~ munch(txt, nonSpaceChars);
-			auto nameSepIdx = token.indexOf('#');
-			auto classSepIdx = token.indexOf('.');
+			
+			while (token.length)
+			{
+				// A segment can be either #id or .class or widgetname
 
-			if (nameSepIdx == -1 && classSepIdx == -1)
-			{
-				widgetTypeName = token;
+				if (token[0] == '#')
+				{
+					token = token[1..$];
+					widgetName = munch(token, "^.#:");
+				}
+				else if (token[0] == '.')
+				{
+					token = token[1..$];
+					className = munch(token, "^.#:");
+				}
+				else if (token[0] == ':')
+				{
+					token = token[1..$];
+					pseudoClassName = munch(token, "^.#:");
+				}
+				else
+				{
+					auto segment = munch(token, "^.#:");
+					if (segment != "*")
+						widgetTypeName = segment;
+				}
 			}
-			else if (classSepIdx == -1)
-			{
-				widgetTypeName = token[0..nameSepIdx];
-				widgetName = token[nameSepIdx+1..$];
-			}
-			else if ( nameSepIdx == -1)
-			{				
-				widgetTypeName = token[0..classSepIdx];
-				className = token[classSepIdx+1..$];
-			}
-			else
-			{
-				widgetTypeName = token[0..nameSepIdx];
-				widgetName = token[nameSepIdx+1..classSepIdx];
-				className = token[classSepIdx+1..$];
-			}
-			
+
 			requireNextToken();
-			
-			//if (curToken != "#")
-			//{
-			//    widgetTypeName = curToken;
-			//    if (nextToken(false)
-			//}
-			//else
-			//{
-			//}
-			//
-			//if (widgetTypeName == "#" || requireNextToken() == "#")
-			//{
-			//    if (widgetTypeName == "#")
-			//        widgetTypeName = null;
-			//    widgetName = requireNextToken();
-			//    auto classSepIdx = widgetName.indexOf('.');
-			//    if (classSepIdx != -1)
-			//    {
-			//        className = widgetName[classSepIdx+1..$]; // TODO: Fix +1 check
-			//        widgetName = widgetName[0..classSepIdx];
-			//    }
-			//    requireNextToken();
-			//} 
-			//else
-			//{
-			//    auto classSepIdx = widgetTypeName.indexOf('.');
-			//    if (classSepIdx != -1)
-			//    {
-			//        className = widgetTypeName[classSepIdx+1..$]; // TODO: Fix +1 check
-			//        widgetTypeName = widgetTypeName[0..classSepIdx];
-			//    }	
-			//}
 			
 			switch (curToken)
 			{
 				case "{":
-					rule.widgetSelectors ~= new WidgetSelector(widgetTypeName, widgetName, className);
+					rule.widgetSelectors ~= new WidgetSelector(widgetTypeName, widgetName, className, pseudoClassName);
 					return;
 				case ">":
-					rule.widgetSelectors ~= new ChildSelector(widgetTypeName, widgetName, className);
+					rule.widgetSelectors ~= new ChildSelector(widgetTypeName, widgetName, className, pseudoClassName);
 					requireNextToken();
 					break;
 				default:
-					rule.widgetSelectors ~= new DescendantSelector(widgetTypeName, widgetName, className);
+					rule.widgetSelectors ~= new DescendantSelector(widgetTypeName, widgetName, className, pseudoClassName);
 					break;
 			}
 		}

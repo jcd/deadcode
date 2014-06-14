@@ -426,6 +426,16 @@ class Window : Widget
 		return getWidget(keyboardFocusWidget);
 	}
 
+	bool isMouseOverWidget(Widget w)
+	{
+		return mouseWidget == w.id;
+	}
+
+	bool isMouseDownWidget(Widget w)
+	{
+		return downButtonWidget == w.id;
+	}
+
 	void grabMouse(Widget w)
 	{
 		assert(mouseGrabbedBy == NullWidgetID);

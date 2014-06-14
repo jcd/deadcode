@@ -491,6 +491,18 @@ class Widget
 		return window.isKeyboardFocusWidget(this);
 	}
 
+	bool isMouseOver()
+	{
+		assert(window !is null);
+		return window.isMouseOverWidget(this);
+	}
+
+	bool isMouseDown()
+	{
+		assert(window !is null);
+		return window.isMouseDownWidget(this);
+	}
+
 	void grabMouse()
 	{
 		assert(window !is null);

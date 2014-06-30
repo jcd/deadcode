@@ -1,9 +1,9 @@
 * {
 	color : #ff0000;
 	background-color: #ffffff;
-	background : materials/default.shaderprogram;
+	background : url(materials/default.shaderprogram);
 	background-sprite-border: 0 0 0 0;
-	font : fonts/cour.ttf 16;
+	font : url(fonts/cour.ttf) 16;
 	padding : 0 0 0 0;
 	offset: 0 0;
 }
@@ -14,7 +14,7 @@ TextEditor {
 
 ErrorListWidget {
 	padding : 0 0 0 0;
-	background: materials/white-small-nine-patch.png;
+	background: url(materials/white-small-nine-patch.png);
 	background-color: #0a272d;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
@@ -27,16 +27,16 @@ TextEditorAnchor
 	background-sprite: 0 0 16 16; 
  	background-sprite-border: 6 6 6 6;
 }
- 
+
 UnittestAnchor {
 	background-color: #0a770d;
 	background-sprite: 16 16 16 16;
-	background: materials/unittest-start.png;	
+	background: url(materials/unittest-start.png);	
 	offset: -8 18;
 }
 
 UnittestAnchor:hover {
-	background-color: #fa770d;
+	background-color: #6ad76d;
 	offset: -8 18;
 }
 
@@ -44,23 +44,34 @@ UnittestAnchor:active {
 	background-color: #ffffff;
 }
 
-UnittestfAfnchor:disabled {
+UnittestdAnchor:disabled {
 	
 }
 
-UnittestAfnchor:focus {
+@keyframes unittestRunning {
+	0% { background-sprite: 0 0 16 16; }
+	12.5% { background-sprite: 16 0 16 16; }
+	25% { background-sprite: 32 0 16 16; }
+	37.5% { background-sprite: 48 0 16 16; }
+	50% { background-sprite: 64 0 16 16; }
+	62.5% { background-sprite: 80 0 16 16; }
+	75% { background-sprite: 96 0 16 16; }
+	87.5% { background-sprite: 112 0 16 16; }
+}
+
+UnittestAnchor:focus {
 	
 }
 
 #main {
-	background: materials/bgplain.png;
+	background: url(materials/bgplain.png);
 }
 
 #command {
 }
 
 .selection {
-	background: materials/white-small-nine-patch.png;
+	background: url(materials/white-small-nine-patch.png);
 	color: #0a272d;
 }
 
@@ -114,7 +125,7 @@ UnittestAfnchor:focus {
 
 .changelog-releasetitle { 
 	color: #05ff05;
-	font : fonts/cour.ttf 26;
+	font : url(fonts/cour.ttf) 26;
 }
 
 .changelog-changeset { 
@@ -139,12 +150,12 @@ TextEditor#commandCompletion.completion-selected {
 }
 
 TextEditor#commandCompletion.selection {
-	background: materials/white-small-nine-patch.png;
+	background: url(materials/white-small-nine-patch.png);
 	color: #07171d;
 }
 
 TextEditor#commandCompletion {
-	background: materials/white-small-nine-patch.png;
+	background: url(materials/white-small-nine-patch.png);
 	color: #a8a8a2;
 	padding : 6 6 6 0;
 	background-color: #0a272d;
@@ -155,19 +166,19 @@ TextEditor#commandCompletion {
 TextField#commandEntryField {
 	color: #f8f8f2;
 	padding : 6 2 6 0;
-	background: materials/bgplain.png;
+	background: url(materials/bgplain.png);
 }
 
 #dragger {
-	background : materials/bg.png;
+	background : url(materials/bg.png);
 	background-sprite: 0 8 220 24;
 }	
 
 #draggerRight {
-	background : materials/bg.png;
+	background : url(materials/bg.png);
 	background-sprite: 0 8 5 24;
 }
 
 #resizer {
-	background : materials/resizer.png;
+	background : url(materials/resizer.png);
 }

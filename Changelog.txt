@@ -1,3 +1,22 @@
+Release 0.7 - 02 July 2014
+
+Overview:
+    
+    * Stylesheet refactoring and cleanup
+    * Support for hover and active pseudo classes in stylesheets
+
+Changes:
+
+    1802308 Overhaul of stylesheet parser Refactor stylesheet code into package and several 
+            modules Start of support for transitions and animation in the stylesheets
+    5671cd5 Reversed css overlaying application order Support for pseudo classes in css 
+            (hover, active for now).
+    bef3504 Added mouseOver and mouseDown query methods on widgets and window
+    ff38873 Make selection property on BufferView return const Fix selection clearing bugs
+    e32149e Clear method on region
+    81a5709 Tool command for listing changesets since last tag
+
+
 Release 0.6 - 13 June 2014
 
 Overview:

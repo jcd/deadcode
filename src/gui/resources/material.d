@@ -77,6 +77,7 @@ class Material : graphics.material.Material, IResource!Material
 			return _texture;
 		}
 		
+
 		override void texture( graphics.texture.Texture t)
 		{
 			_texture = t;

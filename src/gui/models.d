@@ -280,9 +280,8 @@ class BoxModel
 	{	
 		// Split up sprite into nine sub sprites based on the borders
 		_borders = borders;
-
-		setupDefaultNinePatch(nineSprite);
 		_init(mat);
+		setupDefaultNinePatch(nineSprite);
 	}
 
 	void setupDefaultNinePatch(Sprite nineSprite)

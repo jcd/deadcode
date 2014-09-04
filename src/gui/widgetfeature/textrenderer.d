@@ -266,13 +266,13 @@ class TextRenderer(Text) : WidgetFeature
 
 	override void draw(Widget widget)
 	{
-		Vec2f layoutSize = widget.rect.size;
+		Vec2f layoutSize = widget.rectStyled.size;
 		RectfOffset padding = widget.style.padding;
 		updateLayout(widget, Vec2f(layoutSize.x - padding.horizontal, layoutSize.y - padding.vertical));
 
 		// Rectf wrect = widget.window.windowToWorld(widget.rect);
 		Mat4f transform;
-		widget.getScreenToWorldTransform(transform);
+		widget.getStyledScreenToWorldTransform(transform);
 		Mat4f trx = widget.window.MVP * transform;		
 		_selectionModel.draw(trx);
 		_model.draw(trx);

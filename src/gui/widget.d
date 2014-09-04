@@ -1,5 +1,8 @@
 module gui.widget;
 
+import animation.mutator;
+import animation.timeline;
+
 import graphics._;
 import gui.event;
 import gui.style;
@@ -26,7 +29,7 @@ import std.signals;
 alias uint WidgetID;
 enum NullWidgetID = 0u;
 
-enum _traceDirty = true;
+enum _traceDirty = false;
 
 void _printDirty(lazy const(char)[] name)
 {
@@ -54,6 +57,18 @@ class Widget
 	alias EventUsed delegate(Event event, Widget widget) OnEvent;
 	OnEvent[EventType] events;
 
+	//struct StyleState
+	//{
+	//    Style targetStyle; // Can be null in the case where style has reached the target style
+	//    Style style;       // The style going towards target style using transition settings. (instant per default)
+	//}
+	//
+	//StyleState styleState;
+
+	Style _targetStyle;
+	Timeline.Runner runner;
+	Style _style;
+
 	WidgetFeature[] features;
 	NineGridRenderer _background;
 
@@ -64,7 +79,7 @@ class Widget
 	@property NineGridRenderer background()
 	{
 		Style st = style;
-		if (st!is null && st.background is null)
+		if (st !is null && st.background is null)
 		{
 			_background = null;
 			return null;
@@ -104,18 +119,97 @@ class Widget
 
 	@property Style style()
 	{
-		return window.styleSheet.getStyleForWidget(this);
+		// Get the style that this widget is supposed to have.
+		// In case the widgets current active style is not that style
+		// and the target style has transitions set we need to 
+		// animate style changes.
+		Style newTargetStyle = window.styleSheet.getStyleForWidget(this);
+
+		if (_style is null)
+		{
+			_style = newTargetStyle;
+			//_style = newTargetStyle.clone();
+			_targetStyle = newTargetStyle;
+		}
+		else if (_targetStyle !is newTargetStyle)
+		{
+			_targetStyle = newTargetStyle;
+
+			if (_targetStyle.hasTransitions)
+			{
+				if (_style.styleSheet !is null)
+				{
+					// A transition animation is going to be done and the current style
+					// is owned by a style sheet. Make a clone that the widget can own and
+					// animate.
+					_style = _style.clone();	
+					_style.styleSheet = null;
+				}
+
+				import animation.interpolate;
+				auto clip = new Clip!Style();
+				//clip.createCurves!CubicCurve(0, _style, 0.5, _targetStyle);
+				clip.createCurves(_style, _targetStyle);
+				// clip.createCubicCurve!"x"(0, x, 1, x+100.0);
+				if (runner !is null)
+					runner.abort();
+				runner = window.timeline.animate(_style, clip);
+			}
+			else 
+			{
+				if (runner !is null)
+					runner.abort();
+
+				if (_style.styleSheet is null)
+					destroy(_style);
+				
+				_style = _targetStyle;
+			}
+		}
+
+		return _style;
 	}
+	
+	/*
+	@property Style style()
+	{
+		// Get the style that this widget is supposed to have.
+		// In case the widgets current active style is not that style
+		// and the target style has transitions set we need to 
+		// animate style changes.
+		Style newTargetStyle = window.styleSheet.getStyleForWidget(this);
+		
+		return newTargetStyle;
+		//if (_style.matchesStyle(newTargetStyle))
+		//    return _style;
+
+		// Got a new target. Schedule transitions if necessary. (and abort existing)
+		
+	}
+	*/
+
+	//
+	//private void onStyleChanged(UsedStyle s)
+	//{
+	//    if (s !is _style)
+	//        s.onChanged.disconnect(&onStyleChanged);
+	//    else
+	//        _sizeDirty = true; // force a redraw... TODO: this also forces layout which is wrong (maybe)
+	//}
 
 	Style getStyleForClass(string className)
 	{
 		return window.styleSheet.getStyleForWidget(this, [className]);
 	}
 
+	//void transition(Property*
+
+
 	bool visible;
 
 	protected
 	{
+		@Bindable()
 		Rectf _rect;  // rect for events like mouse over etc.
 		bool _sizeDirty;
 		Widget _parent;
@@ -193,23 +287,69 @@ class Widget
 			_sizeDirty = true;
 		}
 
-		//const(Rectf) rectStyled() 
-		//{
-		//    auto st = style;
-		//    switch (st.position)
+		const(Rectf) rectStyled() 
+		{
+			return calcRect(style);
+			//auto st = style;
+			//final switch (st.position)
+			//{
+			//    case CSSPosition.fixed:
+			//        if (this is window)
+			//            return calcRect(_rect, st);
+			//        return calcRect(window.rectStyled, st);
+			//    case CSSPosition.absolute:
+			//        Widget p = parent; // lookFirstPositionedParent();
+			//        if (p is null)
+			//            return calcRect(_rect, st);
+			//        return calcRect(p.rectStyled, st);
+			//    case CSSPosition.relative:
+			//        return calcRect(_rect, st);
+			//    case CSSPosition.static_:
+			//        break;
+			//    case CSSPosition.invalid:
+			//        break;
+			//}
+			return _rect;
+		}
+
+		private const(Rectf) calcBaseRectForPosition(CSSPosition cssPos)
+		{
+			final switch (cssPos)
+			{
+				case CSSPosition.fixed:
+					if (this is window)
+						return _rect;
+					return window.rectStyled;
+				case CSSPosition.absolute:
+					Widget p = parent; // lookFirstPositionedParent();
+					if (p is null)
+						return _rect;
+					return p.rectStyled;
+				case CSSPosition.relative:
+					return _rect;
+				case CSSPosition.static_:
+					break;
+				case CSSPosition.invalid:
+					break;
+			}
+			return _rect;
+		}
+
+		//    if (st.height.value.isNaN)
 		//    {
-		//        case Style.Position.fixed:
-		//            return Rectf( style.left, style.top, _rect.w - style.positionOffset.horizontal, _rect.h - style.positionOffset.vertical);
-		//        case Style.Position.absolute:
-		//            Widget p = lookFirstPositionedParent();
-		//            Rectf posParentRect = p.rectStyled;
-		//            return Rectf(posParentRect.x + style.left, posParentRect.y + style.top, _rect.w - style.positionOffset.horizontal, _rect.h - style.positionOffset.vertical);
-		//        case Style.Position.relative:
-		//            return Rectf( _rect.x + style.left,  _rect.y + style.top, _rect.w - style.positionOffset.horizontal, _rect.h - style.positionOffset.vertical);
-		//        case Style.Position.static_:
-		//            break;
+		//        r.y += t;
+		//        r.h -= t + b;
 		//    }
-		//    return _rect;
+		//    else
+		//    {
+		//        r.h = st.height.value;
+		//        if (!st.top.value.isNaN)
+		//            r.y += st.top.value;
+		//        else if (!st.bottom.value.isNaN)
+		//            r.y -= st.bottom.value;
+		//    }
+		//
+		//    return r;
 		//}
 
 		// Like .rect but with padding applied
@@ -225,8 +365,6 @@ class Widget
 			auto st = style;
 			rect = _rect.offset(st.padding.reverse());
 		}
-
-		
 
 		const(Vec2f) size() const
 		{
@@ -304,6 +442,7 @@ class Widget
 			return _rect.w;
 		}
 
+		@Bindable()
 		void h(float value) 
 		{
 			//std.stdio.writeln("h ", name, " ", _rect.h);
@@ -315,6 +454,7 @@ class Widget
 			}
 		}
 		
+		@Bindable()
 		const(float) h() const
 		{
 			return _rect.h;
@@ -346,6 +486,162 @@ class Widget
 		/// XXX: Doing cursor shapes! But these callbacks need to be signals because several listeners must be possible!.
 		void onKeyboardFocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyboardFocus, del); }
 		void onKeyboardUnfocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyboardUnfocus, del); }
+	}
+
+	private Rectf calcRect(Style st)
+	{
+		Rectf baseRectA = calcBaseRectForPosition(st.position);
+		// Rectf baseRectB = calcBaseRectForPosition(st.position.posB);
+		Rectf baseRectB = baseRectA;
+
+		// bool cssPosDiffers = st.position.posA != st.position.posB; // improve
+		bool cssPosDiffers = false;
+
+		Rectf r = void;
+
+		Vec2f mixHorzA = Vec2f(baseRectA.x, baseRectA.w);
+		calcHorz!0(mixHorzA, baseRectA, st);
+		if ( /*st.position.posB != CSSPosition.invalid && */
+			(st.width.isMixed || st.left.isMixed || st.right.isMixed || cssPosDiffers))
+		{
+			Vec2f mixHorzB = Vec2f(baseRectB.x, baseRectB.w);
+			calcHorz!1(mixHorzB, baseRectB, st);
+			float woffset = st.width.mixOffset.isNaN ? 1f : st.width.mixOffset;
+			float xoffset = st.left.mixOffset.isNaN ? (st.right.mixOffset.isNaN ? 1f : st.right.mixOffset) : st.left.mixOffset;
+			if (xoffset.isNaN)
+				xoffset = 1f;
+
+			//Vec2f mixedHorz = mixHorzA * (1 - woffset) + mixHorzB * woffset;
+			//r.x = mixedHorz.v[0];
+			//r.w = mixedHorz.v[1];
+
+			r.x = mixHorzA.v[0] * (1 - xoffset) + mixHorzB.v[0] * xoffset;
+			r.w = mixHorzA.v[1] * (1 - woffset) + mixHorzB.v[1] * woffset;
+		}
+		else
+		{
+			r.x = mixHorzA.v[0];
+			r.w = mixHorzA.v[1];
+		}
+
+		Vec2f mixVertA = Vec2f(baseRectA.y, baseRectA.h);
+		calcVert!0(mixVertA, baseRectA, st);
+		if ( /*st.position.posB != CSSPosition.invalid && */
+			(st.height.isMixed || st.top.isMixed || st.bottom.isMixed || cssPosDiffers))
+		{
+			Vec2f mixVertB = Vec2f(baseRectB.y, baseRectB.h);
+			calcVert!1(mixVertB, baseRectB, st);
+
+			float hoffset = st.height.mixOffset.isNaN ? 1f : st.height.mixOffset;
+			float yoffset = st.top.mixOffset.isNaN ? (st.bottom.mixOffset.isNaN ? 1f : st.bottom.mixOffset) : st.top.mixOffset;
+			if (yoffset.isNaN)
+				yoffset = 1f;
+
+
+			r.y = mixVertA.v[0] * (1 - yoffset) + mixVertB.v[0] * yoffset;
+			r.h = mixVertA.v[1] * (1 - hoffset) + mixVertB.v[1] * hoffset;
+
+
+			//float offset = st.height.mixOffset;
+			//Vec2f mixedVert = mixVertA * (1 - offset) + mixVertB * offset;
+			//r.y = mixedVert.v[0];
+			//r.h = mixedVert.v[1];
+		}
+		else
+		{
+			r.y = mixVertA.v[0];
+			r.h = mixVertA.v[1];
+		}
+		return r;
+	}
+
+	private float cssScaleToPixel(string attr)(CSSScale s)
+	{
+		if (s.value.isNaN)
+			return s.value;
+
+		final switch (s.unit)
+		{
+			case CSSUnit.pct:
+				Widget p = parent;
+				if (p is null)
+					p = this;
+				return mixin("p." ~ attr) * s.value;
+			case CSSUnit.pixels:
+				return s.value;
+			case CSSUnit.cm:
+				return s.value;
+			case CSSUnit.em:
+				return s.value;
+			case CSSUnit.ex:
+				return s.value;
+			case CSSUnit.inch:
+				return s.value;
+			case CSSUnit.mm:
+				return s.value;
+			case CSSUnit.picas:
+				return s.value;
+			case CSSUnit.points:
+				return s.value;
+		}
+	}
+
+	private void calcHorz(int i)(ref Vec2f res, Rectf baseRect, Style st)
+	{
+		float wi = cssScaleToPixel!("w")(st.width[i]);
+
+		float l = cssScaleToPixel!("w")(st.left[i]);
+		l = l.isNaN ? 0 : l;
+
+		float r = cssScaleToPixel!("w")(st.right[i]);
+		r = r.isNaN ? 0 : r;
+
+		if (wi.isNaN)
+		{
+			res.v[0] += l;
+			res.v[1] -= l + r;
+		}
+		else
+		{
+			res.v[1] = wi;
+			if (!st.left[i].value.isNaN)
+			{
+				res.v[0] += l;
+				if (!st.right[i].value.isNaN)
+					res.v[1] -= r;
+			}
+			else if (!st.right[i].value.isNaN)
+				res.v[0] -= r;
+		}
+	}
+
+	private void calcVert(int i)(ref Vec2f res, Rectf baseRect, Style st)
+	{
+		float hi = cssScaleToPixel!("h")(st.height[i]);
+
+		float t = cssScaleToPixel!("h")(st.top[i]);
+		t = t.isNaN ? 0 : t;
+
+		float b = cssScaleToPixel!("h")(st.bottom[i]);
+		b = b.isNaN ? 0 : b;
+
+		if (hi.isNaN)
+		{
+			res.v[0] += t;
+			res.v[1] -= t + b;
+		}
+		else
+		{
+			res.v[1] = hi;
+			if (!st.top[i].value.isNaN)
+			{
+				res.v[0] += t;
+				if (!st.bottom[i].value.isNaN)
+					res.v[1] -= b;
+			}
+			else if (!st.bottom[i].value.isNaN)
+				res.v[0] -= b;
+		}
 	}
 
 	void moveBy(float x, float y)
@@ -733,6 +1029,25 @@ class Widget
 		// Since text are layed out using pixel coords we scale into world coords
 		Vec2f scale = window.pixelSizeToWorld(Vec2f(1,1));
 		getScreenOffsetToWorldTransform(transform);
+		//		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0)) * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
+		transform = transform * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
+	}
+
+	void getStyledScreenOffsetToWorldTransform(ref Mat4f transform)
+	{
+		Rectf wrect = window.windowToWorld(rectStyled);
+
+		// Since text are layed out using pixel coords we scale into world coords
+		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0));
+	}
+
+	void getStyledScreenToWorldTransform(ref Mat4f transform)
+	{
+		//		Rectf wrect = widget.window.windowToWorld(widget.rect);
+
+		// Since text are layed out using pixel coords we scale into world coords
+		Vec2f scale = window.pixelSizeToWorld(Vec2f(1,1));
+		getStyledScreenOffsetToWorldTransform(transform);
 		//		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0)) * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
 		transform = transform * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
 	}

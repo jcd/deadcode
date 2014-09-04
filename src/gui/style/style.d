@@ -1,5 +1,7 @@
 module gui.style.style;
 
+import animation.interpolate;
+import animation.mutator;
 import math._;
 
 import graphics.color : Color;
@@ -11,26 +13,35 @@ import gui.style.property;
 import gui.style.stylesheet;
 import gui.style.types;
 
+import std.datetime;
 import std.string;
+import std.signals;
 
 alias string StyleID;
 immutable StyleID NullStyleName = "";
 immutable StyleID DefaultStyleName = "default";
 
-string cssifyName(string name)
+string stylePropertyToCSSName(string name)
 {
 	string res;
 	foreach (c; name)
-		if (c >= 'A' && c <= 'Z')
+	{
+		if (c == '_')
+		{
+			; // skip
+		}
+		else if (c >= 'A' && c <= 'Z')
 		{
 			res ~= "-";
 			res ~= c.toLower();
 		}
 		else
+		{
 			res ~= c;
+		}
+	}
 	return res;
 }
-
 mixin template styleProperty(string type, string name)
 {
 	mixin(type ~ " _" ~ name ~ ";");
@@ -38,66 +49,503 @@ mixin template styleProperty(string type, string name)
 	mixin("void clear" ~ toUpper(name[0..1]) ~ name[1..$] ~ "() pure nothrow { _" ~ name ~ "IsSet = false; }");
 	mixin("@property " ~ type ~ " " ~ name ~ "() { " ~ 
 		  " if ( _" ~ name ~ "IsSet) return _" ~ name ~ ";" ~
-		  " else { " ~ type ~ " t; style.getProperty(\"" ~ cssifyName(name) ~ "\", t); return t; } }");
+		  " else { " ~ type ~ " t; style.getProperty(\"" ~ stylePropertyToCSSName(name) ~ "\", t); return t; } }");
 	mixin("@property void " ~ name ~ "(" ~ type ~ " value) { _" ~ name ~ " = value; _" ~ name ~ "IsSet = true; }");
 }
 
-struct StyleFields
+class Style
 {
-	Rectf[PropertyID] rects;  // Keys in the map are property names
-	float[PropertyID] floats;
-	Vec2f[PropertyID] vec2fs;
+	@NonBindable()
+	StyleSheet styleSheet; // StyleSheet owning this style
 
-	Transition[PropertyID] transitions; // as opposed to the above maps the key here is the name of the property to be transitioned
-
-	Style.Position _position;
-	RectCSSOffset _edgesOffset;
-
-	// ref types
-	Font _font;
-	Material _background;
-
-	// value types
-	bool _wordWrap;  // bit 0
-	Color _color;    // bit 1
-	Color _backgroundColor;    // bit 2
-
-	RectfOffset _padding;  
-	RectfOffset _backgroundSpriteBorder;
-	Rectf       _backgroundSprite;
-
-	// float _glyphPadding; etc....
-
-	// bitmask. One bit set unset for each by value property that does not support null values should be null. 
-	// The fields are:
-	// * wordWrap bit 0
-	// * color bit 1
-	ubyte _nullFields;
-
-	// Copy all fields of this into sf where sf hasn't set the field 
-	// and return the result.
-	/*
-	StyleFields overlayUnset(StyleFields sf)
+	public
+	// package 
 	{
-	if (sf._font is null)
-	sf._font = _font;
-	if (sf._background is null)
-	sf._background = _background;
-	if (isNaN(sf._color.r))
-	sf._color = _color;
-	if (!(sf._derived & 1))
-	sf._wordWrap = _wordWrap;
-	if (sf._padding.x.isNaN())
-	sf._padding.x = _padding.x; 
-	if (sf._padding.y.isNaN())
-	sf._padding.y = _padding.y; 
-	if (sf._padding.w.isNaN())
-	sf._padding.w = _padding.w; 
-	if (sf._padding.h.isNaN())
-	sf._padding.h = _padding.h; 
-	return sf;
+		Rectf[PropertyID] rects;  // Keys in the map are property names
+		float[][PropertyID] floats;
+		Vec2f[PropertyID]vec2fs;		
+		
+		Duration[][PropertyID] durations;
+		CubicCurveParameters[][PropertyID] curveParameters;
+		PropertyID[][PropertyID] propertyIDs;
+
+		Transition[PropertyID] transitionCache; // derived from other properties in the style
+
+		// Curve[] curves;
+		
+		// bool hasNewTransistionProperties;
+		// Transition[] transitions;
+		// Transition[PropertyID] transitions; // as opposed to the above maps the key here is the name of the property to be transitioned
+
+		@Bindable()
+		{
+			CSSPosition _position;
+			CSSScaleMix _width;
+			CSSScaleMix _height;
+			CSSScaleMix _left;
+			CSSScaleMix _right;
+			CSSScaleMix _top;
+			CSSScaleMix _bottom;
+		}
+		
+		// ref types
+		Font _font;
+		Material _background;
+
+		// value types
+		bool _wordWrap;  // bit 0
+
+		@Bindable()
+		Color _color;    // bit 1
+
+		@Bindable()
+		Color _backgroundColor;    // bit 2
+
+		@Bindable()
+		RectfOffset _padding;  
+		
+		@Bindable()
+		RectfOffset _backgroundSpriteBorder;
+		
+		@NonBindable()
+		Rectf       _backgroundSprite;
+
+		// float _glyphPadding; etc....
+
+		// bitmask. One bit set unset for each by value property that does not support null values should be null. 
+		// The fields are:
+		// * wordWrap bit 0
+		// * color bit 1
+		ubyte _nullFields;
+	}
+
+//	package StyleFields _fields; // Fields set on this style
+
+	@property 
+	{	
+		bool hasTransitions() const pure nothrow
+		{
+			return transitionCache.length != 0;
+		}
+		
+		CSSPosition position() const
+		{
+			return _position;
+		}
+
+		void position(CSSPosition p)
+		{
+			_position = p;
+		}
+
+		//@Bindable()
+		//itCSSAnimator rectCSSAnimator() const
+		//{
+		//    return RectCSSAnimator(true, _width, _width, _height, _height, _edgesOffset, _edgesOffset, 0);
+		//}
+		//
+		//@Bindable()
+		//void rectCSSAnimator(RectCSSAnimator a)
+		//{
+		//    _rectCSSAnimator = a;
+		//}
+
+		//RectCSSOffset edgesOffset() const 
+		//{
+		//    return _edgesOffset;
+		//}
+		//
+		//void edgesOffset(RectCSSOffset offset)
+		//{
+		//    _edgesOffset = offset;
+		//}
+
+		CSSScaleMix left() const
+		{
+			return _left;
+		}
+
+		CSSScaleMix top() const
+		{
+			return _top;
+		}
+
+		CSSScaleMix right() const
+		{
+			return _right;
+		}
+
+		CSSScaleMix bottom() const
+		{
+			return _bottom;
+		}
+
+		CSSScaleMix width() const
+		{
+			return _width;
+		}
+
+		bool heightValid() const
+		{
+			return !_height.value.isNaN;
+		}
+
+		CSSScaleMix height() const
+		{
+			return _height;
+		}
+
+		Font font()
+		{
+			auto f = _font;
+			if (f !is null)
+				f.ensureLoaded();
+			return f;
+		}
+
+		void font(Font f) 
+		{
+			_font = f;
+		}
+
+		Material background()
+		{
+			auto b = _background;
+			if (b !is null)
+				b.ensureLoaded();
+			return b;
+		}
+
+		void background(Material b)
+		{
+			_background = b;
+		}
+
+		Color color() const
+		{
+			return _color;
+		}
+
+		void color(Color c)
+		{
+			_nullFields |= 2;
+			_color = c;
+		}
+
+		Color backgroundColor() const
+		{
+			return _backgroundColor;
+		}
+
+		void backgroundColor(Color c)
+		{
+			_nullFields |= 4;
+			_backgroundColor = c;
+		}
+
+		bool wordWrap() const
+		{
+			return _wordWrap;
+		}
+
+		void wordWrap(bool w)
+		{
+			_nullFields |= 1;
+			_wordWrap = w;
+		}
+
+		RectfOffset padding() const
+		{
+			return _padding;
+		}
+
+		// TODO: make a paddingX, paddingY etc. methods
+		void padding(RectfOffset w)
+		{
+			_padding = w;
+		}
+
+		RectfOffset backgroundSpriteBorder() const
+		{
+			return _backgroundSpriteBorder;
+		}
+
+		void backgroundSpriteBorder(RectfOffset w)
+		{
+			_backgroundSpriteBorder = w;
+		}
+
+		@Bindable()
+		Rectf backgroundSprite() 
+		{
+			Rectf r = _backgroundSprite;
+			Vec2f sz;
+			if (background !is null && background.texture !is null)
+				sz = background.texture.size;
+			else
+				sz = Vec2f(0,0);
+
+			if (r.x.isNaN())
+				r.x = 0; // default to 0 offset
+
+			if (r.y.isNaN())
+				r.y = 0; // default to 0 offset
+
+			if (r.w.isNaN())
+				r.w = sz.x; 
+
+			if (r.h.isNaN())
+				r.h = sz.y; 
+
+			return r;
+		}
+
+		@Bindable()
+		void backgroundSprite(Rectf w)
+		{
+			_backgroundSprite = w;
+		}
+
+		string name() const
+		{
+			return _name;
+		}
+	}
+
+	string _name;
+
+	this(string name) pure nothrow @safe
+	{
+		this._name = name;	
+	}
+
+	this(StyleSheet s) pure nothrow @safe
+	{
+		styleSheet = s;
+	}
+
+	void rebuildTransitionCache()
+	{
+		enum emptyPropertyIDs = PropertyID[].init;
+		enum emptyDurations = Duration[].init;
+		enum emptyDelays = Duration[].init;
+		enum emptyTimings = CubicCurveParameters[].init;
+
+		transitionCache = (Transition[PropertyID]).init;
+		
+		auto propertyNames = propertyIDs.get("transition-property", emptyPropertyIDs);
+		int aa = 4;
+		if (propertyNames.length)
+		{
+			aa += propertyNames.length;
+		}
+
+		foreach (p; propertyIDs.get("transition-property", emptyPropertyIDs))
+			transitionCache[p] = Transition(p);
+		
+		bool gotAllTransition = false;
+		foreach (i, p; durations.get("transition-duration", emptyDurations))
+		{
+			if (i < propertyNames.length)
+				transitionCache[propertyNames[i]].duration = p;
+			else 
+			{
+				if (!gotAllTransition)
+					transitionCache["all"] = Transition("all", p);
+				else
+					transitionCache["all"].duration = p;
+				gotAllTransition = true;
+			}
+		}
+
+		foreach (i, p; curveParameters.get("transition-timing", emptyTimings))
+		{
+			if (i < propertyNames.length)
+				transitionCache[propertyNames[i]].timing = p;
+			else 
+			{
+				if (!gotAllTransition)
+				{
+					auto allTrans = Transition("all");
+					allTrans.timing = p;
+					transitionCache["all"] = allTrans;
+					gotAllTransition = true;
+				}
+				else
+				{
+					transitionCache["all"].timing = p;
+				}
+			}
+		}
+
+		foreach (i, p; durations.get("transition-delay", emptyDelays))
+		{
+			if (i < propertyNames.length)
+				transitionCache[propertyNames[i]].delay = p;
+			else 
+			{
+				if (!gotAllTransition)
+				{
+					auto allTrans = Transition("all");
+					allTrans.delay = p;
+					transitionCache["all"] = allTrans;
+					gotAllTransition = true;
+				}
+				else
+				{
+					transitionCache["all"].delay = p;
+				}
+			}
+		}
+	}
+
+	bool getTransitionForProperty(PropertyID id, ref Transition t) const pure nothrow
+	{
+		auto p = id in transitionCache;
+		if (p is null)
+		{
+			p = "all" in transitionCache;
+			if (p is null)
+				return false;
+		}
+		t = *p;
+		return true;
+	}
+
+	bool getProperty(PropertyID id, ref float value) const pure nothrow
+	{
+		auto v = id in floats;
+		if (v is null)
+			return false;
+		if (v.length == 0)
+			return false;
+		value = (*v)[0];
+		return true;
+	}
+
+	bool getProperty(PropertyID id, ref const(float)[] values) const pure nothrow
+	{
+		auto v = id in floats;
+		if (v is null)
+			return false;
+		values = *v;
+		return true;
+	}
+
+	bool getProperty(PropertyID id, ref Vec2f value) const pure nothrow
+	{
+		auto v = id in vec2fs;
+		if (v is null)
+			return false;
+		value = *v;
+		return true;
+	}
+	
+	//bool getProperty(PropertyID id, ref Vec2f[] value) const pure nothrow
+	//{
+	//    auto v = id in vec2fs;
+	//    if (v is null)
+	//        return false;
+	//    value = *v;
+	//    return true;
+	//}
+
+	//bool getPropertyDef(PropertyID id, ref float value) const pure nothrow
+	//{
+	//    auto v = id in floats;
+	//    if (v is null)
+	//        return styleSheet.manager
+	//    value = *v;
+	//    return true;
+	//}
+
+	bool getProperty(PropertyID id, ref Rectf value) 
+	{
+		auto v = id in rects;
+		if (v is null)
+			return false;
+		value = *v;
+		return true;
+	}
+
+	//bool getProperty(PropertyID id, ref Rectf[] value) 
+	//{
+	//    auto v = id in rects;
+	//    if (v is null)
+	//        return false;
+	//    value = *v;
+	//    return true;
+	//}
+
+	// Reset to init state ie. having all fields "null" values
+	/*
+	void xxclear()
+	{
+		_position = CSSPosition.invalid;
+		_width = CSSScaleMix.init;
+		_height = CSSScaleMix.init;
+		_left = CSSScaleMix.init;
+		_right = CSSScaleMix.init;
+		_top = CSSScaleMix.init;
+		_bottom = CSSScaleMix.init;
+		_font = null;
+		_background = null;
+		_nullFields = 0;
+		_color = Color.init;
+		_backgroundColor = Color.init;
+		_padding = RectfOffset.init;
+		_backgroundSpriteBorder = RectfOffset.init;
+		_backgroundSprite = Rectf.init;
+
+		foreach (ref v; floats)
+			v.length = 0;
+
+		foreach (ref v; rects)
+			v = Rectf.init;
+
+		foreach (ref v; vec2fs)
+			v = Vec2f.init;	
+	
+		
+	}
+*/
+
+
+
+
+	//static void diff(Style s1, Style s2, Style output)
+	//{
+	//    diff(s1._fields, s2._fields, output._fields);
+	//}
+
+
+	// reset in the same state as s
+	/*
+	void reset(Style s)
+	{
+		_fields._position = s._fields._position;
+		_fields._edgesOffset = s._fields._edgesOffset;
+		_fields._font = s._fields._font;
+		_fields._background = s._fields._background;
+		_fields._color = s._fields._color;
+		_fields._backgroundColor = s._fields._backgroundColor;
+		_fields._wordWrap = s._fields._wordWrap;
+		_fields._nullFields = s._fields._nullFields;
+		_fields._padding = s._fields._padding;
+		_fields._backgroundSpriteBorder = s._fields._backgroundSpriteBorder;
+		_fields._backgroundSprite = s._fields._backgroundSprite;
+
+		foreach (key, ref v; _fields.floats)
+			v = s._fields.floats[key];
+
+		foreach (key, ref v; _fields.rects)
+			v = s._fields.rects[key];
+
+		foreach (key, ref v; _fields.vec2fs)
+			v = s._fields.vec2fs[key];
 	}
 	*/
+
 	private void setInvalid(float src, ref float dst)
 	{
 		if (dst.isNaN())
@@ -128,6 +576,12 @@ struct StyleFields
 		setInvalid(src.right, dst.right);
 		setInvalid(src.bottom, dst.bottom);
 	}
+	
+	private void setInvalid(Vec2f src, ref Vec2f dst)
+	{
+		setInvalid(src.x, dst.x);
+		setInvalid(src.y, dst.y);
+	}
 
 	private void setInvalid(Rectf src, ref Rectf dst)
 	{
@@ -137,9 +591,8 @@ struct StyleFields
 		setInvalid(src.h, dst.h);
 	}
 
-	// Copy all fields of sf to this where this hasn't got
-	// a value itself yet.
-	void overlay(StyleFields sf)
+	// Merge s into this but only set fields that are not null set on s
+	void overlay(Style sf)
 	{
 		if (_font is null)
 			_font = sf._font;
@@ -178,13 +631,27 @@ struct StyleFields
 		setInvalid(sf._padding, _padding);
 		setInvalid(sf._backgroundSpriteBorder, _backgroundSpriteBorder);
 		setInvalid(sf._backgroundSprite, _backgroundSprite);
-		setInvalid(sf._edgesOffset, _edgesOffset);
+		setInvalid(sf._width, _width);
+		setInvalid(sf._height, _height);
+		setInvalid(sf._left, _left);
+		setInvalid(sf._top, _top);
+		setInvalid(sf._right, _right);
+		setInvalid(sf._bottom, _bottom);
 
-		if (_position == Style.Position.invalid)
+		if (_position == CSSPosition.invalid)
 			_position = sf._position;
 
-		foreach (key, value; sf.floats)
-			PropertySpecification!float.overlay(floats, key, value);
+		foreach (key, values; sf.propertyIDs)
+			PropertySpecification!PropertyID.overlay(propertyIDs, key, values);
+
+		foreach (key, values; sf.curveParameters)
+			PropertySpecification!CubicCurveParameters.overlay(curveParameters, key, values);
+
+		foreach (key, values; sf.durations)
+			PropertySpecification!Duration.overlay(durations, key, values);
+
+		foreach (key, values; sf.floats)
+			PropertySpecification!float.overlay(floats, key, values);
 
 		foreach (key, value; sf.rects)
 			PropertySpecification!Rectf.overlay(rects, key, value);
@@ -192,282 +659,104 @@ struct StyleFields
 		foreach (key, value; sf.vec2fs)
 			PropertySpecification!Vec2f.overlay(vec2fs, key, value);
 	}
-}
 
-class Style
-{
-	StyleSheet styleSheet; // StyleSheet owning this style
-
-	enum Position : byte
+	Style clone() pure @safe
 	{
-		invalid,
-		static_,
-		fixed,
-		relative,
-		absolute
+		auto st = new Style(styleSheet);
+		copy(st);
+		return st;
 	}
 
-	StyleFields _fields; // Fields set on this style
+	void copy(Style target) pure @safe
+	{
+		Style st = target;
+		st._position = _position;
+		st._width = _width;
+		st._height= _height;
+		st._left = _left;
+		st._top = _top;
+		st._right = _right;
+		st._bottom = _bottom;
+		st._font = _font;
+		st._background = _background;
+		st._nullFields = _nullFields;
+		st._color = _color;
+		st._backgroundColor = _backgroundColor;
+		st._padding = _padding;
+		st._backgroundSpriteBorder = _backgroundSpriteBorder;
+		st._backgroundSprite = _backgroundSprite;
+
+		foreach (k, v; propertyIDs)
+			st.propertyIDs[k] = v.dup;
+
+		foreach (k, v; curveParameters)
+			st.curveParameters[k] = v.dup;
+
+		foreach (k, v; durations)
+			st.durations[k] = v.dup;
+
+		foreach (k, v; rects)
+			st.rects[k] = v;
+
+		foreach (k, v; floats)
+			st.floats[k] = v.dup;
+
+		foreach (k, v; vec2fs)
+			st.vec2fs[k] = v;
+	}
+
+	bool matchesStyle(Style s) const pure nothrow @safe
+	{
+		return s is this;
+	}
+}
+
+/*
+class UsedStyle
+{
+	// The used style may be inbetween two styles when transitioning
+	Style from;
+	Style to;
+	private float _offset; // 0 = from style, 1 = to style. interval [0..1].
+
+	mixin Signal!MixedStyle onChanged;
+
+	this(Style fromStyle, Style toStyle)
+	{
+		super(fromStyle.styleSheet);
+		from = fromStyle;
+		to = toStyle;
+		offset = 0;
+	}
 
 	@property 
-	{	
-		Position position() const
+	{
+		@Binding
+		void offset(float o)
 		{
-			return _fields._position;
+			_offset = o;
+			update();
 		}
 
-		void position(Position p)
+		@Binding
+		float offset() const pure nothrow @safe
 		{
-			_fields._position = p;
-		}
-
-		RectCSSOffset edgesOffset() const
-		{
-			return _fields._edgesOffset;
-		}
-
-		void edgesOffset(RectCSSOffset offset)
-		{
-			_fields._edgesOffset = offset;
-		}
-
-		CSSScale left() const
-		{
-			return _fields._edgesOffset.left;
-		}
-
-		CSSScale top() const
-		{
-			return _fields._edgesOffset.top;
-		}
-
-		CSSScale right() const
-		{
-			return _fields._edgesOffset.right;
-		}
-
-		CSSScale bottom() const
-		{
-			return _fields._edgesOffset.bottom;
-		}
-
-		Font font()
-		{
-			auto f = _fields._font;
-			if (f !is null)
-				f.ensureLoaded();
-			return f;
-		}
-
-		void font(Font f) 
-		{
-			_fields._font = f;
-		}
-
-		Material background()
-		{
-			auto b = _fields._background;
-			if (b !is null)
-				b.ensureLoaded();
-			return b;
-		}
-
-		void background(Material b)
-		{
-			_fields._background = b;
-		}
-
-		Color color() const
-		{
-			return _fields._color;
-		}
-
-		void color(Color c)
-		{
-			_fields._nullFields |= 2;
-			_fields._color = c;
-		}
-
-		Color backgroundColor() const
-		{
-			return _fields._backgroundColor;
-		}
-
-		void backgroundColor(Color c)
-		{
-			_fields._nullFields |= 4;
-			_fields._backgroundColor = c;
-		}
-
-		bool wordWrap() const
-		{
-			return _fields._wordWrap;
-		}
-
-		void wordWrap(bool w)
-		{
-			_fields._nullFields |= 1;
-			_fields._wordWrap = w;
-		}
-
-		RectfOffset padding() const
-		{
-			return _fields._padding;
-		}
-
-		// TODO: make a paddingX, paddingY etc. methods
-		void padding(RectfOffset w)
-		{
-			_fields._padding = w;
-		}
-
-		RectfOffset backgroundSpriteBorder() const
-		{
-			return _fields._backgroundSpriteBorder;
-		}
-
-		void backgroundSpriteBorder(RectfOffset w)
-		{
-			_fields._backgroundSpriteBorder = w;
-		}
-
-		Rectf backgroundSprite() 
-		{
-			Rectf r = _fields._backgroundSprite;
-			Vec2f sz;
-			if (background !is null && background.texture !is null)
-				sz = background.texture.size;
-			else
-				sz = Vec2f(0,0);
-
-			if (r.x.isNaN())
-				r.x = 0; // default to 0 offset
-
-			if (r.y.isNaN())
-				r.y = 0; // default to 0 offset
-
-			if (r.w.isNaN())
-				r.w = sz.x; 
-
-			if (r.h.isNaN())
-				r.h = sz.y; 
-
-			return r;
-		}
-
-		void backgroundSprite(Rectf w)
-		{
-			_fields._backgroundSprite = w;
-		}
-
-		string name() const
-		{
-			return _name;
+			return _offset;
 		}
 	}
 
-	string _name;
-
-	this(string name)
+	override bool matchesStyle(Style s) const pure nothrow @safe
 	{
-		this._name = name;	
+		return s is to || s is this;
 	}
 
-	this(StyleSheet s)
+	void update() 
 	{
-		styleSheet = s;
-	}
-
-	bool getProperty(PropertyID id, ref float value) const pure nothrow
-	{
-		auto v = id in _fields.floats;
-		if (v is null)
-			return false;
-		value = *v;
-		return true;
-	}
-
-	bool getProperty(PropertyID id, ref Vec2f value) const pure nothrow
-	{
-		auto v = id in _fields.vec2fs;
-		if (v is null)
-			return false;
-		value = *v;
-		return true;
-	}
-
-	//bool getPropertyDef(PropertyID id, ref float value) const pure nothrow
-	//{
-	//    auto v = id in _fields.floats;
-	//    if (v is null)
-	//        return styleSheet.manager
-	//    value = *v;
-	//    return true;
-	//}
-
-	bool getProperty(PropertyID id, ref Rectf value) 
-	{
-		auto v = id in _fields.rects;
-		if (v is null)
-			return false;
-		value = *v;
-		return true;
-	}
-
-	// Reset to init state ie. having all fields "null" values
-	void clear()
-	{
-		_fields._position = Position.invalid;
-		_fields._edgesOffset = RectCSSOffset.init;
-		_fields._font = null;
-		_fields._background = null;
-		_fields._nullFields = 0;
-		_fields._padding = RectfOffset.init;
-		_fields._backgroundSpriteBorder = RectfOffset.init;
-		_fields._backgroundSprite = Rectf.init;
-
-		foreach (ref v; _fields.floats)
-			v = float.init;
-
-		foreach (ref v; _fields.rects)
-			v = Rectf.init;
-
-		foreach (ref v; _fields.vec2fs)
-			v = Vec2f.init;
-	}
-
-	// reset in the same state as s
-	void reset(Style s)
-	{
-		_fields._position = s._fields._position;
-		_fields._edgesOffset = s._fields._edgesOffset;
-		_fields._font = s._fields._font;
-		_fields._background = s._fields._background;
-		_fields._color = s._fields._color;
-		_fields._backgroundColor = s._fields._backgroundColor;
-		_fields._wordWrap = s._fields._wordWrap;
-		_fields._nullFields = s._fields._nullFields;
-		_fields._padding = s._fields._padding;
-		_fields._backgroundSpriteBorder = s._fields._backgroundSpriteBorder;
-		_fields._backgroundSprite = s._fields._backgroundSprite;
-
-		foreach (key, ref v; _fields.floats)
-			v = s._fields.floats[key];
-
-		foreach (key, ref v; _fields.rects)
-			v = s._fields.rects[key];
-
-		foreach (key, ref v; _fields.vec2fs)
-			v = s._fields.vec2fs[key];
-	}
-
-	// Merge s into this but only set fields that are not null set on s
-	void overlay(Style s)
-	{
-		// _fields = s._fields.overlay(_fields);
-		_fields.overlay(s._fields);
+		onChanged.emit(this);
 	}
 }
+*/
+
 
 // Example sheet:
 //

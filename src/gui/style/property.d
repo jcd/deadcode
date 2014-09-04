@@ -1,10 +1,15 @@
 module gui.style.property;
 
+import animation.interpolate;
+
 import gui.style.parser;
 import gui.style.style;
 import gui.style.stylesheet;
+import gui.style.types;
 
 import math._;
+
+import std.range;
 
 alias string PropertyID;
 
@@ -16,10 +21,14 @@ interface IPropertySpecification
 	{
 		PropertyID id() const pure nothrow;
 		bool inherited() const pure nothrow;
+		bool multi() const pure nothrow;
 	}
 
-	// Return true if parser.curToken is not yet consumed
+	// Return true if property value is parsed and 
+	// set in style
 	abstract bool parse(StyleSheetParser parser, Style style);
+	abstract void setDefault(Style style);
+	abstract void clear(Style style);
 }
 
 abstract class PropertySpecificationBase(T) : IPropertySpecification
@@ -59,11 +68,6 @@ abstract class PropertySpecificationBase(T) : IPropertySpecification
 		this._inherited = _inherited;
 		_multi = false;
 	}
-
-	void getDefault(ref T _default) 
-	{
-		_default = this._default;
-	}
 }
 
 class PropertySpecification(T : float) : PropertySpecificationBase!T
@@ -75,16 +79,288 @@ class PropertySpecification(T : float) : PropertySpecificationBase!T
 
 	bool parse(StyleSheetParser parser, Style style)
 	{
-		style._fields.floats[id] = parser.requireNextOptionalNumber();
+		auto tok = parser.nextToken();
+		float num;
+		if (tok.asNumber(num))
+		{
+			if (!multi || style.floats.get(id, null) is null)
+			{
+				style.floats[id] = [ num ];
+			}
+			else
+			{
+				style.floats[id] ~= num;
+			}
+			return true;
+		}
+		parser.resetToToken(tok);
 		return false;
 	}
 
-	static void overlay(ref T[PropertyID] dest, PropertyID key, const(T) value)
+	void setDefault(Style style)
 	{
-		if (!value.isNaN() && key !in dest)
+		if (!multi || style.floats.get(id, null) is null)
+			style.floats[id] = [ _default ];
+		else
+			style.floats[id] ~= _default;
+	}
+
+	void clear(Style style)
+	{
+		style.floats[id] = null;
+	}
+
+	static void overlay(ref T[][PropertyID] dest, PropertyID key, T[] value)
+	{
+		//if (!value.isNaN() && key !in dest)
+		if (value.length && key !in dest)
 			dest[key] = value;
 	}
 }
+
+import std.datetime;
+class PropertySpecification(T : Duration) : PropertySpecificationBase!T
+{
+	this(PropertyID _id, T _default, bool _inherited = false)
+	{
+		super(_id, _default, _inherited);
+	}
+
+	bool parse(StyleSheetParser parser, Style style)
+	{
+		auto tok = parser.nextToken();
+		float num;
+		if (tok.asNumber(num))
+		{
+			auto tok2 = parser.nextToken();
+			Duration d;
+			if (tok2.value == "s")
+			{
+				d = dur!"usecs"(cast(long)(num * 1_000_000));
+			}
+			else if (tok2.value == "ms")
+			{
+				d = dur!"usecs"(cast(long)(num * 1_000));
+			}
+			else
+			{
+				parser.addError("Invalid duration unit " ~ tok2.value);
+				throw new Exception("Invalid duration unit");
+			}
+
+			float dd = d.total!"seconds"();
+
+			if (!multi || style.durations.get(id, null) is null)
+			{
+				style.durations[id] = [ d ];
+			}
+			else
+			{
+				style.durations[id] ~= d;
+			}
+			return true;
+		}
+		parser.resetToToken(tok);
+		return false;
+	}
+
+	void setDefault(Style style)
+	{
+		if (!multi || style.durations.get(id, null) is null)
+			style.durations[id] = [ _default ];
+		else
+			style.durations[id] ~= _default;
+	}
+
+	void clear(Style style)
+	{
+		style.durations[id] = null;
+	}
+
+	static void overlay(ref T[][PropertyID] dest, PropertyID key, T[] value)
+	{
+		//if (!value.isNaN() && key !in dest)
+		if (value.length && key !in dest)
+			dest[key] = value;
+	}
+}
+
+class PropertySpecification(T : CubicCurveParameters) : PropertySpecificationBase!T
+{
+	this(PropertyID _id, T _default, bool _inherited = false)
+	{
+		super(_id, _default, _inherited);
+	}
+
+	bool parse(StyleSheetParser parser, Style style)
+	{
+		import animation.interpolate;
+		
+		auto tok = parser.nextToken();
+		
+		CubicCurveParameters params;
+		switch (tok.value)
+		{
+			case "ease":
+				params = CubicBezierCurve!float.ease;
+				break;
+			case "linear":
+				params = CubicBezierCurve!float.linear;
+				break;
+			case "ease-in":
+				params = CubicBezierCurve!float.easeIn;
+				break;
+			case "ease-out":
+				params = CubicBezierCurve!float.easeOut;
+				break;
+			case "ease-in-out":
+				params = CubicBezierCurve!float.easeInOut;
+				break;
+			case "cubic-bezier":
+				parser.requireNextToken(StyleSheetParser.TokenType.parenOpen);
+				StyleSheetParser.Token n1 = parser.requireNextToken(StyleSheetParser.TokenType.number);
+				n1.asNumber(params[0]);
+				parser.requireNextToken(StyleSheetParser.TokenType.comma);
+				StyleSheetParser.Token n2 = parser.requireNextToken(StyleSheetParser.TokenType.number);
+				n2.asNumber(params[1]);
+				parser.requireNextToken(StyleSheetParser.TokenType.comma);
+				StyleSheetParser.Token n3 = parser.requireNextToken(StyleSheetParser.TokenType.number);
+				n3.asNumber(params[2]);
+				parser.requireNextToken(StyleSheetParser.TokenType.comma);
+				StyleSheetParser.Token n4 = parser.requireNextToken(StyleSheetParser.TokenType.number);
+				n4.asNumber(params[3]);
+				parser.requireNextToken(StyleSheetParser.TokenType.parenClose);
+				break;
+			default:
+				parser.resetToToken(tok);
+				return false;
+		}
+
+		if (!params.empty && !params[0].isNaN)
+		{
+			if (style.curveParameters.get(id,null) is null)
+				style.curveParameters[id] = [ params ];
+			else
+				style.curveParameters[id] ~= params;
+			return true;
+		}
+		else
+		{
+			parser.resetToToken(tok);
+			return false;
+		}
+	}
+
+	void setDefault(Style style)
+	{
+		if (style.curveParameters.get(id, null) is null)
+			style.curveParameters[id] = [ _default ];
+		else
+			style.curveParameters[id] ~= _default;
+	}
+
+	void clear(Style style)
+	{
+		style.curveParameters[id] = null;
+	}
+
+	static void overlay(ref T[][PropertyID] dest, PropertyID key, T[] value)
+	{
+		//if (!value.isNaN() && key !in dest)
+		if (value.length && key !in dest)
+			dest[key] = value;
+	}
+}
+
+class PropertySpecification(T : PropertyID) : PropertySpecificationBase!T
+{
+	this(PropertyID _id, T _default, bool _inherited = false)
+	{
+		super(_id, _default, _inherited);
+	}
+
+	bool parse(StyleSheetParser parser, Style style)
+	{
+		if (parser.peekToken().type == StyleSheetParser.TokenType.identifier)
+		{
+			if (!multi || style.propertyIDs.get(id, null) is null)
+			{
+				style.propertyIDs[id] = [ parser.nextToken().value ];
+			}
+			else
+			{
+				style.propertyIDs[id] ~= parser.nextToken().value;
+			}
+			return true;
+		}
+		return false;
+	}
+
+	void setDefault(Style style)
+	{
+		if (!multi || style.propertyIDs.get(id, null) is null)
+			style.propertyIDs[id] = [_default];
+		else
+			style.propertyIDs[id] ~= _default;
+	}
+
+	void clear(Style style)
+	{
+		style.propertyIDs[id] = null;
+	}
+
+	static void overlay(ref T[][PropertyID] dest, PropertyID key, T[] value)
+	{
+		if (value.length && key !in dest)
+			dest[key] = value;
+	}
+}
+/*
+class PropertySpecification(T : Curve!U, U) : PropertySpecificationBase!T
+{
+	this(PropertyID _id, T _default, bool _inherited = false)
+	{
+		super(_id, _default, _inherited);
+	}
+
+	bool parse(StyleSheetParser parser, Style style)
+	{
+		if (parser.peekToken().type == StyleSheetParser.TokenType.identifier)
+		{
+			auto i = parser.peekToken.value.to!Curve;
+			if (i !is null)
+			{
+				if (!multi || style.curves is null)
+					style.curves = [ i ];
+				else
+					style.curves ~= i;
+				parser.nextToken;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	void setDefault(Style style)
+	{
+		if (!multi || style.curves is null)
+			style.curves = [ _default ];
+		else
+			style.curves ~= _default;
+	}
+
+	void clear(Style style)
+	{
+		style.curves = null;
+	}
+
+	static void overlay(ref T[] dest, T[] value)
+	{
+		if (value.length)
+			dest = value;
+	}
+}
+*/
 
 class PropertySpecification(T : Vec2f) : PropertySpecificationBase!T
 {
@@ -96,10 +372,32 @@ class PropertySpecification(T : Vec2f) : PropertySpecificationBase!T
 	bool parse(StyleSheetParser parser, Style style)
 	{
 		Vec2f r;
-		r.x = parser.requireNextOptionalNumber();
-		r.y = parser.requireNextOptionalNumber();
-		style._fields.vec2fs[id] = r;
+
+		auto tok1 = parser.nextToken();
+		auto tok2 = parser.nextToken();
+		float num1;
+		float num2;
+
+		if (tok1.asNumber(num1) && tok2.asNumber(num2))
+		{
+			r.x = num1;
+			r.y = num2;
+			style.vec2fs[id] = r;
+			return true;
+		}
+		
+		parser.resetToToken(tok1);
 		return false;
+	}
+
+	void setDefault(Style style)
+	{
+		style.vec2fs[id] = _default;
+	}
+
+	void clear(Style style)
+	{
+		style.vec2fs[id] = T.init;
 	}
 
 	static void overlay(ref T[PropertyID] dest, PropertyID key, const(T) value)
@@ -138,13 +436,37 @@ class PropertySpecification(T : Rectf) : PropertySpecificationBase!T
 
 	bool parse(StyleSheetParser parser, Style style)
 	{
-		Rectf r;
-		r.x = parser.requireNextOptionalNumber();
-		r.y = parser.requireNextOptionalNumber();
-		r.w = parser.requireNextOptionalNumber();
-		r.h = parser.requireNextOptionalNumber();
-		style._fields.rects[id] = r;
+		float num1, num2, num3, num4;
+		auto tok1 = parser.nextToken();
+		auto tok2 = parser.nextToken();
+		auto tok3 = parser.nextToken();
+		auto tok4 = parser.nextToken();
+
+		if (tok1.asNumber(num1) && 
+			tok2.asNumber(num2) &&
+			tok3.asNumber(num3) &&
+			tok4.asNumber(num4))
+		{
+			Rectf r;
+			r.x = num1;
+			r.y = num2;
+			r.w = num3;
+			r.h = num4;
+			style.rects[id] = r;
+			return true;
+		}
+		parser.resetToToken(tok1);
 		return false;
+	}
+
+	void setDefault(Style style)
+	{
+		style.rects[id] = _default;
+	}
+
+	void clear(Style style)
+	{
+		style.rects[id] = T.init;
 	}
 
 	static void overlay(ref T[PropertyID] dest, PropertyID key, const(T) value)
@@ -183,5 +505,98 @@ class PropertySpecification(T : Rectf) : PropertySpecificationBase!T
 
 		if (changed)
 			dest[key] = res;
+	}
+}
+
+class PropertyShorthand : IPropertySpecification
+{
+	private
+	{		
+		PropertyID _id;
+		bool _inherited;
+		bool _multi;
+		IPropertySpecification[] subProperties;
+	}
+
+	@property 
+	{
+		PropertyID id() const pure nothrow
+		{
+			return _id;
+		}
+		bool inherited() const pure nothrow
+		{
+			return _inherited;
+		}
+		bool multi() const pure nothrow
+		{
+			return _multi;
+		}
+		void multi(bool f) pure nothrow
+		{
+			_multi = f;
+		}
+	}
+
+	this(PropertyID id, IPropertySpecification[] subProps, bool inherited = false)
+	{
+		_id = id;
+		_inherited = inherited;
+		subProperties = subProps;
+		_multi = false;
+	}
+
+	bool parse(StyleSheetParser parser, Style style)
+	{
+		// Parsed subproperties in order and in a cycle. 
+		// When either a no subproperty has been parsed through an
+		// entire cycle but something is left (an parse error) or the } token
+		// is reached we stop.
+		auto cycleProps = subProperties.dup;
+		size_t lastLen = 0;
+
+		auto multiDelim = multi ? parser.TokenType.comma : parser.TokenType.semicolon;
+		
+		while (lastLen != cycleProps.length)
+		{
+			lastLen = cycleProps.length;
+			
+			import std.algorithm;
+			cycleProps = cycleProps.remove!( p => p.parse(parser,style) );
+
+			if (parser.peekToken().oneOf(parser.TokenType.curlClose, 
+										 parser.TokenType.semicolon,
+										 multiDelim))
+				break;
+		}
+
+		if (!parser.peekToken().oneOf(parser.TokenType.curlClose,
+									  parser.TokenType.semicolon, multiDelim))
+		{
+			parser.addError("Unexpected token at this point in file '" ~ parser.curToken.value ~ "'", parser.line);
+			throw new Exception("Unexpected token in stylesheet property shortcut");
+		}
+
+		// Set unset props to default value as CSS also does.
+		foreach (p; cycleProps)
+		{
+			p.setDefault(style);
+		}
+
+		return true;
+	}
+
+	void clear(Style style)
+	{
+		// Set unset props to default value as CSS also does.
+		foreach (p; subProperties)
+		{
+			p.clear(style);
+		}	
+	}
+
+	void setDefault(Style style)
+	{
+		assert(0);
 	}
 }

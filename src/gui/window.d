@@ -1,5 +1,7 @@
 module gui.window;
 
+import animation.timeline;
+
 import core.time;
 import derelict.sdl2.sdl;
 import graphics._;
@@ -271,7 +273,7 @@ class Window : Widget
 		foreach (w; widgets)
 		{
 			//std.stdio.writeln(w.name, " visible ", w.visible, w.rect);
-			if (w.visible && w.rect.contains(p))
+			if (w.visible && w.rectStyled.contains(p))
 			{
 				//std.stdio.writeln("hit ", w.name);
 				if (w.isDecendantOf(cur))
@@ -339,16 +341,16 @@ class Window : Widget
 	// is accepted as a double click
 	enum maxDoubleClickTime = 0.3f;
 
-	Widget createWidget(Widget parent, float x = 0, float y = 0, float width = 100, float height = 100)
+	W createWidget(W = Widget)(Widget parent, float x = 0, float y = 0, float width = 100, float height = 100)
 	{
-		auto w = new Widget(parent, x, y, width, height);
+		auto w = new W(parent, x, y, width, height);
 		register(w);
 		return w;
 	}
 
-	Widget createWidget(float x = 0, float y = 0, float width = 100, float height = 100)
+	W createWidget(W = Widget)(float x = 0, float y = 0, float width = 100, float height = 100)
 	{
-		return createWidget(this, x, y, width, height);
+		return createWidget!W(this, x, y, width, height);
 	}
 
 	// TODO: make private

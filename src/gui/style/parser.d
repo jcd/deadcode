@@ -91,7 +91,7 @@ class StyleSheetParser
 	alias Error[] Errors;
 	Errors errors;
 
-	string singleCharToks = "{}():;#@\"'>%*";
+	string singleCharToks = "{}():;#@\"'>%*,";
 
 	enum TokenType : ubyte
 	{
@@ -108,6 +108,7 @@ class StyleSheetParser
 		greaterThan,
 		pct,
 		star,
+		comma,
 		identifier,
 		number,
 		dot,
@@ -119,7 +120,8 @@ class StyleSheetParser
 	struct Token
 	{
 		TokenType type;
-		string value;
+		string textRange; // spanding from start of token (include prefix space) to end of stylesheet text
+		string value; // token text
 
 		bool oneOf(Args...)(Args args)
 		{
@@ -134,9 +136,18 @@ class StyleSheetParser
 			return value.to!T;
 		}
 
-		@property bool eof() { return type == TokenType.eof; }
-		@property bool invalid() { return type == TokenType.invalid; }
-		@property bool whitespace() { return type == TokenType.whitespace; }
+		bool asNumber(ref float result) const
+		{
+			string s = value;
+			return 
+				numberLike &&
+				std.format.formattedRead(s, "%s", &result) == 1;
+		}
+
+		@property bool eof() const { return type == TokenType.eof; }
+		@property bool invalid() const { return type == TokenType.invalid; }
+		@property bool whitespace() const { return type == TokenType.whitespace; }
+		@property bool numberLike() const { return type == TokenType.number || type == TokenType.dot; }
 	}
 
 	int line = 1;
@@ -145,7 +156,10 @@ class StyleSheetParser
 	string tokenChars = "^ \t\n\r{}):;#\"'";
 	string numberTokenChars = "[0-9.]";
 	string txt;
+	
 	Token curToken;
+	Token bufferToken;
+	
 	StyleSheet sheet;
 	URI baseURI;
 	FontManager fontManager;
@@ -168,21 +182,61 @@ class StyleSheetParser
 		this.baseURI = baseURI;
 		this.fontManager = fontManager;
 		this.materialManager = materialManager;
+		curToken.type = TokenType.invalid;
+		bufferToken.type = TokenType.invalid;
 	}
 
 	// A bit of a hack to get nice looking unquoted strings in stylesheets
-	string nextNonWhitespaceString()
+	//string nextNonWhitespaceString()
+	//{
+	//    return munch(txt, nonSpaceChars);		
+	//}
+
+	Token peekToken()
 	{
-		return munch(txt, nonSpaceChars);		
+		if (bufferToken.type == TokenType.invalid)
+			bufferToken = nextToken();
+		return bufferToken;
 	}
 
-	Token nextToken(bool skipWhiteSpace = true)
+	// Reset to before tok was parsed. After this curToken is invalid and nextToken should
+	// be called before using that again.
+	void resetToToken(Token tok)
 	{
+		txt = tok.textRange;
+		curToken.value = null;
+		curToken.textRange = null;
+		curToken.type = TokenType.invalid;
+	}
+	
+	void pushBackToken()
+	{
+		bufferToken = curToken;
+	}
+
+	Token nextToken()
+	{
+		if (nextTokenKeepSpace().type == TokenType.whitespace)
+			return nextTokenKeepSpace();
+		return curToken;
+	}
+	
+	Token nextTokenKeepSpace()
+	{
+		if (bufferToken.type != TokenType.invalid)
+		{
+			curToken = bufferToken;
+			bufferToken.type = TokenType.invalid;
+			return curToken;
+		}
+
 		import std.algorithm;
+		curToken.textRange = txt[0..$];
+
 		auto space = munch(txt, spaceChars);
 		line += space.count('\n');
 
-		if (!skipWhiteSpace && !space.empty)
+		if (!space.empty)
 		{
 			curToken.type = TokenType.whitespace;
 			curToken.value = space;
@@ -193,6 +247,7 @@ class StyleSheetParser
 		if (txt.empty)
 		{
 			curToken.type = TokenType.eof;
+			curToken.textRange = null;
 			curToken.value = null;
 			return curToken;
 		}
@@ -249,10 +304,23 @@ class StyleSheetParser
 		return curToken;
 	}
 
-	Token requireNextToken(TokenType requiredType = TokenType.invalid, bool skipWhiteSpace = true)
+	Token requireNextToken(TokenType requiredType = TokenType.invalid)
 	{
 		auto lastToken = curToken;
-		nextToken(skipWhiteSpace);
+		nextToken();
+		if (curToken.type == TokenType.eof)
+		{
+			addError("Incomplete style rule following " ~ lastToken.value ~ "'", line);
+			throw new Exception("Premature end of stylesheet file");
+		}
+		assertToken(requiredType);
+		return curToken;
+	}
+
+	Token requireNextTokenKeepSpace(TokenType requiredType = TokenType.invalid)
+	{
+		auto lastToken = curToken;
+		nextTokenKeepSpace();
 		if (curToken.type == TokenType.eof)
 		{
 			addError("Incomplete style rule following " ~ lastToken.value ~ "'", line);
@@ -331,10 +399,10 @@ class StyleSheetParser
 				break;
 			case ".ttf":
 				// Create a custom font and use a dummy loader for that
-				if (style._fields._font is null)
+				if (style._font is null)
 					style.font = fontManager.declare(CustomFontLoader.singleton);
 
-				style._fields._font.path = theURI.toString(); // TODO: make into URI instead?
+				style._font.path = theURI.toString(); // TODO: make into URI instead?
 				break;
 			default:
 				addError("Unsupported font type " ~ uriStr);
@@ -381,16 +449,17 @@ class StyleSheetParser
 					}
 
 					// Create a custom font and use a dummy loader for that
-					if (style._fields._font is null)
+					if (style._font is null)
 						style.font = fontManager.declare(CustomFontLoader.singleton);
 
-					style._fields._font.size = v;
+					style._font.size = v;
 					break;
 				default:
 					assert(0); // cannot happen
 					break;
 			}
 		}
+		pushBackToken();
 	}
 
 	void parseBackgroundProperty(Style style)
@@ -422,7 +491,7 @@ class StyleSheetParser
 			{
 				case ".material":
 					// Let material manager handle this for us
-					if (style._fields._background !is null)
+					if (style._background !is null)
 						addError("overriding existing material", line);
 					style.background = materialManager.declare(theURI);
 					skipToEndOfProperty();
@@ -430,26 +499,27 @@ class StyleSheetParser
 
 				case ".png":	
 					// Create a custom material and use a dummy loader for that
-					if (style._fields._background is null)
+					if (style._background is null)
 						style.background = materialManager.declare(CustomMaterialLoader.singleton);			
-					else if (style._fields._background.hasTexture())
+					else if (style._background.hasTexture())
 						addError("overriding existing texture on material", line);
-					style._fields._background.texture = materialManager.textureManager.declare(theURI);
+					style._background.texture = materialManager.textureManager.declare(theURI);
 					break;
 				case ".shaderprogram":				
 					// Create a custom material and use a dummy loader for that
-					if (style._fields._background is null)
+					if (style._background is null)
 						style.background = materialManager.declare(CustomMaterialLoader.singleton);			
-					else if (style._fields._background.hasShader())
+					else if (style._background.hasShader())
 						addError("overriding existing shader on material", line);
 
-					style._fields._background.shader = materialManager.shaderProgramManager.declare(theURI);
+					style._background.shader = materialManager.shaderProgramManager.declare(theURI);
 					break;
 				default:
 					addError("Unsupported file extension for background style " ~ theURI.extension, line);
 					break;
 			}
 		}
+		pushBackToken();
 	}
 
 	void parseColor(ref Color color)
@@ -486,7 +556,6 @@ class StyleSheetParser
 	{
 		requireNextToken(TokenType.identifier);
 		style.wordWrap = curToken.value == "true";
-		requireNextToken();
 	}
 
 	void parseRect(ref Rectf r)
@@ -511,19 +580,19 @@ class StyleSheetParser
 		switch (curToken.value)
 		{
 			case "static":
-				style.position = Style.Position.static_;
+				style.position = CSSPosition.static_;
 				break;	
 			case "fixed":
-				style.position = Style.Position.fixed;
+				style.position = CSSPosition.fixed;
 				break;	
 			case "relative":
-				style.position = Style.Position.relative;
+				style.position = CSSPosition.relative;
 				break;	
 			case "absolute":
-				style.position = Style.Position.absolute;
+				style.position = CSSPosition.absolute;
 				break;	
 			default:
-				style.position = Style.Position.invalid;
+				style.position = CSSPosition.invalid;
 				addError(text("Unknown position value '", curToken, "'"), line);
 				break;
 		}
@@ -539,12 +608,11 @@ class StyleSheetParser
 		bool consumed = false;
 		CSSUnit sz = CSSUnit.pixels;
 
-		bool skipWhitespace = false;
-
-		switch (requireNextToken(TokenType.invalid, skipWhitespace).type)
+		switch (requireNextTokenKeepSpace(TokenType.invalid).type)
 		{
 			case TokenType.pct:
 				sz = CSSUnit.pct;
+				val.value /= 100;
 				break;
 			case TokenType.identifier:
 				switch (curToken.value)
@@ -580,7 +648,7 @@ class StyleSheetParser
 					case "px":
 						consumed = true;
 						sz = CSSUnit.pixels;
-						goto default;
+						break;
 					default:
 						addError("Unknown unit " ~ curToken.value, line);
 						break;
@@ -628,79 +696,107 @@ class StyleSheetParser
 			{
 				case "font":
 					parseFontProperty(style);
+					requireNextToken();
 					break;
 				case "background":
 					parseBackgroundProperty(style);
+					requireNextToken();
 					break;
 				case "color":
-					parseColor(style._fields._color);
-					style._fields._nullFields |= 2;
+					parseColor(style._color);
+					style._nullFields |= 2;
 					requireNextToken();
 					break;
 				case "background-color":
-					parseColor(style._fields._backgroundColor);
-					style._fields._nullFields |= 4;
+					parseColor(style._backgroundColor);
+					style._nullFields |= 4;
 					requireNextToken();
 					break;
 				case "wordWrap":
 					parseWordWrapProperty(style);
+					requireNextToken();
 					break;
 				case "padding":
-					parseRectOffset(style._fields._padding);
+					parseRectOffset(style._padding);
 					requireNextToken();
 					break;
 				case "background-sprite":
-					parseRect(style._fields._backgroundSprite);
+					parseRect(style._backgroundSprite);
 					requireNextToken();
 					break;
 				case "background-sprite-border":
-					parseRectOffset(style._fields._backgroundSpriteBorder);
+					parseRectOffset(style._backgroundSpriteBorder);
 					requireNextToken();
 					break;
 				case "position":
 					parsePositionProperty(style);
+					requireNextToken();
 					break;
 				case "left":
 					requireNextToken();
-					parseScale(style._fields._edgesOffset.left);
+					parseScale(style._left);
 					requireNextToken();
 					continue;
 				case "top":
 					requireNextToken();
-					parseScale(style._fields._edgesOffset.top);
+					parseScale(style._top);
 					requireNextToken();
 					continue;
 				case "right":
 					requireNextToken();
-					parseScale(style._fields._edgesOffset.right);
+					parseScale(style._right);
 					requireNextToken();
-					continue;
+					break;
 				case "bottom":
 					requireNextToken();
-					parseScale(style._fields._edgesOffset.bottom);
+					parseScale(style._bottom);
 					requireNextToken();
-					continue;
+					break;
+				case "width":
+					requireNextToken();
+					parseScale(style._width);
+					requireNextToken();
+					break;
+				case "height":
+					requireNextToken();
+					parseScale(style._height);
+					requireNextToken();
+					break;
 				default:
 					auto mgr = sheet.manager;
 					auto spec = (cast(StyleSheetManager)mgr).lookupPropertySpecification(key);
 					if (spec !is null)
 					{
-						if (spec.parse(this, style))
-							continue;
-						requireNextToken();
+						bool parsedOne = false;
+						spec.clear(style);
+						while (spec.parse(this, style))
+						{
+							parsedOne = true;
+							if (!spec.multi || peekToken.type != TokenType.comma)
+								break;
+							nextToken();
+						}
+						
+						if (!parsedOne)
+						{
+							addError("Could not parse value of " ~ spec.id);
+							throw new Exception("Cannot parse spec " ~ spec.id);
+						}
 					}
 					else
 					{
 						addError("Unknown style key '" ~ key ~ "'", line);
 						skipToEndOfProperty();
-						continue;
 					}
+					requireNextToken();
 			}
 		}
 	}
 
-	void parseSelector(Rule rule)
+	void parseSelector(ref Selectors selectors)
 	{
+		requireNextToken();
+		
 		while (true)
 		{
 			string widgetTypeName = null;
@@ -708,7 +804,6 @@ class StyleSheetParser
 			string className = null;
 			string pseudoClassName = null;
 
-			const bool skipWhitespace = false;
 			bool segmentDone = false;
 
 			// A segment can be either #id or .class or widgetname or a combination
@@ -717,17 +812,17 @@ class StyleSheetParser
 				switch (curToken.type)
 				{
 					case TokenType.hash:
-						requireNextToken(TokenType.identifier, skipWhitespace);
+						requireNextTokenKeepSpace(TokenType.identifier);
 						widgetName = curToken.value;
 						requireNextToken();
 						break;
 					case TokenType.dot:
-						requireNextToken(TokenType.identifier, skipWhitespace);
+						requireNextTokenKeepSpace(TokenType.identifier);
 						className = curToken.value;
 						requireNextToken();
 						break;
 					case TokenType.colon:
-						requireNextToken(TokenType.identifier, skipWhitespace);
+						requireNextTokenKeepSpace(TokenType.identifier);
 						pseudoClassName = curToken.value;
 						requireNextToken();
 						break;
@@ -765,14 +860,14 @@ class StyleSheetParser
 			switch (curToken.type)
 			{
 				case TokenType.curlOpen:
-					rule.widgetSelectors ~= new WidgetSelector(widgetTypeName, widgetName, className, pseudoClassName);
+					selectors ~= new WidgetSelector(widgetTypeName, widgetName, className, pseudoClassName);
 					return;
 				case TokenType.greaterThan:
-					rule.widgetSelectors ~= new ChildSelector(widgetTypeName, widgetName, className, pseudoClassName);
+					selectors ~= new ChildSelector(widgetTypeName, widgetName, className, pseudoClassName);
 					requireNextToken();
 					break;
 				default:
-					rule.widgetSelectors ~= new DescendantSelector(widgetTypeName, widgetName, className, pseudoClassName);
+					selectors ~= new DescendantSelector(widgetTypeName, widgetName, className, pseudoClassName);
 					break;
 			}
 		}
@@ -804,6 +899,7 @@ class StyleSheetParser
 
 	void parseCssRule()
 	{
+		requireNextToken(TokenType.at);
 		requireNextToken(TokenType.identifier);
 		if (curToken.value == "keyframes")
 		{
@@ -838,12 +934,10 @@ class StyleSheetParser
 
 	void parseRule()
 	{
-
 		Rule rule = new Rule;
 		rule.style = new Style(sheet);
-		parseSelector(rule);
+		parseSelector(rule.selectors);
 		parseProperties(rule.style);
-		nextToken();
 		sheet.rules ~= rule;
 	}
 
@@ -851,13 +945,14 @@ class StyleSheetParser
 	{
 		try 
 		{
-			nextToken();
+			peekToken();
 			while(!curToken.eof)
 			{
 				if (curToken.type == TokenType.at)
 					parseCssRule();
 				else
 					parseRule();
+				peekToken();
 			}
 		}
 		catch (Exception e)
@@ -879,31 +974,31 @@ unittest
 	parse = new StyleSheetParser("Widget {}", sheet, new URI(""), null, null);
 	parse.parse();
 	Assert(sheet.rules.length == 1 && 
-		   sheet.rules[0].widgetSelectors.length == 1 &&
-		   sheet.rules[0].widgetSelectors[0].widgetTypeName == "Widget", 
+		   sheet.rules[0].selectors.length == 1 &&
+		   sheet.rules[0].selectors[0].widgetTypeName == "Widget", 
 		   "Simple selector and no style definitions");
 
 	parse = new StyleSheetParser("Widget { color: #FF0000 }", sheet, new URI(""), null, null);
 	parse.parse();
 	Assert(sheet.rules.length == 2 && 
-		   sheet.rules[1].widgetSelectors.length == 1 &&
-		   sheet.rules[1].widgetSelectors[0].widgetTypeName == "Widget" &&
+		   sheet.rules[1].selectors.length == 1 &&
+		   sheet.rules[1].selectors[0].widgetTypeName == "Widget" &&
 		   sheet.rules[1].style.color == Color.red, 
 		   "Simple selector and red color");
 
 	parse = new StyleSheetParser("Widget { color: #FF0000; }", sheet, new URI(""), null, null);
 	parse.parse();
 	Assert(sheet.rules.length == 3 && 
-		   sheet.rules[2].widgetSelectors.length == 1 &&
-		   sheet.rules[2].widgetSelectors[0].widgetTypeName == "Widget" &&
+		   sheet.rules[2].selectors.length == 1 &&
+		   sheet.rules[2].selectors[0].widgetTypeName == "Widget" &&
 		   sheet.rules[2].style.color == Color.red, 
 		   "Simple selector and red color semicolor end");
 
 	parse = new StyleSheetParser("Widget { color: #FF0000;\n padding : 1 2 3 4;\n wordWrap: true;\n }", sheet, new URI(""), null, null);
 	parse.parse();
 	Assert(sheet.rules.length == 4 && 
-		   sheet.rules[3].widgetSelectors.length == 1 &&
-		   sheet.rules[3].widgetSelectors[0].widgetTypeName == "Widget" &&
+		   sheet.rules[3].selectors.length == 1 &&
+		   sheet.rules[3].selectors[0].widgetTypeName == "Widget" &&
 		   sheet.rules[3].style.color == Color.red &&
 		   sheet.rules[3].style.wordWrap &&
 		   sheet.rules[3].style.padding == RectfOffset(1,2,3,4),

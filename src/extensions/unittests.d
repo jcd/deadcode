@@ -1,5 +1,8 @@
 module extensions.unittests;
 
+import animation.timeline;
+import animation.interpolate;
+
 import core.buffer;
 import extension;
 import guiapplication;
@@ -37,7 +40,7 @@ static this()
 {
 	import core.runtime;
 	import std.stdio;
-	//Runtime.moduleUnitTester(&defaultUnittester);
+	Runtime.moduleUnitTester(&defaultUnittester);
 
 	foreach (m; ModuleInfo)
 	{
@@ -51,8 +54,25 @@ static this()
 	}
 }
 
+import gui.style;
+
+class TestWidget : Widget
+{
+	this(Widget _parent, float x = 0, float y = 0, float width = 100, float height = 100) nothrow
+	{
+		super(_parent, x, y, width, height);
+	}
+}
+
 class UnittestAnchor : TextEditorAnchor
 {
+	Timeline timeline;
+
+	this(Timeline timeline)
+	{
+		super();
+		this.timeline = timeline;
+	}
 
 	override EventUsed onMouseOver(Event ev)
 	{
@@ -83,13 +103,20 @@ class UnittestAnchor : TextEditorAnchor
 			}
 		}
 
+		auto wi = window.createWidget!TestWidget(window, 100, 100, 100, 100);
+		//auto clip = new Clip!Widget();
+		////clip.createLinearCurve!"x"(0, x, 1, x+100.0);
+		//clip.createCubicCurve!"x"(0, x, 1, x+100.0);
+		//timeline.animate(wi, clip);
+
 		return EventUsed.yes;
 	}
 
-	override void update()
-	{
-		// std.stdio.writefln("anchor %s", rect);
-	}
+	//override void update()
+	//{
+	//    
+	//    // std.stdio.writefln("anchor %s", rect);
+	//}
 }
 
 /**
@@ -101,7 +128,7 @@ class Unittests : BasicExtension!Unittests, TextEditorAnchorOwner
 		
 	TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor)
 	{
-		return new UnittestAnchor();
+		return new UnittestAnchor(app.guiRoot.timeline);
 	}
 
 	override void init()

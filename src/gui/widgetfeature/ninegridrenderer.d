@@ -82,7 +82,7 @@ class NineGridRenderer : WidgetFeature
 			return;
 
 		Mat4f transform;
-		widget.getScreenToWorldTransform(transform);
+		widget.getStyledScreenToWorldTransform(transform);
 		
 		RectfOffset spriteBorder = style.backgroundSpriteBorder;
 		Rectf spriteRect = style.backgroundSprite;
@@ -101,7 +101,7 @@ class NineGridRenderer : WidgetFeature
 			_spriteRect = spriteRect;
 		}
 
-		auto wr = widget.size;
+		auto wr = widget.rectStyled.size;
 		model.rect =  Rectf(0, 0, wr);
 		model.material = mat;
 		color = style.backgroundColor;

@@ -13,36 +13,44 @@ class Timeline
 {
 private:
 
-	class _Anim
+	class Runner
 	{
-		this(float dur, float _start)
+		protected this(float dur, float _start)
 		{
+			stopped = false;
 			duration = dur;
 			start = _start;
 		}
 
-		abstract void update(float offset);
-		abstract bool onDone(); // return true if animation should be removed when done
+		protected abstract void update(float offset);
+		protected abstract bool onDone(); // return true if animation should be removed when done
+		
+		void abort()
+		{
+			stopped = true;
+		}
 
+		// Animation animation;
+		bool stopped;
 		float duration;
 		float start;
-		_Anim next;
+		protected Runner next;
 	}
 
-	class _AnimatorAnim : _Anim
+	class AnimatorRunner : Runner
 	{
-		this (Animator a, float d, float s) 
+		protected this (Animator a, float d, float s) 
 		{
 			super(d, s);
 			animator = a;
 		}
 
-		final override void update(float offset)
+		protected final override void update(float offset)
 		{
 			animator.update(offset);
 		}
 
-		final override bool onDone()
+		protected final override bool onDone()
 		{
 			return removeWhenDone;
 		}
@@ -51,9 +59,9 @@ private:
 		bool removeWhenDone;
 	}
 
-	class _EventAnim : _Anim
+	class EventRunner : Runner
 	{
-		this(float triggerTime, EventCallback cb, int _data = 0)
+		protected this(float triggerTime, EventCallback cb, int _data = 0)
 		{
 			const float verySmallDuration = 0.00000001;
 			super(verySmallDuration, triggerTime);
@@ -61,11 +69,11 @@ private:
 			data = _data;
 		}
 
-		final override void update(float offset)
+		protected final override void update(float offset)
 		{
 		}
 		
-		final override bool onDone()
+		protected final override bool onDone()
 		{
 			callback(data);
 			return true;
@@ -75,8 +83,8 @@ private:
 		EventCallback callback;
 	}
 
-	_Anim _schedule; 
-	_Anim _head;
+	Runner _schedule; 
+	Runner _head;
 
 public:
 	InterpolateTimer timer;
@@ -100,38 +108,59 @@ public:
 	/*
 	Animator animate(ref float target, float endValue, float duration, float start = float.max)
 	{
-		auto a = new InterpolateAnimator!float(&target, new CubicInterpolator(target, endValue));
+		auto a = new InterpolateAnimator!float(&target, new CubicCurve(target, endValue));
 		insert(a, duration, start);
 		return a;
 	}
 
 */
 
-	Animator animate(string propertyPath, PropertyOwner, AnimType)(PropertyOwner owner, AnimType endValue, float duration, float start = float.max)
+	Runner animate(string propertyPath, PropertyOwner, AnimType)(PropertyOwner owner, AnimType endValue, float duration, float start = float.max)
 	{
-		auto m = mutator!propertyPath(owner);
-		auto a = new InterpolateAnimator!(typeof(m))(m, new CubicInterpolator(m.value, endValue));
-		insert(a, duration, start);
-		return a;
+		// auto m = mutator!propertyPath(owner);
+		start = start == float.max ? timer.now : start;
+		auto a = new AnimatedObject!PropertyOwner(owner);
+		auto clip = a.createClip();
+		clip.createCubicCurve!propertyPath(0, mixin("owner." ~ propertyPath), duration, endValue);
+
+		//auto a = new InterpolateAnimator!(typeof(m), typeof(m).FieldType)
+		//                                 (m, new CubicCurve(start, m.value, start+duration, endValue));
+
+		return insert(a, duration, start);
 	}
 
-	void event(float afterDuration, EventCallback callback, int data = 0)
+	Runner animate(Target)(Target target, Clip!Target clip, float start = float.max)
 	{
-		auto newAnim = new _EventAnim(timer.now + afterDuration, callback, data);
+		// auto m = mutator!propertyPath(owner);
+		start = start == float.max ? timer.now : start;
+		auto a = new AnimatedObject!Target(target);
+		a.clip = clip;
+
+		//auto a = new InterpolateAnimator!(typeof(m), typeof(m).FieldType)
+		//                                 (m, new CubicCurve(start, m.value, start+duration, endValue));
+
+		return insert(a, clip.duration, start);
+	}
+
+	Runner event(float afterDuration, EventCallback callback, int data = 0)
+	{
+		auto newAnim = new EventRunner(timer.now + afterDuration, callback, data);
 		insert(newAnim, true);
+		return newAnim;
 	}
 
-	private void insert(Animator anim, float duration, float start = float.max)
+	Runner insert(Animator anim, float duration, float start)
 	{
-		auto newAnim = new _AnimatorAnim(anim, duration, start == float.max ? timer.now : start);
+		auto newAnim = new AnimatorRunner(anim, duration, start);
 		newAnim.removeWhenDone = true;
 		insert(newAnim, newAnim.removeWhenDone);
+		return newAnim;
 	}
 
-	private void insert(_Anim newAnim, bool removeWhenDone)
+	private void insert(Runner newAnim, bool removeWhenDone)
 	{
-		_Anim prev = null;
-		_Anim cur = _schedule;
+		Runner prev = null;
+		Runner cur = _schedule;
 		while (true)
 		{
 			if (cur is null || cur.start > newAnim.start)
@@ -161,6 +190,14 @@ public:
 		}
 	}
 
+	/** Remove animation by handle
+	*/
+	/*
+	void remove(Handle h)
+	{
+		
+	}
+*/
 	void start()
 	{
 		timer.reset();
@@ -170,16 +207,32 @@ public:
 	void update()
 	{
 		auto n = timer.now;
-		_Anim cur = _head;
-		_Anim prev = null;
+		Runner cur = _head;
+		Runner prev = null;
 		while (cur !is null && cur.start <= n)
 		{
-			float offset = (n - cur.start) / cur.duration;
+			//float offset = (n - cur.start) / cur.duration;
 			//std.stdio.writeln("animating ", n, " ", cur.start, " ", offset);
-			cur.update(offset > 1f ? 1f : offset);
+			// cur.update(offset > 1f ? 1f : offset);
+			if (!cur.stopped)
+				cur.update(n - cur.start);
 
-			if (offset >= 1f && cur.onDone())
+			if (cur.stopped)
 			{
+				// remove cur from list
+				if (prev is null)
+				{
+					_head = cur.next;
+				}
+				else
+				{
+					prev.next = cur.next;
+				}
+			}
+			else if (n >= (cur.start + cur.duration) && cur.onDone())
+			{
+				cur.stopped = true;
+				
 				// remove cur from list
 				if (prev is null)
 				{

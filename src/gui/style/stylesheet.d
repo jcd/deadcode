@@ -84,7 +84,7 @@ class WidgetSelector
 				pseudoMatch = false; // TODO: implement
 				break;
 			case PseudoClass.focus:
-				pseudoMatch = false; // TODO: implement
+				pseudoMatch = w.isKeyboardFocusWidget();
 				break;
 		}
 
@@ -234,14 +234,17 @@ class SiblingSelectorOperator: SelectorOperator
 }
 */
 
+alias WidgetSelector[] Selectors;
+
 class Rule
 {
 	//
-	// widgetSelector1 operator1 widgetSelector2 operator2 widgetSelector3
+	// selector1 operator1 selector2 operator2 selector3
 	// ie. 
-	// operator.length == widgetSelectors.lenght - 1
+	// operator.length == selectors.lenght - 1
 	//
-	WidgetSelector[] widgetSelectors;
+	
+	Selectors selectors;
 	Style style;
 
 	// 
@@ -257,18 +260,18 @@ class Rule
 		if (specificity == 0)
 			calculateSpecificity();
 
-		if (widgetSelectors.empty)
+		if (selectors.empty)
 			return true;
 
-		for (int i = widgetSelectors.length - 1; w !is null && i >= 0; i--)
-			w = widgetSelectors[i].match(w, classNames);
+		for (int i = selectors.length - 1; w !is null && i >= 0; i--)
+			w = selectors[i].match(w, classNames);
 
 		return w !is null;
 	}
 
 	void calculateSpecificity()
 	{
-		foreach (s;	widgetSelectors)
+		foreach (s;	selectors)
 		{
 			if (s.widgetName !is null)
 				specificity += 0x01_00_00_00;
@@ -286,7 +289,7 @@ unittest
 {
 	auto testWin = createTestWindow();
 	auto sel1 = new Rule;
-	sel1.widgetSelectors ~= new WidgetSelector("Widget", null);
+	sel1.selectors ~= new WidgetSelector("Widget", null);
 	auto w1 = new Widget(testWin);
 	w1.name = "testParent";
 	auto w2 = new Widget(w1);
@@ -294,8 +297,8 @@ unittest
 
 	Assert(sel1.match(w1, null), "Wildcard selector matches single");
 
-	WidgetSelector[] ws = [new ChildSelector(null, "testParent")];
-	sel1.widgetSelectors =  ws ~ sel1.widgetSelectors;
+	Selectors ws = [new ChildSelector(null, "testParent")];
+	sel1.selectors =  ws ~ sel1.selectors;
 	Assert(!sel1.match(w1, null), "Child selector on parent does not match");
 	Assert(sel1.match(w2, null), "Child selector on child does not match");
 }
@@ -398,14 +401,14 @@ class StyleSheet : Resource!StyleSheet
 				lastSpecificity = m.rule.specificity;
 			}
 		}
-
+		st.rebuildTransitionCache();
 		return st;
 	}
 
 	Style createStyle(Style from)
 	{
-		auto st = new Style(this);
-		st._fields = from._fields;
+		auto st = from.clone();
+		st.styleSheet = this;
 		return st;
 	}
 
@@ -425,7 +428,7 @@ unittest
 
 	// WidgetSelector
 	Rule sel1 = new Rule;
-	sel1.widgetSelectors ~= new WidgetSelector("Widget", null);
+	sel1.selectors ~= new WidgetSelector("Widget", null);
 	sel1.style = new Style(sheet);
 	sel1.style.color = Color.red;
 	// sel1.style.compute();		
@@ -437,7 +440,7 @@ unittest
 
 	// ChildSelector
 	Rule sel2 = new Rule;
-	sel2.widgetSelectors ~= new ChildSelector(null,"testParent");
+	sel2.selectors ~= new ChildSelector(null,"testParent");
 	sel2.style = new Style(sheet);
 	sel2.style.color = Color.green;
 	//sel2.style.compute();
@@ -449,7 +452,7 @@ unittest
 
 	// DescendantSelector
 	Rule sel3 = new Rule;
-	sel3.widgetSelectors ~= new DescendantSelector(null,"testParent");
+	sel3.selectors ~= new DescendantSelector(null,"testParent");
 	sel3.style = new Style(sheet);
 	sel3.style.color = Color.blue;
 	//sel3.style.compute();

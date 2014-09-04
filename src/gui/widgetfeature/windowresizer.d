@@ -37,7 +37,7 @@ class WindowResizer : WidgetFeature
 	override EventUsed send(Event event, Widget widget)
 	{
 		// Dragging support
-		if (event.type == EventType.MouseDown && widget.rect.contains(event.mousePos))
+		if (event.type == EventType.MouseDown && widget.rectStyled.contains(event.mousePos))
 		{
 			startSize = widget.window.size;
 			widget.grabMouse();

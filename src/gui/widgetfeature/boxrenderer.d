@@ -40,7 +40,7 @@ class BoxRenderer : WidgetFeature
 	
 
 
-		const Rectf r = Rectf(widget.rect);
+		const Rectf r = Rectf(widget.rectStyled);
 		Rectf wrect = widget.window.windowToWorld(r);
 		
 		// Move model using translate to we do not have to update vertex position array

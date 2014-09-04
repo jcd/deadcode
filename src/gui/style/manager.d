@@ -1,5 +1,7 @@
 module gui.style.manager;
 
+import animation.interpolate;
+
 import math._;
 
 import gui.resource;
@@ -9,6 +11,7 @@ import gui.resources.font : Font, FontManager;
 import gui.style.property;
 import gui.style.style;
 import gui.style.stylesheet;
+import gui.style.types;
 
 import io.iomanager;
 
@@ -52,12 +55,16 @@ class StyleSheetManager : ResourceManager!StyleSheet
 		ssm.addPropertySpecification!Vec2f("offset", Vec2f(0,0));
 
 		// Transitions
-		//import animation.interpolate;
-		//ssm.addPropertySpecification!float("transition-delay", 0f);
-		//ssm.addPropertySpecification!float("transition-duration", 0f);
-		//ssm.addPropertySpecification!Interpolator("transition-timing", 0f);
-		//ssm.addPropertySpecification!PropertyID("transition-property", 0f);
-		//ssm.addPropertySpecificationShortHand("transition", "property", "duration", "timing", "delay");
+		// import animation.interpolate;
+		import std.datetime;
+		ssm.addPropertySpecification!Duration("transition-delay", dur!"seconds"(0)).multi = true;
+		ssm.addPropertySpecification!Duration("transition-duration", dur!"seconds"(0)).multi = true;
+		auto ease = animation.interpolate.CubicBezierCurve!float.ease;
+		ssm.addPropertySpecification!CubicCurveParameters("transition-timing", ease.dup[0..4]).multi = true;
+		// ssm.addPropertySpecification!float("transition-timing", 0f);
+		ssm.addPropertySpecification!PropertyID("transition-property", "all").multi = true;
+		ssm.addPropertyShorthand("transition",
+								 "property", "duration", "timing", "delay").multi = true;
 
 		return ssm;
 	}
@@ -80,7 +87,7 @@ class StyleSheetManager : ResourceManager!StyleSheet
 		lbase.backgroundSprite = Rectf.init;
 
 		sel.style = lbase;
-		sel.widgetSelectors ~= new WidgetSelector(null, null); // select all
+		sel.selectors ~= new WidgetSelector(null, null); // select all
 
 		onResourceLoaded(ss, null);
 	}
@@ -90,9 +97,30 @@ class StyleSheetManager : ResourceManager!StyleSheet
 		_propertySpecifications[spec.id] = spec;
 	}
 
-	void addPropertySpecification(T)(PropertyID pid, T _default, bool inherited = false)
+	auto addPropertySpecification(T)(PropertyID pid, T _default, bool inherited = false)
 	{
-		_propertySpecifications[pid] = new PropertySpecification!T(pid, _default, inherited);
+		auto v = new PropertySpecification!T(pid, _default, inherited);;
+		_propertySpecifications[pid] = v;
+		return v;
+	}
+
+	auto addPropertyShorthand(PropNames...)(PropertyID base, PropNames propNames)
+	{
+		// rename to id-subprop
+		// e.g. id == "background" and subprop is "color" becomes
+		// "background-color"
+		
+		IPropertySpecification[] subProperties;
+
+		foreach (p; propNames)
+		{
+			auto id = base ~ "-" ~ p;
+			subProperties ~= _propertySpecifications[id];
+		}
+
+		auto v = new PropertyShorthand(base, subProperties);
+		_propertySpecifications[base] = v;
+		return v;
 	}
 
 	IPropertySpecification lookupPropertySpecification(PropertyID pid)

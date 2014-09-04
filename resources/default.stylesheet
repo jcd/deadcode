@@ -8,6 +8,26 @@
 	offset: 0 0;
 }
 
+TestWidget {
+	background-color: #0a1a1a;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	position: fixed;
+	width: 24px;
+	height: 24px;
+	left: 0%;
+	transition: width 0.1s, height 0.5s, background-color 0.5s;
+}
+
+TestWidget:hover {
+	background-color: #0a272d;
+	height: 40%;
+	width: 40%;
+	left: 10%;
+	transition-duration: 0.3s, 0.2s, 0.5s;
+}
+
 TextEditor {
 	color: #f8f8f2;
 }
@@ -33,15 +53,28 @@ UnittestAnchor {
 	background-sprite: 16 16 16 16;
 	background: url(materials/unittest-start.png);	
 	offset: -8 18;
+	width: 16px;
+	transition-property: background-color;
+	transition-duration: 0.5s;
+	transition-timing: ease;
+	transition-delay: 0s;
 }
 
 UnittestAnchor:hover {
-	background-color: #6ad76d;
-	offset: -8 18;
+	background-color: #00ff00;
+	width: 24px;
+	height: 24px;
+	left: -4px;
+	top: -4px;
+
 }
 
 UnittestAnchor:active {
 	background-color: #ffffff;
+	width: 20px;
+	height: 20px;
+	left: -2px;
+	top: -2px;
 }
 
 UnittestdAnchor:disabled {
@@ -142,7 +175,17 @@ UnittestAnchor:focus {
 
 CommandControl
 {
-	expand-duration: 0.1;
+	background-color: #0a1a1a;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	expand-duration: 0.3;
+}
+
+CommandControl:focus
+{
+	transition: height 1s;
+	height: 20%;
 }
 
 TextEditor#commandCompletion.completion-selected {
@@ -157,6 +200,7 @@ TextEditor#commandCompletion.selection {
 TextEditor#commandCompletion {
 	background: url(materials/white-small-nine-patch.png);
 	color: #a8a8a2;
+	top: 5px;
 	padding : 6 6 6 0;
 	background-color: #0a272d;
 	background-sprite: 0 6 16 10;
@@ -165,7 +209,7 @@ TextEditor#commandCompletion {
 
 TextField#commandEntryField {
 	color: #f8f8f2;
-	padding : 6 2 6 0;
+	padding : 2 2 6 0;
 	background: url(materials/bgplain.png);
 }
 

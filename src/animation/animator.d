@@ -8,27 +8,58 @@ class Animator
 	{
 		// Constructor code
 	}
-	void update(float offset)
+
+	@property bool done()
+	{
+		return true;
+	}
+
+	void update(double offset)
 	{
 	}
 }
 
-class InterpolateAnimator(T) : Animator
+class InterpolateAnimator(T, V) : Animator
 {
 	private
 	{
 		T _target;
-		Interpolator _interpolator;
+		Curve _curve;
 	} 
 
-	this(T target, Interpolator i)
+	this(T target, Curve c)
 	{
 		_target = target;
-		_interpolator = i;
+		_curve = c;
 	}
 
-	override void update(float offset)
+	override void update(double offset)
 	{
-		_target = _interpolator.eval(offset);
+		_target = _curve.eval(offset);
+		// auto delta = _curve.eval(offset);
+		// _target = delta * _end + (1 - delta) * _begin;
 	}
 }
+
+class AnimatedObject(T) : Animator
+{
+	Clip!T clip;
+	T object;
+
+	this(T object)
+	{
+		this.object = object;
+	}
+
+	Clip!T createClip()
+	{
+		clip = new Clip!T();
+		return clip;
+	}
+
+	override void update(double timeOffset)
+	{
+		clip.update(object, timeOffset);
+	}
+}
+

@@ -61,14 +61,14 @@ class Animator
 	int frameIdx;
 	float offset; // 0..1 of total animation ie. all frames
 	float speed;
-	Interpolator interpolator;
+	Curve!float curve;
 
 	Style animStyle;
 
-	this(Animation a, Interpolator i)
+	this(Animation a, Curve!float i)
 	{
 		anim = a;
-		interpolator = i;
+		curve = i;
 		frameIdx = 0;
 		animStyle = new Style(anim.sheet);
 	}
@@ -142,7 +142,7 @@ class Animator
 		else
 		{
 			// Last frame so just use its value
-			animStyle.clear();
+			// TODO: clear is disabled for now animStyle.clear();
 			keyFrame = anim.keyFrames[frameIdx];
 			animStyle.overlay(keyFrame.style);
 		}
@@ -151,15 +151,43 @@ class Animator
 
 /** CSS Transition
 */
-class Transition
+
+alias float[4] CubicCurveParameters;
+
+import core.time;
+
+struct Transition
 {
 	import animation.interpolate;
+	
+	this(string propName, 
+		 Duration dura = dur!"seconds"(0), 
+		 CubicCurveParameters cubicBezier = CubicBezierCurve!float.ease[0..4], 
+		 Duration delay = dur!"seconds"(0))
+	{
+		propertyName = propName;
+		duration = dura;
+		timing = cubicBezier;
+		this.delay = delay;
+	}
 
-	float delay;    // seconds
-	float duration; // seconds
-	Interpolator timing;
 	string propertyName;
+	Duration duration; // seconds
+	CubicCurveParameters timing;
+	Duration delay;    // seconds
 }
+
+/*
+class StyleTransitionAnimator : Animator
+{
+	Transition transition;
+
+	override void update(double time)
+	{
+		
+	}
+}
+*/
 
 enum CSSUnit : byte
 {
@@ -178,6 +206,78 @@ struct CSSScale
 {
 	float value;
 	CSSUnit unit;
+
+	@property float valueOrZero() const pure nothrow
+	{
+		import std.math;
+		return value.isNaN ? 0 : value;
+	}
+
+	@property CSSScale clamped() const pure nothrow
+	{
+		return CSSScale(valueOrZero, unit);	
+	}
+
+	CSSScale opBinary(string OP)(CSSScale v) const pure nothrow
+	{
+		Rect!T res = this;
+		mixin("res.value " ~ OP ~ "= v.value;");
+		// mixin("res.size " ~ OP ~ "= v.unit;");
+		return res;
+	}
+
+	void opOpAssign(string OP)(CSSScale v) pure nothrow
+	{
+		mixin("this.value" ~ OP ~ "= v.value;");
+		//mixin("this.size" ~ OP ~ "= v.size;");
+	}
+
+	CSSScale opBinary(string OP)(float v) const pure nothrow if (OP == "*" || OP == "/")
+	{
+		CSSScale res = this;
+		mixin("res.value " ~ OP ~ "= v;");
+		return res;
+	}
+
+	void opOpAssign(string OP)(float v) pure nothrow if (OP == "*" || OP == "/")
+	{
+		mixin("this.value" ~ OP ~ "= v;");
+	}
+}
+
+// Representation of a mix of two CSSScales A and B
+// with 0 denoting all of value/unit A and 1 denoting all of value/unit B
+struct CSSScaleMix
+{
+	CSSScale cssScaleA;
+	alias cssScaleA this;
+
+	CSSScale cssScaleB;
+
+	float mixOffset; 
+
+	CSSScale opIndex(int i) const pure nothrow
+	{
+		assert(i < 2);
+		if (i == 0)
+			return cssScaleA;
+		return cssScaleB;
+	}
+
+	@property isMixed() const pure nothrow @safe
+	{
+		import std.math;
+		return !mixOffset.isNaN;
+	}
+}
+
+enum CSSPosition : byte
+{
+	invalid,
+	static_,
+	fixed,
+	relative,
+	absolute
 }
 
 struct RectCSSOffset
@@ -187,6 +287,11 @@ struct RectCSSOffset
 	CSSScale right;
 	CSSScale bottom;
 
+	@property RectCSSOffset clamped() const pure nothrow
+	{
+		return RectCSSOffset(left.clamped, top.clamped, right.clamped, bottom.clamped);
+	}
+
 	RectCSSOffset reverse() const pure nothrow
 	{
 		RectCSSOffset res;
@@ -195,6 +300,42 @@ struct RectCSSOffset
 		res.top.value = -top.value;
 		res.bottom.value = -bottom.value;
 		return res;
+	}
+
+	RectCSSOffset opBinary(string OP)(RectCSSOffset v) const pure nothrow
+	{
+		RectCSSOffset res = this;
+		mixin("res.left " ~ OP ~ "= v.left;");
+		mixin("res.top " ~ OP ~ "= v.top;");
+		mixin("res.right " ~ OP ~ "= v.right;");
+		mixin("res.bottom " ~ OP ~ "= v.bottom;");
+		return res;
+	}
+
+	void opOpAssign(string OP)(RectCSSOffset v) pure nothrow
+	{
+		mixin("this.left" ~ OP ~ "= v.left;");
+		mixin("this.top" ~ OP ~ "= v.top;");
+		mixin("this.right" ~ OP ~ "= v.right;");
+		mixin("this.bottom" ~ OP ~ "= v.bottom;");
+	}
+	
+	RectCSSOffset opBinary(string OP)(float v) const pure nothrow if (OP == "*" || OP == "/")
+	{
+		RectCSSOffset res = this;
+		mixin("res.left " ~ OP ~ "= v;");
+		mixin("res.top " ~ OP ~ "= v;");
+		mixin("res.right " ~ OP ~ "= v;");
+		mixin("res.bottom " ~ OP ~ "= v;");
+		return res;
+	}
+
+	void opOpAssign(string OP)(float v) pure nothrow if (OP == "*" || OP == "/")
+	{
+		mixin("this.left" ~ OP ~ "= v;");
+		mixin("this.top" ~ OP ~ "= v;");
+		mixin("this.right" ~ OP ~ "= v;");
+		mixin("this.bottom" ~ OP ~ "= v;");
 	}
 
 	@property bool empty() @safe nothrow

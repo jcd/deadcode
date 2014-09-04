@@ -54,6 +54,7 @@ class Window : Widget
 	std.variant.Variant userData;
 	WindowID id;
 	StyleSheet styleSheet;
+	Timeline timeline;
 
 	// emit(this)
 	mixin Signal!(Window) onUpdate;

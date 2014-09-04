@@ -409,6 +409,7 @@ class GUI
 	Window createWindow(string name = "MainWindow", int width = 1280, int height = 720)
 	{
 		Window win = new Window(name, width, height);
+		win.timeline = timeline;
 		if (activeWindow is null)
 			activeWindow = win;
 		_windows[win.id] = win;

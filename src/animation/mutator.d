@@ -210,21 +210,27 @@ unittest
 	std.stdio.writeln(isMemberReadable!(D, "foo1.bar"), " ", isMemberWritable!(D, "foo1.bar"));
 }
 */
-class Mutator 
+class Mutator(FieldTypeT)
 {
+	//	mixin("alias typeof(OwnerType." ~ field ~ ")  FieldType;");
+	alias FieldTypeT FieldType;
+
+	abstract @property FieldType value();
+	abstract @property void value(FieldType v);
+	abstract void opAssign(FieldType value);
+	abstract void opOpAssign(string op)(FieldType value);
 }
 
-class DirectFieldMutator(string field, OwnerType) : Mutator
+class DirectFieldMutator(string field, OwnerType) : Mutator!(mixin("typeof(OwnerType." ~ field ~ ")"))
 {
 	OwnerType owner;
-	mixin("alias typeof(OwnerType." ~ field ~ ")  FieldType;");
 
 	this(ref OwnerType owner)
 	{
 		this.owner = owner;
 	}
 
-	@property FieldType value()
+	override @property FieldType value()
 	{
 		static if (isMemberReadable!(OwnerType, field))
 			return mixin("owner." ~ field);
@@ -232,7 +238,7 @@ class DirectFieldMutator(string field, OwnerType) : Mutator
 			throw new MutateException(format("Field '%s' not readable", field)); // runtime error
 	}
 
-	void opAssign(FieldType value)
+	override @property void value(FieldType v)
 	{
 		// Ignore op assign if field is readonly
 		enum fun = "owner." ~ field;
@@ -242,7 +248,12 @@ class DirectFieldMutator(string field, OwnerType) : Mutator
 			throw new MutateException(format("Field '%s' not modifiable using =", field)); // runtime error
 	}
 
-	void opOpAssign(string op)(FieldType value)
+	override void opAssign(FieldType value)
+	{
+		this.value = value;
+	}
+
+	override void opOpAssign(string op)(FieldType value)
 	{
 		enum opopassign = "owner." ~ field ~ " " ~ op ~ "= value;";
 		enum opassign_opbinary = "owner." ~ field ~ " = owner." ~ field ~ " " ~ op ~ " value;";
@@ -259,6 +270,347 @@ auto mutator(alias field, OwnerType)(ref OwnerType s)
 {
 	return new DirectFieldMutator!(field, OwnerType)(s);
 }
+
+class FieldProxy(string field, _OwnerType)
+{
+	mixin("enum fieldPath = \"" ~ field ~ "\";");
+	mixin("alias typeof(OwnerType." ~ field ~ ") FieldType;");
+	alias _OwnerType OwnerType;
+
+	static FieldType get(OwnerType owner)
+	{
+		static if (isMemberReadable!(OwnerType, field))
+			return mixin("owner." ~ field);
+		else
+			throw new MutateException(format("Field '%s' not readable", field)); // runtime error
+	}
+
+	static void set(OwnerType owner, FieldType value)
+	{
+		// Ignore op assign if field is readonly
+		enum fun = "owner." ~ field;
+		static if ( isMemberWritable!(OwnerType, field))
+			mixin("owner." ~ field ~ " = value;");
+		else
+			throw new MutateException(format("Field '%s' not modifiable using =", field)); // runtime error
+	}
+}
+
+struct Bindable {}
+struct NonBindable {}
+
+bool hasUDA(UDA, T, string _field)()
+{
+	foreach (attr;  __traits(getAttributes, mixin("T." ~ _field)))
+	{
+		static if (is(typeof(attr) : UDA))
+		{
+			return true;
+		}
+	}	
+	return false;
+}
+
+bool hasFuncAttrib(string hasAtt, T, string _field)()
+{
+	static if (__traits(compiles, __traits(getFunctionAttributes, mixin("T." ~ _field))))
+	{
+		foreach (attr;  __traits(getFunctionAttributes, mixin("T." ~ _field)))
+		{
+			static if (attr == hasAtt)
+			{
+				return true;
+			}
+		}	
+	}
+	return false;
+}
+
+private string getProxyFields(T, alias prefix = "")()
+{
+	import std.traits;
+	import std.typetuple;
+	import std.stdio;
+	import std.algorithm;
+
+	string result;
+
+	foreach (_field; __traits(allMembers,T))
+	{
+		enum field = prefix ~ _field;
+		// pragma(msg, T.stringof ~ " xx " ~ field);
+
+		//static if (_field != "this" && field != "_font.Handle" && field != "_background._manager.Handle")
+		//	pragma(msg, __traits(parent, mixin("T."~_field)));
+
+		static if (_field == "this" || _field == "Monitor" || field[$-1] == '.')
+		{
+			continue;
+		}
+		else static if ( (__traits(compiles, isTypeTuple!(mixin("T." ~ _field) )) && isTypeTuple!(mixin("T." ~ _field) )) ||
+						!__traits(compiles, __traits(parent, mixin("T." ~ _field))) ||
+						 __traits(getProtection, mixin("T." ~ _field)) == "private" || 
+						__traits(getProtection, mixin("T." ~ _field)) == "protected" ||
+						// __traits(isVirtualMethod, mixin("T." ~ _field)) ||
+							//canFind([__traits(getFunctionAttributes, mixin("T." ~ _field))], "@property") ||
+						// !isExpressionTuple!(mixin("T." ~ _field)) ||
+						 __traits(compiles, isAggregateType!(mixin("T." ~ _field))) ||
+						//!isExpressionTuple!(mixin("T." ~ _field)) ||
+						isCallable!( typeof(mixin("T." ~ _field))) ||
+						isSomeFunction!( typeof(mixin("T." ~ _field))) )
+		{
+			// pragma(msg, "skip " ~ field);
+			continue;
+		}
+		else static if ( isAggregateType!( typeof(mixin("T." ~ _field))) && !__traits(isVirtualMethod, mixin("T." ~ _field)) && !hasFuncAttrib!("@property", T, _field))
+		{
+			
+			static if (!hasUDA!(NonBindable, T, _field)() )
+			{
+				
+				static if (hasUDA!(Bindable, T, _field)() )
+				{
+					if (result.length)
+						result ~= ",";
+					enum fp = "FieldProxy!(\"" ~ field ~ "\", T)";
+
+					pragma(msg, "Binding Aggregate " ~ fp);
+
+					result ~= fp;
+				}
+
+				//pragma(msg, "agg " ~ getFunctionAttributes(
+				enum r = getProxyFields!(typeof(mixin("T." ~ _field)), field ~ ".")();
+
+				if (r.length)
+				{
+					if (result.length)
+						result ~= ",";
+					result ~= r;
+				}
+			}
+		}
+		else
+		{
+			static if (hasUDA!(Bindable, T, _field)() )
+			{
+				if (result.length)
+					result ~= ",";
+				enum fp = "FieldProxy!(\"" ~ field ~ "\", T)";
+
+				// pragma(msg, fp);
+				pragma(msg, "Binding " ~ fp);
+				result ~= fp;
+			}
+			//foreach (attr;  __traits(getAttributes, mixin("T." ~ _field)))
+			//{
+			//    static if (is(typeof(attr) : Bindable))
+			//    {
+			//        //writeln("Bindable ", field);
+			//        if (result.length)
+			//            result ~= ",";
+			//        enum fp = "FieldProxy!(\"" ~ field ~ "\", T)";
+			//        
+			//        // pragma(msg, fp);
+			//
+			//        result ~= fp;
+			//
+			//    }
+			//    //else
+			//        //writeln("Not bindable ", field.stringof);
+			//}
+		}
+	}
+	return result;
+}
+
+
+import std.typetuple;
+class ObjectProxy(T)
+{
+	// pragma (msg, getProxyFields!T());
+	mixin("alias TypeTuple!(" ~ getProxyFields!T() ~ ")  Fields;");
+//	static Tuple!(FieldProxy!("field1", T),FieldProxy!("field2", T)) fields;
+	enum fields = Fields.init; // fields;
+	// enum fields = Fields.init;
+
+	T object;
+
+	this(T o)
+	{
+		object = o;
+	}
+
+	F get(F)(string name)
+	{
+		return get!F(object, name);
+	}
+
+	void set(F)(string name, F value)
+	{
+		set(object, name, value);
+	}
+
+	static F get(F)(T obj, string name)
+	{
+		foreach (t; Fields)
+		{
+			static if ( is (t.FieldType : F) )
+			{
+				if (t.fieldPath == name)
+					return t.get(obj);
+			}
+		}
+		assert(0);
+	}
+
+	static void set(F)(T obj, string name, F value)
+	{
+		foreach (t; Fields)
+		{
+			if (t.fieldPath == name)
+				return t.set(obj, value);
+		}
+		assert(0);
+	}
+
+}
+
+auto proxy(T)(T obj)
+{
+	return new ObjectProxy!T(obj);
+}
+
+F getField(F, T)(T obj, string fieldPath)
+{
+	return ObjectProxy!T.get!F(obj, fieldPath);
+}
+
+void setField(F, T)(T obj, string fieldPath, F value)
+{
+	ObjectProxy!T.set(obj, fieldPath, value);
+}
+
+/*
+auto getField(T)(T obj, int idx)
+{
+	return ObjectProxy!T.getfields.expand[idx].get(obj);
+}
+
+void setField(T, R)(T obj, int idx, R value)
+{
+	ObjectProxy!T.fields[idx].set(obj, value);
+}
+*/
+
+version (foo) static this()
+{
+
+	class Bar 
+	{
+		@Bindable()
+		int field1;
+	}
+
+	class Foo 
+	{
+		@Bindable()
+		float field1;
+
+		@Bindable()
+		float field2;
+
+		Bar fieldInner;
+	}
+	Foo inst = new Foo;
+	inst.field1 = 1;
+	inst.field2 = 2;
+	inst.fieldInner = new Bar();
+	inst.fieldInner.field1 = 100;
+
+	auto fooProxy = proxy(inst);
+
+	pragma(msg, ObjectProxy!Foo.fields);
+
+	assert(ObjectProxy!Foo.fields.length == 3);
+	assert(ObjectProxy!Foo.fields[0].fieldPath == "field1");
+
+	// Static proxy
+	assert(inst.getField!float("field1") == 1);
+	assert(inst.getField!float("field2") == 2);
+	inst.setField("field2", 3);
+	assert(inst.getField!float("field1") == 1);
+	assert(inst.getField!float("field2") == 3);
+
+	// Bound proxy
+	assert(fooProxy.get!float("field1") == 1);
+	assert(fooProxy.get!float("field2") == 3);
+	fooProxy.set("field2", 4);
+
+	assert(inst.getField!float("field1") == 1);
+	assert(inst.getField!float("field2") == 4);
+
+	assert(fooProxy.get!int("fieldInner.field1") == 100);
+	fooProxy.set("fieldInner.field1", 200);
+	assert(fooProxy.get!int("fieldInner.field1") == 200);
+
+}
+
+
+//T getField(
+
+
+class FieldProxy2(FieldTypeT)
+{
+	//	mixin("alias typeof(OwnerType." ~ field ~ ")  FieldType;");
+	alias FieldTypeT FieldType;
+
+	abstract FieldType get(Object obj);
+	abstract void set(Object obj, FieldType value);
+}
+
+class DirectFieldMutator2(string field, OwnerType)
+{
+	OwnerType owner;
+
+	this(ref OwnerType owner)
+	{
+		this.owner = owner;
+	}
+
+	override @property FieldType value()
+	{
+		static if (isMemberReadable!(OwnerType, field))
+			return mixin("owner." ~ field);
+		else
+			throw new MutateException(format("Field '%s' not readable", field)); // runtime error
+	}
+
+	override void opAssign(FieldType value)
+	{
+		// Ignore op assign if field is readonly
+		enum fun = "owner." ~ field;
+		static if ( isMemberWritable!(OwnerType, field))
+			mixin("owner." ~ field ~ " = value;");
+		else
+			throw new MutateException(format("Field '%s' not modifiable using =", field)); // runtime error
+	}
+
+	override void opOpAssign(string op)(FieldType value)
+	{
+		enum opopassign = "owner." ~ field ~ " " ~ op ~ "= value;";
+		enum opassign_opbinary = "owner." ~ field ~ " = owner." ~ field ~ " " ~ op ~ " value;";
+		static if (__traits(compiles, mixin(opopassign)))
+			mixin(opopassign); // if op= is present on value
+		else static if (isMemberReadable!(OwnerType, field) && isMemberWritable!(OwnerType, field))
+			mixin(opassign_opbinary);
+		else
+			throw new MutateException(format("Field '%s' not modifiable using %s=", field, op)); // runtime error
+	}
+}
+
+
+
 /*
 unittest
 {
@@ -359,7 +711,7 @@ class ClassReflection
 	string[string] fields;
 }
 
-class DirectObjectMutator(ObjType) : Mutator
+class DirectObjectMutator(ObjType ) : Mutator
 {
 	mixin("alias ObjType Type;");
 	Type object;

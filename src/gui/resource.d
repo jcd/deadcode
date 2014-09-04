@@ -161,7 +161,7 @@ public:
 				return v;
 			}
 		}
-		writeln("could NOT lookup " ~ uri.toString());
+		
 		return null;
 	}
 

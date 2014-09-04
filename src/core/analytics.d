@@ -120,21 +120,21 @@ class GoogleAnalytics : Analytics
 	override void addEvent(string category, string action, string label = null, string value = null)
 	{
 		ensureRunning();
-		writefln("addEvent %s %s %s %s", category, action, label, value);
+		// writefln("addEvent %s %s %s %s", category, action, label, value);
 		worker.send(category, action, label, value);
 	}
 
 	override void addTiming(string category, string variable, Duration d)
 	{
 		ensureRunning();
-		writefln("addTiming %s %s %s", category, variable, d.total!"msecs"());
+		// writefln("addTiming %s %s %s", category, variable, d.total!"msecs"());
 		worker.send(category, variable, d);
 	}
 
 	override void addException(string description, bool isFatal)
 	{
 		ensureRunning();
-		writefln("addException %s %s", description, isFatal);
+		// writefln("addException %s %s", description, isFatal);
 		worker.send(description, isFatal);
 	}
 

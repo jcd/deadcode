@@ -379,7 +379,6 @@ version (Windows)
 	private Rectf getExistingWindowRect()
 	{
 		auto hwnd = FindWindowA("SDL_app", "Ded");
-		writeln("Already running is ", hwnd);
 		Rectf result;
 		RECT r;
 		if (hwnd !is null)
@@ -545,7 +544,7 @@ version (Windows)
 		}
 		view.cursorToStart();
 		view.clearUndoStack();
-		addMessage("Read %s", view.name);
+		// addMessage("Read %s", view.name);
 		return view;
 		//Application.activeEditor.show(view);			
 	}

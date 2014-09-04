@@ -6,13 +6,13 @@ import std.algorithm;
 
 import std.path;
 import std.range;
-import std.stdio : StdFile = File, ErrnoException;
+import std.stdio : StdFile = File;
 
 class File : IO
 {
 	static File open(string path, IOMode mode)
 	{
-		debug std.stdio.writeln("Opening ", path);
+		// debug std.stdio.writeln("Opening ", path);
 		string modeString;
 		
 		final switch (mode)
@@ -33,7 +33,7 @@ class File : IO
 			f._handle = StdFile(path, modeString);
 			return f;
 		}
-		catch (ErrnoException e)
+		catch (Exception e)
 		{
 			debug std.stdio.writeln("Cannot open", path);
 			return null;

@@ -79,6 +79,13 @@ struct Event
 	EventType type;
 	Uint32 windowID;
 
+	ref Event opAssign(Event s)
+	{
+		 //s.sizeof
+		(cast(ubyte*)(&this))[0..s.sizeof][] = (cast(ubyte*)(&s))[0..s.sizeof];       // bitcopy s into this
+		return this;
+	}
+
 	union 
 	{
 		struct 

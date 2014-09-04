@@ -1,5 +1,7 @@
 module graphics.font;
 
+import animation.mutator;
+
 import graphics.texture;
 
 //import core.resource;
@@ -53,6 +55,8 @@ class Font //: Resource!Font
 	uint fontLineSkip;
 	
 	string path;
+
+	@NonBindable()
 	Texture fontMap;
 	size_t size;
 	

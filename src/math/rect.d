@@ -1,5 +1,7 @@
 module math.rect;
 
+import animation.mutator;
+
 import math.smallvector;
 import std.math : fmin, fmax, isNaN;
 import std.string : format;
@@ -175,6 +177,36 @@ struct Rect(T)
 		mixin("this.pos.y" ~ OP ~ "= v.y;");
 	}
 
+	//	Rect!T opBinary(string OP)(Vec2!T v) const
+	Rect!T opBinary(string OP)(Rect!T v) const pure nothrow
+	{
+		Rect!T res = this;
+		mixin("res.pos " ~ OP ~ "= v.pos;");
+		mixin("res.size " ~ OP ~ "= v.size;");
+		return res;
+	}
+
+	//	void opOpAssign(string OP)(Vec2!T v) pure nothrow
+	void opOpAssign(string OP)(Rect!T v) pure nothrow
+	{
+		mixin("this.pos" ~ OP ~ "= v.pos;");
+		mixin("this.size" ~ OP ~ "= v.size;");
+	}
+
+	Rect!T opBinary(string OP)(T v) const pure nothrow if (OP == "*" || OP == "/")
+	{
+		Rect!T res = this;
+		mixin("res.pos " ~ OP ~ "= v;");
+		mixin("res.size " ~ OP ~ "= v;");
+		return res;
+	}
+
+	void opOpAssign(string OP)(T v) pure nothrow if (OP == "*" || OP == "/")
+	{
+		mixin("this.pos" ~ OP ~ "= v;");
+		mixin("this.size" ~ OP ~ "= v;");
+	}
+
 	Rect!T scale(float s) const pure nothrow
 	{
 		Rect!T r = this;
@@ -220,6 +252,11 @@ struct Rect(T)
 	{
 		return std.string.format("Rect(%s,%s,%s,%s)", x, y, w, h);
 	}
+
+	unittest
+	{
+		int a = 0;
+	}
 }
 
 alias Rect!(float) Rectf;
@@ -232,14 +269,29 @@ Rectf stringToRectf(string str)
 	return Rectf(x, y, w, h);
 }
 
+version(unittest)
+{
+	import test;
+	mixin registerUnittests!(math.rect);
+}
+
+unittest 
+{
+	import test;
+	Rectf r = Rectf(1, 2, 3, 4);
+	Assert(!std.math.isNaN(r.pos.x));
+	Assert!(math.rect)(stringToRectf("1 2 3 4.5"), Rectf(1,2,3,4.5));
+	std.stdio.writeln("first");
+}
+
 unittest 
 {
 	import test;
 	Rectf r = Rectf(1, 2, 3, 4);
 	Assert(!std.math.isNaN(r.pos.x));
 	Assert(stringToRectf("1 2 3 4.5"), Rectf(1,2,3,4.5));
+	std.stdio.writeln("second");
 }
-
 
 struct RectOffset(T)
 {
@@ -261,6 +313,42 @@ struct RectOffset(T)
 	RectOffset!T reverse() const pure nothrow
 	{
 		return RectOffset!T(-left, -top, -right, -bottom);
+	}
+
+	RectOffset!T opBinary(string OP)(RectOffset!T v) const pure nothrow
+	{
+		RectOffset!T res = this;
+		mixin("res.left " ~ OP ~ "= v.left;");
+		mixin("res.top " ~ OP ~ "= v.top;");
+		mixin("res.right " ~ OP ~ "= v.right;");
+		mixin("res.bottom " ~ OP ~ "= v.bottom;");
+		return res;
+	}
+
+	void opOpAssign(string OP)(RectOffset!T v) pure nothrow
+	{
+		mixin("this.left" ~ OP ~ "= v.left;");
+		mixin("this.top" ~ OP ~ "= v.top;");
+		mixin("this.right" ~ OP ~ "= v.right;");
+		mixin("this.bottom" ~ OP ~ "= v.bottom;");
+	}
+
+	RectOffset!T opBinary(string OP)(T v) const pure nothrow if (OP == "*" || OP == "/")
+	{
+		RectOffset!T res = this;
+		mixin("res.left " ~ OP ~ "= v;");
+		mixin("res.top " ~ OP ~ "= v;");
+		mixin("res.right " ~ OP ~ "= v;");
+		mixin("res.bottom " ~ OP ~ "= v;");
+		return res;
+	}
+
+	void opOpAssign(string OP)(T v) pure nothrow if (OP == "*" || OP == "/")
+	{
+		mixin("this.left" ~ OP ~ "= v;");
+		mixin("this.top" ~ OP ~ "= v;");
+		mixin("this.right" ~ OP ~ "= v;");
+		mixin("this.bottom" ~ OP ~ "= v;");
 	}
 
 	@property bool empty() @safe nothrow

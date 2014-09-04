@@ -128,10 +128,96 @@ struct Color
 		}
 	}
 
+	void toHSLA(ref float h, ref float s, ref float l, ref float _a)
+	{
+		
+	}
+
 	// h s l are [0:1]
 	static Color fromHSL(float h, float s, float l) nothrow pure
 	{
 		return Color.fromHSLA(h, s, l, 1f);
+	}
+
+	// h s v a are [0:1]
+	static Color fromHSVA(float h, float s, float v, float _a) nothrow pure
+	{
+		// Converted to D from http://axonflux.com/handy-rgb-to-hsl-and-rgb-to-hsv-color-model-c
+		import std.math;
+		int i = cast(int) floor(h * 6);
+		float f = h * 6 - i;
+		float p = v * (1 - s);
+		float q = v * (1 - f * s);
+		float t = v * (1 - (1 - f) * s);
+
+		float _r, _g, _b;
+
+		switch(i % 6)
+		{
+			case 0: _r = v, _g = t, _b = p; break;
+			case 1: _r = q, _g = v, _b = p; break;
+			case 2: _r = p, _g = v, _b = t; break;
+			case 3: _r = p, _g = q, _b = v; break;
+			case 4: _r = t, _g = p, _b = v; break;
+			case 5: _r = v, _g = p, _b = q; break;
+			default:
+				assert(0);
+		}
+
+		return Color(_r, _g, _b, _a);
+	}
+
+	// h s l are [0:1]
+	static Color fromHSV(float h, float s, float l) nothrow pure
+	{
+		return Color.fromHSVA(h, s, l, 1f);
+	}
+
+	void toHSVA(ref float h, ref float s, ref float _v, ref float _a) const pure nothrow
+	{
+		import std.algorithm;
+
+		float _max = max(r, g, b);
+		float _min = min(r, g, b);
+		_a = a;
+
+		float d = _max - _min;
+		s = _max == 0 ? 0f : d / _max;
+		_v = _max;
+		
+		h = 0; // achromatic
+
+		if(_max != _min)
+		{
+			if (_max == r)
+				h = (g - b) / d + (g < b ? 6 : 0);
+			else if (_max == g)
+				h = (b - r) / d + 2;
+			else 
+				h = (r - g) / d + 4;
+			h /= 6;
+		}
+	}
+
+	void toHSV(ref float h, ref float s, ref float _v) const pure nothrow
+	{
+		float dummy;
+		return toHSVA(h, s, _v, dummy);
+	}
+
+	static Color interpolate(Color from, Color to, float offset)
+	{
+		float hf, sf, vf, af;
+		float ht, st, vt, at;
+		from.toHSVA(hf, sf, vf, af);
+		to.toHSVA(ht, st, vt, at);
+
+		float hr = hf * (1 - offset) + ht * offset;
+		float sr = sf * (1 - offset) + st * offset;
+		float vr = vf * (1 - offset) + vt * offset;
+		float ar = af * (1 - offset) + at * offset;
+
+		return Color.fromHSVA(hr, sr, vr, ar);
 	}
 
 	static auto fromCSSHexString(string str) pure

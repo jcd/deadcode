@@ -1,3 +1,34 @@
+Release 0.8 - 04 September 2014 
+
+- Skipped release in August because of vacation.
+
+Overview:
+    
+    * Stylesheet cleanup and more properties
+    * Style transition support
+    * Support for focus pseudo class in stylesheets
+
+Changes:
+
+    d649113 Get rid of StyleFields and move it directly to Style. 
+            Support for CSS transitions 
+            Support for CSS :focus, left, right, top, bottom, position 
+            Support for CSS shorthand syntax Support for cubic bezier curves 
+            Added Clips for reusable animation clips. 
+            Added test code for unittest handling 
+            Added rectStyle on widget that takes CSS into account e.g. transitions
+    35be64d Prepare CSS types for transition support
+    8afbdba Make texture on font maps NonBindable
+    15060f6 Add timeline to Window
+    bd529b1 Fix BoxModel initialization
+    7727406 HSVA and interpolation support for Color
+    cffc6c1 Prepare rect and vectors with Bindable UDA and operators needed by FieldProxy
+    8a13354 New ObjectProxy, FieldProxy and Bindable UDA
+    8c93495 Clean spaces
+    de0580b OpAssign for Events
+    5f597b4 Get rid of some log messages
+
+
 Release 0.7 - 02 July 2014
 
 Overview:

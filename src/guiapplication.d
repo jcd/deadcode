@@ -738,7 +738,8 @@ version (Windows)
 
 		foreach (l; s.buffers)
 		{
-			openFile(l.path);
+			if (openFile(l.path) is null)
+				continue;
 			if (l.focusOrder == s.focusOrderCounter)
 				showBufferName = l.path;
 			auto ed = editors.editors[l.path];

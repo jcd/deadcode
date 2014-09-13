@@ -58,6 +58,8 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<shift> + <right>", "edit.selectToCharAfter");
 		set.setKeyBinding("<shift> + <up>", "edit.selectToCharAbove");
 		set.setKeyBinding("<shift> + <down>", "edit.selectToCharBelow");
+		set.setKeyBinding("<shift> + <pagedown>", "edit.selectPageDown");
+		set.setKeyBinding("<shift> + <pageup>", "edit.selectPageUp");
 		set.setKeyBinding("<ctrl> + k", "edit.deleteToEndOfLine");
 		set.setKeyBinding("<backspace>", "edit.deleteCharBefore");
 		auto rs = new RuleSet();

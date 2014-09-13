@@ -66,6 +66,21 @@ enum EventUsed
 	yes = 1
 }
 
+bool isShiftDown(KeyMod m) pure nothrow @safe
+{
+	return (m & KMOD_SHIFT) != 0;
+}
+
+bool isCTRLDown(KeyMod m) pure nothrow @safe
+{
+	return (m & KMOD_CTRL) != 0;
+}
+
+bool isALTDown(KeyMod m) pure nothrow @safe
+{
+	return (m & KMOD_ALT) != 0;
+}
+
 // TODO: add pointer to active widget in here ie. refactor this struct to new file
 struct Event
 {
@@ -78,6 +93,7 @@ struct Event
 	
 	EventType type;
 	Uint32 windowID;
+	Uint32 timestamp;
 
 	ref Event opAssign(Event s)
 	{
@@ -94,6 +110,7 @@ struct Event
 			Vec2f mousePosRel;
 			Uint32 mouseButtonsActive;
 			byte mouseButtonsChanged;
+			KeyMod mouseMod;
 		}
 		struct 
 		{
@@ -109,6 +126,8 @@ struct Event
 		struct 
 		{
 			Vec2f scroll;
+			Uint32 msSinceLastScroll;
+			KeyMod scrollMod;
 		}
 		struct 
 		{

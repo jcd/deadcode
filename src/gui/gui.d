@@ -21,6 +21,7 @@ class GUI
 		graphics.graphicssystem.GraphicsSystem _graphicsSystem;
 		EventQueue _eventQueue;
 		Uint32 _lastTick;
+		Uint32 _lastScrollTick;
 
 		class Timeout 
 		{
@@ -76,6 +77,8 @@ class GUI
 	FontManager fontManager;
 	StyleSheetManager styleSheetManager;
 	GenericResourceManager genericResourceManager;
+
+	KeyMod keyMod;
 
 	mixin Signal!string onFileDropped;
 
@@ -284,6 +287,7 @@ class GUI
 				break;
 			
 			Event ev;
+			ev.timestamp = e.common.timestamp;
 			switch(e.type) { 
 				case SDL_MOUSEMOTION:
 					ev.type = EventType.MouseMove;
@@ -301,6 +305,8 @@ class GUI
 					ev.mouseButtonsActive = e.button.state;
 					ev.mouseButtonsChanged = e.button.button;
 					ev.windowID = e.button.windowID;
+					keyMod = cast(KeyMod)SDL_GetModState();
+					ev.mouseMod = keyMod;
 					break;
 				case SDL_MOUSEBUTTONUP:
 					ev.type = EventType.MouseUp;
@@ -309,10 +315,19 @@ class GUI
 					ev.mouseButtonsActive = e.button.state;
 					ev.mouseButtonsChanged = e.button.button;
 					ev.windowID = e.button.windowID;
+					keyMod = cast(KeyMod)SDL_GetModState();
+					ev.mouseMod = keyMod;
 					break;
 				case SDL_MOUSEWHEEL:
 					ev.type = EventType.MouseScroll;
 					ev.scroll = Vec2f(e.wheel.x, e.wheel.y);
+					keyMod = cast(KeyMod)SDL_GetModState();
+					ev.scrollMod = keyMod;
+					if (_lastScrollTick == 0)
+						ev.msSinceLastScroll = Uint32.max;
+					else
+						ev.msSinceLastScroll = ev.timestamp - _lastScrollTick;
+					_lastScrollTick = ev.timestamp;
 					ev.windowID = e.wheel.windowID;
 					break;
 				case SDL_KEYDOWN:
@@ -321,7 +336,8 @@ class GUI
 					ev.type = EventType.KeyDown;
 					ev.keyCode = e.key.keysym.sym;
 					ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
-					ev.mod = cast(KeyMod)SDL_GetModState();
+					keyMod = cast(KeyMod)SDL_GetModState();
+					ev.mod = keyMod;
 					ev.windowID = e.key.windowID;
 					//std.stdio.writeln("got text " , SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))], " ", e.key.repeat, " ",e.key.state);
 					break;
@@ -331,7 +347,8 @@ class GUI
 					ev.type = EventType.KeyUp;
 					ev.keyCode = e.key.keysym.sym;
 					ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
-					ev.mod = cast(KeyMod)SDL_GetModState();
+					keyMod = cast(KeyMod)SDL_GetModState();
+					ev.mod = keyMod;
 					ev.windowID = e.key.windowID;
 					//std.stdio.writeln("got text " , SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))], " ", e.key.repeat, " ",e.key.state);
 					break;
@@ -341,7 +358,8 @@ class GUI
 					//size_t st = std.utf.stride(ch, 0);
 					ev.type = EventType.Text;
 					ev.ch = ch.front;
-					ev.mod = cast(KeyMod)SDL_GetModState();
+					keyMod = cast(KeyMod)SDL_GetModState();
+					ev.mod = keyMod;
 					ev.windowID = e.text.windowID;
 					break;
 				case SDL_TEXTEDITING:
@@ -368,6 +386,7 @@ class GUI
 				case SDL_DROPFILE:
 					import std.c.string;
 					auto file = e.drop.file[0..strlen(e.drop.file)].idup;
+					keyMod = cast(KeyMod)SDL_GetModState();
 					onFileDropped.emit(file);
 					// TODO FIX: SDL_free(e.drop.file);
 					break;

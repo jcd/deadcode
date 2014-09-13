@@ -22,14 +22,9 @@ struct Region
 	
 	static immutable Region zero = Region(0,0);
 		
-	@property bool empty() const pure nothrow
+	@property bool empty() const pure nothrow @safe
 	{ 
 		return a == b; 
-	}
-
-	@property pure size_t length() const nothrow
-	{
-		return b - a;
 	}
 
 	unittest 
@@ -37,6 +32,19 @@ struct Region
 		Assert(Region.zero.empty);
 		Assert(Region(5,5).empty);
 		Assert(!Region(0,1).empty);
+	}
+
+	@property pure size_t length() const nothrow @safe
+	{
+		return b - a;
+	}
+
+	Region normalized() const pure nothrow @safe
+	{
+		if (a > b)
+			return Region(b, a, id);
+		else
+			return this;
 	}
 		
 	/// Make the region into an empty region
@@ -202,11 +210,20 @@ struct Region
 	*/
 	bool entriesInserted(uint pos, uint len)
 	{
+		// To simplify logic we swap a and b if a > b
+		bool swapIt = a > b;
+		
 		bool modified = false;
 		if (a >= pos)
 		{
 			// All regions strictly after the text inserted
 			// TODO: when array ref bug is fixed then do it proper
+			if (swapIt)
+			{
+				auto tmp = a;
+				a = b;
+				b = tmp;
+			}
 			a += len;
 			b += len;
 			modified = true;
@@ -214,9 +231,23 @@ struct Region
 		else if (b >= pos)
 		{
 			// Text is inserted in the middle of this region
+			if (swapIt)
+			{
+				auto tmp = a;
+				a = b;
+				b = tmp;
+			}
 			b += len;
 			modified = true;
 		}
+		
+		if (modified && swapIt)
+		{
+			auto tmp = a;
+			a = b;
+			b = tmp;
+		}
+		
 		return modified;
 	}
 	
@@ -231,11 +262,20 @@ struct Region
 	*/
 	bool entriesRemoved(uint pos, uint len)
 	{
+		// To simplify logic we swap a and b if a > b
+		bool swapIt = a > b;
+		
 		bool modified = false;
 		if (a >= (pos+len))
 		{
 			// All regions strictly after the text inserted
 			// TODO: when array ref bug is fixed then do it proper
+			if (swapIt)
+			{
+				auto tmp = a;
+				a = b;
+				b = tmp;
+			}
 			a -= len;
 			b -= len;
 			modified = true;
@@ -243,6 +283,12 @@ struct Region
 		else if (b >= (pos+len))
 		{
 			// Text is deleted in the middle of this region with b outside
+			if (swapIt)
+			{
+				auto tmp = a;
+				a = b;
+				b = tmp;
+			}
 			a = a > pos ? pos : a;
 			b -= len;
 			modified = true;
@@ -250,9 +296,21 @@ struct Region
 		else if (b >= pos)
 		{
 			// Text is deleted in the middle of this region with b inside
+			if (swapIt)
+			{
+				auto tmp = a;
+				a = b;
+				b = tmp;
+			}
 			a = a > pos ? pos : a;
 			b = pos;
 			modified = true;
+		}
+		if (modified && swapIt)
+		{
+			auto tmp = a;
+			a = b;
+			b = tmp;
 		}
 		return modified;
 	}
@@ -578,8 +636,19 @@ class RegionSet
 		{
 			auto cur = regions[i];
 			if (r.b <= cur.a)
+			{
+				if (!r.empty)
+					regions.insertBefore(regions[i..i+1], r);
 				return; // done
+			}
 			
+			// Maybe part of r is not intersecting and before the cur region
+			if (r.a < cur.a)
+			{
+				regions.insertBefore(regions[i..i+1], Region(r.a, cur.a, r.id));
+				++i;
+			}
+				
 			auto isect = cur.intersect3(r);
 			if (isect.at.empty)
 			{
@@ -587,6 +656,7 @@ class RegionSet
 				continue;
 			}
 			
+
 			size_t incr = isect.length;
 
 			// TODO: shouldn't need to call foreach since replace accepts a range but 

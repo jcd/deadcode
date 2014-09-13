@@ -150,6 +150,39 @@ void register(Application _app)
 			ctrl.scrollDown();
 	});
 
+	cmgr.create("edit.selectPageUp", "Select page up from cursor", delegate(Variant data) {
+		mixin(getBufferOrReturn);
+		auto ctrl = b;
+		foreach (i; 0 .. ctrl.visibleLineCount)
+		{
+			ctrl.selectUp();
+			// TODO: optimize
+			ctrl.scrollUp();
+		}
+	});
+
+	cmgr.create("edit.selectPageDown", "Select page down from cursor", delegate(Variant data) {
+		mixin(getBufferOrReturn);
+		auto ctrl = b;
+
+		if (ctrl.bufferEndOffset == ctrl.length)
+		{
+			// end of buffer already in view
+			foreach (i; 0 .. ctrl.visibleLineCount)
+				ctrl.selectDown();
+		}
+		else
+		{
+			foreach (i; 0 .. ctrl.visibleLineCount)
+			{
+				ctrl.selectDown();
+
+				// TODO: optimize
+				ctrl.scrollDown();
+			}
+		}
+	});
+
 	cmgr.create("edit.deleteCharBefore", "Delete character before cursor", delegate(Variant data) {	
 		mixin(getBufferOrReturn);
 		b.remove(-1);
@@ -170,16 +203,28 @@ void register(Application _app)
 	cmgr.create("edit.scrollPageDown", "Scroll view one page down", delegate(Variant data) {
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
-		for (int i = 0; i < ctrl.visibleLineCount; i++)
+
+		if (ctrl.bufferEndOffset == ctrl.length)
 		{
-			ctrl.cursorDown();
-			ctrl.scrollDown();
+			// End of buffer already in view.
+			// Goto last line
+			for (int i = 0; i < ctrl.visibleLineCount; i++)
+				ctrl.cursorDown();
+		}
+		else
+		{
+			for (int i = 0; i < ctrl.visibleLineCount; i++)
+			{
+				ctrl.cursorDown();
+				ctrl.scrollDown();
+			}
 		}
 	});
 	
 	cmgr.create("edit.scrollPageUp", "Scroll view one page up", delegate(Variant data) {
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
+
 		for (int i = 0; i < ctrl.visibleLineCount; i++)
 		{
 			ctrl.cursorUp();

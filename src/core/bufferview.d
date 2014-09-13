@@ -66,8 +66,7 @@ class BufferView
 			if (_selection == r)
 				return;
 			_selection = r;
-			navigated();
-
+			dirty = true;
 		}
 
 		const(Region) selection() const pure nothrow
@@ -95,12 +94,19 @@ class BufferView
 		if (_selection.empty)
 			return;
 		_selection.clear();
-		navigated();
+		dirty = true;
 	}
 
+
 	package void navigated()
-	{
+	{	
 		dirty = true;
+		auto line = lineNumber;
+		auto lastLine = lineOffset + visibleLineCount - 1; 
+		if (lineOffset > line)
+			lineOffset = line;
+		else if (lastLine < line)
+			lineOffset = line - visibleLineCount + 1;
 	}
 
 	package void changed()
@@ -149,7 +155,6 @@ class BufferView
 		//selections = new RegionSet(true); // should be false
 		_undoStack = new ActionStack;
 		// copyBuffer = new CopyBuffer;
-	
 		buffer.onAnchorAdded.connect(&onAnchorAdded);
 		buffer.onAnchorRemoved.connect(&onAnchorRemoved);
 	}
@@ -184,12 +189,12 @@ class BufferView
 
 		void lineOffset(uint o)
 		{
-			if (_lineOffset == o || o >= (buffer.lineCount - _visibleLineCount))
+			if (_lineOffset == o || o >= (buffer.lineCount - 1))
 				return;
 			
 			_lineOffset = o;
 			_bufferStartOffset = buffer.startAtLineNumber(o);
-			navigated();
+			dirty = true;
 		}
 
 		// TODO: keep up to date and rename maybe
@@ -203,7 +208,7 @@ class BufferView
 			if (_visibleLineCount != c)
 			{
 				_visibleLineCount = c;
-				navigated();
+				dirty = true;
 			}
 		}
 
@@ -219,7 +224,8 @@ class BufferView
 
 		const(TextBuffer.CharType)[] selectedText() const
 		{
-			return buffer.toArray(selection.a, selection.b);
+			auto sel = selection.normalized();
+			return buffer.toArray(sel.a, sel.b);
 		}
 	}
 
@@ -298,6 +304,10 @@ class BufferView
 
 	@property void cursorPoint(uint v) 
 	{
+		if (!isValidCursorPoint(v))
+		{
+			v = v;
+		}
 		assert(isValidCursorPoint(v), "Cursor out of range");
 		if (_cursorPoint == v)
 			return;

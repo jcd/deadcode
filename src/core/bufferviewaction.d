@@ -87,6 +87,7 @@ class CursorDownAction : Action
 		if (!bv.isValidCursorPoint(v))
 			return;
 		bv._cursorPoint = v;
+		bv.navigated();
 	}
 
 	override void redo(BufferView bv)
@@ -99,6 +100,7 @@ class CursorDownAction : Action
 	{
 		auto v = bv.buffer.offsetVertically(bv._cursorPoint, -count, bv.preferredCursorColumn);
 		bv._cursorPoint = v;
+		bv.navigated();
 		//bv.preferredCursorColumn(preferredColumn);
 		//bv.setIndexFromPreferredCursorColumn();
 	}
@@ -411,10 +413,11 @@ class RemoveSelectedAction : Action
 		// record the content for later undoing
 		
 		auto l = bv.selection.length;
-		auto o = bv.selection.a;
+		auto sel = bv.selection.normalized;
+		auto o = sel.a;
 		cursorAtStartOfSelection = bv.cursorPoint == o;
-		text = array(bv.buffer[bv.selection.a..bv.selection.b]).idup;
-		bv.buffer.removeRange(bv.selection.a, bv.selection.b);
+		text = array(bv.buffer[sel.a..sel.b]).idup;
+		bv.buffer.removeRange(sel.a, sel.b);
 		bv.clearSelection();
 		bv._cursorPoint = o;
 		bv.setPreferredCursorColumnFromIndex();
@@ -516,7 +519,7 @@ class CopySelectedAction : Action
 	{
 		auto text = bv.selectedText.idup;
 		bv.copyBuffer.add(text);
-		bv.onCopy.emit(bv, text, bv.selection.a);
+		bv.onCopy.emit(bv, text, bv.selection.normalized().a);
 	}
 
 	override void undo(BufferView bv)

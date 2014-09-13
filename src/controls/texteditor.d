@@ -143,7 +143,7 @@ class TextEditor : Widget
 		if (!visible)
 			return;
 		
-		renderer.selection = bufferView.selection;
+		renderer.selection = bufferView.selection.normalized();
 		import derelict.opengl3.gl3;
 		
 		Rectf r = rect;
@@ -158,16 +158,28 @@ class TextEditor : Widget
 
 	override EventUsed onMouseScroll(Event event)
 	{
-		// Scroll view
+		int speed = 1;
 		int d = cast(int) event.scroll.y;
+		int maxScrollFreq = 300;
+
+		if (event.msSinceLastScroll < maxScrollFreq)
+		{
+			// Scroll view
+			speed = cast(int)(d*d*(maxScrollFreq - event.msSinceLastScroll) / 30f);
+		}
+
+		if (speed == 0)
+			speed = 1;
+
+		// std.stdio.writeln(d, " ", speed, " ", event.scroll.y, " ", event.msSinceLastScroll);
 		if (d < 0)
 		{
-			foreach (i; 0..d*d)
+			foreach (i; 0..speed)
 				bufferView.scrollDown();
 		}
 		else
 		{
-			foreach (i; 0..d*d)
+			foreach (i; 0..speed)
 				bufferView.scrollUp();
 		}
 		return EventUsed.yes;
@@ -232,8 +244,24 @@ class TextEditor : Widget
 
 	EventUsed onGlyphMouseDown(Event event, GlyphHit hit)
 	{
-		_updateSelectionEnd(hit, event.mousePos);
-		_mouseStartSelectionIdx = bufferView.selection.a;
+		if (event.mouseMod.isShiftDown())
+		{
+			if (_mouseStartSelectionIdx == uint.max)
+			{
+				if (bufferView.selection.empty)
+					_mouseStartSelectionIdx = bufferView.cursorPoint;
+				else
+					_mouseStartSelectionIdx = bufferView.selection.a;
+			}
+			_updateSelectionEnd(hit, event.mousePos);
+			bufferView.setPreferredCursorColumnFromIndex();
+		}
+		else
+		{
+			_updateSelectionEnd(hit, event.mousePos);
+			_mouseStartSelectionIdx = bufferView.selection.a;
+			bufferView.setPreferredCursorColumnFromIndex();
+		}
 		return EventUsed.yes;
 	}
 
@@ -241,6 +269,7 @@ class TextEditor : Widget
 	{
 		//_updateSelectionEnd(hit, event.mousePos);
 		_mouseStartSelectionIdx = uint.max;
+		bufferView.setPreferredCursorColumnFromIndex();
 		return EventUsed.yes;
 	}
 
@@ -264,11 +293,10 @@ class TextEditor : Widget
 			index = hit.index;
 		}
 		
-		Region r = _mouseStartSelectionIdx < index ? Region(_mouseStartSelectionIdx, index, 0) : Region(index, _mouseStartSelectionIdx, 0);
-		bufferView.selection = r;
+		// Region r = _mouseStartSelectionIdx < index ? Region(_mouseStartSelectionIdx, index, 0) : Region(index, _mouseStartSelectionIdx, 0);
+		bufferView.selection = Region(_mouseStartSelectionIdx, index, 0);
 
 		bufferView.cursorPoint = index;
-		bufferView.setPreferredCursorColumnFromIndex();
 		renderer.cursorVisible = true;
 	}
 

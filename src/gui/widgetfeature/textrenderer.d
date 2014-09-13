@@ -8,6 +8,7 @@ import core.time;
 import std.range;
 import std.variant;
 import std.conv;
+import std.math;
 import std.traits;
 import std.typecons;
 
@@ -91,6 +92,7 @@ class TextRenderer(Text) : WidgetFeature
 	void onTextDirty()
 	{
 		_textDirty = true;
+		cursorVisible = true;
 	}
 
 	void toggleCursorVisibility()
@@ -244,7 +246,7 @@ class TextRenderer(Text) : WidgetFeature
 
 		if (_selectionModel is null)
 		{
-			_selectionModel = new TextSelectionModel(_layout, _textStyler.text.selection);
+			_selectionModel = new TextSelectionModel(_layout, _textStyler.text.selection.normalized());
 			_selectionModel.style = widget.getStyleForClass("selection");
 		}
 		else
@@ -255,7 +257,7 @@ class TextRenderer(Text) : WidgetFeature
 			_selectionModel.textLayout = _layout;
 //			if (_selectionModel.selection != _textStyler.text.selection)
 			//{
-				_selectionModel.selection = _textStyler.text.selection;
+				_selectionModel.selection = _textStyler.text.selection.normalized();
 				_selectionModel.update(_textStyler.text.bufferStartOffset);
 			//}
 		}
@@ -421,7 +423,7 @@ class TextRenderer(Text) : WidgetFeature
 					relIdx--;
 				}
 				auto r = getRectForViewIndex(relIdx);
-				if (r.x == float.nan)
+				if (!r.x.isFinite())
 					return rect;
 				// Modify to start of line
 				r.x = 0;
@@ -430,7 +432,7 @@ class TextRenderer(Text) : WidgetFeature
 			}
 
 			rect = _model.getGlyphPos(relIdx-1);
-			if (rect.x == float.nan)
+			if (!rect.x.isFinite())
 				return rect;
 			rect.x = rect.x + rect.w;
 		}
@@ -444,7 +446,7 @@ class TextRenderer(Text) : WidgetFeature
 	private Mat4f getTransformForViewIndex(uint idx, ref Rectf rect)
 	{
 		rect = getRectForViewIndex(idx);
-		if (rect.x == float.nan)
+		if (!rect.x.isFinite())
 			return Mat4f.IDENTITY;
 		
 		return Mat4f.makeTranslate(Vec3f(rect.x, rect.y, 0f));
@@ -480,7 +482,7 @@ class TextRenderer(Text) : WidgetFeature
 	{
 		Rectf rect = void;
 		auto posTrans = getTransformForViewIndex(idx, rect);
-		if (rect.x == float.nan)
+		if (!rect.x.isFinite())
 			return rect;
 
 		Mat4f trx;
@@ -578,7 +580,7 @@ class TextRenderer(Text) : WidgetFeature
 			foreach (r; _glyphWindowRectCache)
 			{
 				if (pos.y <= r.y2)
-					return GlyphHit(false, r.x == float.nan || bufOffset == i ? 
+					return GlyphHit(false, !r.x.isFinite() || bufOffset == i ? 
 									uint.max : i-1, r);
 
 				if (r.contains(pos))
@@ -596,7 +598,7 @@ class TextRenderer(Text) : WidgetFeature
 
 		// glyphRect.y is bottom 
 		bool found = false;
-		while (glyphRect.x != float.nan && pos.y > glyphRect.y2)
+		while (glyphRect.x.isFinite() && pos.y > glyphRect.y2)
 		{
 			//std.stdio.writeln(glyphRect, " ", pos);
 			if (glyphRect.contains(pos))
@@ -610,7 +612,7 @@ class TextRenderer(Text) : WidgetFeature
 		}
 		if (found)
 			return GlyphHit(true, i, glyphRect);
-		return GlyphHit(false, glyphRect.x == float.nan || bufOffset == i ? uint.max : i-1, glyphRect);
+		return GlyphHit(false, !glyphRect.x.isFinite()|| bufOffset == i ? uint.max : i-1, glyphRect);
 	}
 
 	void drawCursor(Widget widget, ref Mat4f transform, float fontLineSkip)

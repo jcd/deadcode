@@ -268,16 +268,18 @@ class BoxModel
 		Model _model;
 		bool _dirtyRect;
 		bool _dirtyBorders;
+		uint widgetID;
 	}
-
+	
 	this(Sprite center, Material mat = null)
 	{	
 		this.center = center;
 		_init(mat);
 	}
 
-	this(Sprite nineSprite, RectfOffset borders, Material mat = null)
+	this(uint id, Sprite nineSprite, RectfOffset borders, Material mat = null)
 	{	
+		widgetID = id;
 		// Split up sprite into nine sub sprites based on the borders
 		_borders = borders;
 		_init(mat);
@@ -352,6 +354,9 @@ class BoxModel
 		worldRect.y = -worldRect.y;
 		worldRect.h = -worldRect.h;
 		
+		if (widgetID == 8)
+			std.stdio.writeln("m8 ", worldRect.y, " ", worldRect.h);
+
 		// Swap coords from win to world x,y dir
 		// worldSize.y = -(worldSize.y + worldSize.h); // world is negative downwards, win is positive
 		// worldSize.y = -worldSize.y;

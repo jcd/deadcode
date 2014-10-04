@@ -76,7 +76,7 @@ class UnittestAnchor : TextEditorAnchor
 
 	override EventUsed onMouseOver(Event ev)
 	{
-		window.mouseCursor = MouseCursor.arrow;
+		window.mouseCursor = MouseCursor.hand;
 		return EventUsed.yes;
 	}
 

@@ -40,9 +40,10 @@ class BoxRenderer : WidgetFeature
 	
 
 
-		const Rectf r = Rectf(widget.rectStyled);
+///		const Rectf r = Rectf(widget.rectStyled);
+		const Rectf r = Rectf(widget.rect);
 		Rectf wrect = widget.window.windowToWorld(r);
-		
+
 		// Move model using translate to we do not have to update vertex position array
 		auto transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0));
 		// model.draw(widget.window.MVP * transform);

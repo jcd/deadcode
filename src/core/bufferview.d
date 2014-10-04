@@ -442,7 +442,16 @@ class BufferView
 		clearSelection();
 		_undoStack.push!CursorDownAction(this, c);
 	}
-	
+
+	void cursorToLine(uint l)
+	{
+		clearSelection();
+		long toLine = l;
+		long curLine = lineNumber;
+		int lineOffset = cast(int)(toLine - curLine); // TODO: Get rid of cast
+		_undoStack.push!CursorDownAction(this, lineOffset);
+	}
+
 	void selectLeft(uint c = 1) 
 	{
 		selectTo(buffer.offsetByChar(_cursorPoint, -c));

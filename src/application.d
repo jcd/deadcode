@@ -1,6 +1,5 @@
 module application;
 
-import editorcommands;
 import behavior.behavior;
 import core.buffer;
 import core.bufferview;
@@ -28,7 +27,6 @@ class Application
 	this()
 	{
 		_commandManager = new CommandManager();
-		register(this);
 		_bufferViewManager = new BufferViewManager();
 		auto buf = _bufferViewManager.create("ctrl+? for help.\nctrl+w for console\nfoobar hfhff\n", "*Messages*");
 		buf.cursorToEndOfLine();

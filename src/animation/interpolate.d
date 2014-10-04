@@ -34,22 +34,39 @@ class Clip(T)
 {
 	CurveBinding!T[] bindings;
 	
-	@property double duration() const
-	{
-		import std.algorithm;
+	private double _duration; // If set to -1 means calculated by looking a duration of each curve
 
-		if (bindings.length == 0)
-			return 0.0;
-		
-		double begin = double.infinity;
-		double end = -double.infinity;
-		
-		foreach (b; bindings)
+	@property 
+	{
+		double duration() const
 		{
-			begin = min(b.curveBegin, begin);
-			end = max(b.curveEnd, end);
+			import std.algorithm;
+
+			if (_duration >= 0)
+				return _duration;
+			else if (bindings.length == 0)
+				return 0.0;
+		
+			double begin = double.infinity;
+			double end = -double.infinity;
+		
+			foreach (b; bindings)
+			{
+				begin = min(b.curveBegin, begin);
+				end = max(b.curveEnd, end);
+			}
+			return end - begin;
 		}
-		return end - begin;
+
+		void duration(double d)
+		{
+			_duration = d;
+		}
+	}
+
+	void clearExplicitDuration() 
+	{
+		_duration = -1;
 	}
 
 	auto createLinearCurve(alias propertyPath)(double x1, float y1, double x2, float y2)
@@ -121,7 +138,8 @@ void createCurves(Clip!Style clip, Style y1, Style y2)
 			Transition* transition = cssName in b.transitionCache;
 			if (transition is null)
 			{
-				return new ConstantCurve!FieldType(0, q2, 0.1); // Todo: make instant curve
+				//return new ConstantCurve!FieldType(0, q2, 5.0); // Todo: make instant curve. Just use 5 secs for now
+				return new LinearCurve!FieldType(0, q1, 0, q2);
 			}
 			else
 			{
@@ -217,11 +235,11 @@ static CurveBinding!T[] getTransitionCurves(CurveProvider, T)(CurveProvider p, T
 		//{
 		
 		// TODO: Make Animatable() in addition to Bindable()
-		static if (f.fieldPath != "_position")
-		{
+		//static if (f.fieldPath != "_position")
+		//{
 			b.curve = p.getCurve!(f.OwnerType, f.FieldType, f.fieldPath)(y1value, y2value);
 			result ~= b;
-		}
+//		}
 		//}
 	}
 	
@@ -385,6 +403,16 @@ auto interpolate(T : CSSScaleMix)(T beginValue, T endValue, float delta)
 	return r;
 }
 
+auto interpolate(T : CSSPositionMix)(T beginValue, T endValue, float delta)
+{
+	// Positions are not mixed over time but we propegate the begin and end values
+	// for e.g. the widget.calcPosition() to use.
+	CSSPositionMix r = void;
+	r.cssPositionA = beginValue;
+	r.cssPositionB = endValue;
+	return r;
+}
+
 //auto interpolate(T : CSSPositionMix)(T beginValue, T endValue, float delta)
 //{
 //    // Cannot do mix here because unit of CSSScale may be percent which depends on
@@ -450,10 +478,10 @@ class LinearCurve(T) : Curve!T
 
 	override T eval(double offset)
 	{
-		if (offset <= _begin)
-			return interpolate(_beginValue, _endValue, 0);
-		else if (offset >= _end)
+		if (offset >= _end)
 			return interpolate(_beginValue, _endValue, 1);
+		else if (offset < _begin)
+			return interpolate(_beginValue, _endValue, 0);
 		else
 		{
 			float delta = (offset - _begin) / (_end - _begin);

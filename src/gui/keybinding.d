@@ -1,5 +1,7 @@
 module gui.keybinding;
 
+import core.commandparameter;
+
 import gui.keycode;
 import gui.ruleset;
 import graphics._;
@@ -235,10 +237,10 @@ class KeyBinding
 {
 	KeySequence sequence;
 	string command;
-	Variant args;
+	CommandParameter[] args;
 	RuleSet rules;
 
-	this(KeySequence seq, string com, Variant inargs, RuleSet val = null)
+	this(KeySequence seq, string com, CommandParameter[] inargs, RuleSet val = null)
 	{
 		sequence = seq;
 		command = com;
@@ -246,7 +248,7 @@ class KeyBinding
 		rules = val;
 	}
 	
-	this(string seq, string com, Variant inargs, RuleSet val = null)
+	this(string seq, string com, CommandParameter[] inargs, RuleSet val = null)
 	{
 		sequence = new KeySequence(seq);
 		command = com;
@@ -342,7 +344,7 @@ class KeyBindingsSet
 	}
 	
 	/// ditto
-	void setKeyBinding(string seq, string com, Variant args = Variant(), RuleSet val = null)
+	void setKeyBinding(string seq, string com, CommandParameter[] args = null, RuleSet val = null)
 	{
 		setKeyBinding(new KeyBinding(seq, com, args, val));
 	}	
@@ -351,20 +353,26 @@ class KeyBindingsSet
 	// TODO: Make into template when 2.065 is reached
 	void setKeyBinding(string seq, string com, string arg, RuleSet val = null)
 	{
-		setKeyBinding(new KeyBinding(seq, com, Variant(arg), val));
+		setKeyBinding(new KeyBinding(seq, com, [CommandParameter(arg)], val));
+	}	
+
+	/// ditto
+	void setKeyBinding(string seq, string com, int arg, RuleSet val = null)
+	{
+		setKeyBinding(new KeyBinding(seq, com, [CommandParameter(arg)], val));
 	}	
 
 	/// ditto
 	void setKeyBinding(string seq, string com, RuleSet val)
 	{
-		setKeyBinding(new KeyBinding(seq, com, Variant(), val));
+		setKeyBinding(new KeyBinding(seq, com, null, val));
 	}	
 
-	// ditto
-	void setKeyBinding(KeySequence seq, string com, Variant args = Variant(), RuleSet val = null) 
-	{
-		setKeyBinding(new KeyBinding(seq, com, args, val));
-	}	
+	//// ditto
+	//void setKeyBinding(KeySequence seq, string com, Variant args = Variant(), RuleSet val = null) 
+	//{
+	//    setKeyBinding(new KeyBinding(seq, com, args, val));
+	//}	
 
 	/// ditto
 	/*

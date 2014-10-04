@@ -860,7 +860,7 @@ class StyleSheetParser
 			switch (curToken.type)
 			{
 				case TokenType.curlOpen:
-					selectors ~= new WidgetSelector(widgetTypeName, widgetName, className, pseudoClassName);
+					selectors ~= new StylableSelector(widgetTypeName, widgetName, className, pseudoClassName);
 					return;
 				case TokenType.greaterThan:
 					selectors ~= new ChildSelector(widgetTypeName, widgetName, className, pseudoClassName);

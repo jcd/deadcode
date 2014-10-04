@@ -24,11 +24,26 @@ struct GlyphHit
 /** The Text feature of a widget can be used to displays the contents of a TextView
  *  on the widget
  */
-class TextRenderer(Text) : WidgetFeature
+class TextRenderer(Text) : WidgetFeature, Stylable
 {
 	import core.buffer;
 	import core.command;
-	
+
+	// Stylable interface
+	@property 
+	{		
+		string name() const pure @safe { return "Text"; }
+		bool matchStylable(string stylableName) const pure nothrow @safe
+		{
+			return matchStylableImpl(this, stylableName);
+		}
+		const(string[]) classes() const pure nothrow @safe { return _curClasses; }
+		bool hasKeyboardFocus() const pure nothrow @safe { return false; }
+		bool isMouseOver() const pure nothrow @safe { return false; }
+		bool isMouseDown() const pure nothrow @safe { return false; }
+		Stylable parent() pure nothrow @safe { return null; } // TODO: return widget
+	}
+
 	private
 	{
 		TextModel _model;
@@ -46,6 +61,8 @@ class TextRenderer(Text) : WidgetFeature
 
 		Rectf[] _glyphWindowRectCache;
 		uint _bufferOffsetForCurrentCache;
+	
+		string[] _curClasses;
 	}
 
 	bool cursorVisible;
@@ -64,6 +81,7 @@ class TextRenderer(Text) : WidgetFeature
 
 	this(TextStyler!Text _textStyler)
 	{
+		_curClasses = [ "" ];
 		this._textStyler = _textStyler;
 		 // TODO: maybe model should be owner of styledText_
 		import util.system;
@@ -246,13 +264,11 @@ class TextRenderer(Text) : WidgetFeature
 
 		if (_selectionModel is null)
 		{
-			_selectionModel = new TextSelectionModel(_layout, _textStyler.text.selection.normalized());
-			_selectionModel.style = widget.getStyleForClass("selection");
+			_selectionModel = new TextSelectionModel(widget.window.styleSheet, _layout, _textStyler.text.selection.normalized());
 		}
 		else
 		{
 			//if (_selectionModel.style is null)
-				_selectionModel.style = widget.getStyleForClass("selection");
 			
 			_selectionModel.textLayout = _layout;
 //			if (_selectionModel.selection != _textStyler.text.selection)
@@ -268,7 +284,8 @@ class TextRenderer(Text) : WidgetFeature
 
 	override void draw(Widget widget)
 	{
-		Vec2f layoutSize = widget.rectStyled.size;
+//		Vec2f layoutSize = widget.rectStyled.size;
+		Vec2f layoutSize = widget.rect.size;
 		RectfOffset padding = widget.style.padding;
 		updateLayout(widget, Vec2f(layoutSize.x - padding.horizontal, layoutSize.y - padding.vertical));
 
@@ -336,6 +353,8 @@ class TextRenderer(Text) : WidgetFeature
 		else
 			uint visibleLineCount = 10000000;
 
+		StyleSheet styleSheet = widget.window.styleSheet;
+
 		foreach (r; _textStyler.regionSet)
 		{
 			if (_layout.lineCount > visibleLineCount)
@@ -348,7 +367,8 @@ class TextRenderer(Text) : WidgetFeature
 			}
 			
 			string styleName = _textStyler.styleIDToName(r.id);
-			Style style = styleName is null ? widget.style : widget.getStyleForClass(styleName); //;
+			_curClasses[0] = styleName;
+			Style style = styleName is null ? widget.style : styleSheet.getStyle(this);
 
 			//style.font.updateFontMap();
 			auto intersectParts = r.intersect3(selection);
@@ -458,7 +478,7 @@ class TextRenderer(Text) : WidgetFeature
 		return getTransformForViewIndex(idx, rect);
 	}
 
-	private void getTransformForIdx(Widget widget, ref Mat4f transform, float fontLineSkip, uint idx)
+	private void getTransformForIdx(ref Mat4f transform, float fontLineSkip, uint idx)
 	{
 		Rectf rect = void;
 		auto posTrans = getTransformForViewIndex(idx, rect);
@@ -617,7 +637,7 @@ class TextRenderer(Text) : WidgetFeature
 
 	void drawCursor(Widget widget, ref Mat4f transform, float fontLineSkip)
 	{
-		getTransformForIdx(widget, transform, fontLineSkip, text.cursorPoint);
+		getTransformForIdx(transform, fontLineSkip, text.cursorPoint);
 		_cursorModel.draw(widget.window.MVP * transform);
 		
 

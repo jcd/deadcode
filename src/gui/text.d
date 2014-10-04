@@ -323,15 +323,37 @@ class TextModel
 	}
 }
 
-class TextSelectionModel
+class TextSelectionModel : Stylable
 {
 	BoxModel[] models; // Model representing the selected area
 	TextBoxLayout textLayout;
 	Region selection;
-	Style style;
+	StyleSheet styleSheet;
 
-	this(TextBoxLayout layout, Region sel)
+	// Stylable interface
+	@property 
+	{		
+		string name() const pure @safe { return null; }
+		bool matchStylable(string stylableName) const pure nothrow @safe
+		{
+			return matchStylableImpl(this, stylableName);
+		}
+
+		const(string[]) classes() const pure nothrow @safe { return [ "selection"]; }
+		bool hasKeyboardFocus() const pure nothrow @safe { return false; }
+		bool isMouseOver() const pure nothrow @safe { return false; }
+		bool isMouseDown() const pure nothrow @safe { return false; }
+		Stylable parent() pure nothrow @safe  { return null; }
+	}
+
+	private @property Style style() 
 	{
+		return styleSheet.getStyle(this);
+	}
+
+	this(StyleSheet stylesheet, TextBoxLayout layout, Region sel)
+	{
+		styleSheet = stylesheet;
 		textLayout = layout;
 		selection = sel;
 	}
@@ -394,7 +416,7 @@ class TextSelectionModel
 			BoxModel box = models[i];
 			if (box is null)
 			{
-				box = new BoxModel(Sprite(0,0,16,16), RectfOffset(borderSize,borderSize,borderSize,borderSize));
+				box = new BoxModel(0, Sprite(0,0,16,16), RectfOffset(borderSize,borderSize,borderSize,borderSize));
 				//box = new BoxModel(Sprite(Rectf(6,6,4,4)));
 				box.color = style.color; //Vec3f(0.25, 0.25, 0.25);
 				models[i] = box;

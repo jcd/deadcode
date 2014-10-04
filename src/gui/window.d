@@ -62,14 +62,19 @@ class Window : Widget
 	mixin Signal!(Window) onUpdate;
 
 	static Window active;
+	
+	override @property Window window() pure nothrow nothrow @safe
+	{
+		return this;
+	}
+	
+	override @property const(Window) window() const pure nothrow @safe
+	{
+		return this;
+	}
 
 	@property 
 	{
-		override Window window()
-		{
-			return this;
-		}
-	
 		void onEvent(OnEvent callback)
 		{
 			_onEvent = callback;
@@ -147,7 +152,7 @@ class Window : Widget
 		return *w;
 	}
 
-	package string lookupWidgetName(WidgetID wid)
+	package string lookupWidgetName(WidgetID wid) const pure @safe
 	{
 		assert(widgetNameMap !is null);
 		foreach (k, v; widgetNameMap)
@@ -273,7 +278,8 @@ class Window : Widget
 		foreach (w; widgets)
 		{
 			//std.stdio.writeln(w.name, " visible ", w.visible, w.rect);
-			if (w.visible && w.rectStyled.contains(p))
+			//if (w.visible && w.rectStyled.contains(p))
+			if (w.visible && w.rect.contains(p))
 			{
 				//std.stdio.writeln("hit ", w.name);
 				if (w.isDecendantOf(cur))
@@ -296,12 +302,6 @@ class Window : Widget
 
 	override void update()
 	{
-		if (_sizeDirty)
-		{
-			_sizeDirty = false;
-			emitResizeEvent();
-		}
-
 		// Let gui widgets, constraints etc. update before drawing them
 		foreach (w; widgets)
 		{
@@ -310,6 +310,13 @@ class Window : Widget
 		}
 
 		onUpdate.emit(this);
+
+		if (_sizeDirty)
+		{
+			_sizeDirty = false;
+			emitResizeEvent();
+		}
+
 		//if (_onUpdate !is null)
 		//    _onUpdate();
 	}
@@ -419,7 +426,7 @@ class Window : Widget
 		}
 	}
 
-	bool isKeyboardFocusWidget(Widget w)
+	bool hasKeyboardFocus(const(Widget) w) const pure nothrow @safe
 	{
 		return keyboardFocusWidget == w.id;
 	}
@@ -429,30 +436,30 @@ class Window : Widget
 		return getWidget(keyboardFocusWidget);
 	}
 
-	bool isMouseOverWidget(Widget w)
+	bool isMouseOverWidget(const(Widget) w) const pure nothrow @safe
 	{
 		return mouseWidget == w.id;
 	}
 
-	bool isMouseDownWidget(Widget w)
+	bool isMouseDownWidget(const(Widget) w) const pure nothrow @safe
 	{
 		return downButtonWidget == w.id;
 	}
 
-	void grabMouse(Widget w)
+	void grabMouse(const(Widget) w) pure nothrow @safe
 	{
 		assert(mouseGrabbedBy == NullWidgetID);
 		mouseGrabbedBy = w.id;
 	}
 
-	bool isGrabbingMouse(Widget w)
+	bool isGrabbingMouse(const(Widget) w) const pure nothrow @safe
 	{
 		return w.id == mouseGrabbedBy;
 	}
 	
-	override void releaseMouse()
+	override void releaseMouse() pure nothrow @safe
 	{
-		assert(mouseGrabbedBy != NullWidgetID);
+		// assert(mouseGrabbedBy != NullWidgetID);
 		mouseGrabbedBy = NullWidgetID;
 	}
 
@@ -661,6 +668,9 @@ TODO:
 				}
 				break;
 			case EventType.Resize:
+
+				layout();
+
 				bool cont = false;
 				int maxIter = 5;
 				// Resize events will let widget do relayouts. 
@@ -672,6 +682,7 @@ TODO:
 						cont |= w.send(event) == EventUsed.yes;
 					}
 				} while (cont && maxIter--);
+				
 				break;
 			default:
 				break;

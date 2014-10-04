@@ -14,16 +14,55 @@ import gui.style.types;
 
 version (unittest) import test;
 
-import gui.widget;
-
 import std.algorithm;
 import std.range;
 
-class WidgetSelector
+bool matchStylableImpl(S)(S styleable, string stylableName) pure nothrow @safe
 {
-	string widgetTypeName;
+	static bool matchName(string ciname, string stylableName) nothrow
+	{
+		import std.string;
+
+		try 
+		{
+			auto idx = ciname.lastIndexOf('.');
+			if (idx != -1)
+				ciname = ciname[idx+1..$];
+		}
+		catch (Exception)
+		{
+			return false;
+		}
+
+		return ciname == stylableName;
+	}
+
+	auto ci = styleable.classinfo;
+	// Match class with StylableTypeName or descendants
+	while (ci !is null && !matchName(ci.name, stylableName))
+		ci = ci.base;
+	return ci !is null;			
+}
+
+interface Stylable
+{
+	@property 
+	{		
+		string name() const pure @safe;
+		bool matchStylable(string stylableName) const pure nothrow @safe;
+		const(string[]) classes() const pure nothrow @safe;
+		bool hasKeyboardFocus() const pure nothrow @safe;
+		bool isMouseOver() const pure nothrow @safe;
+		bool isMouseDown() const pure nothrow @safe;
+		Stylable parent() pure nothrow @safe;
+	}
+}
+
+class StylableSelector
+{
+	string stylableTypeName;
 	bool fullyQualifiedType;
-	string widgetName;
+	string stylableName;
 	string className;
 
 	enum PseudoClass : byte
@@ -39,9 +78,9 @@ class WidgetSelector
 
 	this(string wtype, string wname, string cname = null, string pseudoName = null)
 	{
-		widgetTypeName = wtype == "*" ? null : wtype;
+		stylableTypeName = wtype == "*" ? null : wtype;
 		fullyQualifiedType = false;
-		widgetName = wname;
+		stylableName = wname;
 		className = cname;
 		switch (pseudoName)
 		{
@@ -63,10 +102,11 @@ class WidgetSelector
 		}
 	}
 
-	Widget match(Widget w, string[] classNames)
+	Stylable match(Stylable w, const(string[]) classNames_)
 	{
-		auto nameMatch = widgetName.empty ? true : widgetName == w.name;
-		auto typeMatch = widgetTypeName.empty;
+		auto nameMatch = stylableName.empty ? true : stylableName == w.name;
+		auto typeMatch = stylableTypeName.empty;
+		const(string[]) classNames = w.classes;
 		auto classMatch = className.empty ? true : classNames.canFind(className);
 		auto pseudoMatch = true;
 
@@ -84,7 +124,7 @@ class WidgetSelector
 				pseudoMatch = false; // TODO: implement
 				break;
 			case PseudoClass.focus:
-				pseudoMatch = w.isKeyboardFocusWidget();
+				pseudoMatch = w.hasKeyboardFocus();
 				break;
 		}
 
@@ -92,27 +132,9 @@ class WidgetSelector
 			return null;
 
 		if (!typeMatch)
-		{
-			auto ci = w.classinfo;
-			// Match class with widgetTypeName or descendants
-			while (ci !is null && !matchName(ci))
-				ci = ci.base;
-			typeMatch = ci !is null;
-		}
-		return typeMatch ? w : null;
-	}
+			typeMatch = w.matchStylable(stylableTypeName);
 
-	private bool matchName(TypeInfo_Class ci)
-	{
-		import std.string;
-		string ciname = ci.name;
-		if (!fullyQualifiedType)
-		{
-			auto idx = ciname.lastIndexOf('.');
-			if (idx != -1)
-				ciname = ciname[idx+1..$];
-		}
-		return ciname == widgetTypeName;
+		return typeMatch ? w : null;
 	}
 
 }
@@ -122,48 +144,48 @@ unittest
 	auto testWin = createTestWindow();
 
 	// Wildcard match
-	auto w1 = new Widget(testWin);
-	auto sel1 = new WidgetSelector(null, null);
-	AssertIs(sel1.match(w1, null), w1, "Wildcard WidgetSelector matches unnamed");
-	w1.name = "testWidget";
-	AssertIs(sel1.match(w1, null), w1, "Wildcard WidgetSelector matches named");
+	auto w1 = new Stylable(testWin);
+	auto sel1 = new StylableSelector(null, null);
+	AssertIs(sel1.match(w1, null), w1, "Wildcard StylableSelector matches unnamed");
+	w1.name = "testStylable";
+	AssertIs(sel1.match(w1, null), w1, "Wildcard StylableSelector matches named");
 
 	// Name match
-	auto w2 = new Widget(testWin);
-	auto sel2 = new WidgetSelector(null, "testWidget");
-	AssertIsNot(sel2.match(w2, null), w2, "TypeWildcard WidgetSelector does not match unnamed");
-	w2.name = "testWidgetxx";
-	AssertIsNot(sel2.match(w2, null), w2, "TypeWildcard WidgetSelector does not match mismatching name");
-	w2.name = "testWidget";
-	AssertIs(sel2.match(w2, null), w2, "TypeWildcard WidgetSelector matches name");
+	auto w2 = new Stylable(testWin);
+	auto sel2 = new StylableSelector(null, "testStylable");
+	AssertIsNot(sel2.match(w2, null), w2, "TypeWildcard StylableSelector does not match unnamed");
+	w2.name = "testStylablexx";
+	AssertIsNot(sel2.match(w2, null), w2, "TypeWildcard StylableSelector does not match mismatching name");
+	w2.name = "testStylable";
+	AssertIs(sel2.match(w2, null), w2, "TypeWildcard StylableSelector matches name");
 
 	// Type match
-	auto w3 = new Widget(testWin);
-	auto sel3 = new WidgetSelector("Widget",null);
-	AssertIs(sel3.match(w3, null), w3, "NameWildcard WidgetSelector matches direct Widget");
-	auto sel4 = new WidgetSelector("WidgetX",null);
-	AssertIsNot(sel4.match(w3, null), w3, "NameWildcard WidgetSelector does not match direct WidgetX");
+	auto w3 = new Stylable(testWin);
+	auto sel3 = new StylableSelector("Stylable",null);
+	AssertIs(sel3.match(w3, null), w3, "NameWildcard StylableSelector matches direct Stylable");
+	auto sel4 = new StylableSelector("StylableX",null);
+	AssertIsNot(sel4.match(w3, null), w3, "NameWildcard StylableSelector does not match direct StylableX");
 
-	class TestWidget1 : Widget { this(Widget w) { super(w); } }
-	class TestWidget2 : TestWidget1 { this(Widget w) { super(w); } }
+	class TestStylable1 : Stylable { this(Stylable w) { super(w); } }
+	class TestStylable2 : TestStylable1 { this(Stylable w) { super(w); } }
 
-	auto w4 = new TestWidget2(testWin);
-	auto sel5 = new WidgetSelector("Widget",null);
-	AssertIs(sel5.match(w4, null), w4, "NameWildcard WidgetSelector matches decendant of Widget");
-	auto sel6 = new WidgetSelector("TestWidget1",null);
-	AssertIs(sel6.match(w4, null), w4, "NameWildcard WidgetSelector matches decendant of TestWidget1");
-	auto sel7 = new WidgetSelector("TestWidget2",null);
-	AssertIs(sel7.match(w4, null), w4, "NameWildcard WidgetSelector matches direct TestWidget2");
+	auto w4 = new TestStylable2(testWin);
+	auto sel5 = new StylableSelector("Stylable",null);
+	AssertIs(sel5.match(w4, null), w4, "NameWildcard StylableSelector matches decendant of Stylable");
+	auto sel6 = new StylableSelector("TestStylable1",null);
+	AssertIs(sel6.match(w4, null), w4, "NameWildcard StylableSelector matches decendant of TestStylable1");
+	auto sel7 = new StylableSelector("TestStylable2",null);
+	AssertIs(sel7.match(w4, null), w4, "NameWildcard StylableSelector matches direct TestStylable2");
 }
 
-class ChildSelector : WidgetSelector
+class ChildSelector : StylableSelector
 {
 	this(string tname, string wname, string cname = null, string pseudoName = null)
 	{
 		super(tname, wname, cname, pseudoName);
 	}
 
-	override Widget match(Widget w, string[] classNames)
+	override Stylable match(Stylable w, const(string[]) classNames)
 	{
 		auto p = w.parent;
 		if (p is null || super.match(p, classNames) is null)
@@ -176,32 +198,32 @@ class ChildSelector : WidgetSelector
 unittest
 {
 	auto win = createTestWindow();
-	auto w1 = new Widget(win);
+	auto w1 = new Stylable(win);
 	w1.name = "testParent";
-	auto w2 = new Widget(w1);
+	auto w2 = new Stylable(w1);
 	w2.name = "testChild";
-	auto w3 = new Widget(w2);
+	auto w3 = new Stylable(w2);
 	w3.name = "testGrandChild";
 
 	auto sel = new ChildSelector(null,"testParent");
-	AssertIsNot(sel.match(w1, null), win, "Root widget does not match ChildSelector");
-	AssertIs(sel.match(w2, null), w1, "Child of root widget matches ChildSelector");
-	AssertIsNot(sel.match(w3, null), w2, "Grandchild of root widget does not match ChildSelector");
+	AssertIsNot(sel.match(w1, null), win, "Root Stylable does not match ChildSelector");
+	AssertIs(sel.match(w2, null), w1, "Child of root Stylable matches ChildSelector");
+	AssertIsNot(sel.match(w3, null), w2, "Grandchild of root Stylable does not match ChildSelector");
 }
 
-class DescendantSelector : WidgetSelector
+class DescendantSelector : StylableSelector
 {
 	this(string tname, string wname, string cname = null, string pseudoName = null)
 	{
 		super(tname, wname, cname, pseudoName);
 	}
 
-	override Widget match(Widget w, string[] classNames)
+	override Stylable match(Stylable w, const(string[]) classNames)
 	{
 		auto p = w.parent;
 		while (p !is null)
 		{
-			Widget res = super.match(p, classNames);
+			Stylable res = super.match(p, classNames);
 			if (res is null)
 				p = p.parent;
 			else
@@ -214,17 +236,17 @@ class DescendantSelector : WidgetSelector
 unittest
 {
 	auto win = createTestWindow();
-	auto w1 = new Widget(win);
+	auto w1 = new Stylable(win);
 	w1.name = "testParent";
-	auto w2 = new Widget(w1);
+	auto w2 = new Stylable(w1);
 	w2.name = "testChild";
-	auto w3 = new Widget(w2);
+	auto w3 = new Stylable(w2);
 	w3.name = "testGrandChild";
 
 	auto sel = new DescendantSelector(null,"testParent");
-	AssertIsNot(sel.match(w1, null), win, "Root widget does not match DescendantSelector");
-	AssertIs(sel.match(w2, null), w1, "Child of root widget matches DescendantSelector");
-	AssertIs(sel.match(w3, null), w1, "Grandchild of root widget matches DescendantSelector");
+	AssertIsNot(sel.match(w1, null), win, "Root Stylable does not match DescendantSelector");
+	AssertIs(sel.match(w2, null), w1, "Child of root Stylable matches DescendantSelector");
+	AssertIs(sel.match(w3, null), w1, "Grandchild of root Stylable matches DescendantSelector");
 }
 
 /*
@@ -234,7 +256,7 @@ class SiblingSelectorOperator: SelectorOperator
 }
 */
 
-alias WidgetSelector[] Selectors;
+alias StylableSelector[] Selectors;
 
 class Rule
 {
@@ -251,11 +273,11 @@ class Rule
 	// http://www.w3.org/TR/CSS21/cascade.html#specificity
 	// 0xFF_00_00_00 mask is the count of named selectors
 	// 0x00_FF_00_00 mask is the sum of psuedo class selectors, class selectors and attribute selectors
-	// 0x00_00_FF_00 mask is the sum of widget and subwidget selectors
+	// 0x00_00_FF_00 mask is the sum of Stylable and subStylable selectors
 	//
 	uint specificity;
 
-	bool match(Widget w, string[] classNames)
+	bool match(Stylable w, const(string[]) classNames)
 	{
 		if (specificity == 0)
 			calculateSpecificity();
@@ -273,13 +295,13 @@ class Rule
 	{
 		foreach (s;	selectors)
 		{
-			if (s.widgetName !is null)
+			if (s.stylableName !is null)
 				specificity += 0x01_00_00_00;
 			if (s.className !is null)
 				specificity += 0x00_01_00_00;
-			if (s.pseudoClass != WidgetSelector.PseudoClass.none)
+			if (s.pseudoClass != StylableSelector.PseudoClass.none)
 				specificity += 0x00_01_00_00;
-			if (s.widgetTypeName !is null)
+			if (s.stylableTypeName !is null)
 				specificity += 0x00_00_01_00;
 		}
 	}
@@ -289,10 +311,10 @@ unittest
 {
 	auto testWin = createTestWindow();
 	auto sel1 = new Rule;
-	sel1.selectors ~= new WidgetSelector("Widget", null);
-	auto w1 = new Widget(testWin);
+	sel1.selectors ~= new StylableSelector("Stylable", null);
+	auto w1 = new Stylable(testWin);
 	w1.name = "testParent";
-	auto w2 = new Widget(w1);
+	auto w2 = new Stylable(w1);
 	w2.name = "testChild";
 
 	Assert(sel1.match(w1, null), "Wildcard selector matches single");
@@ -337,7 +359,7 @@ class StyleSheet : Resource!StyleSheet
 		other.styleCache = sc;
 	}
 
-	Style getStyleForWidget(Widget w, string[] classNames = null)
+	Style getStyle(Stylable w, const(string[]) classNames = null)
 	{
 		// Get matching selectors
 		struct Match
@@ -417,26 +439,26 @@ class StyleSheet : Resource!StyleSheet
 unittest
 {
 	auto win = createTestWindow();
-	auto w1 = new Widget(win);
+	auto w1 = new Stylable(win);
 	w1.name = "testParent";
-	auto w2 = new Widget(w1);
+	auto w2 = new Stylable(w1);
 	w2.name = "testChild";
-	auto w3 = new Widget(w2);
+	auto w3 = new Stylable(w2);
 	w3.name = "testGrandChild";
 
 	auto sheet = new StyleSheet;
 
-	// WidgetSelector
+	// StylableSelector
 	Rule sel1 = new Rule;
-	sel1.selectors ~= new WidgetSelector("Widget", null);
+	sel1.selectors ~= new StylableSelector("Stylable", null);
 	sel1.style = new Style(sheet);
 	sel1.style.color = Color.red;
 	// sel1.style.compute();		
 	sheet.rules ~= sel1;
 
-	Assert(sheet.getStyleForWidget(w1).color, Color.red, "Selector(Widget) w1 has color red");
-	Assert(sheet.getStyleForWidget(w2).color, Color.red, "Selector(Widget) w2 has color red");
-	Assert(sheet.getStyleForWidget(w3).color, Color.red, "Selector(Widget) w2 has color red");
+	Assert(sheet.getStyleForStylable(w1).color, Color.red, "Selector(Stylable) w1 has color red");
+	Assert(sheet.getStyleForStylable(w2).color, Color.red, "Selector(Stylable) w2 has color red");
+	Assert(sheet.getStyleForStylable(w3).color, Color.red, "Selector(Stylable) w2 has color red");
 
 	// ChildSelector
 	Rule sel2 = new Rule;
@@ -446,9 +468,9 @@ unittest
 	//sel2.style.compute();
 	sheet.rules ~= sel2;
 
-	Assert(sheet.getStyleForWidget(w1).color, Color.red, "Selector(#testParent Widget) w1 has color red");
-	Assert(sheet.getStyleForWidget(w2).color, Color.green, "Selector(#testParent Widget) w2 has color green");
-	Assert(sheet.getStyleForWidget(w3).color, Color.red, "Selector(#testParent Widget) w3 has color red");
+	Assert(sheet.getStyleForStylable(w1).color, Color.red, "Selector(#testParent Stylable) w1 has color red");
+	Assert(sheet.getStyleForStylable(w2).color, Color.green, "Selector(#testParent Stylable) w2 has color green");
+	Assert(sheet.getStyleForStylable(w3).color, Color.red, "Selector(#testParent Stylable) w3 has color red");
 
 	// DescendantSelector
 	Rule sel3 = new Rule;
@@ -458,9 +480,9 @@ unittest
 	//sel3.style.compute();
 	sheet.rules ~= sel3;
 
-	Assert(sheet.getStyleForWidget(w1).color, Color.red, "Selector(#testParent Widget) w1 has color red");
-	Assert(sheet.getStyleForWidget(w2).color, Color.blue, "Selector(#testParent Widget) w2 has color blue");
-	Assert(sheet.getStyleForWidget(w3).color, Color.blue, "Selector(#testParent Widget) w3 has color blue");
+	Assert(sheet.getStyleForStylable(w1).color, Color.red, "Selector(#testParent Stylable) w1 has color red");
+	Assert(sheet.getStyleForStylable(w2).color, Color.blue, "Selector(#testParent Stylable) w2 has color blue");
+	Assert(sheet.getStyleForStylable(w3).color, Color.blue, "Selector(#testParent Stylable) w3 has color blue");
 }
 
 class StyleSheetSerializer : ResourceSerializer!StyleSheet

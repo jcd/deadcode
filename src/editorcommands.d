@@ -4,9 +4,9 @@ import application;
 import core.buffer;
 import core.bufferview;
 import core.command;
+import core.commandparameter;
 import guiapplication;
 static import std.conv;
-import std.variant;
 
 // move imports into func when compiler does break on it
 import std.algorithm;
@@ -52,20 +52,21 @@ enum getBufferOrReturn = q{
 
 string createCmd(string name, string desc)
 {
-	string res = `cmgr.create("edit.` ~ name ~ `", "Move cursor to beginning of current line", delegate(Variant data) {
+	string res = `cmgr.create("edit.` ~ name ~ `", "Move cursor to beginning of current line", null, delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		b.` ~ name ~ `();
 	});`;
 	return res;
 }
 
-void register(Application _app)
+void register(GUIApplication app)
 {
-	CommandManager cmgr = _app.commandManager;
-	GUIApplication app = cast(GUIApplication) _app;
+	CommandManager cmgr = app.commandManager;
 
 	// The default emacs key mappings
-	cmgr.create("edit.clearBuffer", "Scroll editor window one page down", delegate(Variant data) {
+	cmgr.create("edit.clearBuffer", "Scroll editor window one page down", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto dl = "Hello world I am fine right now"d;
 		b.clear(dl);
@@ -92,17 +93,23 @@ void register(Application _app)
 	mixin(createCmd("pasteCycle", "Paste previous entry in instead of the last one just pasted copy buffer"));
 	mixin(createCmd("cut", "Cut selection"));
 
-	cmgr.create("edit.cursorToCharBefore", "Move cursor to char before cursor", delegate(Variant data) {
+	cmgr.create("edit.cursorToCharBefore", "Move cursor to char before cursor", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		b.cursorLeft(1);
 	});
 
-	cmgr.create("edit.cursorToCharAfter", "Move cursor to char after cursor", delegate(Variant data) {
+	cmgr.create("edit.cursorToCharAfter", "Move cursor to char after cursor", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		b.cursorRight(1);
 	});
 
-	cmgr.create("edit.cursorToCharAbove", "Move cursor to char before cursor", delegate(Variant data) {
+	cmgr.create("edit.cursorToCharAbove", "Move cursor to char before cursor", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 		ctrl.cursorUp(1);
@@ -112,7 +119,9 @@ void register(Application _app)
 			ctrl.scrollUp();
 	});
 
-	cmgr.create("edit.cursorToCharBelow", "Move cursor to char after cursor", delegate(Variant data) {
+	cmgr.create("edit.cursorToCharBelow", "Move cursor to char after cursor", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 		ctrl.cursorDown();
@@ -121,17 +130,23 @@ void register(Application _app)
 			ctrl.scrollDown();
 	});
 
-	cmgr.create("edit.selectToCharBefore", "Select to char before cursor", delegate(Variant data) {
+	cmgr.create("edit.selectToCharBefore", "Select to char before cursor", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		b.selectLeft(1);
 	});
 
-	cmgr.create("edit.selectToCharAfter", "Select to char after cursor", delegate(Variant data) {
+	cmgr.create("edit.selectToCharAfter", "Select to char after cursor", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		b.selectRight(1);
 	});
 
-	cmgr.create("edit.selectToCharAbove", "Select to char before cursor", delegate(Variant data) {
+	cmgr.create("edit.selectToCharAbove", "Select to char before cursor", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 		ctrl.selectUp(1);
@@ -141,7 +156,9 @@ void register(Application _app)
 			ctrl.scrollUp();
 	});
 
-	cmgr.create("edit.selectToCharBelow", "Select to char after cursor", delegate(Variant data) {
+	cmgr.create("edit.selectToCharBelow", "Select to char after cursor", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 		ctrl.selectDown();
@@ -150,7 +167,9 @@ void register(Application _app)
 			ctrl.scrollDown();
 	});
 
-	cmgr.create("edit.selectPageUp", "Select page up from cursor", delegate(Variant data) {
+	cmgr.create("edit.selectPageUp", "Select page up from cursor", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 		foreach (i; 0 .. ctrl.visibleLineCount)
@@ -161,7 +180,9 @@ void register(Application _app)
 		}
 	});
 
-	cmgr.create("edit.selectPageDown", "Select page down from cursor", delegate(Variant data) {
+	cmgr.create("edit.selectPageDown", "Select page down from cursor", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 
@@ -183,24 +204,32 @@ void register(Application _app)
 		}
 	});
 
-	cmgr.create("edit.deleteCharBefore", "Delete character before cursor", delegate(Variant data) {	
+	cmgr.create("edit.deleteCharBefore", "Delete character before cursor", 
+				null,
+				delegate(CommandParameter[] data) {	
 		mixin(getBufferOrReturn);
 		b.remove(-1);
 	});
 
-	cmgr.create("edit.deleteCharAfter", "Delete character after cursor", delegate(Variant data) {
+	cmgr.create("edit.deleteCharAfter", "Delete character after cursor", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		b.remove(1);
 	});
 
-	cmgr.create("edit.insert", "Insert a newline at cursor", delegate(Variant data) {
+	cmgr.create("edit.insert", "Insert a newline at cursor", 
+				createParams(""),
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
-		auto str = data.get!string();
+		auto str = data[0].get!string();
 		import std.conv;
 		b.insert(to!dstring(str));
 	});
 	
-	cmgr.create("edit.scrollPageDown", "Scroll view one page down", delegate(Variant data) {
+	cmgr.create("edit.scrollPageDown", "Scroll view one page down", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 
@@ -221,7 +250,9 @@ void register(Application _app)
 		}
 	});
 	
-	cmgr.create("edit.scrollPageUp", "Scroll view one page up", delegate(Variant data) {
+	cmgr.create("edit.scrollPageUp", "Scroll view one page up", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 
@@ -232,7 +263,9 @@ void register(Application _app)
 		}
 	});
 
-	cmgr.create("edit.scrollPagedUp", "Open file", delegate(Variant data) {
+	cmgr.create("edit.scrollPagedUp", "Open file", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 		for (int i = 0; i < ctrl.visibleLineCount; i++)
@@ -242,7 +275,30 @@ void register(Application _app)
 		}
 	});
 
-	cmgr.create("edit.saveBuffer", "Save file", delegate(Variant data) {
+	
+	cmgr.create("edit.cursorToLine", "Move cursor up or down until cursor reaches the line number given as argument", 
+				createParams("1"),
+				delegate(CommandParameter[] data) {
+		mixin(getBufferOrReturn);
+		auto str = data[0].peek!string;
+		if (str is null)
+		{
+			import controls.command;
+			auto cc = app.guiRoot.activeWindow.userData.get!(GUIApplication.WindowData)().commandControl;
+			cc.setCommand("edit.cursorToLine ");
+			cc.show(CommandControl.Mode.oneline);
+		}
+		else
+		{
+	//		auto str = data.get!string();
+			import std.conv;
+			b.cursorToLine(to!uint(*str));
+		}
+	});
+
+	cmgr.create("edit.saveBuffer", "Save file", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto view = b;
     	auto file = std.stdio.File(view.name, "wb");
@@ -252,7 +308,9 @@ void register(Application _app)
     	std.stdio.writefln("Wrote %s", view.name);
     });
 
-	cmgr.create("edit.save", "Save file", delegate(Variant data) {
+	cmgr.create("edit.save", "Save file", 
+				null,
+				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto view = b;
 		// handle encoding
@@ -268,15 +326,20 @@ void register(Application _app)
 		override @property string name() const { return "edit.open"; }
 		override @property string description() const { return "Open file"; }
 
-		override void execute(Variant data)
+		this()
 		{
-			auto path = data.get!string;
+			super(createParams(""));
+		}
+
+		override void execute(CommandParameter[] data)
+		{
+			auto path = data[0].get!string;
 			app.openFile(path);
 		}
 
-		override CompletionEntry[] getCompletions(Variant data)
+		override CompletionEntry[] getCompletions(CommandParameter[] data)
 		{
-			return std.array.array(filesystemCompletions(data.get!string()).map!(a => CompletionEntry(a,a))());
+			return std.array.array(filesystemCompletions(data[0].get!string()).map!(a => CompletionEntry(a,a))());
 		}
 	}
 
@@ -287,15 +350,20 @@ void register(Application _app)
 		override @property string name() const { return "edit.showBuffer"; }
 		override @property string description() const { return "Show named buffer in active window"; }
 
-		override void execute(Variant data)
+		this()
 		{
-			auto path = data.get!string;
+			super(createParams(""));
+		}
+
+		override void execute(CommandParameter[] data)
+		{
+			auto path = data[0].get!string;
 			app.showBuffer(path);
 		}
 		
-		override CompletionEntry[] getCompletions(Variant data)
+		override CompletionEntry[] getCompletions(CommandParameter[] data)
 		{
-			auto prefix = data.get!string();
+			auto prefix = data[0].get!string();
 			auto a = app.getActiveBufferCompletions(prefix);
 			
 			// If the prefix is empty we know that the active buffer is the first entry. And we don't 
@@ -320,7 +388,12 @@ void register(Application _app)
 			uint lastPos;
 		}
 
-		override void execute(Variant data)
+		this()
+		{
+			super(createParams(""));
+		}
+
+		override void execute(CommandParameter[] data)
 		{
 			// If command window is not open the open it with the command in place and no arg
 			// else
@@ -333,18 +406,19 @@ void register(Application _app)
 			
 			if (b.name == "*CommandInput*")
 			{
-				writeln("got " ~ data.get!string());
+				writeln("got " ~ data[0].get!string());
 			}
 			else
 			{
 				auto cmd = app.commandManager.lookup("app.toggleCommandArea");
-				cmd.execute(Variant("edit.incrSearch "));
+				auto args = createArgs("edit.incrSearch ");
+				cmd.execute(args);
 			}
 		}
 
-		override CompletionEntry[] getCompletions(Variant data)
+		override CompletionEntry[] getCompletions(CommandParameter[] data)
 		{
-			return [data.get!string()].toCompletionEntries();
+			return [data[0].get!string()].toCompletionEntries();
 		}
 	}
 
@@ -357,7 +431,9 @@ void register(Application _app)
 */
 
 	import util.build;
-	cmgr.create("core.rebuildEditor", "Rebuild the editor and replace the running instance with it", delegate(Variant data) {
+	cmgr.create("core.rebuildEditor", "Rebuild the editor and replace the running instance with it", 
+				null,
+				delegate(CommandParameter[] data) {
 //	            	build.buildIt();
 	            	// Serialize
 	            	// rename build version to xx
@@ -366,7 +442,9 @@ void register(Application _app)
 	            	// timeout starting and notify
 	            });
 
-	cmgr.create("core.quit", "Quit the application", delegate(Variant data) {
+	cmgr.create("core.quit", "Quit the application", 
+				null,
+				delegate(CommandParameter[] data) {
 		app.guiRoot.stop();		
 		//	            	build.buildIt();
 		// Serialize

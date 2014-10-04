@@ -89,6 +89,8 @@ class ConstraintLayout : WidgetFeature
 	Vec2f lockedSize;
 	Vec2f offset;
 	
+	bool _relayout = true;
+
 	this(WidgetID relation, 
 	     HorizontalAnchor hRelAnchor, VerticalAnchor vRelAnchor,
 	     HorizontalAnchor hWidgetAnchor, VerticalAnchor vWidgetAnchor,
@@ -102,22 +104,36 @@ class ConstraintLayout : WidgetFeature
 		this.vWidgetAnchor = vWidgetAnchor;
 		this.lockedSize = lockedSize;
 		this.offset = offset;
+		_relayout = true;
 	}
 	
 	override void update(Widget widget) 
 	{
+		if (_relayout)
+			layout(widget);
 	}
 	
 	override EventUsed send(Event event, Widget widget)
 	{
-		if (event.type != EventType.Resize)
-			return EventUsed.no;
+		if (event.type == EventType.Resize)
+		{
+			widget.manualLayout = true;
+			_relayout = true;
+		}
+
+		return EventUsed.no;
+	}
+	
+	override void layout(Widget widget)
+	{
+		if (!_relayout)
+			return;
 		
 		float k = 0.999f;
 		
 		Rectf startRect = widget.rect;
 		Rectf targetRect = startRect;
-
+	
 		Vec2f winSize = widget.window.size;
 		
 		Rectf windowRect = Rectf(0,0,winSize.x,winSize.y);
@@ -222,18 +238,24 @@ class ConstraintLayout : WidgetFeature
 		float limit = 0.016;
 		bool done = startRect.pos.squaredDistanceTo(targetRect.pos) < limit && startRect.size.squaredDistanceTo(targetRect.size) < limit;
 
-		// TODO: Make sure that widget.rect is integer size when done is true.
-		if (done)
-		{
-			//std.stdio.writeln("done ", widget.name, " ", startRect.w, " ", targetRect.w);
-			return EventUsed.no;
-		}
-		else
-		{
-	//		std.stdio.writeln("not done ", widget.name, " ", startRect.h, " ", targetRect.h);
+		if (!done)
 			widget.rect = targetRect;
-			return EventUsed.yes;
-		}
+
+		_relayout = !done;
+	//
+	//    // TODO: Make sure that widget.rect is integer size when done is true.
+	//    if (done)
+	//    {
+	//        
+	//        //std.stdio.writeln("done ", widget.name, " ", startRect.w, " ", targetRect.w);
+	//        return EventUsed.no;
+	//    }
+	//    else
+	//    {
+	////		std.stdio.writeln("not done ", widget.name, " ", startRect.h, " ", targetRect.h);
+	//        widget.rect = targetRect;
+	//        return EventUsed.yes;
+	//    }
 	}	
 }
 

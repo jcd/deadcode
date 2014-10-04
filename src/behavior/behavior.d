@@ -2,14 +2,20 @@ module behavior.behavior;
 
 public import core.buffer;
 import core.bufferview;
+import core.commandparameter;
 import application;
 public import graphics._;
 import gui.event;
 import gui.ruleset;
 import gui.window;
 
+import std.signals;
+
 class EditorBehavior // : KeyBindingValidator
 {
+	// (commandName, arguments provided)	
+	mixin Signal!(string, CommandParameter[], CommandParameterDefinitions) onMissingCommandArguments;
+	
 	/*
 	bool validate(Window window)
 	{

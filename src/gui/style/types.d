@@ -267,7 +267,7 @@ struct CSSScaleMix
 	@property isMixed() const pure nothrow @safe
 	{
 		import std.math;
-		return !mixOffset.isNaN;
+		return !mixOffset.isNaN && cssScaleA != cssScaleB;
 	}
 }
 
@@ -278,6 +278,27 @@ enum CSSPosition : byte
 	fixed,
 	relative,
 	absolute
+}
+
+struct CSSPositionMix 
+{
+	CSSPosition cssPositionA;
+	alias cssPositionA this;
+
+	CSSPosition cssPositionB;
+
+	CSSPosition opIndex(int i) const pure nothrow
+	{
+		assert(i < 2);
+		if (i == 0)
+			return cssPositionA;
+		return cssPositionB;
+	}
+
+	@property isMixed() const pure nothrow @safe
+	{
+		return cssPositionA != cssPositionB;
+	}
 }
 
 struct RectCSSOffset

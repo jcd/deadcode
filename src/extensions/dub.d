@@ -35,7 +35,7 @@ class DubBuildCommand : BasicCommand!DubBuildCommand
 	private Tid tid;
 	private string newExecPath;
 
-	override void execute(Variant v)
+	override void execute(CommandParameter[] v)
 	{
 		showBuildWidget();		
 		newExecPath = null;
@@ -371,20 +371,20 @@ class QuickOpenCommand : BasicCommand!QuickOpenCommand
 	override @property string name() const { return "dub.quickopen"; }
 	override @property string shortcut() const { return "<ctrl> + ,"; }
 
-	override void execute(Variant v)
+	override void execute(CommandParameter[] v)
 	{
-		auto path = v.get!string;
+		auto path = v[0].get!string;
 		app.openFile(path);
 	}
 
-	override CompletionEntry[] getCompletions(Variant data)
+	override CompletionEntry[] getCompletions(CommandParameter[] data)
 	{
 		Project p = getExtension!Project("dub.project");
 		if (p is null) 
 			return null;
 		import std.typecons;
 
-		string prefix = data.get!string(); 
+		string prefix = data[0].get!string(); 
 		auto stripPrefix = p.knownFilesCommonPrefix.length;
 		auto r1 = p.knownFiles.map!(a => tuple(baseName(a),a))().filter!(a => a[0].startsWith(prefix))();
 		auto r2 = r1.map!(a => CompletionEntry(a[1][stripPrefix..$], a[1]))();

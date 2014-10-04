@@ -86,10 +86,13 @@ class NineGridRenderer : WidgetFeature
 		
 		RectfOffset spriteBorder = style.backgroundSpriteBorder;
 		Rectf spriteRect = style.backgroundSprite;
+		//
+		//if (widget.id == 8)
+		//    std.stdio.writeln("w8 dpos ", widget.rect.h);
 
 		if (model is null)
 		{
-			model = new BoxModel(Sprite(spriteRect),  spriteBorder);
+			model = new BoxModel(widget.id, Sprite(spriteRect),  spriteBorder);
 			_spriteBorder = spriteBorder;
 			_spriteRect = spriteRect;
 		} 
@@ -101,7 +104,8 @@ class NineGridRenderer : WidgetFeature
 			_spriteRect = spriteRect;
 		}
 
-		auto wr = widget.rectStyled.size;
+//		auto wr = widget.rectStyled.size;
+		auto wr = widget.rect.size;
 		model.rect =  Rectf(0, 0, wr);
 		model.material = mat;
 		color = style.backgroundColor;

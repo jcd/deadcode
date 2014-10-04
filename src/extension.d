@@ -2,6 +2,7 @@ module extension;
 
 public import core.bufferview;
 public import core.command;
+public import core.commandparameter;
 public import guiapplication;
 public import gui.widget;
 public import controls.texteditor;
@@ -110,6 +111,11 @@ class BasicWidget(T) : IBasicWidget
 class IBasicCommand : Command
 {
 	GUIApplication app;
+	
+	this(CommandParameterDefinitions paramsDefs)
+	{
+		super(paramsDefs);
+	}
 
 	abstract void init();
 	abstract void onStart();
@@ -121,6 +127,11 @@ class BasicCommand(T) : IBasicCommand
 	static this()
 	{
 		g_Commands ~= new T;
+	}
+
+	this()
+	{
+		super(null); // TODO: figure out a nice way to initialize param defs
 	}
 
 	IBasicWidget getBasicWidget(string name)

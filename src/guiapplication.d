@@ -4,9 +4,11 @@ import application;
 import core.analytics;
 import core.bufferview;
 import core.copybuffer;
+import core.commandparameter;
 import core.uri;
 import controls.command;
 import controls.texteditor;
+import editorcommands;
 import graphics._;
 import gui._;
 import gui.resources.generic;
@@ -170,6 +172,7 @@ class GUIApplication : Application
 		analyticStartTiming("core", "startup");
 
 		super();
+		register(this);
 		editors = new Editors;
 	}
 
@@ -254,28 +257,30 @@ class GUIApplication : Application
 		guiRoot.textureManager.onSourceChanged.connect(&textureSourceChanged);
 
 		commandManager.create("app.toggleCommandArea", "Toggle visibility of the command area in the current active window", 
-							  delegate(std.variant.Variant v) 
+							  createParams(""),
+							  delegate(CommandParameter[] v) 
 							  {	 
 								  auto cc = guiRoot.activeWindow.userData.get!WindowData().commandControl;
-								  auto val = v.peek!string();		
+								  auto val = v[0].peek!string();		
 								  if (val !is null)
 									  cc.setCommand(*val);
-								  cc.toggleShown();
+								  cc.toggleShown(CommandControl.Mode.multiline);
 							  });
 		
 		commandManager.create("app.cycleBuffers", "Cycle through buffers in the current active window", 
-							  (std.variant.Variant v)
+							  createParams(1),
+							  (CommandParameter[] v)
 							  {
 								  import std.conv;
 								  auto cc = guiRoot.activeWindow.userData.get!WindowData().commandControl;									
 
-								  if (!cc.show )
-									  cc.toggleShown();
+								  if (!cc.isShown )
+									  cc.show(CommandControl.Mode.multiline);
 								
 								  int val = 1;
-								  auto valPtr = v.peek!string();
+								  auto valPtr = v[0].peek!int();
 								  if (valPtr !is null)
-									  val = (*valPtr).to!int();
+									  val = *valPtr;
 
 								  // Initial cycle. The following cycling is handled by the command widget onCommand()
 								  cc.cycleBuffers(val); 
@@ -341,7 +346,7 @@ class GUIApplication : Application
 		import core.config;
 
 		setupRegistryEntry(r"Software\Classes\*\shell\Open with Dedit\command", 
-						   r"C:\Users\jonasd\Documents\Projects\D\ded>ded-debug_d.exe");
+						   r"C:\Projects\D\ded>ded-debug_d.exe");
 		analyticsKey = setupRegistryEntry(r"Software\SteamWinter\Ded", 
 										  randomUUID().toString());		
 	}
@@ -476,11 +481,11 @@ version (Windows)
 		BufferView bufferView = bufferViewManager["*CommandInput*"];
 		CommandControl cc = new CommandControl(win, 379f, bufferView, this);
 		cc.name = "command";
-		cc.alignToWindow(Anchor.TopCenter, Vec2f(600,-1), Vec2f(0,0));
+		// cc.alignToWindow(Anchor.TopCenter, Vec2f(600,-1), Vec2f(0,0));
 		// cc.visible = false;
 		winData.commandControl = cc;
 
-		
+		editorBehavior.onMissingCommandArguments.connect(&cc.onMissingCommandArguments);
 
 		// Let text editor handle events before normal gui
 		win.onEvent = (ref Event ev) {

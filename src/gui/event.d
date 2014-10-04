@@ -1,5 +1,7 @@
 module gui.event;
 
+import core.commandparameter;
+
 import derelict.sdl2.sdl; 
 import gui.keycode;
 import math._;
@@ -30,6 +32,7 @@ enum EventType
 	KeyUp,      /// Key pressed down
 	Resize,     /// The window has been resized
 	Focus,		/// The window has been focused
+	Layout,     /// Relayout is required
 	StyleSheetChanged, // The stylesheet has been changed
 }
 
@@ -132,7 +135,7 @@ struct Event
 		struct 
 		{
 			string name;
-			Variant* argument;
+			CommandParameter[] argument;
 		}
 		struct
 		{

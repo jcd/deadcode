@@ -1,10 +1,12 @@
 module core.command;
 
+import core.commandparameter;
+
 import std.conv;
 import std.exception;
 import std.range : empty;
 import std.string;
-import std.variant;
+import std.typecons;
 
 struct CompletionEntry
 {
@@ -20,6 +22,8 @@ CompletionEntry[] toCompletionEntries(string[] strs)
 
 class Command
 {
+	private CommandParameterDefinitions _commandParamtersTemplate;
+	
 	@property
 	{
 		string name() const
@@ -38,15 +42,25 @@ class Command
 		}
 	}
 	
-	bool canExecute(Variant data)
+	this(CommandParameterDefinitions paramsTemplate = null)
+	{
+		_commandParamtersTemplate = paramsTemplate;
+	}
+
+	CommandParameterDefinitions getCommandParameterDefinitions()
+	{
+		return _commandParamtersTemplate;
+	}
+
+	bool canExecute(CommandParameter[] data)
 	{
 		return true;
 	}
 	
-	abstract void execute(Variant data);
-	void undo(Variant data) { }
+	abstract void execute(CommandParameter[] data);
+	void undo(CommandParameter[] data) { }
 
-	CompletionEntry[] getCompletions(Variant data)
+	CompletionEntry[] getCompletions(CommandParameter[] data)
 	{
 		return null;
 	}
@@ -60,30 +74,32 @@ class DelegateCommand : Command
 	override @property string name() const { return _name; }
 	override @property string description() const { return _description; }
 
-	void delegate(Variant d) executeDel;
-	void delegate(Variant d) undoDel;
-	CompletionEntry[] delegate (Variant d) completeDel;
+	void delegate(CommandParameter[] d) executeDel;
+	void delegate(CommandParameter[] d) undoDel;
+	CompletionEntry[] delegate (CommandParameter[] d) completeDel;
 
-	this(string nameIn, string descIn, void delegate(Variant) executeDel, void delegate(Variant) undoDel = null)
+	this(string nameIn, string descIn, CommandParameterDefinitions paramDefs,
+		 void delegate(CommandParameter[]) executeDel, void delegate(CommandParameter[]) undoDel = null)
 	{
+		super(paramDefs);
 		_name = nameIn;
 		_description = descIn;
 		this.executeDel = executeDel;
 		this.undoDel = undoDel;
 	}
 	
-	final override void execute(Variant data)
+	final override void execute(CommandParameter[] data)
 	{
 		executeDel(data);
 	}
 
-	final override void undo(Variant data)
+	final override void undo(CommandParameter[] data)
 	{
 		if (undoDel !is null)
 			undoDel(data);
 	}
 
-	override CompletionEntry[] getCompletions(Variant data)
+	override CompletionEntry[] getCompletions(CommandParameter[] data)
 	{
 		if (completeDel !is null)
 			return completeDel(data);
@@ -99,8 +115,13 @@ class CommandHello : Command
 		string name() { return "test.hello"; }
 		string description() { return "Echo \"Hello\" to stdout"; }
 	}
-		
-	override void execute(Variant data)
+	
+	this()
+	{
+		super(null);
+	}
+
+	override void execute(CommandParameter[] data)
 	{
 		std.stdio.writeln("Hello");
 	}
@@ -110,10 +131,17 @@ class CommandHello : Command
 auto helloCommand()
 {
 	return new DelegateCommand("test.hello", "Echo \"Hello\" to stdout", 
-	                           delegate (Variant data) { std.stdio.writeln("Hello"); });
+							   null,
+	                           delegate (CommandParameter[] data) { std.stdio.writeln("Hello"); });
 }
 
 	
+//@Command("edit.cursorDown", "Moves cursor count lines down");
+//void cursorDown(uint count = 1)
+//{
+//
+//}
+
 class CommandManager
 {
 	// Runtime check that only one instance is created ie. not for use in singleton pattern.
@@ -130,13 +158,31 @@ class CommandManager
 
 	// TODO: Rename to create(..) when dmd supports overloading on parameter that is delegates with different params. Currently this method
 	//       conflicts with the method below because of dmd issues.
-	DelegateCommand create(string name, string description, void delegate(Variant) executeDel, void delegate(Variant) undoDel = null)
+	DelegateCommand create(string name, string description, CommandParameterDefinitions paramDefs, 
+						   void delegate(CommandParameter[]) executeDel, 
+						   void delegate(CommandParameter[]) undoDel = null)
 	{
-		auto c = new DelegateCommand(name, description, executeDel, undoDel);
+		auto c = new DelegateCommand(name, description, paramDefs, executeDel, undoDel);
 		add(c);
 		return c;
 	}
-			
+
+	//DelegateCommand create(T)(string name ,string description, void delegate(Nullable!T) executeDel, void delegate(Nullable!T) undeDel = null) if ( ! is(T == class ))
+	//{
+	//    create(name, description, 
+	//           (Variant v) { 
+	//                auto d = v.peek!(Nullable!T);
+	//                if (d is null)
+	//           }, 
+	//           undoDel is null ? null : (Variant) { });
+	//}
+
+	//DelegateCommand create(T)(string name ,string description, void delegate(T) executeDel, void delegate(T) undeDel = null) if ( is(T == class ))
+	//{
+	//    static assert(0);
+	//}
+
+
 /*	DelegateCommand create(string name, string description, void delegate() del)
 	{
 		return create(name, description, del, null);

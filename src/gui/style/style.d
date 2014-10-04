@@ -79,7 +79,7 @@ class Style
 
 		@Bindable()
 		{
-			CSSPosition _position;
+			CSSPositionMix _position;
 			CSSScaleMix _width;
 			CSSScaleMix _height;
 			CSSScaleMix _left;
@@ -128,12 +128,12 @@ class Style
 			return transitionCache.length != 0;
 		}
 		
-		CSSPosition position() const
+		CSSPositionMix position() const
 		{
 			return _position;
 		}
 
-		void position(CSSPosition p)
+		void position(T)(T p) if (is(T:CSSPositionMix) || is(T:CSSPosition))
 		{
 			_position = p;
 		}
@@ -165,9 +165,21 @@ class Style
 			return _left;
 		}
 
+		void left(T)(T v) pure nothrow @safe if (is (T:CSSScale) || is(T:CSSScaleMix))
+
+		{
+			_left = v;
+		}
+
 		CSSScaleMix top() const
 		{
 			return _top;
+		}
+
+		void top(T)(T v) pure nothrow @safe if (is (T:CSSScale) || is(T:CSSScaleMix))
+
+		{
+			_top = v;
 		}
 
 		CSSScaleMix right() const
@@ -175,14 +187,30 @@ class Style
 			return _right;
 		}
 
+		void right(T)(T v) pure nothrow @safe if (is (T:CSSScale) || is(T:CSSScaleMix))
+
+		{
+			_right = v;
+		}
+
 		CSSScaleMix bottom() const
 		{
 			return _bottom;
 		}
 
+		void bottom(T)(T v) pure nothrow @safe if (is (T:CSSScale) || is(T:CSSScaleMix))
+		{
+			_bottom = v;
+		}
+
 		CSSScaleMix width() const
 		{
 			return _width;
+		}
+
+		void width(T)(T v) pure nothrow @safe if (is (T:CSSScale) || is(T:CSSScaleMix))
+		{
+			_width = v;
 		}
 
 		bool heightValid() const
@@ -193,6 +221,11 @@ class Style
 		CSSScaleMix height() const
 		{
 			return _height;
+		}
+		
+		void height(T)(T v) pure nothrow @safe if (is (T:CSSScale) || is(T:CSSScaleMix))
+		{
+			_height = v;
 		}
 
 		Font font()

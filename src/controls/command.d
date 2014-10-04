@@ -5,6 +5,7 @@ import controls.texteditor;
 import controls.textfield;
 import core.bufferview;
 import core.command : CommandManager, Command;
+import core.commandparameter;
 import graphics._;
 import gui.event;
 import gui.keycode;
@@ -113,8 +114,19 @@ class CompletionListStyler(Text) : TextStyler!Text
 class CommandControl : Widget
 {
 	float height; // height when control is visible
+	float onelineHeight;
 
 	mixin styleProperty!("float", "expandDuration");
+
+	enum Mode 
+	{
+		hidden,
+		oneline,
+		twoline,
+		multiline,
+	}
+
+	Mode _mode = Mode.hidden;
 
 	//float expandDuration; //
 	float contractDuration; //
@@ -137,6 +149,35 @@ class CommandControl : Widget
 		return cycleBufferStartOffset >= 0;
 	}
 
+	@property Mode mode() const pure nothrow @safe
+	{
+		return _mode;
+	}
+
+	//private @property void mode(Mode m) pure 
+	//{
+	//	_mode = m;
+		//final switch (m)
+		//{
+		//case Mode.oneline:
+		//    completionWidget.visible = false;
+		//    break;
+		//case Mode.twoline:
+		//    completionWidget.visible = true;
+		//    break;
+		//case Mode.multiline:
+		//    completionWidget.visible = true;
+		//    break;
+		//}
+//	}
+
+	enum _classes = [["hidden"],["oneline"], ["twoline"], ["multiline"]];
+
+	override protected @property const(string[]) classes() const pure nothrow @safe
+	{
+		return _classes[mode];
+	}
+
 	// Widget bottomWidget;
 
 	this(Widget parent, float _height, BufferView bufView, GUIApplication _app)
@@ -149,10 +190,11 @@ class CommandControl : Widget
 		clearExpandDuration();
 		contractDuration = 0.03f;
 		height = _height;
+		onelineHeight = 24;
 		
 		acceptsKeyboardFocus = true;
 		h = 0;
-		visible = false;
+		// visible = false;
 		cycleBufferStartOffset = -1; // cycling off initially
 
 		// Layout
@@ -200,16 +242,16 @@ class CommandControl : Widget
 	{
 		if (ev.keyCode == stringToKeyCode("escape"))
 		{
-			toggleShown();
+			hide();
 		}
 		else if (ev.keyCode == stringToKeyCode("return"))
 		{
-			toggleShown();
+			hide();
 			executeCommand();
 		}
 		else if (ev.mod == 0 && isBufferCycleMode)
 		{
-			toggleShown();
+			hide();
 			endCycleBufferMode();
 		}
 		else 
@@ -223,7 +265,7 @@ class CommandControl : Widget
 	{
 		if (ev.mod == 0 && isBufferCycleMode)
 		{
-			toggleShown();
+			hide();
 			endCycleBufferMode();
 		}
 		else 
@@ -249,7 +291,7 @@ class CommandControl : Widget
 		switch (event.name)
 		{
 		case "edit.commitCompletion":
-			toggleShown();
+			hide();
 			executeCommand();
 			return EventUsed.yes;
 		case "edit.complete":
@@ -263,7 +305,7 @@ class CommandControl : Widget
 			else
 			{
 				setCommand("edit.incrFind");
-				toggleShown();
+				hide();
 			}
 			return EventUsed.yes;
 		case "navigate.up":
@@ -293,7 +335,7 @@ class CommandControl : Widget
 			import std.conv;
 
 			int val = 1;
-			auto valPtr = (*event.argument).peek!string();
+			auto valPtr = event.argument[0].peek!string();
 			if (valPtr !is null)
 				val = (*valPtr).to!int();
 	
@@ -383,44 +425,57 @@ class CommandControl : Widget
 
 	@property
 	{
-		void show(bool b)
+		void show(Mode m)
 		{
-			if (window is null || b && show || !b && !show)
+			if (window is null || _mode == m)
 				return;
 
 			//completionWidget.visible = b;
 			//std.stdio.writeln("show ", b, " ", id, " ", h);
 
-			if (!app.guiRoot.timeline.hasPendingAnimation)
-			{
-				if (b)
-				{
-					// style.getProperty("expand-duration", expandDuration);
-					app.guiRoot.timeline.animate!"h"(this, height, expandDuration);
-				}
-				else
-				{
-					//style.getProperty("contract-duration", expandDuration);
-					app.guiRoot.timeline.animate!"h"(this, 0, contractDuration);
-					app.guiRoot.timeline.event(contractDuration * 0.1, (int d) { this.visible = false; });
-				}
-			}
+			//if (!app.guiRoot.timeline.hasPendingAnimation)
+			//{
+			//    //if (b)
+			//    //{
+			//    //    // style.getProperty("expand-duration", expandDuration);
+			//    //    float targetHeight = height;
+			//    //    float dura = expandDuration;
+			//    //    if (mode == Mode.oneline)
+			//    //    {
+			//    //        targetHeight = onelineHeight;
+			//    //        dura /= 10;
+			//    //    }
+			//    //    app.guiRoot.timeline.animate!"h"(this, targetHeight, dura);
+			//    //}
+			//    //else
+			//    //{
+			//    //    //style.getProperty("contract-duration", expandDuration);
+			//    //    app.guiRoot.timeline.animate!"h"(this, 0, contractDuration);
+			//    //    app.guiRoot.timeline.event(contractDuration * 0.1, (int d) { this.visible = false; mode = Mode.multiline; });
+			//    //}
+			//}
+			_mode = m;
 
-			if (b)
-			{
-				resumeWidgetID = window.getKeyboardFocusWidget().id;
-				commandField.setKeyboardFocusWidget();
-				visible = true;
-			}
-			else
+			if (m == Mode.hidden)
 			{
 				window.setKeyboardFocusWidget(resumeWidgetID);
 			}
+			else
+			{
+				resumeWidgetID = window.getKeyboardFocusWidget().id;
+				commandField.setKeyboardFocusWidget();
+			}
 		}
 
-		bool show()
+		void hide()
 		{
-			return h != 0f;
+			show(Mode.hidden);
+		}
+
+		bool isShown()
+		{
+			return _mode != Mode.hidden;
+			//return h != 0f;
 		}
 	}
 
@@ -474,6 +529,11 @@ class CommandControl : Widget
 			else
 				comps ~= dtext(c ~ " \n");
 		}
+		
+		//if (list.length == 1)
+		//    mode = Mode.twoline;
+		//else
+		//    mode = Mode.multiline;
 
 		completionWidget.bufferView.clear(comps);
 		completionWidget.bufferView.lineOffset = 0;
@@ -492,7 +552,7 @@ class CommandControl : Widget
 		}
 
 		//completionWidget.visible = true;
-		auto completions = cmdData.cmd.getCompletions(std.variant.Variant(cmdData.rest));
+		auto completions = cmdData.cmd.getCompletions(createArgs(cmdData.rest));
 		displayStringList(completions.map!(a => a.label).array);
 
 		// std.stdio.writeln("rest '", cmdData.rest, "'");
@@ -519,7 +579,7 @@ version(oldvw)
 			return;
 		}
 		auto prefix = cmdData.rest;
-		auto completions = cmdData.cmd.getCompletions(std.variant.Variant(prefix));
+		auto completions = cmdData.cmd.getCompletions(createArgs(prefix));
 		auto res = completions.dropExactly(completionStyler.lineHighlighted);
 		commandField.bufferView.remove(-prefix.length);
 		//completionWidget.visible = true;
@@ -583,16 +643,37 @@ version(NONE)
 		import std.range;
 
 		auto cmd = getActiveCommand();
-		auto var = std.variant.Variant(cmdData.rest);
+		auto var = createArgs(cmdData.rest);
 		auto completions = cmdData.cmd.getCompletions(var);
 		auto res = completions.dropExactly(completionStyler.lineHighlighted);
-		cmd.cmd.execute(res.empty ? var : std.variant.Variant(res.front.data));
+		cmd.cmd.execute(res.empty ? var : createArgs(res.front.data));
 		setCommand("");
 		//window.app.
 	}
 
-	void toggleShown()
+	void onMissingCommandArguments(string cmdName, CommandParameter[] args, CommandParameterDefinitions paramDefs)
 	{
-		show = !show;
+		setCommand(cmdName ~ " ");
+		show(Mode.twoline);
+		auto str = cmdName;
+		
+		foreach (i; 0..paramDefs.length)
+		{
+			string name = paramDefs[i].name;
+			if (name.empty)
+				name ~= "abcdefghijklmnopqrstuvxyz"[i];
+			str ~= format(" %s:%s", name, paramDefs[i].parameter.type());
+		}
+		displayStringList([str]);
+		app.addMessage(format("Missing arguments: %s", str));
 	}
+
+	void toggleShown(Mode m)
+	{
+		if (_mode == Mode.hidden)
+			show(m);
+		else
+			show(Mode.hidden);
+	}
+
 }

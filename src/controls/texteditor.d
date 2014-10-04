@@ -85,7 +85,7 @@ class TextEditor : Widget
 		if (event.type == EventType.Resize)
 			renderer.textDirty = true;
 		
-		if (!isKeyboardFocusWidget())
+		if (!hasKeyboardFocus())
 		{
 			return super.onEvent(event);
 			//return EventUsed.no;
@@ -138,6 +138,24 @@ class TextEditor : Widget
 		//return EventUsed.no;
 	}
 
+	override void layout()
+	{
+		// Get sized ready for the children so that any layouter have them
+		foreach (w; children)
+			w.size = calcSize(w);
+
+		layoutFeatures();
+
+		// Position goes last so that a base position calculated by e.g. DirectionalLayout feature
+		// can be used as relative pos for the calcPosition (ie. the styled position)
+		foreach (w; children)
+			w.pos = calcPosition(w);
+		//		w.recalcPosition();
+
+		// Positions and sizes for children are now set and we can recurse
+		layoutChildren();
+	}
+
 	override void draw()
 	{	
 		if (!visible)
@@ -152,7 +170,17 @@ class TextEditor : Widget
 		glScissor( cast(int)r.x, cast(int)r.y, cast(int)r.w, cast(int)r.h);
 		
 		glEnable(GL_SCISSOR_TEST);
-		super.draw();
+
+		// Hack to get correct positions for anchors. recalc part should really be in the layout method
+		{
+			drawFeatures();
+	
+			foreach (w; visibleAnchorsChildWidgets)
+				w.recalcPosition();
+	
+			drawChildren();
+		}
+
 		glDisable(GL_SCISSOR_TEST);
 	}
 
@@ -412,10 +440,15 @@ class TextEditor : Widget
 	{
 		auto lineStart = bufferView.buffer.startAtLineNumber(lineIdx);
 		auto lineEnd = bufferView.buffer.endAtLineNumber(lineIdx);
-		if (lineStart < bufferView.bufferStartOffset)
+		return textRect(lineStart, lineEnd);
+	}
+
+	Rectf textRect(uint startIdx, uint endIdx)
+	{
+		if (startIdx < bufferView.bufferStartOffset)
 			return Rectf();
-		Rectf startGlyphRect = glyphRect(lineStart);
-		Rectf endGlyphRect = glyphRect(lineEnd);
+		Rectf startGlyphRect = glyphRect(startIdx);
+		Rectf endGlyphRect = glyphRect(endIdx);
 		return startGlyphRect.makeUnion(endGlyphRect);
 	}
 
@@ -436,48 +469,52 @@ class TextEditorAnchor : Widget
 {
 	TextBufferAnchor textAnchor;
 	Anchor widgetAnchor;
-	mixin styleProperty!("Vec2f", "offset");
-	// Vec2f offset;
 	
 	bool inView;
 
 	this()
 	{
 		super();
-		widgetAnchor = Anchor.BottomLeft;
-		w = 16; // This should be loaded from stylesheet
+		widgetAnchor = Anchor.TopLeft;
+		w = 16; 
 		h = 16;
-		// offset = Vec2f(0,0);
 		inView = false;
 	}
 
 	override void draw()
 	{		
-		if (!visible)
-			return;
-
-		recalculateRect();
-		if (inView)
+		if (visible && inView)
 			super.draw();
+	}
+
+	protected void recalcPosition()
+	{
+		if (visible)
+			recalculateRect();
 	}
 
 	void recalculateRect()
 	{
 		TextEditor editor = cast(TextEditor) parent;
-		Rectf lineRect = editor.lineRect(textAnchor.number);
+
+		TextBuffer buffer = editor.bufferView.buffer;
+		auto lineIdx = textAnchor.number;
+		auto lineStart = buffer.startAtLineNumber(lineIdx);
+		auto lineEnd = buffer.endAtLineNumber(lineIdx);
+		auto lineEndChar = buffer.findOneNotOfReverse(lineEnd, " \t\r\n");
+		if (lineEndChar != uint.max)
+			lineEnd = lineEndChar;
+
+		Rectf lineRect = editor.textRect(lineStart, lineEnd);
 		inView = ! lineRect.x.isNaN;
 		if (!inView)
 			return;
 
-		lineRect += offset;
-		
 		Rectf r = rect;
 		r.pos = Vec2f(0,0);
-		Rectf lr = lineRect;
-		lr.pos = Vec2f(0,0);
-		// Vec2f lineOffset = anchorPosition(lr, widgetAnchor);
-		r.pos = lineRect.pos - anchorPosition(r, widgetAnchor); // - lineOffset;
+		r.pos = lineRect.pos - anchorPosition(r, widgetAnchor);
 		r.pos.x += lineRect.w;
+		lineRect = editor.lineRect(textAnchor.number);
 		rect = r;
 	}
 }

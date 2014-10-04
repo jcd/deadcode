@@ -87,7 +87,7 @@ class StyleSheetManager : ResourceManager!StyleSheet
 		lbase.backgroundSprite = Rectf.init;
 
 		sel.style = lbase;
-		sel.selectors ~= new WidgetSelector(null, null); // select all
+		sel.selectors ~= new StylableSelector(null, null); // select all
 
 		onResourceLoaded(ss, null);
 	}

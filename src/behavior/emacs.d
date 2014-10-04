@@ -3,6 +3,7 @@ module behavior.emacs;
 import application;
 import core.bufferview;
 import core.command;
+import core.commandparameter;
 import graphics._;
 import gui.event;
 import gui.keybinding;
@@ -74,8 +75,9 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<delete>", "edit.deleteCharAfter");
 		set.setKeyBinding("<ctrl> + x <ctrl> + p", "edit.clear");
 		
-		set.setKeyBinding("<ctrl> + <tab>", "app.cycleBuffers", "1");
-		set.setKeyBinding("<ctrl> + <shift> + <tab>", "app.cycleBuffers", "-1");
+//		set.setKeyBinding("<ctrl> + <tab>", "app.cycleBuffers", 1);
+		set.setKeyBinding("<ctrl> + <tab>", "app.cycleBuffers");
+		set.setKeyBinding("<ctrl> + <shift> + <tab>", "app.cycleBuffers", -1);
 		
 		set.setKeyBinding("<ctrl> + x <ctrl> + f", "app.toggleCommandArea", "edit.open ");
 		set.setKeyBinding("<ctrl> + x b", "app.toggleCommandArea", "edit.showBuffer ");
@@ -101,6 +103,7 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<ctrl> + i", "edit.incrFind");
 
 		set.setKeyBinding("<alt> + /", "edit.undo");
+		set.setKeyBinding("<ctrl> + g", "edit.cursorToLine");
 
 		//set.setKeyBinding("<tab>", "edit.
 	}
@@ -156,7 +159,7 @@ class EmacsBehavior : EditorBehavior
 			KeyBinding[] b = array(rangeResult);
 			 */
 			KeyBinding[] matchedBindings;
-			Variant dummy;
+			CommandParameter[] dummy = null;
 			foreach (kb; keyBindings.match(currentKeySequence, true))
 			{
 				auto command = commandManager.lookup(kb.command);
@@ -180,21 +183,34 @@ class EmacsBehavior : EditorBehavior
 
 						// First match is served so make sure the define the bindings by priority and/or use rules.
 						currentKeySequence.length = 0;
-						auto command = commandManager.lookup(matchedBinding.command);
+						auto commandName = matchedBinding.command;
+						auto command = commandManager.lookup(commandName);
 						if (command !is null)
 						{
 							// A command is registered for this commandName
-							command.execute(matchedBinding.args);
+							
+							// Make sure we have the needed arguments for the command
+							CommandParameter[] params;
+							auto defs = command.getCommandParameterDefinitions();
+							if (defs is null || defs.setValues(params, matchedBinding.args))
+							{
+								command.execute(params);
+							}
+							else
+							{
+								// Need more arguments. Signal this.
+								onMissingCommandArguments.emit(commandName, params, defs);
+							}
 							return EventUsed.yes;
 						}
 						else
 						{
-							// No command registered with this commanName
+							// No command registered with this commandName
 							// We rewrite the event to a command event matching the keybinding command
 							// in order to let the callers further dispatching handle the command.
 							event.type = EventType.Command;
 							event.name = matchedBinding.command;
-							event.argument = &matchedBinding.args;
+							event.argument = matchedBinding.args;
 							return EventUsed.no; // re-dispatch
 						}
 					}

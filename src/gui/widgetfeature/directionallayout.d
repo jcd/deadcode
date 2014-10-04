@@ -12,13 +12,18 @@ import math._;
  */
 class DirectionalLayout(bool isHorz) : WidgetFeature
 {	
-	override EventUsed send(Event event, Widget widget)
+	//override EventUsed send(Event event, Widget widget)
+	//{
+	//    if (event.type != EventType.Resize)
+	//        return EventUsed.no;
+	//    
+	//    updateLayoutPreferred(widget);
+	//    return EventUsed.no;
+	//}
+
+	override void layout(Widget widget)
 	{
-		if (event.type != EventType.Resize)
-			return EventUsed.no;
-		
 		updateLayoutPreferred(widget);
-		return EventUsed.no;
 	}
 
 	void updateLayoutPreferred(Widget widget)
@@ -48,8 +53,11 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 				// no more room to in parent widget to layout children
 				w.visible = r.y2 < rect.y2;
 				
-				r.h = w.preferredSize.y;
-				
+				// r.h = w.preferredSize.y;
+				Vec2f childSizeStyled = w.size;
+				r.w = childSizeStyled.x;
+				r.h = childSizeStyled.y;
+
 				if (r.y2 > rect.y2)
 				{
 					// This widget cannot fit. Make it smaller in order to fit.
@@ -62,6 +70,9 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 				{
 					w.rect = r;
 				}
+				
+				//if (w.id == 8)
+				//    std.stdio.writeln("w8 pos ", w.pos.y);
 
 				r.pos.y += r.h;
 			}
@@ -107,10 +118,10 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 		}
 	}
 	
-	override void update(Widget widget) 
-	{
-		updateLayoutPreferred(widget);
-	}
+	//override void update(Widget widget) 
+	//{
+	//    updateLayoutPreferred(widget);
+	//}
 }
 
 alias DirectionalLayout!true HorizontalLayout;

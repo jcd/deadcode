@@ -43,7 +43,7 @@ void _printDirty(lazy const(char)[] name)
 
 alias Widget[] Widgets;
 
-class Widget 
+class Widget : Stylable
 {	
 	private static WidgetID _nextID = 1u;
 
@@ -52,7 +52,8 @@ class Widget
 	float zOrder;
 
 	bool acceptsKeyboardFocus;
-			
+	bool manualLayout;
+
 	// Events
 	alias EventUsed delegate(Event event, Widget widget) OnEvent;
 	OnEvent[EventType] events;
@@ -71,6 +72,8 @@ class Widget
 
 	WidgetFeature[] features;
 	NineGridRenderer _background;
+
+	const(string[]) classes() const pure nothrow @safe { return null; }
 
 	mixin Signal!(Event) onKeyboardFocusSignal;
 	mixin Signal!(Event) onKeyboardUnfocusSignal;
@@ -123,7 +126,7 @@ class Widget
 		// In case the widgets current active style is not that style
 		// and the target style has transitions set we need to 
 		// animate style changes.
-		Style newTargetStyle = window.styleSheet.getStyleForWidget(this);
+		Style newTargetStyle = window.styleSheet.getStyle(this, classes);
 
 		if (_style is null)
 		{
@@ -142,13 +145,14 @@ class Widget
 					// A transition animation is going to be done and the current style
 					// is owned by a style sheet. Make a clone that the widget can own and
 					// animate.
-					_style = _style.clone();	
+					_style = _style.clone();
 					_style.styleSheet = null;
 				}
 
 				import animation.interpolate;
 				auto clip = new Clip!Style();
 				//clip.createCurves!CubicCurve(0, _style, 0.5, _targetStyle);
+				snapshotInterpolatedStyle();
 				clip.createCurves(_style, _targetStyle);
 				// clip.createCubicCurve!"x"(0, x, 1, x+100.0);
 				if (runner !is null)
@@ -170,6 +174,24 @@ class Widget
 		return _style;
 	}
 	
+	// Copy current dimensions of this widget to it style in order to use the style as starting point for 
+	// an animation.
+	private void snapshotInterpolatedStyle()
+	{
+		assert(_style.styleSheet is null);
+		CSSScale nullScale = CSSScale(0, CSSUnit.pixels);
+		// Vec2f p = calcPosition(_style);
+
+		_style.position = CSSPosition.fixed;
+		_style.right = nullScale;
+		_style.bottom = nullScale;
+
+		_style.left = CSSScale(_rect.x, CSSUnit.pixels);
+		_style.top = CSSScale(_rect.y, CSSUnit.pixels);
+		_style.width = CSSScale(_rect.w, CSSUnit.pixels);
+		_style.height = CSSScale(_rect.h, CSSUnit.pixels);
+	}
+
 	/*
 	@property Style style()
 	{
@@ -199,7 +221,7 @@ class Widget
 
 	Style getStyleForClass(string className)
 	{
-		return window.styleSheet.getStyleForWidget(this, [className]);
+		return window.styleSheet.getStyle(this, [className]);
 	}
 
 	//void transition(Property*
@@ -247,7 +269,7 @@ class Widget
 			return result;
 		}
 
-		string name()
+		string name() const pure @safe
 		{
 			return window.lookupWidgetName(this.id);
 		}
@@ -255,6 +277,11 @@ class Widget
 		void name(string n)
 		{
 			return window.setWidgetName(this, n);
+		}
+
+		bool matchStylable(string stylableName) const pure nothrow @safe
+		{
+			return matchStylableImpl(this, stylableName);
 		}
 
 		/*
@@ -287,71 +314,69 @@ class Widget
 			_sizeDirty = true;
 		}
 
-		const(Rectf) rectStyled() 
-		{
-			return calcRect(style);
-			//auto st = style;
-			//final switch (st.position)
-			//{
-			//    case CSSPosition.fixed:
-			//        if (this is window)
-			//            return calcRect(_rect, st);
-			//        return calcRect(window.rectStyled, st);
-			//    case CSSPosition.absolute:
-			//        Widget p = parent; // lookFirstPositionedParent();
-			//        if (p is null)
-			//            return calcRect(_rect, st);
-			//        return calcRect(p.rectStyled, st);
-			//    case CSSPosition.relative:
-			//        return calcRect(_rect, st);
-			//    case CSSPosition.static_:
-			//        break;
-			//    case CSSPosition.invalid:
-			//        break;
-			//}
-			return _rect;
-		}
+		//const(Rectf) rectStyled() 
+		//{
+		//    return calcRect(style);
+		//    //auto st = style;
+		//    //final switch (st.position)
+		//    //{
+		//    //    case CSSPosition.fixed:
+		//    //        if (this is window)
+		//    //            return calcRect(_rect, st);
+		//    //        return calcRect(window.rectStyled, st);
+		//    //    case CSSPosition.absolute:
+		//    //        Widget p = parent; // lookFirstPositionedParent();
+		//    //        if (p is null)
+		//    //            return calcRect(_rect, st);
+		//    //        return calcRect(p.rectStyled, st);
+		//    //    case CSSPosition.relative:
+		//    //        return calcRect(_rect, st);
+		//    //    case CSSPosition.static_:
+		//    //        break;
+		//    //    case CSSPosition.invalid:
+		//    //        break;
+		//    //}
+		//    return _rect;
+		//}
 
+/*
 		private const(Rectf) calcBaseRectForPosition(CSSPosition cssPos)
 		{
+			Rectf res = _rect;
 			final switch (cssPos)
 			{
 				case CSSPosition.fixed:
-					if (this is window)
-						return _rect;
-					return window.rectStyled;
+					if (this !is window)
+						res = window.rect;
+					else
+						return rect;
 				case CSSPosition.absolute:
 					Widget p = parent; // lookFirstPositionedParent();
-					if (p is null)
-						return _rect;
-					return p.rectStyled;
+					if (p !is null)
+						res = p.rect;
+					else
+						return rect();
 				case CSSPosition.relative:
-					return _rect;
+					break;
 				case CSSPosition.static_:
+					return _rect;
 					break;
 				case CSSPosition.invalid:
+					return _rect;
 					break;
 			}
-			return _rect;
+			
+			Widget p = parent; // lookFirstPositionedParent();
+			if (p is null)
+				res.size = window.size;
+			else
+				res.size = p.size;
+
+			return res;
 		}
+*/
 
-		//    if (st.height.value.isNaN)
-		//    {
-		//        r.y += t;
-		//        r.h -= t + b;
-		//    }
-		//    else
-		//    {
-		//        r.h = st.height.value;
-		//        if (!st.top.value.isNaN)
-		//            r.y += st.top.value;
-		//        else if (!st.bottom.value.isNaN)
-		//            r.y -= st.bottom.value;
-		//    }
-		//
-		//    return r;
-		//}
-
+		/*
 		// Like .rect but with padding applied
 		const(Rectf) contentRect()
 		{
@@ -365,7 +390,7 @@ class Widget
 			auto st = style;
 			rect = _rect.offset(st.padding.reverse());
 		}
-
+*/
 		const(Vec2f) size() const
 		{
 			return _rect.size;
@@ -488,6 +513,7 @@ class Widget
 		void onKeyboardUnfocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyboardUnfocus, del); }
 	}
 
+/*	
 	private Rectf calcRect(Style st)
 	{
 		Rectf baseRectA = calcBaseRectForPosition(st.position);
@@ -501,7 +527,7 @@ class Widget
 
 		Vec2f mixHorzA = Vec2f(baseRectA.x, baseRectA.w);
 		calcHorz!0(mixHorzA, baseRectA, st);
-		if ( /*st.position.posB != CSSPosition.invalid && */
+		if ( /+st.position.posB != CSSPosition.invalid && +/
 			(st.width.isMixed || st.left.isMixed || st.right.isMixed || cssPosDiffers))
 		{
 			Vec2f mixHorzB = Vec2f(baseRectB.x, baseRectB.w);
@@ -510,10 +536,6 @@ class Widget
 			float xoffset = st.left.mixOffset.isNaN ? (st.right.mixOffset.isNaN ? 1f : st.right.mixOffset) : st.left.mixOffset;
 			if (xoffset.isNaN)
 				xoffset = 1f;
-
-			//Vec2f mixedHorz = mixHorzA * (1 - woffset) + mixHorzB * woffset;
-			//r.x = mixedHorz.v[0];
-			//r.w = mixedHorz.v[1];
 
 			r.x = mixHorzA.v[0] * (1 - xoffset) + mixHorzB.v[0] * xoffset;
 			r.w = mixHorzA.v[1] * (1 - woffset) + mixHorzB.v[1] * woffset;
@@ -526,7 +548,7 @@ class Widget
 
 		Vec2f mixVertA = Vec2f(baseRectA.y, baseRectA.h);
 		calcVert!0(mixVertA, baseRectA, st);
-		if ( /*st.position.posB != CSSPosition.invalid && */
+		if ( /+st.position.posB != CSSPosition.invalid && +/
 			(st.height.isMixed || st.top.isMixed || st.bottom.isMixed || cssPosDiffers))
 		{
 			Vec2f mixVertB = Vec2f(baseRectB.y, baseRectB.h);
@@ -541,11 +563,6 @@ class Widget
 			r.y = mixVertA.v[0] * (1 - yoffset) + mixVertB.v[0] * yoffset;
 			r.h = mixVertA.v[1] * (1 - hoffset) + mixVertB.v[1] * hoffset;
 
-
-			//float offset = st.height.mixOffset;
-			//Vec2f mixedVert = mixVertA * (1 - offset) + mixVertB * offset;
-			//r.y = mixedVert.v[0];
-			//r.h = mixedVert.v[1];
 		}
 		else
 		{
@@ -554,38 +571,8 @@ class Widget
 		}
 		return r;
 	}
-
-	private float cssScaleToPixel(string attr)(CSSScale s)
-	{
-		if (s.value.isNaN)
-			return s.value;
-
-		final switch (s.unit)
-		{
-			case CSSUnit.pct:
-				Widget p = parent;
-				if (p is null)
-					p = this;
-				return mixin("p." ~ attr) * s.value;
-			case CSSUnit.pixels:
-				return s.value;
-			case CSSUnit.cm:
-				return s.value;
-			case CSSUnit.em:
-				return s.value;
-			case CSSUnit.ex:
-				return s.value;
-			case CSSUnit.inch:
-				return s.value;
-			case CSSUnit.mm:
-				return s.value;
-			case CSSUnit.picas:
-				return s.value;
-			case CSSUnit.points:
-				return s.value;
-		}
-	}
-
+*/
+/*
 	private void calcHorz(int i)(ref Vec2f res, Rectf baseRect, Style st)
 	{
 		float wi = cssScaleToPixel!("w")(st.width[i]);
@@ -614,7 +601,8 @@ class Widget
 				res.v[0] -= r;
 		}
 	}
-
+*/
+/*
 	private void calcVert(int i)(ref Vec2f res, Rectf baseRect, Style st)
 	{
 		float hi = cssScaleToPixel!("h")(st.height[i]);
@@ -643,7 +631,7 @@ class Widget
 				res.v[0] -= b;
 		}
 	}
-
+*/
 	void moveBy(float x, float y)
 	{
 		_printDirty("moveBy");
@@ -676,8 +664,12 @@ class Widget
 		_rect.h = y;
 	}
 
+	@property Window window() pure nothrow nothrow @safe
+	{
+		return _parent is null ? null : _parent.window;
+	}
 
-	@property Window window() nothrow
+	@property const(Window) window() const pure nothrow @safe
 	{
 		return _parent is null ? null : _parent.window;
 	}
@@ -690,7 +682,7 @@ class Widget
 	}
 	*/
 
-	@property Widget parent()
+	@property Widget parent() pure nothrow @safe
 	{
 		return _parent;
 	}
@@ -781,19 +773,19 @@ class Widget
 		window.setKeyboardFocusWidget(this);
 	}
 
-	bool isKeyboardFocusWidget()
+	@property bool hasKeyboardFocus() const pure nothrow @safe
 	{
 		assert(window !is null);
-		return window.isKeyboardFocusWidget(this);
+		return window.hasKeyboardFocus(this);
 	}
 
-	bool isMouseOver()
+	@property bool isMouseOver() const pure nothrow @safe
 	{
 		assert(window !is null);
 		return window.isMouseOverWidget(this);
 	}
 
-	bool isMouseDown()
+	@property bool isMouseDown() const pure nothrow @safe
 	{
 		assert(window !is null);
 		return window.isMouseDownWidget(this);
@@ -852,6 +844,7 @@ class Widget
 	package this(WidgetID _id, float x = 0, float y = 0, float width = 100, float height = 100) nothrow
 	{
 		//this(Rectf(x, y, x+w, y+h), _parentId);
+		manualLayout = false;
 		visible = true;
 		zOrder = 0f;
 		_sizeDirty = true;
@@ -951,6 +944,58 @@ class Widget
 		}
 	}
 
+	protected void layoutFeatures()
+	{
+		foreach (f; features)
+			f.layout(this);
+	}
+
+	protected void layoutChildren()
+	{
+		foreach (w; children)
+			w.layout();
+	}
+
+	//private void recalcSize()
+	//{
+	//    _rect.size = calcSize(this);
+	//}
+
+	//protected void recalcPosition()
+	//{
+	//    //if (parent !is null && id == 8)
+	//    //    std.stdio.writeln("pospre ", _rect.pos.v);
+	//    _rect.pos = calcPosition(this);
+	//    //if (id == 8)
+	//    //    std.stdio.writeln("c ", _rect.size.y);
+	//    //if (parent !is null && id == 8 && _rect.pos.x != 200)
+	//    //{
+	//    //    std.stdio.writeln("pospost ", _rect.pos.v);
+	//    //    calcPosition(style);
+	//    //    std.stdio.writeln("pospost ", _rect.pos.v);
+	//    //}
+	//}
+
+	void layout()
+	{
+		// Get sized ready for the children so that any layouter have them
+		foreach (w; children)
+			if (!w.manualLayout)
+				w.size = calcSize(w);
+
+		layoutFeatures();
+
+		// Position goes last so that a base position calculated by e.g. DirectionalLayout feature
+		// can be used as relative pos for the calcPosition (ie. the styled position)
+		foreach (w; children)
+			if (!w.manualLayout)
+				w.pos = calcPosition(w);
+			//		w.recalcPosition();
+
+		// Positions and sizes for children are now set and we can recurse
+		layoutChildren();
+	}
+
 	void draw()
 	{
 		if (!visible)
@@ -962,18 +1007,6 @@ class Widget
 
 	void update()
 	{		
-		if (_sizeDirty)
-		{
-			// Send resize event to children
-			_sizeDirty = false;
-			
-			if (window !is null)
-			{
-				window._sizeDirty = true;
-			}
-		}
-
-
 		// TODO: check for convergence
 		// TODO: only re-iterate features that asks for it e.g. constraints
 		for (int i = 0; i < 1; i++) 
@@ -989,6 +1022,17 @@ class Widget
 			{
 				f.update(this);
 			}			
+		}
+
+		if (_sizeDirty)
+		{
+			// Send resize event to children
+			_sizeDirty = false;
+
+			if (window !is null)
+			{
+				window._sizeDirty = true;
+			}
 		}
 
 		// TODO: remove from here since win.update runs on all widget ie. widget that does not
@@ -1035,7 +1079,8 @@ class Widget
 
 	void getStyledScreenOffsetToWorldTransform(ref Mat4f transform)
 	{
-		Rectf wrect = window.windowToWorld(rectStyled);
+//		Rectf wrect = window.windowToWorld(rectStyled);
+		Rectf wrect = window.windowToWorld(rect);
 
 		// Since text are layed out using pixel coords we scale into world coords
 		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0));
@@ -1048,6 +1093,7 @@ class Widget
 		// Since text are layed out using pixel coords we scale into world coords
 		Vec2f scale = window.pixelSizeToWorld(Vec2f(1,1));
 		getStyledScreenOffsetToWorldTransform(transform);
+
 		//		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0)) * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
 		transform = transform * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
 	}

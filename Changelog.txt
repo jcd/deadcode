@@ -1,3 +1,54 @@
+Release 0.9 - 04 October 2014 
+
+Overview:
+
+    * Make layout and styling work together 
+    * Get rid of hardcoded transitions and use styling instead
+    * Shift click to make selection support
+    * Scroll speed not constant by controlled by mouse wheel
+    * Initial support for missing parameter fallback to command control (more coming next release)   
+
+Changes:
+
+    1bfdb19 Unittest anchor now only positioned using standard styling and not custom 'offset' style.
+            Command control now animated using style transitions instead of animated though code.
+            Three modes in command control now oneline, twoline and multiline mode.
+            All widgets default to static positioning.
+            Style position is also transitionable making it possible to animate between position types. 
+            Made a Stylable interface to make it possible for things other than widget to be stylable.
+            Made TextSelection stylable. Made TextRendere styleable Made widget either manually layed out or automatic using styling.
+            Fix bunch of positioning and sizing bugs.
+            Made layout a special phase and not abusing resize event for that anymore.
+            Fix bunch of pure nothrow @safe and const correctness.
+            Fix directional layout to use layout phase and styling appropriately
+            Fix constrained layout to use layout phase
+            Made it possible to override duration of a Clip
+            Fix animation of constant values that are dependant on animated position
+            Made a callback when a command has missing arguments on execution
+            Now command must specify types of parameters and possibly default values.
+            Fixed focus change when toggling command control.
+            Added cursorToLine(lineNum) method to bufferView.
+            Mouse over unittest button now shows a hand instead of an arrow.
+            Refactor box style positioning code.
+            Add bezier interpolation for use with style animations and transitions.
+    81517f9 Use selection region with direction. 
+            Support shift+click to select region.
+            Make scroll speed be reflected when scrolling.
+    d417c66 Emacs bindings for page up/down select.
+    fef59ae Do not compare to float.nan but use isFinite().
+            Make renderer use normalized selection.
+            Force cursor visible when text is dirty.
+    9d847b6 Change scroll bottom limit to document length plus one screen size.
+            Selection changes does call navigated anymore but just sets the dirty flag.
+    d640ddf Make text actions use normalized selection
+    683eda8 New pagedown select. 
+            Change page down to allow for going further that bottom of doc to show a page of empty space.
+    70798c4 Add timestamp to Event.
+            Add keymod to mouse events.
+    a8cfc33 Start support for regions with direction.
+            Fix setting regions in holes of RegionSets.
+
+
 Release 0.8 - 04 September 2014 
 
 - Skipped release in August because of vacation.

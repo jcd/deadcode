@@ -67,7 +67,7 @@ class EmacsBehavior : EditorBehavior
 		rs.addEquals("currentBufferName", "*CommandInput*");
 		set.setKeyBinding("<return>", "edit.commitCompletion", rs);
 		set.setKeyBinding("<tab>", "edit.complete", rs);
-		set.setKeyBinding("<ctrl> + g", "app.toggleCommandArea", rs);
+		set.setKeyBinding("<ctrl> + p", "app.toggleCommandArea", "", rs);
 
 		set.setKeyBinding("<return>", "edit.insert", "\n");
 		set.setKeyBinding("<tab>", "edit.insert", "\t");
@@ -75,12 +75,12 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<delete>", "edit.deleteCharAfter");
 		set.setKeyBinding("<ctrl> + x <ctrl> + p", "edit.clear");
 		
-//		set.setKeyBinding("<ctrl> + <tab>", "app.cycleBuffers", 1);
-		set.setKeyBinding("<ctrl> + <tab>", "app.cycleBuffers");
+		set.setKeyBinding("<ctrl> + <tab>", "app.cycleBuffers", 1);
+
 		set.setKeyBinding("<ctrl> + <shift> + <tab>", "app.cycleBuffers", -1);
 		
-		set.setKeyBinding("<ctrl> + x <ctrl> + f", "app.toggleCommandArea", "edit.open ");
-		set.setKeyBinding("<ctrl> + x b", "app.toggleCommandArea", "edit.showBuffer ");
+		set.setKeyBinding("<ctrl> + x <ctrl> + f", "edit.open");
+		set.setKeyBinding("<ctrl> + x b", "edit.showBuffer");
 		set.setKeyBinding("<ctrl> + x <ctrl> + s", "edit.save");
 		set.setKeyBinding("<ctrl> + x <ctrl> + w", "edit.saveBufferAs");
 		set.setKeyBinding("<ctrl> + x <ctrl> + w", "edit.saveBufferAs");
@@ -96,10 +96,10 @@ class EmacsBehavior : EditorBehavior
 		// set.setKeyBinding("<ctrl> + x", "edit.cut");
 
 		set.setKeyBinding("<ctrl> + b", "core.rebuildEditor");
-		set.setKeyBinding("<ctrl> + w", "app.toggleCommandArea");
+		set.setKeyBinding("<ctrl> + p", "app.toggleCommandArea", "");
 
 		set.setKeyBinding("<f7>", "dub.build");
-		set.setKeyBinding("<ctrl> + ,", "app.toggleCommandArea", "dub.quickopen ");
+		set.setKeyBinding("<ctrl> + ,", "dub.quickopen");
 		set.setKeyBinding("<ctrl> + i", "edit.incrFind");
 
 		set.setKeyBinding("<alt> + /", "edit.undo");
@@ -199,7 +199,7 @@ class EmacsBehavior : EditorBehavior
 							else
 							{
 								// Need more arguments. Signal this.
-								onMissingCommandArguments.emit(commandName, params, defs);
+								onMissingCommandArguments.emit(command, params);
 							}
 							return EventUsed.yes;
 						}

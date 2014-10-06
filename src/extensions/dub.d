@@ -35,6 +35,11 @@ class DubBuildCommand : BasicCommand!DubBuildCommand
 	private Tid tid;
 	private string newExecPath;
 
+	this()
+	{
+		super(createParams());
+	}
+
 	override void execute(CommandParameter[] v)
 	{
 		showBuildWidget();		
@@ -371,6 +376,11 @@ class QuickOpenCommand : BasicCommand!QuickOpenCommand
 	override @property string name() const { return "dub.quickopen"; }
 	override @property string shortcut() const { return "<ctrl> + ,"; }
 
+	this()
+	{
+		super(createParams(""));
+	}
+	
 	override void execute(CommandParameter[] v)
 	{
 		auto path = v[0].get!string;

@@ -194,7 +194,7 @@ CommandControl
 	left: 200px;
 	width: 601px;
 	height: 24px;
-	transition: height 0.5s;
+	transition: height 0.1s;
 }
 
 CommandControl.multiline
@@ -203,20 +203,33 @@ CommandControl.multiline
 	transition: height 0.1s; 
 }
 
+CommandControl.twoline
+{
+	height: 50px;
+	transition: height 0.05s; 
+}
+
 CommandControl > TextField#commandEntryField
 {
 	position: relative;
 	width: 100%;
 	height: 0px;	
-	padding: 3 3 3 0;
-	transition: height 1.5s 1s;
+	padding: 3 6 3 0;
+	transition: height 0.3s;
 }
 
 CommandControl.multiline > TextField#commandEntryField
 {
 	font : url(fonts/cour.ttf) 16;
 	height: 24px;
-	transition: height 1.5s;
+	transition: height 0.1s;
+}	
+
+CommandControl.twoline > TextField#commandEntryField
+{
+	font : url(fonts/cour.ttf) 16;
+	height: 24px;
+	transition: height 0.05s;
 }	
 
 CommandControl > TextEditor
@@ -225,9 +238,6 @@ CommandControl > TextEditor
 
 CommandControl.multiline > TextEditor
 {
-	position: relative;
-	width: 100%;
-	transition: height 0.1s;
 }
 
 #dragger {

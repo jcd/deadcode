@@ -5,6 +5,15 @@ import std.variant;
 
 alias CommandParameter = Algebraic!(int, string, float);
 
+CommandParameter parse(CommandParameter typeSpecifier, string input)
+{
+	import std.conv;
+	CommandParameter parsedValue = typeSpecifier.visit!( (int p) => CommandParameter(input.to!int),
+														 (string p) => CommandParameter(input), 
+														 (float p) => CommandParameter(input.to!int) );
+	return parsedValue;
+}
+
 struct CommandParameterDefinition
 {
 	this(CommandParameter p, string n = "", string desc = "")
@@ -61,7 +70,6 @@ class CommandParameterDefinitions
 	bool setValues(ref CommandParameter[] toValues, CommandParameter[] fromValues)
 	{
 		assert(fromValues.length <= parameters.length);
-		toValues.length = parameters.length;
 
 		bool allSet = true;
 
@@ -72,14 +80,48 @@ class CommandParameterDefinitions
 				if (v.type() != fromValues[i].type())
 						throw new Exception(format("Cannot set command parameter of type %s to value of type %s",
 										   parameters[i].type(), v.type()));
-				toValues[i] = fromValues[i];
+				toValues ~= fromValues[i];
 			}
 			else
 			{
-				toValues[i] = v;
 				if (parametersAreNull[i])
+				{
 					allSet = false;
+					break;
+				}
+				else
+				{
+					toValues ~= v;
+				}
 			}
+		}
+		return allSet;
+	}
+
+	bool parseValues(ref CommandParameter[] toValues, ref string input)
+	{
+		import std.range;
+		bool allSet = true;
+
+		toValues.length = parameters.length;
+		
+		foreach (i, v; parameters)
+		{
+			string token = munch(input, "^ \t");
+			if (token.empty)
+			{
+				// Fill with default values		
+				foreach (idx; i .. parameters.length)
+				{
+					toValues[idx] = v;
+					if (parametersAreNull[idx])
+						allSet = false;
+				}
+				break;
+			}
+
+			CommandParameter parsedValue = v.parse(token);
+			toValues[i] = parsedValue;
 		}
 		return allSet;
 	}

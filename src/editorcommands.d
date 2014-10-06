@@ -277,23 +277,26 @@ void register(GUIApplication app)
 
 	
 	cmgr.create("edit.cursorToLine", "Move cursor up or down until cursor reaches the line number given as argument", 
-				createParams("1"),
+				createParams(1),
 				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
-		auto str = data[0].peek!string;
-		if (str is null)
-		{
-			import controls.command;
-			auto cc = app.guiRoot.activeWindow.userData.get!(GUIApplication.WindowData)().commandControl;
-			cc.setCommand("edit.cursorToLine ");
-			cc.show(CommandControl.Mode.oneline);
-		}
-		else
-		{
-	//		auto str = data.get!string();
-			import std.conv;
-			b.cursorToLine(to!uint(*str));
-		}
+		auto i = data[0].peek!int;
+		assert(i !is null);
+		b.cursorToLine(*i);
+
+	//    if (i is null)
+	//    {
+	//        import controls.command;
+	//        auto cc = app.guiRoot.activeWindow.userData.get!(GUIApplication.WindowData)().commandControl;
+	//        cc.setCommand("edit.cursorToLine ");
+	//        cc.show(CommandControl.Mode.oneline);
+	//    }
+	//    else
+	//    {
+	////		auto str = data.get!string();
+	//        import std.conv;
+	//        b.cursorToLine(*i);
+	//    }
 	});
 
 	cmgr.create("edit.saveBuffer", "Save file", 

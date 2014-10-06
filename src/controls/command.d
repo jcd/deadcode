@@ -4,7 +4,7 @@ import guiapplication;
 import controls.texteditor;
 import controls.textfield;
 import core.bufferview;
-import core.command : CommandManager, Command;
+import core.command : CommandManager, Command, CompletionEntry;
 import core.commandparameter;
 import graphics._;
 import gui.event;
@@ -21,6 +21,7 @@ import std.array;
 import std.conv;
 
 import std.string;
+import std.range;
 import std.regex;
 
 class CompletionListStyler(Text) : TextStyler!Text
@@ -139,6 +140,8 @@ class CommandControl : Widget
 	string[string] commandMap;
 	GUIApplication app;
 
+	private bool _completionsEnabled = true;
+
 	// If > 0 we are cycling buffers on next app.cycleBuffers command and
 	// ending the cycling on <ctrl> key up. 
 	// TODO: figure out a way to not have <ctrl> up hardcoded as end event
@@ -243,6 +246,7 @@ class CommandControl : Widget
 		if (ev.keyCode == stringToKeyCode("escape"))
 		{
 			hide();
+			clearCompletions();
 		}
 		else if (ev.keyCode == stringToKeyCode("return"))
 		{
@@ -391,27 +395,18 @@ class CommandControl : Widget
 		if (!isBufferCycleMode)
 		{
 			// Start cycling mode
-			setCommand("");
+			setCommand("app.cycleBuffers");
 			cycleBufferStartOffset = 0;
 			cycleBufferNames = app.getActiveBufferCompletions("");
 			displayStringList(cycleBufferNames);
 		}
 
-		// TODO: mod operation sign not same as dividend as defined in dlang spec!
-		if (i >= 0 || cycleBufferStartOffset > -i)
-		{
-			i = i % cycleBufferNames.length;
-			cycleBufferStartOffset = (cycleBufferStartOffset + i) % cycleBufferNames.length;
-		}
-		else 
-		{
-			i = -((-i) % cycleBufferNames.length);
-			i += cycleBufferStartOffset;
-			if (i < 0)
-				cycleBufferStartOffset = cycleBufferNames.length + i;
-			else
-				cycleBufferStartOffset = i;
-		}
+		while (i < 0)
+			i += cycleBufferNames.length;
+		
+		i = i % cycleBufferNames.length;
+		cycleBufferStartOffset = (cycleBufferStartOffset + i) % cycleBufferNames.length;
+
 		app.previewBuffer(cycleBufferNames[cycleBufferStartOffset]);
 		navigateTo(cycleBufferStartOffset);
 	}
@@ -481,10 +476,13 @@ class CommandControl : Widget
 
 	void setCommand(string cmd)
 	{
+		_completionsEnabled = false;
 		completionWidget.bufferView.clear();
 		commandField.bufferView.cursorToBeginningOfLine();
 		commandField.bufferView.deleteToEndOfLine();
 		commandField.bufferView.append(cmd);
+		_completionsEnabled = true;
+		showCompletions();
 	}
 
 	private auto getActiveCommand()
@@ -499,19 +497,28 @@ class CommandControl : Widget
 		}
 		GetActiveCommandData result;
 
-		if (l.length == 0)
-			return result;
-		
-		result.rest = l[1..$];
 		result.cmd = app.commandManager.lookup(cmdName);
-
+	
 		if (result.cmd is null)
 		{
-			auto internalCmdName = cmdName in commandMap;
-			if (internalCmdName is null)
-				return result;
-			result.cmd = app.commandManager.lookup(*internalCmdName);
+			result.rest = cmdName ~ l;
 		}
+		else
+		{
+			std.string.munch(l, " ");
+			result.rest = l;
+		}
+
+		/+
+		if (result.cmd is null)
+		{
+		result.cmd = app.commandManager.lookupFuzzy(cmdName);
+		auto internalCmdName = cmdName in commandMap;
+		if (internalCmdName is null)
+		return result;
+		result.cmd = app.commandManager.lookup(*internalCmdName);
+		}
+		+/
 		return result;
 	}
 
@@ -539,22 +546,17 @@ class CommandControl : Widget
 		completionWidget.bufferView.lineOffset = 0;
 	}
 
-	//bool handleBufferChanged(BufferView b)
-	void handleBufferChanged(BufferView b, BufferView.BufferString,uint)
+	void clearCompletions()
 	{
-		auto cmdData= getActiveCommand();
-		if (cmdData.cmd is null) 
-		{
-			// completionWidget.visible = false;
-			completionWidget.bufferView.clear();
-			return;
-			//return false;
-		}
+		completionWidget.bufferView.clear();
+		completionWidget.bufferView.lineOffset = 0;
+	}
 
-		//completionWidget.visible = true;
-		auto completions = cmdData.cmd.getCompletions(createArgs(cmdData.rest));
-		displayStringList(completions.map!(a => a.label).array);
-
+	//bool handleBufferChanged(BufferView b)
+	void handleBufferChanged(BufferView b, BufferView.BufferString, uint)
+	{
+		if (_completionsEnabled)
+			showCompletions();
 		// std.stdio.writeln("rest '", cmdData.rest, "'");
 version(oldvw)
 {
@@ -569,23 +571,99 @@ version(oldvw)
 		//return false;
 	}
 
+	private void showCompletions()
+	{
+		auto cmdData = getActiveCommand();
+		if (cmdData.cmd is null)
+		{
+			showCommandNameCompletions(cmdData.rest);
+		}
+		else
+		{
+			auto completions = cmdData.cmd.getCompletions(cmdData.rest);
+			showCommandArgumentCompletions(cmdData.cmd, completions);
+		}
+	}
+
+	private void showCommandNameCompletions(string str)
+	{
+		auto cmdNameSearch = std.string.munch(str, "^ ");
+
+		auto cmdList = app.commandManager.lookupFuzzy(cmdNameSearch);
+
+		if (cmdList.empty)
+		{
+			completionWidget.bufferView.clear();
+		}
+		else
+		{
+			show(Mode.multiline);
+			displayStringList(cmdList.map!(e => e.name).array);
+		}	
+	}
+
+	private void showCommandArgumentCompletions(Command cmd, CompletionEntry[] completions)
+	{
+		if (completions.empty)
+		{
+			auto defs = cmd.getCommandParameterDefinitions();
+			if (defs !is null)
+			{
+				// Set at minimum two lines so that we can show parameter. But if we already have multiline
+				// mode we don't want that to collapse to twoline mode.
+				if (mode == Mode.oneline || mode == Mode.hidden)
+					show(Mode.twoline);
+				auto str = getCommandArgsString(cmd);
+				displayStringList([str]);
+			}
+		}
+		else
+		{
+			show(Mode.multiline);
+			displayStringList(completions.map!(a => a.label).array);
+		}
+	}
+
+	private void completeCommandName(string str)
+	{
+		// Try to complete command name
+		auto cmdNameSearch = std.string.munch(str, "^ ");
+		Command[] cmdList = app.commandManager.lookupFuzzy(cmdNameSearch);
+
+		auto res = cmdList
+			.dropExactly(completionStyler.lineHighlighted)
+			.map!(e => e.name).array;
+		if (res.length)
+		{
+			completionWidget.bufferView.clear();
+			commandField.bufferView.clear();
+			commandField.bufferView.insert(dtext(res.front ~ ' '));
+		}
+	}
+
+	private void completeCommandArgument(Command cmd, string str)
+	{
+		// Try to complete command argument
+		auto prefix = str;
+		auto completions = cmd.getCompletions(prefix);
+		if (completions.empty)
+		{
+			auto res = completions.dropExactly(completionStyler.lineHighlighted);
+			commandField.bufferView.remove(-prefix.length);
+			//completionWidget.visible = true;
+			completionWidget.bufferView.clear();
+			commandField.bufferView.insert(dtext(res.front.label ~ ' '));
+		}
+	}
+
 	void completeCommand()
 	{
-		import std.range;
-		auto cmdData= getActiveCommand();
+		auto cmdData = getActiveCommand();
 		if (cmdData.cmd is null) 
-		{
-			//completionWidget.visible = false;
-			return;
-		}
-		auto prefix = cmdData.rest;
-		auto completions = cmdData.cmd.getCompletions(createArgs(prefix));
-		auto res = completions.dropExactly(completionStyler.lineHighlighted);
-		commandField.bufferView.remove(-prefix.length);
-		//completionWidget.visible = true;
-		completionWidget.bufferView.clear();
-		commandField.bufferView.insert(dtext(res.front.label));
-		return;
+			completeCommandName(cmdData.rest);
+		else
+			completeCommandArgument(cmdData.cmd, cmdData.rest);
+
 version(NONE)
 {
 		// filter away active editor buffer name from list here.
@@ -631,41 +709,73 @@ version(NONE)
 
 	void executeCommand()
 	{
-		//string path = std.conv.text(bufferView.buffer.toArray());
-		//w.window.app.executeCommand("editor.open", std.variant.Variant(path));
 		auto cmdData = getActiveCommand();
 		if (cmdData.cmd is null) 
 		{
-			//completionWidget.visible = false;
-			return;
+			completeCommand();
+			cmdData = getActiveCommand();
+			if (cmdData.cmd is null)
+			{
+				app.addMessage(format("Unknown command: %s", cmdData.rest));
+				return;
+			}
 		}
 
 		import std.range;
 
-		auto cmd = getActiveCommand();
-		auto var = createArgs(cmdData.rest);
-		auto completions = cmdData.cmd.getCompletions(var);
-		auto res = completions.dropExactly(completionStyler.lineHighlighted);
-		cmd.cmd.execute(res.empty ? var : createArgs(res.front.data));
-		setCommand("");
+		CommandParameter[] ps;
+		auto defs = cmdData.cmd.getCommandParameterDefinitions();
+		if (defs !is null)
+		{
+			bool allSet = defs.parseValues(ps, cmdData.rest);
+			auto var = createArgs(cmdData.rest);
+			auto completions = cmdData.cmd.getCompletions(ps);
+			auto res = completions.dropExactly(completionStyler.lineHighlighted);
+			if (!res.empty)
+				ps = createArgs(res.front.data);
+		}
+		// setCommand("");
+		clearCompletions();
+		hide();
+		cmdData.cmd.execute(ps);
 		//window.app.
 	}
 
-	void onMissingCommandArguments(string cmdName, CommandParameter[] args, CommandParameterDefinitions paramDefs)
+	void onMissingCommandArguments(Command cmd, CommandParameter[] args)
 	{
-		setCommand(cmdName ~ " ");
-		show(Mode.twoline);
-		auto str = cmdName;
+		string cmdStr = cmd.name;
+		foreach (a; args)
+		{
+			cmdStr ~= " ";
+			cmdStr ~= a.toString();
+		}
 		
+		if (args.empty)
+			cmdStr ~= " ";
+		
+		setCommand(cmdStr);
+		// showCompletions();
+		auto str = getCommandArgsString(cmd);
+		// displayStringList([str]);
+		app.addMessage(format("Missing arguments: %s", str));
+	}
+
+	private string getCommandArgsString(Command cmd)
+	{
+		auto paramDefs = cmd.getCommandParameterDefinitions();
+		auto str = cmd.name;
+
 		foreach (i; 0..paramDefs.length)
 		{
 			string name = paramDefs[i].name;
 			if (name.empty)
 				name ~= "abcdefghijklmnopqrstuvxyz"[i];
-			str ~= format(" %s:%s", name, paramDefs[i].parameter.type());
+			string typeName = paramDefs[i].parameter.type().toString();
+			if (typeName == "immutable(char)[]")
+				typeName = "string";
+			str ~= format(" %s:%s", name, typeName);
 		}
-		displayStringList([str]);
-		app.addMessage(format("Missing arguments: %s", str));
+		return str;		
 	}
 
 	void toggleShown(Mode m)

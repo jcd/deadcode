@@ -129,10 +129,15 @@ class BasicCommand(T) : IBasicCommand
 		g_Commands ~= new T;
 	}
 
-	this()
+	this(CommandParameterDefinitions paramsDefs)
 	{
-		super(null); // TODO: figure out a nice way to initialize param defs
+		super(paramsDefs);
 	}
+
+	//this()
+	//{
+	//    super(null); // TODO: figure out a nice way to initialize param defs
+	//}
 
 	IBasicWidget getBasicWidget(string name)
 	{

@@ -60,6 +60,16 @@ class Command
 	abstract void execute(CommandParameter[] data);
 	void undo(CommandParameter[] data) { }
 
+	CompletionEntry[] getCompletions(string input)
+	{
+		CommandParameter[] ps;
+		auto defs = getCommandParameterDefinitions();
+		if (defs is null)
+			return null;
+		defs.parseValues(ps, input);
+		return getCompletions(ps);
+	}
+
 	CompletionEntry[] getCompletions(CommandParameter[] data)
 	{
 		return null;
@@ -214,6 +224,19 @@ class CommandManager
 		if (c) return *c;
 		return null;
 	}
+
+	Command[] lookupFuzzy(string searchString)
+	{
+		Command[] result;
+		size_t len = searchString.length;
+		foreach (key, cmd; commands)
+		{
+			if (key.startsWith(searchString))
+				result ~= cmd;
+		}
+		return result;
+	}
+
 }
 
 // TODO: fix	

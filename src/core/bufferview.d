@@ -100,13 +100,25 @@ class BufferView
 
 	package void navigated()
 	{	
-		dirty = true;
-		auto line = lineNumber;
+		dirty = true;		
+		auto lastLine = lineOffset + visibleLineCount - 1;
+		
+		// Make sure the cursor in inside the visible area by changing the lineOffset
+		if (lineNumber < lineOffset || lineNumber > lastLine)
+		{
+			// Cursor outside of current view
+			centerOnLine(lineNumber);
+		}
+	}
+
+	void centerOnLine(uint line)
+	{
+		auto offset = visibleLineCount / 2;
 		auto lastLine = lineOffset + visibleLineCount - 1; 
-		if (lineOffset > line)
-			lineOffset = line;
-		else if (lastLine < line)
-			lineOffset = line - visibleLineCount + 1;
+		if (offset > line)
+			lineOffset = 0;
+		else 
+			lineOffset = line - offset;
 	}
 
 	package void changed()
@@ -297,6 +309,16 @@ class BufferView
 		navigated();
 	}
 
+	void cursorToLine(uint l)
+	{
+		clearSelection();
+		long toLine = l;
+		long curLine = lineNumber;
+		int lineOffset = cast(int)(toLine - curLine); // TODO: Get rid of cast
+		_undoStack.push!CursorDownAction(this, lineOffset);
+		navigated();
+	}
+
 	@property uint cursorPoint() const pure nothrow
 	{
 		return _cursorPoint;
@@ -441,15 +463,6 @@ class BufferView
 	{
 		clearSelection();
 		_undoStack.push!CursorDownAction(this, c);
-	}
-
-	void cursorToLine(uint l)
-	{
-		clearSelection();
-		long toLine = l;
-		long curLine = lineNumber;
-		int lineOffset = cast(int)(toLine - curLine); // TODO: Get rid of cast
-		_undoStack.push!CursorDownAction(this, lineOffset);
 	}
 
 	void selectLeft(uint c = 1) 

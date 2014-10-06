@@ -260,11 +260,17 @@ class GUIApplication : Application
 							  createParams(""),
 							  delegate(CommandParameter[] v) 
 							  {	 
-								  auto cc = guiRoot.activeWindow.userData.get!WindowData().commandControl;
+								  CommandControl cc = guiRoot.activeWindow.userData.get!WindowData().commandControl;
+								  bool isShown = cc.isShown;
+	
 								  auto val = v[0].peek!string();		
 								  if (val !is null)
 									  cc.setCommand(*val);
-								  cc.toggleShown(CommandControl.Mode.multiline);
+								  
+								  if (isShown)
+									  cc.show(CommandControl.Mode.hidden);
+								  else
+									  cc.show(CommandControl.Mode.multiline);
 							  });
 		
 		commandManager.create("app.cycleBuffers", "Cycle through buffers in the current active window", 

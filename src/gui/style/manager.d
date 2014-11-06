@@ -53,6 +53,7 @@ class StyleSheetManager : ResourceManager!StyleSheet
 
 		ssm.addPropertySpecification!float("expand-duration", 0.10);
 		ssm.addPropertySpecification!Vec2f("offset", Vec2f(0,0));
+		ssm.addPropertySpecification!float("page-down-speed", 0.10);
 
 		// Transitions
 		// import animation.interpolate;
@@ -99,7 +100,7 @@ class StyleSheetManager : ResourceManager!StyleSheet
 
 	auto addPropertySpecification(T)(PropertyID pid, T _default, bool inherited = false)
 	{
-		auto v = new PropertySpecification!T(pid, _default, inherited);;
+		auto v = new PropertySpecification!T(pid, _default, inherited);
 		_propertySpecifications[pid] = v;
 		return v;
 	}
@@ -123,7 +124,7 @@ class StyleSheetManager : ResourceManager!StyleSheet
 		return v;
 	}
 
-	IPropertySpecification lookupPropertySpecification(PropertyID pid)
+	const(IPropertySpecification) lookupPropertySpecification(PropertyID pid) const pure nothrow @safe
 	{
 		auto ps = pid in _propertySpecifications;
 		if (ps is null) return null;

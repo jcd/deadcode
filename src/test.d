@@ -60,6 +60,17 @@ void recordTestResult(bool success, string assertion, string msg, string file, i
 	g_TestRecords ~= TestRecord( success, assertion, msg, file, line, info);
 }
 
+TestRecord getTestResult(string filename, int unittestStartLine)
+{
+	TestRecords recs = g_TestRecords;
+	foreach (rec; recs)
+	{
+		if (rec.testInfo.testScopeStartsAtLine == unittestStartLine && rec.file == filename)
+			return rec;
+	}
+	return TestRecord();
+}
+
 void printStats(bool includeSuccessful = false)
 {
 	import std.algorithm;

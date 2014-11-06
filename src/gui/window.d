@@ -163,17 +163,24 @@ class Window : Widget
 		return null;
 	}
 
-	package void setWidgetName(Widget w, string n)
+	package void setWidgetName(Widget w, string n) nothrow
 	{
 		if (n is null)
 		{
-			foreach (k, v; widgetNameMap)
+			try
 			{
-				if (v.id == w.id)
+				foreach (k, v; widgetNameMap)
 				{
-					widgetNameMap.remove(k);
-					break;
+					if (v.id == w.id)
+					{
+						widgetNameMap.remove(k);
+						break;
+					}
 				}
+			} 
+			catch (Exception)
+			{
+				assert(0);
 			}
 			return;
 		}
@@ -182,6 +189,11 @@ class Window : Widget
 
 	package bool isWidgetInFrontOfWidget(Widget isThis, Widget inFrontOfThis)
 	{
+		if (isThis.zOrder > inFrontOfThis.zOrder)
+			return true;
+		else if (isThis.zOrder < inFrontOfThis.zOrder)
+			return false;
+		
 		foreach (k, v; widgets)
 		{
 			if (v is isThis)
@@ -274,26 +286,27 @@ class Window : Widget
 		// Find widget that mouse is over
 		Widget cur = null;
 		//std.stdio.writeln("------------------------- ", p);
+		import std.typecons;
+		
+		mouseWidgets.length = 0;
+		mouseWidgets.assumeSafeAppend();
 
-		foreach (w; widgets)
+		foreach (k; widgets.keys)
 		{
+			Widget w = widgets[k];
+
 			//std.stdio.writeln(w.name, " visible ", w.visible, w.rect);
 			//if (w.visible && w.rectStyled.contains(p))
 			if (w.visible && w.rect.contains(p))
 			{
+				mouseWidgets ~= w.id;
+
 				//std.stdio.writeln("hit ", w.name);
-				if (w.isDecendantOf(cur))
+				bool isDecentSameDepth = (cur is null || w.zOrder == cur.zOrder) && w.isDecendantOf(cur);
+				if ( isDecentSameDepth || w.isInFrontOf(cur) )
 				{
 					//std.stdio.writeln(w.name, " desc of ", cur is null ? "null" : cur.name, " rect ", w.rect.pos.v, w.rect.size.v, p.v);
 					cur = w;
-				}
-				else if (!w.isAncestorOf(cur) && w.isInFrontOf(cur))
-				{
-					//std.stdio.writeln(w.name, " not ancestor of ", cur is null ? "null" : cur.name, " rect ", w.rect.pos.v, w.rect.size.v, p.v);
-					cur = w;
-
-				 // Currently first come first served
-					// throw new Exception("Overlapping widgets in different hierarchies " ~ std.conv.text(cur.id , " ", w.id));
 				}
 			}
 		}
@@ -337,7 +350,8 @@ class Window : Widget
 	// Number of times the click widget has been clicked. To detext double/triple... clicks
 	private int clickWidgetClicks = 0;
 
-	private WidgetID mouseWidget = NullWidgetID;
+	private WidgetID mouseWidget = NullWidgetID; // top most
+	private WidgetID[] mouseWidgets = null; // all stack
 	private WidgetID mouseGrabbedBy = NullWidgetID;
 	private WidgetID keyboardFocusWidget = NullWidgetID;
 
@@ -364,6 +378,7 @@ class Window : Widget
 	void register(Widget w) nothrow
 	{
 		widgets[w.id] = w;
+		setWidgetName(w, w.name);
 		foreach (cw; w.children)
 			register(cw);
 	}
@@ -371,12 +386,15 @@ class Window : Widget
 	package void deregister(Widget w) nothrow
 	{
 		widgets.remove(w.id);
+		setWidgetName(w, null);
 		foreach (cw; w.children)
 			deregister(cw);
 	}
 
 	Widget getWidget(WidgetID id)
 	{
+		if (id == NullWidgetID)
+			return null;
 		auto w = id in widgets;
 		return w is null ? null : *w;
 	}
@@ -394,6 +412,9 @@ class Window : Widget
 		// send unfocus event only if any widget will accept the
 		// keyboard focus which is not always the case.
 	
+		if (wid == keyboardFocusWidget)
+			return; // already in focus
+
 		auto wp = wid in widgets;
 		Widget w = wp is null ? null : *wp;
 		
@@ -409,6 +430,9 @@ class Window : Widget
 				w = w.parent;
 			}
 		}
+
+		if (w.id == keyboardFocusWidget)
+			return; // already in focus
 
 		auto ow = keyboardFocusWidget in widgets;
 
@@ -438,10 +462,24 @@ class Window : Widget
 
 	bool isMouseOverWidget(const(Widget) w) const pure nothrow @safe
 	{
+		foreach (hitID; mouseWidgets)
+			if (hitID == w.id)
+				return true;
+		return false;
+		//	return mouseWidget == w.id;
+	}
+
+	bool isMouseDirectlyOverWidget(const(Widget) w) const pure nothrow @safe
+	{
 		return mouseWidget == w.id;
 	}
 
 	bool isMouseDownWidget(const(Widget) w) const pure nothrow @safe
+	{
+		return downButtonWidget != NullWidgetID && isMouseOverWidget(w);
+	}
+
+	bool isMouseDirectlyDownWidget(const(Widget) w) const pure nothrow @safe
 	{
 		return downButtonWidget == w.id;
 	}
@@ -527,6 +565,15 @@ TODO:
 		return valid;
 	}
 */		
+		if (event.type == EventType.MouseDown)
+		{
+			std.stdio.writeln("Fdsa");
+		}
+		if (event.type == EventType.MouseUp)
+		{
+			std.stdio.writeln("Fdsa");
+		}
+
 		// !not all events have a mouse pos! remember last mouse pos if needed
 		if (eventHasMousePos)
 		{
@@ -566,6 +613,7 @@ TODO:
 						if (outWidget)
 						{
 							event.type = EventType.MouseOut;
+							event.overWidgetID = overWidget is null ? NullWidgetID : overWidget.id;
 							outWidget.send(event);
 						}
 					}
@@ -641,9 +689,9 @@ TODO:
 						clickWidgetClicks = 1;
 						event.type = EventType.MouseClick;
 						used = overWidget.send(event) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;
-						setKeyboardFocusWidget(clickWidget);
 						clickWidget = downButtonWidget;
 						clickWidgetTime = TickDuration.currSystemTick;
+						setKeyboardFocusWidget(clickWidget);
 					}
 				}
 				downButtonWidget = NullWidgetID;
@@ -669,7 +717,7 @@ TODO:
 				break;
 			case EventType.Resize:
 
-				layout();
+				layout(false);
 
 				bool cont = false;
 				int maxIter = 5;
@@ -683,6 +731,10 @@ TODO:
 					}
 				} while (cont && maxIter--);
 				
+				break;
+			case EventType.StyleSheetChanged:
+				foreach (w; widgets)
+					w.send(event);
 				break;
 			default:
 				break;

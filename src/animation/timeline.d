@@ -11,8 +11,7 @@ import std.traits;
 
 class Timeline
 {
-private:
-
+public: 
 	class Runner
 	{
 		protected this(float dur, float _start)
@@ -24,18 +23,37 @@ private:
 
 		protected abstract void update(float offset);
 		protected abstract bool onDone(); // return true if animation should be removed when done
-		
+
 		void abort()
 		{
 			stopped = true;
+		}
+
+		@property float timeLeft() const
+		{
+			if (stopped)
+				return 0;
+
+			auto n = timer.now;
+
+			float diff = n - start;
+			if (diff <= 0)
+				return duration;
+			float left = duration - diff;
+			if (left <= 0)
+				return 0;
+			return left;
 		}
 
 		// Animation animation;
 		bool stopped;
 		float duration;
 		float start;
+		string name; // optional name
 		protected Runner next;
 	}
+
+private:
 
 	class AnimatorRunner : Runner
 	{
@@ -101,6 +119,18 @@ public:
 		timer = new InterpolateTimer(duration);
 	}
 
+	Runner getRunner(string name)
+	{	
+		Runner cur = _head;
+		while (cur !is null)
+		{
+			if (cur.name == name)
+				return cur;
+			cur = cur.next;
+		}
+		return null;
+	}
+
 	@property bool hasPendingAnimation()
 	{
 		return _head !is null;
@@ -115,13 +145,13 @@ public:
 
 */
 
-	Runner animate(string propertyPath, PropertyOwner, AnimType)(PropertyOwner owner, AnimType endValue, float duration, float start = float.max)
+	Runner animate(string propertyPath, alias CurveType = CubicCurve, PropertyOwner, AnimType)(PropertyOwner owner, AnimType endValue, float duration, float start = float.max)
 	{
 		// auto m = mutator!propertyPath(owner);
 		start = start == float.max ? timer.now : start;
 		auto a = new AnimatedObject!PropertyOwner(owner);
 		auto clip = a.createClip();
-		clip.createCubicCurve!propertyPath(0, mixin("owner." ~ propertyPath), duration, endValue);
+		clip.createCurve!(propertyPath, CurveType)(0, mixin("owner." ~ propertyPath), duration, endValue);
 
 		//auto a = new InterpolateAnimator!(typeof(m), typeof(m).FieldType)
 		//                                 (m, new CubicCurve(start, m.value, start+duration, endValue));

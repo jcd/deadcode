@@ -15,6 +15,7 @@ import gui.textlayout;
 import gui.window;
 import math._;
 
+import std.array;
 import std.typecons;
 
 /** A TextRenderer that can draw some text that may be decorated
@@ -45,7 +46,7 @@ class TextModel
 
 	// Get the world glyph pos. Glyphs are rendered from 0,0 and downwards ie. 
 	// y-coord of the first glyph is -lineHeight and height is lineHeight for that line.
-	Rectf getGlyphPos(uint index)
+	Rectf getGlyphPos(int index)
 	{
 		if (index >= glyphPositions.length)
 		{

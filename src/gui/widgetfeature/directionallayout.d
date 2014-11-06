@@ -21,17 +21,19 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 	//    return EventUsed.no;
 	//}
 
-	override void layout(Widget widget)
+	private bool _stretchLastItem;
+
+	this(bool stretchLastItem = true)
 	{
-		updateLayoutPreferred(widget);
+		_stretchLastItem = stretchLastItem;
 	}
 
-	void updateLayoutPreferred(Widget widget)
+	override void layout(Widget widget, bool fit)
 	{
 		auto children = widget.children;
 		if (children is null || children.length == 0) return; // nothing to layout
 
-		const rect = widget.rect;
+		Rectf rect = widget.rect;
 
 		static if (isHorz)
 		{
@@ -46,12 +48,21 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 		}
 		else
 		{
+			RectfOffset pad = widget.style.padding;
+
 			// Layout children until out of widget rect bounds
-			auto r = Rectf(rect.x, rect.y, rect.w, 0);
+			auto r = Rectf(rect.x + pad.left, rect.y + pad.top, rect.w, 0);
+			
+			if (fit)
+			{
+				rect.h = 1000000f;
+				rect.w = 1000000f;
+			}
+
 			foreach (ref w; children)
 			{
 				// no more room to in parent widget to layout children
-				w.visible = r.y2 < rect.y2;
+				w.visible = r.y < rect.y2;
 				
 				// r.h = w.preferredSize.y;
 				Vec2f childSizeStyled = w.size;
@@ -78,10 +89,10 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 			}
 
 			// If there is any space left then give it to the last widget
-			if (children[$-1].rect.y2 < rect.y2)
+			if (_stretchLastItem && !fit && children[$-1].rect.y2 < (rect.y2 - pad.bottom))
 			{
 				Rectf rr = children[$-1].rect;
-				rr.size.y += widget.rect.y2 - children[$-1].rect.y2;
+				rr.size.y += widget.rect.y2 - children[$-1].rect.y2 - pad.bottom;
 				children[$-1].rect = rr;
 			}
 		}

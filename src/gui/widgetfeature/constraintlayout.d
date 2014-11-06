@@ -110,7 +110,7 @@ class ConstraintLayout : WidgetFeature
 	override void update(Widget widget) 
 	{
 		if (_relayout)
-			layout(widget);
+			layout(widget, false);
 	}
 	
 	override EventUsed send(Event event, Widget widget)
@@ -124,7 +124,7 @@ class ConstraintLayout : WidgetFeature
 		return EventUsed.no;
 	}
 	
-	override void layout(Widget widget)
+	override void layout(Widget widget, bool fit)
 	{
 		if (!_relayout)
 			return;

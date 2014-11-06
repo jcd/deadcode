@@ -26,7 +26,7 @@ class GUI
 		class Timeout 
 		{
 			bool done;
-			uint msLeft;
+			int msLeft;
 			abstract bool onTimeout();
 		}
 
@@ -34,9 +34,9 @@ class GUI
 		{
 			Fn fn;
 			Args args;
-			uint msInit;
+			int msInit;
 
-			this(uint ms, Fn f, Args a)
+			this(int ms, Fn f, Args a)
 			{
 				done = false;
 				msLeft = ms;
@@ -185,7 +185,7 @@ class GUI
 
 	void timeout(Fn, Args...)(Duration d, Fn fn, Args args)
 	{
-		_timeouts ~= new FnTimeout!(Fn,Args)(cast(uint)d.total!"msecs", fn, args);
+		_timeouts ~= new FnTimeout!(Fn,Args)(cast(int)d.total!"msecs", fn, args);
 	}
 
 	void tick()
@@ -216,24 +216,26 @@ class GUI
 	private void handleEvents(bool waitForEvents)
 	{
 		Uint32 curTick = SDL_GetTicks();
-		Uint32 msPassed = curTick - _lastTick;
+		int msPassed = cast(int) curTick - _lastTick;
 		_lastTick = curTick;
 
 		// Make sure we make progress no matter what
 		if (msPassed == 0)
 			msPassed = 1;
 
-		uint smallestTimeout = _timeouts.empty ? 0 : _timeouts[0].msLeft - msPassed;
+		int smallestTimeout = std.algorithm.max(_timeouts.empty ? int.max : _timeouts[0].msLeft - msPassed, 0);
 		int numTimedOut = 0;
 		bool timedOutThisTick = false;
 
 		foreach (ref t; _timeouts)
 		{
-			if (t.msLeft <= msPassed)
+			t.msLeft -= msPassed;
+			if (t.msLeft <= 0)
 			{
-				timedOutThisTick = !t.done;
-				if (timedOutThisTick)
+				bool tTimedOutThisTick = !t.done;
+				if (tTimedOutThisTick)
 				{
+					timedOutThisTick = true;
 					if (t.onTimeout())
 					{
 						if (smallestTimeout > t.msLeft)
@@ -242,10 +244,8 @@ class GUI
 				}
 				numTimedOut++;
 			}
-			else
+			else if (smallestTimeout > t.msLeft)
 			{
-				t.msLeft -= msPassed;
-				if (smallestTimeout > t.msLeft)
 					smallestTimeout = t.msLeft;
 			}
 		}
@@ -263,7 +263,7 @@ class GUI
 		int pollResult = 0;
 		if (waitForEvents && _eventQueue.empty && !timedOutThisTick)
 		{
-			if (smallestTimeout != 0)
+			if (smallestTimeout != int.max)
 				pollResult = SDL_WaitEventTimeout(&e, smallestTimeout);
 			else
 				pollResult = SDL_WaitEvent(&e);

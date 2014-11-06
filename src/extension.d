@@ -1,19 +1,102 @@
 module extension;
 
+public import controls.menu;
+public import controls.texteditor;
 public import core.bufferview;
 public import core.command;
 public import core.commandparameter;
 public import guiapplication;
 public import gui.widget;
-public import controls.texteditor;
+public import math.region;
 public import std.variant;
 
 private static IBasicExtension[] g_Extensions;
 private static IBasicCommand[] g_Commands;
 private static TypeInfo_Class[] g_Widgets;
+private static IBasicWidget[] g_BasicWidgets;
+
+import std.typetuple;
+
+struct Shortcut
+{
+	this(string seq)
+	{
+		keySequence = seq;
+	}
+
+	this(string seq, string arg )
+	{
+		keySequence = seq;
+		argument = arg;
+	}
+	
+	string keySequence;
+//	CommandParameter[] parameters;
+	string argument;
+}
+
+//enum isShortcut(alias T) = is(typeof(T) == Shortcut);
+//
+//alias hasShortcutAttribute(alias what) = anySatisfy!(isShortcut, __traits(getAttributes, what));
+//enum getShortcutAttributes(alias what) = [ Filter!(isShortcut, __traits(getAttributes, what)) ];
+
+template isAttribute(AttrType)
+{
+	template isAttribute(alias T)
+	{
+		enum isAttribute = is(typeof(T) == AttrType);
+	}
+}
+
+alias hasAttribute(alias what, AttrType) = anySatisfy!(isAttribute!AttrType, __traits(getAttributes, what));
+enum getAttributes(alias what, AttrType) = [ Filter!(isAttribute!AttrType, __traits(getAttributes, what)) ];
+
+struct RegisterCommand(alias Func)
+{
+	static this()
+	{
+		new FunctionCommand!Func;
+	}
+}
+
+class FunctionCommand(alias Func) : IBasicCommand {
+
+	static this()
+	{
+		g_Commands ~= new FunctionCommand!Func;
+	}
+
+	// TODO: parse Func params and set here
+	this()
+	{
+		super(createParams(""));
+	}
+
+	static if (hasMenuItemAttribute!Func)
+		override @property MenuItem menuItem() const pure nothrow @safe 
+		{
+			return getMenuItemAttribute!Func;
+		}
+
+	static if (hasAttribute!(Func, Shortcut))
+		override @property Shortcut[] shortcuts() const pure nothrow @safe
+		{
+			return getAttributes!(Func,Shortcut);
+		}
+
+	override void execute(CommandParameter[] v)
+	{
+		// TODO: convert v to actual param types
+		Func(app, v[0].get!string);
+	}
+}
+
+
 
 void init(GUIApplication app)
 {
+	import std.range;
+	
 	foreach (e; g_Extensions)
 	{
 		e.app = app;
@@ -24,14 +107,40 @@ void init(GUIApplication app)
 		c.app = app;
 		c.init();
 		app.commandManager.add(c);
+		if (!c.menuItem.path.empty)
+			app.menu.addTreeItem(c.menuItem.path, c.name);
+		foreach (sc; c.shortcuts)
+		{
+			if (sc.argument is null)
+				app.editorBehavior.keyBindings.setKeyBinding(sc.keySequence, c.name);
+			else
+				app.editorBehavior.keyBindings.setKeyBinding(sc.keySequence, c.name, sc.argument);
+		}
 	}
 	foreach (wi; g_Widgets)
 	{
 		auto w = cast(IBasicWidget)(wi.create());
+		g_BasicWidgets ~= w;
 		w.app = app;
 		app.guiRoot.activeWindow.register(w);
 		w.parent = app.guiRoot.activeWindow;
 		w.init();
+	}
+}
+
+void fini(GUIApplication app)
+{
+	foreach (e; g_Extensions)
+	{
+		e.fini();
+	}
+	foreach (c; g_Commands)
+	{
+		c.fini();
+	}
+	foreach (w; g_BasicWidgets)
+	{
+		w.fini();
 	}
 }
 
@@ -67,6 +176,7 @@ class IBasicWidget : Widget
 	GUIApplication app;
 	this() nothrow {}
 	abstract void init();
+	abstract void fini();
 	abstract void onStart();
 	abstract void onStop();
 	abstract @property PreferredWidgetLocation preferredLocation();
@@ -92,6 +202,11 @@ class BasicWidget(T) : IBasicWidget
 		// no-op
 	}
 
+	override void fini()
+	{
+		// no-op
+	}
+
 	override void onStart()
 	{
 		// no-op		
@@ -106,6 +221,27 @@ class BasicWidget(T) : IBasicWidget
 	{
 		return PreferredWidgetLocation(null, WidgetLocation.bottom);
 	}
+
+	Data loadSessionData(Data)()
+	{
+		auto r = app.loadOrCreate("extensions/widgets/" ~ T.classinfo.name);
+		auto data = r.get!Data();
+		if (data is null)
+		{
+			data = new Data();
+			r.set(data);
+		}
+		return data;
+	}
+
+	// If data is null then the data returned by loadSessionData will be saved
+	void saveSessionData(Data)(Data data = null)
+	{
+		auto r = app.loadOrCreate("extensions/widgets/" ~ T.classinfo.name);
+		if (data !is null)
+			r.set(data);
+		r.save();
+	}
 }
 
 class IBasicCommand : Command
@@ -117,13 +253,51 @@ class IBasicCommand : Command
 		super(paramsDefs);
 	}
 
-	abstract void init();
-	abstract void onStart();
-	abstract void onStop();
+	@property MenuItem menuItem() const pure nothrow @safe
+	{
+		return MenuItem();
+	}
+
+	@property Shortcut[] shortcuts() const pure nothrow @safe
+	{
+		return null;
+	}
+
+	void init()
+	{
+		// no-op		
+	}
+
+	void fini()
+	{
+		// no-op
+	}	
+
+	void onStart()
+	{
+		// no-op		
+	}
+
+	void onStop()
+	{
+		// no-op		
+	}
 }
 
 class BasicCommand(T) : IBasicCommand
 {
+	static if (hasMenuItemAttribute!T)
+	override @property MenuItem menuItem() const pure nothrow @safe 
+	{
+		return getMenuItemAttribute!T;
+	}
+	
+	static if (hasAttribute!(T, Shortcut))
+	override @property Shortcut[] shortcuts() const pure nothrow @safe
+	{
+		return getAttributes!(T,Shortcut);
+	}
+
 	static this()
 	{
 		g_Commands ~= new T;
@@ -134,30 +308,20 @@ class BasicCommand(T) : IBasicCommand
 		super(paramsDefs);
 	}
 
-	//this()
-	//{
-	//    super(null); // TODO: figure out a nice way to initialize param defs
-	//}
+	@property BufferView currentBuffer()
+	{
+		return app.currentBuffer;
+	}
+
+	@property TextEditor currentTextEditor()
+	{
+		return app.getCurrentTextEditor();
+	}
 
 	IBasicWidget getBasicWidget(string name)
 	{
 		auto w = app.guiRoot.activeWindow.getWidget(name);
 		return cast(IBasicWidget)(w);
-	}
-
-	override void init()
-	{
-		// no-op		
-	}
-	
-	override void onStart()
-	{
-		// no-op		
-	}
-
-	override void onStop()
-	{
-		// no-op		
 	}
 }
 
@@ -177,6 +341,7 @@ class IBasicExtension
 
 	abstract @property string name();
 	abstract void init();
+	abstract void fini();
 	abstract void onStart();
 	abstract void onStop();
 }
@@ -192,6 +357,16 @@ class BasicExtension(T) : IBasicExtension
 	//{
 	//    // no-op		
 	//}
+	
+	override void init()
+	{
+		// no-op
+	}
+	
+	override void fini()
+	{
+		// no-op
+	}
 
 	override void onStart()
 	{
@@ -204,6 +379,7 @@ class BasicExtension(T) : IBasicExtension
 	}
 }
 
+version (NO)
 unittest
 {
 import application;

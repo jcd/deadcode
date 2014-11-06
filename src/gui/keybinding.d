@@ -451,9 +451,9 @@ class KeyBindingStack
 	
 	/** Current active key bindings 
 	 */
-	private @property ref KeyBindingsSet keyBindings()
+	@property ref KeyBindingsSet keyBindings()
 	{
-		return stack[$];
+		return stack[$-1];
 	}
 	
 	/** Push a new KeyBindings set at the new active one
@@ -506,6 +506,13 @@ class KeyBindingStack
 	{
 		stack[0].setKeyBinding(seq, com);
 	}
+
+	/// ditto
+	void setKeyBinding(T, Arg)(T seq, string com, Arg arg) if ( is(T : string) || is(T : KeySequence))
+	{
+		stack[0].setKeyBinding(seq, com, arg);
+	}
+
 
 	/*
 	/// ditto

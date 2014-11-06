@@ -1,6 +1,6 @@
 module core.command;
 
-import core.commandparameter;
+public import core.commandparameter;
 
 import std.conv;
 import std.exception;
@@ -28,7 +28,45 @@ class Command
 	{
 		string name() const
 		{
-			return chomp(this.classinfo.name, "Command");
+			import std.algorithm;
+			import std.range;
+			import std.string;
+			import std.uni;
+
+			auto toks = this.classinfo.name.splitter('.').retro;
+			
+			string className = null;
+			// class Name is assumed PascalCase ie. FooBarCommand and the Command postfix is stripped
+			// The special case of extension.FunctionCommand!(xxxx).FunctionCommand
+			// is for function commands and the xxx part is pulled out instead.
+			if (toks.front == "FunctionCommand")
+			{
+				toks.popFront();
+				auto idx = toks.front.lastIndexOf('(');
+				if (idx == -1)
+					className = "invalid-command-name:" ~ this.classinfo.name;
+				else
+				{
+					className ~= toks.front[idx+1].toUpper;
+					className ~= toks.front[idx+2..$-1];
+				}
+			}
+			else
+			{
+				className = toks.front.chomp("Command");
+			}
+
+			string cmdName;
+
+			while (!className.empty)
+			{
+				if (!cmdName.empty)
+					cmdName ~= ".";
+				cmdName ~= className.munch("A-Z")[0].toLower;
+				cmdName ~= className.munch("[a-z0-9_]");
+			}
+
+			return cmdName;
 		}
 		
 		string description() const
@@ -145,9 +183,9 @@ auto helloCommand()
 	                           delegate (CommandParameter[] data) { std.stdio.writeln("Hello"); });
 }
 
-	
+
 //@Command("edit.cursorDown", "Moves cursor count lines down");
-//void cursorDown(uint count = 1)
+//void cursorDown(int count = 1)
 //{
 //
 //}
@@ -216,6 +254,13 @@ class CommandManager
 	void remove(string commandName)
 	{
 		// TODO: commands.remove(commandName);
+	}
+
+	void execute(CommandCall c)
+	{
+		auto cmd = lookup(c.name);
+		if (cmd !is null && cmd.canExecute(c.arguments))
+			cmd.execute(c.arguments);
 	}
 		
 	Command lookup(string commandName)

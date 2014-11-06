@@ -16,8 +16,8 @@ version(unittest) import test;
 struct Region
 {
 	// Region [a:b[
-	uint a; /// first end of region. A is included.
-	uint b; /// last end of region. B is not included.
+	int a; /// first end of region. A is included.
+	int b; /// last end of region. B is not included.
 	int id; // ID that can be used by the user to associate this region with something
 	
 	static immutable Region zero = Region(0,0);
@@ -110,7 +110,7 @@ struct Region
 			Region at;
 			Region after;
 
-			@property uint max() const pure nothrow
+			@property int max() const pure nothrow
 			{
 				return before.b > at.b ? (before.b > after.b ? before.b : after.b) : (at.b > after.b ? at.b : after.b);
 			}
@@ -186,7 +186,7 @@ struct Region
 	
 	/** Returns true if the given index is contained within this region
 	 */
-	bool contains(uint p) const
+	bool contains(int p) const
 	{ 
 		return p >= a && p < b && !empty;
 	}
@@ -208,7 +208,7 @@ struct Region
 
 		Returns: True if this regions was modified
 	*/
-	bool entriesInserted(uint pos, uint len)
+	bool entriesInserted(int pos, int len)
 	{
 		// To simplify logic we swap a and b if a > b
 		bool swapIt = a > b;
@@ -260,7 +260,7 @@ struct Region
 	
 		Returns: True if this regions was modified
 	*/
-	bool entriesRemoved(uint pos, uint len)
+	bool entriesRemoved(int pos, int len)
 	{
 		// To simplify logic we swap a and b if a > b
 		bool swapIt = a > b;
@@ -370,7 +370,7 @@ struct Region
 	}
 
 	///ditto
-	auto subtract(uint ra, uint rb)
+	auto subtract(int ra, int rb)
 	{
 		return subtract(Region(ra, rb));
 	}
@@ -495,14 +495,14 @@ class RegionSet
 
 	@property 
 	{
-		uint a() 
+		int a() 
 		{
 			if (regions.empty)
 				return 0;
 			return regions.front.a;
 		}
 
-		uint b() 
+		int b() 
 		{
 			if (regions.empty)
 				return 0;
@@ -516,7 +516,7 @@ class RegionSet
 		assert(mergeIntersectingRegions);
 	}
 
-	// this(Args...)(Args args) if (is(args[0] : uint) && (args.length % 2 == 0) )
+	// this(Args...)(Args args) if (is(args[0] : int) && (args.length % 2 == 0) )
 	this(Args...)(Args args) if ( (args.length % 2 == 0) )
 	{
 		auto rs = new RegionSet();
@@ -527,7 +527,7 @@ class RegionSet
 
 	// Update all affected regions by shifting their endpoints or expanding because of new 
 	// entries are inserted on what the regions describe
-	void entriesInserted(uint pos, uint len)
+	void entriesInserted(int pos, int len)
 	{
 		foreach (i; 0..regions.length)
 		{
@@ -555,7 +555,7 @@ class RegionSet
 
 	// Update all affected regions by shifting their endpoints or contracting because of  
 	// entries are removed on what the regions describe
-	void entriesRemoved(uint pos, uint len)
+	void entriesRemoved(int pos, int len)
 	{
 		foreach (i; 0..regions.length)
 		{
@@ -568,7 +568,7 @@ class RegionSet
 	/*
 	// Update all affected regions by shifting their endpoints or contracting because of  
 	// entries are removed on what the regions describe
-	void entriesRemoved(uint pos, uint len)
+	void entriesRemoved(int pos, int len)
 	{
 		foreach (i; 0..regions.length)
 		{
@@ -591,7 +591,7 @@ class RegionSet
 		}		
 	}
 */
-	void merge(uint a, uint b, int id = 0)
+	void merge(int a, int b, int id = 0)
 	{
 		merge(Region(a, b, id));
 	}
@@ -616,7 +616,7 @@ class RegionSet
 		regions.insertBack(r); // no elements already or incoming region is to be the last element
 	}
 	
-	void set(uint a, uint b, int id = 0)
+	void set(int a, int b, int id = 0)
 	{
 		set(Region(a, b, id));
 	}
@@ -777,7 +777,7 @@ class RegionSet
 		Assert(s2[1], Region(10,20));
 	}
 /*
-	void toggle(uint a, uint b, int id = 0)
+	void toggle(int a, int b, int id = 0)
 	{
 		toggle(Region(a, b, id));
 	}
@@ -1005,7 +1005,7 @@ class RegionSet
 			regions.linearRemove(regions[startIdx..endIdx+1]);
 	}
 
-	void subtract(uint ra, uint rb) 
+	void subtract(int ra, int rb) 
 	{
 		subtract(Region(ra, rb));
 	}
@@ -1091,7 +1091,7 @@ class RegionSet
 	RegionSet getInverse()
 	{ 
 		RegionSet rs = new RegionSet();
-		uint lastEnd = 0;
+		int lastEnd = 0;
 		foreach (r; regions[])
 		{
 			if (lastEnd == r.a)

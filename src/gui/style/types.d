@@ -199,7 +199,8 @@ enum CSSUnit : byte
 	mm,
 	cm,
 	inch,
-	pct
+	pct,
+	automatic
 }
 
 struct CSSScale
@@ -297,7 +298,7 @@ struct CSSPositionMix
 
 	@property isMixed() const pure nothrow @safe
 	{
-		return cssPositionA != cssPositionB;
+		return cssPositionB != CSSPosition.invalid && cssPositionA != cssPositionB;
 	}
 }
 

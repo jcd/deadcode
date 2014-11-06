@@ -16,6 +16,7 @@ interface IResource(T)
 
 	@property Handle handle();
 	@property Manager manager();
+	@property const(Manager) manager() const pure nothrow @safe;
 	void load();
 
 	final void ensureLoaded()
@@ -56,6 +57,11 @@ public:
 		}
 
 		Manager manager()
+		{
+			return _manager;
+		}
+
+		const(Manager) manager() const pure nothrow @safe
 		{
 			return _manager;
 		}

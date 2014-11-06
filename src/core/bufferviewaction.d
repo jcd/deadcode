@@ -10,6 +10,8 @@ import std.container;
 import std.range;
 import std.typecons;
 
+debug import std.stdio;
+
 version(unittest) 
 {
 	import test;
@@ -26,6 +28,7 @@ class Action
 	bool modifying = true; // is this action modifying the buffer or just navigating
 	abstract void redo(BufferView bv);
 	abstract void undo(BufferView bv);
+	debug void dump(int indent) const;
 }
 
 // A special action that contain actions itself and undoing/redoing this action
@@ -61,22 +64,34 @@ class ActionGroupAction : Action
 		foreach (a; actions.retro)
 			a.undo(bv);
 	}
+	
+	debug void dump(int indent) const
+	{
+		writeln(repeat(' ', indent), "Group {");
+		foreach (a; actions)
+			a.dump(indent+2);
+		writeln(repeat(' ', indent), "}");
+	}
 }
 
 class CursorDownAction : Action
 {
 	int count;
+	bool selecting;
 	//uint preferredColumn;
 
-	this(int cnt)
+	this(int cnt, bool select = false)
 	{
 		modifying = false;
 		count = cnt;
+		selecting = select;
 	}
 
 	// Return true if this action was updated to reflect the changes
-	private bool update(BufferView bv, int cnt)
+	private bool update(BufferView bv, int cnt, int select = false)
 	{
+		if (selecting != select)
+			return false;
 		count += cnt;
 		perform(bv, cnt);
 		return true;
@@ -86,7 +101,14 @@ class CursorDownAction : Action
 		auto v = bv.buffer.offsetVertically(bv._cursorPoint, cnt, bv.preferredCursorColumn);
 		if (!bv.isValidCursorPoint(v))
 			return;
+
+		if (selecting)
+			bv.selectTo(v);
+		else if (!bv.selection.empty)
+			bv.selection = Region(bv.selection.a, bv.selection.a);
+
 		bv._cursorPoint = v;
+
 		bv.navigated();
 	}
 
@@ -98,11 +120,20 @@ class CursorDownAction : Action
 
 	override void undo(BufferView bv)
 	{
+		auto origPoint = bv._cursorPoint;
 		auto v = bv.buffer.offsetVertically(bv._cursorPoint, -count, bv.preferredCursorColumn);
 		bv._cursorPoint = v;
+		if (selecting)
+			bv.selection = Region(origPoint, v);
+
 		bv.navigated();
 		//bv.preferredCursorColumn(preferredColumn);
 		//bv.setIndexFromPreferredCursorColumn();
+	}
+
+	debug void dump(int indent) const
+	{
+		writefln("%s%s(%s)", repeat(' ', indent), "Down", count);
 	}
 }
 
@@ -186,8 +217,9 @@ unittest
 class InsertAction : Action
 {
 	immutable(TextBuffer.CharType)[] text;
-	uint preferredColumn;
-	
+	int preferredColumn;
+	RemoveSelectedAction removeSelectedAction;
+
 	this(immutable(TextBuffer.CharType)[] txt)
 	{
 		text = txt;
@@ -198,7 +230,7 @@ class InsertAction : Action
 	// before calling this as it is assumed that text is already in buffer.
 	private bool update(BufferView bv, immutable(TextBuffer.CharType)[] txt)
 	{
-		if (txt == " " || txt == "\t" || txt == "\r\n" || txt == "\n")
+		if (txt == " " || txt == "\t" || txt == "\r\n" || txt == "\n" || !bv.selection.empty)
 			return false; // force undo entry for each word
 		text ~= txt;
 		perform(bv, txt);
@@ -207,11 +239,16 @@ class InsertAction : Action
 
 	private void perform(BufferView bv, immutable(TextBuffer.CharType)[] txt)
 	{
+		if (!bv.selection.empty)
+		{
+			removeSelectedAction = new RemoveSelectedAction();
+			removeSelectedAction.redo(bv);
+		}
 		auto insertPoint = bv.cursorPoint;
 		bv.buffer.insert(txt, insertPoint);
 		bv._cursorPoint = insertPoint + txt.length;
 		bv.setPreferredCursorColumnFromIndex();
-		bv.changed();
+		bv.modified = true;
 		bv.onInsert.emit(bv, txt, insertPoint);
 	}
 
@@ -227,8 +264,15 @@ class InsertAction : Action
 		bv.buffer.removeRange(bv.cursorPoint, text.length + bv.cursorPoint);
 		bv.preferredCursorColumn(preferredColumn);
 		// bv.setIndexFromPreferredCursorColumn();
-		bv.changed();
+		bv.modified = true;
 		bv.onRemove.emit(bv, text, bv.cursorPoint);
+		if (removeSelectedAction !is null)
+			removeSelectedAction.undo(bv);
+	}
+
+	debug void dump(int indent) const
+	{
+		writefln("%s%s(%s,%s,%s)", repeat(' ', indent), "Insert", text, preferredColumn, removeSelectedAction is null ? "no-selection" : "removed-selection");
 	}
 }
 
@@ -273,10 +317,11 @@ unittest
 
 class RemoveAction : Action
 {
-	uint preferredColumn;
+	int preferredColumn;
 	int count;
 	immutable(TextBuffer.CharType)[] text; // used to remember what to undo
 	TextBoundary boundary;
+	bool selected;
 
 	this(TextBoundary b, int cnt = 1)
 	{
@@ -287,7 +332,7 @@ class RemoveAction : Action
 	private bool update(BufferView bv, TextBoundary b, int cnt)
 	{
 		// Only some boundary moves and direction can be updated
-		if (boundary != b || ((cnt < 0) != (count < 0)))
+		if (boundary != b || ((cnt < 0) != (count < 0)) || selected == bv.selection.empty)
 			return false;
 		count += cnt;
 		perform(bv, b, cnt);
@@ -296,8 +341,21 @@ class RemoveAction : Action
 	
 	private void perform(BufferView bv, TextBoundary b, int cnt)
 	{
-		auto start = bv.buffer.offsetBy(bv._cursorPoint, cnt, b);
-		auto end = bv._cursorPoint;
+		int start, end;
+		
+		if (bv.selection.empty)
+		{
+			start = bv.buffer.offsetBy(bv._cursorPoint, cnt, b);
+			if (start == int.max)
+				start = bv._cursorPoint;
+			end = bv._cursorPoint;
+		}
+		else
+		{
+			start = bv.selection.a;
+			end = bv.selection.b;
+			selected = true;
+		}
 
 		// record the content for later undoing
 		if (start > end)
@@ -316,7 +374,7 @@ class RemoveAction : Action
 		bv.buffer.removeRange(start, end);
 		bv._cursorPoint = start;
 		bv.setPreferredCursorColumnFromIndex();
-		bv.changed();
+		bv.modified = true;
 		bv.onRemove.emit(bv, t, start);
 	}
 
@@ -336,10 +394,18 @@ class RemoveAction : Action
 		bv._cursorPoint = restoredCursorPoint; 
 		bv.preferredCursorColumn(preferredColumn);
 		// bv.setIndexFromPreferredCursorColumn();
-		bv.changed();
+		bv.modified = true;
 		bv.onInsert.emit(bv, text, origCursorPoint);
 		text = null;
+		selected = false;
+		bv.selection = Region(origCursorPoint, restoredCursorPoint);
 	}
+
+	debug void dump(int indent) const
+	{
+		writefln("%s%s(%s,%s,%s,%s)", repeat(' ', indent), "Remove", text, preferredColumn, count, boundary);
+	}
+
 }
 
 unittest
@@ -397,7 +463,7 @@ unittest
 
 class RemoveSelectedAction : Action
 {
-	uint preferredColumn;
+	int preferredColumn;
 	bool cursorAtStartOfSelection;
 	immutable(TextBuffer.CharType)[] text; // used to remember what to undo
 
@@ -421,7 +487,7 @@ class RemoveSelectedAction : Action
 		bv.clearSelection();
 		bv._cursorPoint = o;
 		bv.setPreferredCursorColumnFromIndex();
-		bv.changed();
+		bv.modified = true;
 		bv.onRemove.emit(bv, text, o);
 	}
 
@@ -429,7 +495,7 @@ class RemoveSelectedAction : Action
 	{
 		auto origCursorPoint = bv.cursorPoint;
 		bv.buffer.insert(text, bv.cursorPoint);
-		bv.changed();
+		bv.modified = true;
 		bv.onInsert.emit(bv, text, origCursorPoint);
 		
 		if (cursorAtStartOfSelection)
@@ -443,6 +509,11 @@ class RemoveSelectedAction : Action
 		}
 		bv.preferredCursorColumn(preferredColumn);
 		//bv.setIndexFromPreferredCursorColumn();
+	}
+
+	debug void dump(int indent) const
+	{
+		writefln("%s%s(%s,%s)", repeat(' ', indent), "Insert", text, preferredColumn, cursorAtStartOfSelection);
 	}
 }
 
@@ -526,13 +597,17 @@ class CopySelectedAction : Action
 	{
 		// no-op
 	}
+
+	debug void dump(int indent) const
+	{
+		writefln("%s%s()", repeat(' ', indent), "CopySelected");
+	}
 }
 
 class PasteAction : Action
 {
 	int copyBufferEntryOffset;
 	InsertAction insertAction;
-	RemoveSelectedAction removeSelectedAction;
 
 	this(int boffset)
 	{
@@ -577,12 +652,6 @@ class PasteAction : Action
 			auto e = bv.copyBuffer.get(copyBufferEntryOffset);
 			if (e is null)
 				return; // nothing at that entry
-
-			if (!bv.selection.empty)
-			{
-				removeSelectedAction = new RemoveSelectedAction();			
-				removeSelectedAction.redo(bv);
-			}
 			
 			insertAction = new InsertAction(e.txt);
 		}
@@ -593,8 +662,13 @@ class PasteAction : Action
 	{
 		if (insertAction !is null)
 			insertAction.undo(bv);
-		if (removeSelectedAction !is null)
-			removeSelectedAction.undo(bv);
+	}
+
+	debug void dump(int indent) const
+	{
+		writefln("%s%s(%s)", repeat(' ', indent), "Paste", copyBufferEntryOffset, " {");
+		insertAction.dump(indent+2);
+		writeln(repeat(' ', indent), "}");
 	}
 }
 
@@ -603,19 +677,22 @@ class CursorAction : Action
 	int offset;
 	TextBoundary boundary;
 	int count;
-	uint preferredColumn; // To set when undoing. Upon updating it will alway be the initial column that is kept.
+	int preferredColumn; // To set when undoing. Upon updating it will alway be the initial column that is kept.
+	bool selecting;
 
-	this(TextBoundary b, int cnt = 1)
+	this(TextBoundary b, int cnt = 1, bool select = false)
 	{
 		modifying = false;
 		boundary = b;
 		count = cnt;
+		selecting = select;
 	}
 
-	private bool update(BufferView bv, TextBoundary b, int cnt)
+	private bool update(BufferView bv, TextBoundary b, int cnt, bool select)
 	{
 		// Only some boundary moves and direction can be updated
-		if (boundary != b || ((cnt < 0) != (count < 0)))
+		//if (boundary != b || ((cnt < 0) != (count < 0)))
+		if (boundary != b || select != selecting)
 			return false;
 		count += cnt;
 		perform(bv, b, cnt);
@@ -624,8 +701,17 @@ class CursorAction : Action
 
 	private void perform(BufferView bv, TextBoundary b, int c)
 	{
-		bv._cursorPoint = bv.buffer.offsetBy(bv._cursorPoint, c, b);
-		bv.setPreferredCursorColumnFromIndex();
+		int idx = bv.buffer.offsetBy(bv._cursorPoint, c, b);
+		if (idx != int.max)
+		{
+			if (selecting)
+				bv.selectTo(idx);
+			else if (!bv.selection.empty)
+				bv.selection = Region(bv.selection.a, bv.selection.a);
+
+			bv._cursorPoint = idx; 
+			bv.setPreferredCursorColumnFromIndex();
+		}
 	}
 
 	override void redo(BufferView bv)
@@ -637,12 +723,19 @@ class CursorAction : Action
 
 	override void undo(BufferView bv)
 	{
+		auto origPoint = bv._cursorPoint;
 		bv._cursorPoint = offset;
 		bv.preferredCursorColumn = preferredColumn;
 		// bv.setPreferredCursorColumnFromIndex();
+		if (selecting)
+			bv.selection = Region(origPoint, offset);
+	}
+	
+	debug void dump(int indent) const
+	{
+		writefln("%s%s(%s,%s,%s,%s)", repeat(' ', indent), "Cursor", offset, boundary, count, preferredColumn);
 	}
 }
-
 unittest
 {
 	// Test reversibility
@@ -779,6 +872,10 @@ class ActionStack
 	// int curIdx = 0; // last index of actions + 1 if at top of stack
 	Item last;
 
+	debug {
+		bool dumpEnabled;
+	}
+
 	// Keep track of all cursor actions (e.g. cursorLeft/toEndOfLine) and
 	// insert the on stack before a non-cursor (ie. modifying) action when such one is pushed.
 	// This solves the situation where you undo some steps, then move the cursor and the redo some steps.
@@ -799,6 +896,11 @@ class ActionStack
 		//actions.length = 0;
 	}
 
+	@property bool empty() const pure nothrow @safe
+	{
+		return last.prev is null && last.next is null;
+	}
+
 	void clear()
 	{
 		while (last.prev !is null)
@@ -811,7 +913,7 @@ class ActionStack
 		assumeSafeAppend(topCursorActions);
 	}
 
-	uint cursorPointAfterLastAction;
+	int cursorPointAfterLastAction;
 
 	version (unittest)
 	{
@@ -876,11 +978,14 @@ class ActionStack
 
 		int off = bv.cursorPoint - cursorPointAfterLastAction;
 		if (off != 0)
-			createAction!CursorAction(bv, TextBoundary.chr, off);
+			createAction!CursorAction(bv, TextBoundary.unit, off, false); // TODO: FIX: Shouldn't this be put on the stack!?
 
 		Action a = createAction!T(bv, args);
 		if (a is null)
+		{
+			dump();
 			return;
+		}
 	
 		// A new action will truncate any redoes above current idx in stack. But only if it is an action that modifies 
 		// the buffer.
@@ -913,8 +1018,7 @@ class ActionStack
 			a.redo(bv);
 			topCursorActions ~= a;
 		}
-
-		
+		debug dump();
 	}
 
 	bool canRepeat()
@@ -960,6 +1064,10 @@ class ActionStack
 
 		cursorPointAfterLastAction = bv.cursorPoint;
 		activeAction = null;
+		debug {
+			writeln("Redoing");
+			dump();
+		}
 	}
 
 	void undo(BufferView bv)
@@ -980,6 +1088,33 @@ class ActionStack
 
 		cursorPointAfterLastAction = bv.cursorPoint;
 		activeAction = null;
+		debug {
+			writeln("Undoing");
+			dump();
+		}
+	}
+
+	debug void dump() const
+	{
+		if (!dumpEnabled)
+			return;
+
+		import std.typecons;
+		writeln("------------------------------");
+		writeln("Top cursor actions:");
+		foreach (a; topCursorActions.retro)
+			a.dump(2);
+
+		writeln("Action stack:");
+		auto it = rebindable(last);
+		while (it.action !is null)
+		{
+			it.action.dump(2);
+			// auto modifying = cir.action.modifying;
+			it = it.prev;
+			//if (modifying)
+			//    break;
+		}
 	}
 }
 

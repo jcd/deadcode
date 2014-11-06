@@ -82,8 +82,8 @@ void register(GUIApplication app)
 	mixin(createCmd("selectToWordBefore", "Expand selection to word before cursor"));
 	mixin(createCmd("selectToWordAfter", "Expand selection to word after cursor"));
 
-	mixin(createCmd("deleteWordBefore", "Delete word before cursor"));
-	mixin(createCmd("deleteWordAfter", "Delete word after cursor"));
+	mixin(createCmd("deleteToWordBefore", "Delete word before cursor"));
+	mixin(createCmd("deleteToWordAfter", "Delete word after cursor"));
 	mixin(createCmd("deleteToEndOfLine", "Delete line part after cursor"));
 	mixin(createCmd("clear", "Clear buffer"));
 	mixin(createCmd("undo", "Undo buffer"));
@@ -113,7 +113,7 @@ void register(GUIApplication app)
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 		ctrl.cursorUp(1);
-		uint lineNum = ctrl.lineNumber;
+		int lineNum = ctrl.lineNumber;
 		//std.stdio.writeln("key down ", lineNum, " ", ctrl.lineOffset," ", ctrl.visibleLineCount /*, " ", ctrl.buffer.lineCount*/);
 		if (lineNum < ctrl.lineOffset)
 			ctrl.scrollUp();
@@ -125,7 +125,7 @@ void register(GUIApplication app)
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 		ctrl.cursorDown();
-		uint lineNum = ctrl.lineNumber;
+		int lineNum = ctrl.lineNumber;
 		if (lineNum > (ctrl.lineOffset + ctrl.visibleLineCount))
 			ctrl.scrollDown();
 	});
@@ -149,11 +149,7 @@ void register(GUIApplication app)
 				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
-		ctrl.selectUp(1);
-		uint lineNum = ctrl.lineNumber;
-		//std.stdio.writeln("key down ", lineNum, " ", ctrl.lineOffset," ", ctrl.visibleLineCount /*, " ", ctrl.buffer.lineCount*/);
-		if (lineNum < ctrl.lineOffset)
-			ctrl.scrollUp();
+		ctrl.selectUp();
 	});
 
 	cmgr.create("edit.selectToCharBelow", "Select to char after cursor", 
@@ -162,9 +158,6 @@ void register(GUIApplication app)
 		mixin(getBufferOrReturn);
 		auto ctrl = b;
 		ctrl.selectDown();
-		uint lineNum = ctrl.lineNumber;
-		if (lineNum > (ctrl.lineOffset + ctrl.visibleLineCount))
-			ctrl.scrollDown();
 	});
 
 	cmgr.create("edit.selectPageUp", "Select page up from cursor", 
@@ -226,55 +219,199 @@ void register(GUIApplication app)
 		import std.conv;
 		b.insert(to!dstring(str));
 	});
+
+
+	class BufferViewAnimator
+	{
+		int lineRelative;
+		int lineOffset;
+		float speed = 2f;
+		float remainder = 0f;
+
+		@property isRunning() const pure nothrow @safe
+		{
+			return lineOffset != int.max;
+		}
+
+		BufferView bufferView;
+		// Timeline.Runner runner;
+
+		this(BufferView bv)
+		{
+			bufferView = bv;
+			lineOffset = int.max;
+		}
+
+		import animation.interpolate;
+		import core.time;
+
+		private bool seek()
+		{
+			if (!isRunning || offset == lineOffset)
+			{
+				remainder = 0f;
+				lineOffset = int.max;
+				return false;
+			}
+			
+			float diff = lineOffset - offset;
+
+			float delta = void;
+			if (diff < 0)
+			{
+				const float change = -speed + remainder;
+				const bool willOvershoot = diff > change;
+				if (willOvershoot)
+					delta = diff;
+				else
+					delta = change;
+			}
+			else // diff > 0
+			{
+				const float change = speed + remainder;
+				const willOvershoot = diff < change;
+				if (willOvershoot)
+					delta = diff;
+				else
+					delta = change;
+			}
+			
+			int deltaInt = cast(int)delta;
+			remainder = delta - deltaInt;
+
+			offset = deltaInt + offset;
+			return true;
+		}
+
+		void pageUp()
+		{
+			if (bufferView.lineOffset == 0)
+			{
+				bufferView.lineNumberRelativeToView = 0;
+			}
+			else
+			{
+				bool _isRunning = isRunning;
+				int curLineOffset = _isRunning ? lineOffset : bufferView.lineOffset;
+				lineOffset = curLineOffset < bufferView.visibleLineCount ? 0 : curLineOffset - bufferView.visibleLineCount;
+				if (!_isRunning)
+				{
+					remainder = 0f;
+					speed = app.getGlobalStyle!float("page-down-speed");
+					lineRelative = bufferView.lineNumberRelativeToView;
+					if (lineRelative < 0 || lineRelative >= bufferView.visibleLineCount)
+						lineRelative = 0;
+					app.guiRoot.timeout(dur!"msecs"(10), &seek);
+				}
+			}
+
+			//auto timeline = app.guiRoot.activeWindow.timeline;
+			//float start = float.max;
+			//float duration = speed;
+			//if (runner !is null)
+			//{
+			//    start = runner.start;
+			//            
+			//}
+			//
+			//if (ctrl.lineOffset == 0)
+			//{
+			//    ctrl.lineNumberRelativeToView = 0;
+			//}
+			//else
+			//{
+			//    getCreate(bv).pageUp();
+			//}
+			//
+			//auto newRunner = timeline.animate!("offset", LinearCurve)(new BufferViewAnimator(ctrl), target, speed);
+		}
+
+		void pageDown()
+		{
+			if (bufferView.bufferEndOffset == bufferView.length)
+			{
+				// End of buffer already in view.
+				// Goto last line
+				for (int i = 0; i < bufferView.visibleLineCount; i++)
+					bufferView.cursorDown();
+			}
+			else
+			{
+				bool _isRunning = isRunning;
+				int curLineOffset = _isRunning ? lineOffset : bufferView.lineOffset;
+				lineOffset = curLineOffset + bufferView.visibleLineCount;
+				if (!_isRunning)
+				{
+					remainder = 0f;
+					speed = app.getGlobalStyle!float("page-down-speed");
+					lineRelative = bufferView.lineNumberRelativeToView;
+					if (lineRelative < 0 || lineRelative >= bufferView.visibleLineCount)
+						lineRelative = 0;
+					app.guiRoot.timeout(dur!"msecs"(10), &seek);
+				}
+			}
+
+			//if (runner.stopped)
+			//    lineRelative = bufferView.lineNumberRelativeToView
+			//
+			//float speed = app.getGlobalStyle!float("page-down-speed");
+			//auto timeline = app.guiRoot.activeWindow.timeline;
+			//if (ctrl.bufferEndOffset == ctrl.length)
+			//{
+			//    // End of buffer already in view.
+			//    // Goto last line
+			//    for (int i = 0; i < ctrl.visibleLineCount; i++)
+			//        ctrl.cursorDown();
+			//}
+			//else
+			//{
+			//    getCreate(bv).pageDown();
+			//}
+			//
+			//auto newRunner = timeline.animate!("offset", LinearCurve)(new BufferViewAnimator(ctrl), ctrl.lineOffset + ctrl.visibleLineCount, speed);
+		}
+
+		@property 
+		{
+			int offset() const
+			{
+				return 	bufferView.lineOffset;
+			}
+			void offset(int o)
+			{
+				bufferView.lineOffset = o;
+				bufferView.lineNumberRelativeToView = lineRelative;
+			}
+		}
+	}
+
+	BufferViewAnimator[BufferView] bufferViewAnimators;
 	
+	BufferViewAnimator getCreate(BufferView bv)
+	{
+		auto a = bv in bufferViewAnimators;
+		if (a is null)
+		{
+			auto anim = new BufferViewAnimator(bv);
+			bufferViewAnimators[bv] = anim;
+			return anim;
+		}
+		return *a;
+	}
+
 	cmgr.create("edit.scrollPageDown", "Scroll view one page down", 
 				null,
 				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
-		auto ctrl = b;
-
-		if (ctrl.bufferEndOffset == ctrl.length)
-		{
-			// End of buffer already in view.
-			// Goto last line
-			for (int i = 0; i < ctrl.visibleLineCount; i++)
-				ctrl.cursorDown();
-		}
-		else
-		{
-			for (int i = 0; i < ctrl.visibleLineCount; i++)
-			{
-				ctrl.cursorDown();
-				ctrl.scrollDown();
-			}
-		}
+		getCreate(b).pageDown();
 	});
 	
 	cmgr.create("edit.scrollPageUp", "Scroll view one page up", 
 				null,
 				delegate(CommandParameter[] data) {
 		mixin(getBufferOrReturn);
-		auto ctrl = b;
-
-		for (int i = 0; i < ctrl.visibleLineCount; i++)
-		{
-			ctrl.cursorUp();
-			ctrl.scrollUp();
-		}
+		getCreate(b).pageUp();
 	});
-
-	cmgr.create("edit.scrollPagedUp", "Open file", 
-				null,
-				delegate(CommandParameter[] data) {
-		mixin(getBufferOrReturn);
-		auto ctrl = b;
-		for (int i = 0; i < ctrl.visibleLineCount; i++)
-		{ 
-			ctrl.cursorUp();
-			ctrl.scrollUp();
-		}
-	});
-
 	
 	cmgr.create("edit.cursorToLine", "Move cursor up or down until cursor reaches the line number given as argument", 
 				createParams(1),
@@ -387,8 +524,8 @@ void register(GUIApplication app)
 
 		struct SearchData
 		{
-			uint startPos;
-			uint lastPos;
+			int startPos;
+			int lastPos;
 		}
 
 		this()

@@ -1,3 +1,135 @@
+Release 0.10 - 06 November 2014 
+
+Overview:
+
+    * Menu added to top right
+    * New fit layouting of widgets
+    * @Menu and @Shortcut attribute support for extensions
+    * @CommandFunction attibute for using functions as commands
+    * Support for general command call and completion on command control
+    * Manu workflow improvements and fixes
+
+Changes:
+
+    93adc13 Add new free fonts
+    0461325 Update default stylesheet to handle improved command control and menu tree
+    2f413e4 Add Shotcut and Menu attributes to Dub command
+    3a787aa Support for Shortcut attibute to set default shortcut for command extension
+            Support for Menuattibute to set menu action for command extension
+            Support for using simple function as command extensions
+            Support for providing args to menu registered commands
+            Session support for command extensions
+            Convenience methods for getting TextEditor and Widget on extensions
+    aed685f Fix command name for deleteToWordBefore/After
+            uint to int index changes in editorcommands
+            Animate support for pagedown/up
+    7b1c580 Expose Runner for timeline to be able to abort
+            Possible to provide curvetype on animate method on timeline
+    5af957e Remove cursor from command completion list
+            Expand command control on click
+            uint to int index changes on command control
+    6a55484 Expose keyBindings on EditorBehavior
+            Initialize keyBindings eagerly
+            Fix name of commands in bindings
+    b417397 Make InsertAction and RemoveAction handle selections
+            uint to int index changes for bufferviewaction
+            Add debug output support of action list
+    b42521a Support animation of uint, int and doubles
+            Fix const correctness for interpolation
+    1e0714e Make use of clean restart api instead of simple exit() in dub extension
+    69ee347 Support for global styling in css such as scroll speed
+            Use window user data dir instead of all users all data dir
+            Do not always open stylesheet in editor
+            Support for scheduling a restart of app
+            Disable dragger widget
+            Enable top right menu
+            Add backup of file when first modified
+            uint to int index changes for guiapplication
+    dd0e67d uint to int index changes to BufferView
+            Removed most direct changing of state to go through actions instead
+            Add getRegion() to query misc region types
+            Added viewOnLine() to buffer view to ensure line in view
+            Add lineNumberRelativeToView property to BufferView
+            Add replace, getText, transform, wordAtCursor and lineCount, methods to BufferView
+    6c315ba Errorlist extension support persisting state across reloads
+            Errorlist extension support clicking on errors and goto file and line
+            Made errorlist text styling work again
+            Made clicking error or warning center online not just jump to line
+    ceccd7f Improve unittest extension
+            uint to int changes for unittest extension
+    45b9226 Make label widget public part of gui package
+    e4c8420 Add overWidgetID to mouse events
+    7ae8598 uint to int index changes for textrenderer
+            Add cursorVisible to textrenderer
+            Make textrenderer handle static text in addition to BufferView as source
+            Fix layoutSize width calculation of textrenderer
+    baec3c6 Fix GUI
+            Timeout bug
+    16ca4d0 Fix buffer overflow error when getting top KeyBindings from KeyBindingsStack
+            Added new keybinding method that accepts default args for the command
+    9d8b6b5 Make positioning support fit layout
+            Cleanup of positioning logic
+    9d2890b Make layout widget features support new fit layout
+    0303445 Make layout widget features support new fit layout
+    587e437 Changes for widget owning the name itself
+            Fix order of widget logic. Fix keyboard focus logic
+            Added StylesheetChanged event
+    49f2a4b Files create will also create missing parent directories
+    c133855 New CommandCall struct
+    82de203 Make default command name generation handle classes in packages and functions
+            Add execute method to CommandManager accepting a CommandCall
+    726ffa4 uint to int index changes for text editor
+            Correct focus handling for text editor
+            Correct layout logic
+            Remove scroll logic and leave that to bufferview
+    9f4465d Only show cursor in text fields when the have focus
+    f26271d New search extension
+            To upper extension in different flavours and needs cleanup
+    2fb8f78 New menu control
+            New tree control
+            New label widget
+    1e1693d Method for getting test result for a filename and line number
+    208851f Uint to int for indexes changes for Region
+    3bf13f1 Make Widget known its own name.Added method attributes
+            Fixed deregistering of child removed
+            Added getChildByName
+            Added intrinsicSize
+            Changes to support new fit style layouting
+            Other cleanups
+    4206038 textlayout uint to int index changes
+    0f05cef More uint to int for index changes
+    aaeb020 Update styledtext to use int for index
+            Fix D code styler to not always style to end of buffer but only end of region
+    525723f Add automatic to CSSScale enum
+            Fixed isMixed on CSSPosition
+    d6e5514 Update unittest to use Stylable instead of Widget directly
+    1c2f908 Support for getting default value of custom css property
+    2cf89f1 Method attributes added
+    54fbffd New fit keyword for width and height
+            Method attributes added
+    13f0550 Added method attributes and custom page-down-speed css field
+    e06e1da Changed buffer offsets to int
+            Support for buffer indexes offsetting by lineEnd, wordEnd and unit
+            Stabilized gapbuffer to array with bounds clamping
+    8023aed Add property to get const manager on resource
+    44ededd Add property to resource to get const manager
+    2986f1c Add property to get const manager from resources
+    4e17589 When cursor is jumping out of view it will now center on screen
+    c4a5536 Fix toggleCommandArea command
+    069d446 Call correct constructor on CustomCommand base
+    2117215 Simplified onMissingCommandArguments signal
+            Simplified bindings that toggles the command control since that is handled automatically now on missing args
+    9f94af0 Refactor and fix completion logic
+            Fix cycle logic
+            Fix usage display
+    cda398a Simplify cursorToLine command now that completion logic etc. is working
+    2a53523 Fix setValues on CommandParamenterDefitions for default values
+            Add parseValues
+    29d23e6 Add fuzzy lookup by name on CommandManager
+            Add getCompletions taking a string
+    1bc22db Fix twoline comand control look and transitions
+
+
 Release 0.9 - 04 October 2014 
 
 Overview:

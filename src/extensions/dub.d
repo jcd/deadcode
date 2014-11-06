@@ -132,6 +132,7 @@ class DubBuildCommand : BasicCommand!DubBuildCommand
 		if (!newExecPath.empty)
 		{
 			scope (exit) newExecPath = null;
+			log("Restarting...");
 			app.saveSession();
 			respawn(newExecPath);
 			return false;
@@ -154,11 +155,7 @@ class DubBuildCommand : BasicCommand!DubBuildCommand
 
 		rename(p, setExtension(np ~ "-old", ext));
 		rename(newExecPath, p);
-		spawnProcess(p);
-		import std.c.stdlib;
-		import core.thread;
-		Thread.sleep(dur!"seconds"(1));
-		exit(0);
+		app.scheduleRestart(p);
 	}
 }
 

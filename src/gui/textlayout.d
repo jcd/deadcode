@@ -75,7 +75,7 @@ struct TextBoxLayout
 		assumeSafeAppend(_fontsToUpdate);
 	}
 
-	void _newLine(uint startBufferIdx, float yStart)
+	void _newLine(int startBufferIdx, float yStart)
 	{
 		lines ~= Line();
 		curLine = &lines[$-1];

@@ -11,7 +11,7 @@ class TextStyler(Text)
 {
 	Text text;
 
-	private RegionSet _regionSet;
+	protected RegionSet _regionSet;
 	private Region _dirtyRegion;
 
 	@property RegionSet regionSet()
@@ -40,7 +40,7 @@ class TextStyler(Text)
 
 	static if ( is(Text : BufferView) )
 	{
-		protected void textInsertedCallback(BufferView b, BufferView.BufferString str,uint from)
+		protected void textInsertedCallback(BufferView b, BufferView.BufferString str,int from)
 		{
 			// Update region set
 			_regionSet.entriesInserted(from, str.length);
@@ -48,7 +48,7 @@ class TextStyler(Text)
 			scheduleRegion(Region(from, from + str.length));
 		}
 
-		protected void textRemovedCallback(BufferView b, BufferView.BufferString str,uint from)
+		protected void textRemovedCallback(BufferView b, BufferView.BufferString str,int from)
 		{
 			// Update region set
 			_regionSet.entriesRemoved(from, str.length);
@@ -102,10 +102,10 @@ class TextStyler(Text)
 		static if ( is(Text : BufferView) )
 		{
 			
-			uint a = text.buffer.findOneOfReverse(r.a, "\r\n");
-			uint b = text.buffer.findOneOf(r.b, "\r\n");
-			a = a == uint.max ? 0 : a;
-			b = b == uint.max ? text.length : b;
+			int a = text.buffer.findOneOfReverse(r.a, "\r\n");
+			int b = text.buffer.findOneOf(r.b, "\r\n");
+			a = a == int.max ? 0 : a;
+			b = b == int.max ? text.length : b;
 			styleRegion(Region(a, b));
 			//styleRegion(Region(0, text.length));
 		}
@@ -188,7 +188,7 @@ class DSourceStyler(Text) : TextStyler!Text
 			lastEndIdx = end;
 		}
 
-		if (lastEndIdx != text.length)
+		if (lastEndIdx != r.b)
 			_regionSet.set(offset + lastEndIdx, r.b, DStyle.other);
 
 		onChanged.emit();

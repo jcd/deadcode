@@ -5,6 +5,12 @@ import std.variant;
 
 alias CommandParameter = Algebraic!(int, string, float);
 
+struct CommandCall
+{
+	string name;
+	CommandParameter[] arguments;
+}
+
 CommandParameter parse(CommandParameter typeSpecifier, string input)
 {
 	import std.conv;

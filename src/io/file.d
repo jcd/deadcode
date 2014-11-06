@@ -3,7 +3,7 @@ module io.file;
 import io.iomanager;
 
 import std.algorithm;
-
+import std.file;
 import std.path;
 import std.range;
 import std.stdio : StdFile = File;
@@ -22,6 +22,8 @@ class File : IO
 				break;
 			case IOMode.write:
 				modeString = "w";
+				if (!exists(path.dirName))
+					mkdirRecurse(path.dirName);
 				break;
 			case IOMode.append:
 				modeString = "a";

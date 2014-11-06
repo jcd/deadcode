@@ -1,12 +1,16 @@
 * {
-	color : #ff0000;
+	color: #ff0000;
 	background-color: #ffffff;
 	background : url(materials/default.shaderprogram);
 	background-sprite-border: 0 0 0 0;
-	font : url(fonts/cour.ttf) 16;
+	font : url(fonts/cour.ttf) 13;
 	padding : 0 0 0 0;
 	offset: 0 0;
 	position: static;
+}
+
+Globals {
+	page-down-speed: 8.0;
 }
 
 TestWidget {
@@ -171,10 +175,6 @@ UnittestAnchor:focus {
 	color: #a0e0a0;
 }
 
-.completion-other {
-	color: #a8a8a2;
-}
-
 TextField
 {
 	color: #ffffff;
@@ -186,15 +186,22 @@ TextField
 
 CommandControl
 {
-	background-color: #f00000;
+	background-color: #000000;
 	background: url(materials/white-small-nine-patch.png);
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	position: absolute;
-	left: 200px;
+	right: 600px;
 	width: 601px;
 	height: 24px;
 	transition: height 0.1s;
+}
+
+CommandControl.hidden
+{
+	width: 300px;
+	right: 300px;
+	transition: width 0.1s;
 }
 
 CommandControl.multiline
@@ -234,18 +241,25 @@ CommandControl.twoline > TextField#commandEntryField
 
 CommandControl > TextEditor
 {
+
 }
 
 CommandControl.multiline > TextEditor
 {
+
 }
 
-#dragger {
+CommandControl.hidden > TextEditor#commandCompletion
+{
+	padding: 0 2 0 0;
+}
+
+#drafgger {
 	background : url(materials/bg.png);
 	background-sprite: 0 8 220 24;
 }	
 
-#draggerRight {
+#draggerfRight {
 	background : url(materials/bg.png);
 	background-sprite: 0 8 5 24;
 }
@@ -256,6 +270,12 @@ CommandControl.multiline > TextEditor
 
 .completion-selected {
 	color: #f8f8f2;
+	font : url(fonts/RobotoCondensed-Bold.ttf) 19;
+}
+
+.completion-other {
+	color: #a8a8a2;
+	font : url(fonts/RobotoCondensed-Light.ttf) 19;
 }
 
 TextEditor#commandCompletion.selection {
@@ -270,4 +290,125 @@ TextEditor#commandCompletion {
 	background-color: #0a272d;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
+}
+
+Tree {
+	background: url(materials/white-small-nine-patch.png);
+	color: #555555;
+	background-color: #0a272d;
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	font : url(fonts/cour.ttf) 29;
+	offset: 9 0;
+	height: fit;
+	width: 100%;
+	padding: 1 0 0 0;
+}
+
+Tree#Menu Tree {
+	background-color: #0a272d;
+	transition: background-color 2.5s;
+}
+
+Tree#Menu.hidden Tree {
+	background-color: #0a1a1a;
+	transition: background-color 2.5s;
+}
+
+Tree.leaf:hover {
+	background-color: #052228;
+}
+
+Tree.leaf:active {
+	background-color: #001c22;
+}
+
+Tree#Menu {
+	position: absolute;
+	padding : 10 0 20 10;
+	width: 160px;
+	height: 270px;
+	right: 160px;
+	top: 24px;
+	offset: 0 0;
+	transition: width 0.1s, height 0.3s;
+	
+}
+
+Tree#Menu.hidden {
+	width: 0%;
+	height: 24px;
+	transition: width 0.1s, height 0.1s;
+}
+
+Tree#Menu > Tree {
+	padding : 1 0 0 10;
+	offset: 0 0;
+}
+
+Tree Label {
+	color: #2a9eb9;	
+	font : url(fonts/RobotoCondensed-Bold.ttf) 29;
+	padding: 0 0 0 0;
+}
+
+Tree >  Tree > Tree.leaf > Label {
+	font : url(fonts/RobotoCondensed-Bold.ttf) 20;
+	color: #d8d8d2;	
+}
+
+#menuButton {
+	position: absolute;
+	background: url(materials/white-small-nine-patch.png);
+	color: #d8d8d2;
+	background-color: #0a373d;
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	font : url(fonts/RobotoCondensed-Bold.ttf) 24;
+	padding: -5 10 0 12;
+	height: 16px;
+	width: 100px;
+	right: 100px;
+}
+
+#menuButton:hover {
+	background-color: #2a575d;
+}
+
+#menuButton:active {
+	background-color: #000000;
+}
+
+#foo {
+	background: url(materials/white-small-nine-patch.png);
+	color: #08a8a2;
+	padding : 0 4 0 0;
+	background-color: #0a272d;
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	font : url(fonts/cour.ttf) 29;
+	width: fit;
+	height: fit;
+}
+
+#foo > Widget#fooa {
+	background: url(materials/white-small-nine-patch.png);
+	color: #f8a8a2;
+	padding : 0 4 0 0;
+	background-color: #7a272d;
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	width: 10%;
+	height: 50px;
+}
+
+#foo > Widget#foob {
+	background: url(materials/white-small-nine-patch.png);
+	color: #08a8a2;
+	padding : 0 4 0 0;
+	background-color: #fa272d;
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	width: 550px;
+	height: 200px;
 }

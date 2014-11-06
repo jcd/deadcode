@@ -28,7 +28,7 @@ string stylePropertyToCSSName(string name)
 	{
 		if (c == '_')
 		{
-			; // skip
+			// skip
 		}
 		else if (c >= 'A' && c <= 'Z')
 		{
@@ -448,10 +448,23 @@ class Style
 	bool getProperty(PropertyID id, ref float value) const pure nothrow
 	{
 		auto v = id in floats;
-		if (v is null)
+		if (v is null || v.length == 0)
+		{
+			import gui.style.manager;
+			import gui.resource;
+			const(StyleSheet) ss = styleSheet;
+			const(ResourceManager!StyleSheet) ssm = ss.manager;
+			auto mgr = cast(const(StyleSheetManager))(ssm);
+			assert(mgr);
+			if (mgr !is null)
+			{
+				auto spec = mgr.lookupPropertySpecification(id);
+				auto floatSpec = cast(const(PropertySpecification!float))(spec);
+				if (floatSpec !is null)
+					value = floatSpec.getDefaultValue();
+			}
 			return false;
-		if (v.length == 0)
-			return false;
+		}
 		value = (*v)[0];
 		return true;
 	}

@@ -7,6 +7,7 @@ import core.command;
 import application;
 public import graphics._;
 import gui.event;
+import gui.keybinding;
 import gui.ruleset;
 import gui.window;
 
@@ -14,6 +15,8 @@ import std.signals;
 
 class EditorBehavior // : KeyBindingValidator
 {
+	KeyBindingStack keyBindings;
+	
 	// (commandName, arguments provided)	
 	mixin Signal!(Command, CommandParameter[]) onMissingCommandArguments;
 	

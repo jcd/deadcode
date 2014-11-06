@@ -22,19 +22,16 @@ import std.variant;
 
 class EmacsBehavior : EditorBehavior
 {
-	KeyBindingStack keyBindings;
 	RuleEnv ruleEnv;
 	CommandManager commandManager;
-
+	bool initialized = false;
 
 	private bool _skipNextTextEvent = false;
 
 	void setup()
 	{
-		KeyBindingsSet set = new KeyBindingsSet();
-		keyBindings = new KeyBindingStack();
-		keyBindings.push(set);
-	
+		auto set = keyBindings.keyBindings;
+		
 		// Register emacs behavior as an option
 		// set.setKeyBinding("<ctrl> + v", "edit.scrollPageDown"); 
 		set.setKeyBinding("<ctrl> + x <ctrl> + c", "core.quit");
@@ -47,8 +44,8 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<ctrl> + <shift> + e", "edit.selectToEndOfLine");
 		set.setKeyBinding("<ctrl> + <shift> + <left>", "edit.selectToWordBefore");
 		set.setKeyBinding("<ctrl> + <shift> + <right>", "edit.selectToWordAfter");
-		set.setKeyBinding("<ctrl> + <backspace>", "edit.deleteWordBefore");
-		set.setKeyBinding("<ctrl> + <delete>", "edit.deleteWordAfter");
+		set.setKeyBinding("<ctrl> + <backspace>", "edit.deleteToWordBefore");
+		set.setKeyBinding("<ctrl> + <delete>", "edit.deleteToWordAfter");
 		set.setKeyBinding("<ctrl> + <left>", "edit.cursorToWordBefore");
 		set.setKeyBinding("<ctrl> + <right>", "edit.cursorToWordAfter");
 		set.setKeyBinding("<left>", "navigate.left");
@@ -114,6 +111,10 @@ class EmacsBehavior : EditorBehavior
 	{
 		commandManager = app.commandManager;
 		ruleEnv = new KeyBindingRuleEnv(app);
+		KeyBindingsSet set = new KeyBindingsSet();
+		keyBindings = new KeyBindingStack();
+		keyBindings.push(set);
+		currentKeySequence = new KeySequence("");
 	}
 	
 	/*
@@ -125,12 +126,14 @@ class EmacsBehavior : EditorBehavior
 	 */
 	override EventUsed onEvent(ref Event event)
 	{	
-
-		if (keyBindings is null)
-		{
+		if (!initialized)
 			setup();
-			currentKeySequence = new KeySequence("");
-		}
+
+		//if (keyBindings is null)
+		//{
+		//    setup();
+		//    currentKeySequence = new KeySequence("");
+		//}
 
 		switch (event.type)
 		{

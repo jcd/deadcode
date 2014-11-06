@@ -69,6 +69,14 @@ class Clip(T)
 		_duration = -1;
 	}
 
+	auto createCurve(alias propertyPath, alias CurveType, ValueType)(double x1, ValueType y1, double x2, ValueType y2)
+	{
+		auto b = new CurveBinding!(T, propertyPath)();
+		bindings ~= b;
+		b.curve = new CurveType!ValueType(x1, y1, x2, y2);
+		return b;
+	}
+
 	auto createLinearCurve(alias propertyPath)(double x1, float y1, double x2, float y2)
 	{
 		auto b = new CurveBinding!(T, propertyPath)();
@@ -83,6 +91,24 @@ class Clip(T)
 		// pragma(msg, "TO2 " ~ b.MutatorType.stringof);
 		bindings ~= b;
 		b.curve = new CubicCurve!float(x1, y1, x2, y2);
+		return b;
+	}
+
+	auto createCubicCurve(alias propertyPath)(double x1, uint y1, double x2, uint y2)
+	{
+		CurveBinding!(T, propertyPath) b = new CurveBinding!(T, propertyPath)();
+		// pragma(msg, "TO2 " ~ b.MutatorType.stringof);
+		bindings ~= b;
+		b.curve = new CubicCurve!uint(x1, y1, x2, y2);
+		return b;
+	}
+
+	auto createCubicCurve(alias propertyPath)(double x1, int y1, double x2, int y2)
+	{
+		CurveBinding!(T, propertyPath) b = new CurveBinding!(T, propertyPath)();
+		// pragma(msg, "TO2 " ~ b.MutatorType.stringof);
+		bindings ~= b;
+		b.curve = new CubicCurve!int(x1, y1, x2, y2);
 		return b;
 	}
 
@@ -385,6 +411,16 @@ auto interpolate(T)(T beginValue, T endValue, float delta)
 	return (endValue - beginValue) * delta + beginValue;
 }
 
+auto interpolate(T : int)(T beginValue, T endValue, float delta)
+{
+	return cast(int) std.math.round((endValue - beginValue) * delta + beginValue);
+}
+
+auto interpolate(T : uint)(T beginValue, T endValue, float delta)
+{
+	return cast(uint) std.math.round((endValue - beginValue) * delta + beginValue);
+}
+
 auto interpolate(T : Color)(T beginValue, T endValue, float delta)
 {
 	return Color.interpolate(beginValue, endValue, delta);
@@ -670,14 +706,14 @@ float then(float value, Curve i)
 interface Timer
 {
 	void reset();
-	@property double now();
+	@property double now() const;
 }
 
 class SystemTimer : Timer
 {
 	void reset() {}
 
-	@property double now() 
+	@property double now() const
 	{
 		return systemNow;
 	}
@@ -733,7 +769,7 @@ class InterpolateTimer : Timer
 		_start = _timer is null ? SystemTimer.systemNow : _timer.now;
 	}
 
-	@property double now() 
+	@property double now() const
 	{
 		auto timeNow = _timer is null ? SystemTimer.systemNow : _timer.now;
 		if (timeNow <= _start)
@@ -745,7 +781,7 @@ class InterpolateTimer : Timer
 	}
 
 	// Returns: 0..1
-	@property double nowRelative()
+	@property double nowRelative() const
 	{
 		auto timeNow = _timer is null ? SystemTimer.systemNow : _timer.now;
 		if (timeNow <= _start)

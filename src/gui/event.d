@@ -107,6 +107,10 @@ struct Event
 
 	union 
 	{
+		struct
+		{
+			uint overWidgetID;
+		}
 		struct 
 		{
 			Vec2f mousePos;

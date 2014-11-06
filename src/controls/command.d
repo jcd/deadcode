@@ -40,13 +40,13 @@ class CompletionListStyler(Text) : TextStyler!Text
 		super(text);
 	}
 
-	override protected void textInsertedCallback(BufferView b, BufferView.BufferString,uint)
+	override protected void textInsertedCallback(BufferView b, BufferView.BufferString, int)
 	{
 		reset();
 		update();
 	}
 
-	override protected void textRemovedCallback(BufferView b, BufferView.BufferString,uint)
+	override protected void textRemovedCallback(BufferView b, BufferView.BufferString, int)
 	{
 		reset();
 		update();
@@ -218,17 +218,9 @@ class CommandControl : Widget
 		completionWidget = new TextEditor(this, completionView);
 		completionStyler = new CompletionListStyler!BufferView(completionView);
 		completionWidget.renderer.textStyler = completionStyler;
-		completionWidget.renderer.toggleCursorVisibility();
+		completionWidget.renderer.cursorSupported = false;
 		completionWidget.name = "commandCompletion";
 		//completionWidget.h = 180; // TODO: vert layout should instead just use remaining space so we do not have to specify this.
-
-		// Background
-		//auto ren = new NineGridRenderer("box");
-		//ren.model.topLeft = ren.model.left;
-		//ren.model.top = ren.model.center;
-		//ren.model.topRight= ren.model.right;
-		//ren.color = Vec3f(0.25, 0.25, 0.25);
-		//background = ren;
 
 		onKeyboardFocusCallback = (Event ev, Widget w) {
 			app.currentBuffer = commandField.bufferView;
@@ -236,9 +228,16 @@ class CommandControl : Widget
 		};
 
 		onKeyboardUnfocusCallback = (Event ev, Widget w) {
-			//	app.guiRoot.timeline.animate!"h"(this, 0, expandDuration);
+			hide();
 			return EventUsed.yes;
 		};
+	}
+
+	override EventUsed onMouseClick(Event event)
+	{
+		if (!isShown)
+			show(Mode.multiline);
+		return EventUsed.yes;
 	}
 
 	override EventUsed onKeyDown(Event ev)
@@ -553,7 +552,7 @@ class CommandControl : Widget
 	}
 
 	//bool handleBufferChanged(BufferView b)
-	void handleBufferChanged(BufferView b, BufferView.BufferString, uint)
+	void handleBufferChanged(BufferView b, BufferView.BufferString, int)
 	{
 		if (_completionsEnabled)
 			showCompletions();

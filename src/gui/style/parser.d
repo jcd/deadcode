@@ -17,6 +17,8 @@ import std.conv;
 import std.path;
 import std.range;
 
+version (unittest) import test;
+
 class CustomMaterialLoader : IResourceLoader!Material
 {
 	static CustomMaterialLoader _the;
@@ -136,7 +138,7 @@ class StyleSheetParser
 			return value.to!T;
 		}
 
-		bool asNumber(ref float result) const
+		bool asNumber(ref float result) const pure @trusted
 		{
 			string s = value;
 			return 
@@ -144,10 +146,10 @@ class StyleSheetParser
 				std.format.formattedRead(s, "%s", &result) == 1;
 		}
 
-		@property bool eof() const { return type == TokenType.eof; }
-		@property bool invalid() const { return type == TokenType.invalid; }
-		@property bool whitespace() const { return type == TokenType.whitespace; }
-		@property bool numberLike() const { return type == TokenType.number || type == TokenType.dot; }
+		@property bool eof() const pure nothrow @safe { return type == TokenType.eof; }
+		@property bool invalid() const pure nothrow @safe { return type == TokenType.invalid; }
+		@property bool whitespace() const pure nothrow @safe { return type == TokenType.whitespace; }
+		@property bool numberLike() const pure nothrow @safe { return type == TokenType.number || type == TokenType.dot; }
 	}
 
 	int line = 1;
@@ -170,7 +172,7 @@ class StyleSheetParser
 		return !errors.empty;
 	}
 
-	void addError(string msg, int line = -1, int col = -1)
+	void addError(string msg, int line = -1, int col = -1) pure nothrow @safe
 	{
 		errors ~= Error(line, col, msg);
 	}
@@ -192,7 +194,7 @@ class StyleSheetParser
 	//    return munch(txt, nonSpaceChars);		
 	//}
 
-	Token peekToken()
+	Token peekToken() @safe
 	{
 		if (bufferToken.type == TokenType.invalid)
 			bufferToken = nextToken();
@@ -201,7 +203,7 @@ class StyleSheetParser
 
 	// Reset to before tok was parsed. After this curToken is invalid and nextToken should
 	// be called before using that again.
-	void resetToToken(Token tok)
+	void resetToToken(Token tok) pure nothrow @safe
 	{
 		txt = tok.textRange;
 		curToken.value = null;
@@ -214,14 +216,14 @@ class StyleSheetParser
 		bufferToken = curToken;
 	}
 
-	Token nextToken()
+	Token nextToken() @safe
 	{
 		if (nextTokenKeepSpace().type == TokenType.whitespace)
 			return nextTokenKeepSpace();
 		return curToken;
 	}
 	
-	Token nextTokenKeepSpace()
+	Token nextTokenKeepSpace() @trusted
 	{
 		if (bufferToken.type != TokenType.invalid)
 		{
@@ -304,7 +306,7 @@ class StyleSheetParser
 		return curToken;
 	}
 
-	Token requireNextToken(TokenType requiredType = TokenType.invalid)
+	Token requireNextToken(TokenType requiredType = TokenType.invalid) @safe
 	{
 		auto lastToken = curToken;
 		nextToken();
@@ -317,7 +319,7 @@ class StyleSheetParser
 		return curToken;
 	}
 
-	Token requireNextTokenKeepSpace(TokenType requiredType = TokenType.invalid)
+	Token requireNextTokenKeepSpace(TokenType requiredType = TokenType.invalid) @safe
 	{
 		auto lastToken = curToken;
 		nextTokenKeepSpace();
@@ -330,17 +332,17 @@ class StyleSheetParser
 		return curToken;
 	}
 
-	float extractOptionalNumber(Token t)
+	float extractOptionalNumber(Token t) const pure @safe
 	{
 		return t.type == TokenType.dot ? float.nan : t.to!float();
 	}
 
-	float requireNextOptionalNumber()
+	float requireNextOptionalNumber() @safe
 	{
 		return extractOptionalNumber(requireNextToken());
 	}
 
-	void assertToken(TokenType requiredType)
+	void assertToken(TokenType requiredType) pure @safe
 	{
 		if (requiredType != TokenType.invalid && curToken.type != requiredType)
 		{
@@ -456,7 +458,7 @@ class StyleSheetParser
 					break;
 				default:
 					assert(0); // cannot happen
-					break;
+					// break;
 			}
 		}
 		pushBackToken();
@@ -754,12 +756,28 @@ class StyleSheetParser
 					break;
 				case "width":
 					requireNextToken();
-					parseScale(style._width);
+					if (curToken.value == "fit")
+					{
+						style._width.unit = CSSUnit.automatic;
+						style._width.value = 1;
+					}
+					else
+					{
+						parseScale(style._width);
+					}
 					requireNextToken();
 					break;
 				case "height":
 					requireNextToken();
-					parseScale(style._height);
+					if (curToken.value == "fit")
+					{
+						style._height.unit = CSSUnit.automatic;
+						style._height.value = 1;
+					}
+					else
+					{
+						parseScale(style._height);
+					}
 					requireNextToken();
 					break;
 				default:
@@ -975,14 +993,14 @@ unittest
 	parse.parse();
 	Assert(sheet.rules.length == 1 && 
 		   sheet.rules[0].selectors.length == 1 &&
-		   sheet.rules[0].selectors[0].widgetTypeName == "Widget", 
+		   sheet.rules[0].selectors[0].stylableTypeName == "Widget", 
 		   "Simple selector and no style definitions");
 
 	parse = new StyleSheetParser("Widget { color: #FF0000 }", sheet, new URI(""), null, null);
 	parse.parse();
 	Assert(sheet.rules.length == 2 && 
 		   sheet.rules[1].selectors.length == 1 &&
-		   sheet.rules[1].selectors[0].widgetTypeName == "Widget" &&
+		   sheet.rules[1].selectors[0].stylableTypeName == "Widget" &&
 		   sheet.rules[1].style.color == Color.red, 
 		   "Simple selector and red color");
 
@@ -990,7 +1008,7 @@ unittest
 	parse.parse();
 	Assert(sheet.rules.length == 3 && 
 		   sheet.rules[2].selectors.length == 1 &&
-		   sheet.rules[2].selectors[0].widgetTypeName == "Widget" &&
+		   sheet.rules[2].selectors[0].stylableTypeName == "Widget" &&
 		   sheet.rules[2].style.color == Color.red, 
 		   "Simple selector and red color semicolor end");
 
@@ -998,7 +1016,7 @@ unittest
 	parse.parse();
 	Assert(sheet.rules.length == 4 && 
 		   sheet.rules[3].selectors.length == 1 &&
-		   sheet.rules[3].selectors[0].widgetTypeName == "Widget" &&
+		   sheet.rules[3].selectors[0].stylableTypeName == "Widget" &&
 		   sheet.rules[3].style.color == Color.red &&
 		   sheet.rules[3].style.wordWrap &&
 		   sheet.rules[3].style.padding == RectfOffset(1,2,3,4),

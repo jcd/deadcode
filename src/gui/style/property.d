@@ -19,16 +19,16 @@ interface IPropertySpecification
 {
 	@property 
 	{
-		PropertyID id() const pure nothrow;
-		bool inherited() const pure nothrow;
-		bool multi() const pure nothrow;
+		PropertyID id() const pure nothrow @safe;
+		bool inherited() const pure nothrow @safe;
+		bool multi() const pure nothrow @safe;
 	}
 
 	// Return true if property value is parsed and 
 	// set in style
-	abstract bool parse(StyleSheetParser parser, Style style);
-	abstract void setDefault(Style style);
-	abstract void clear(Style style);
+	abstract bool parse(StyleSheetParser parser, Style style) const @safe;
+	abstract void setDefault(Style style) const pure nothrow @trusted;
+	abstract void clear(Style style) const pure nothrow @safe;
 }
 
 abstract class PropertySpecificationBase(T) : IPropertySpecification
@@ -43,19 +43,19 @@ abstract class PropertySpecificationBase(T) : IPropertySpecification
 
 	@property 
 	{
-		PropertyID id() const pure nothrow
+		PropertyID id() const pure nothrow @safe
 		{
 			return _id;
 		}
-		bool inherited() const pure nothrow
+		bool inherited() const pure nothrow @safe
 		{
 			return _inherited;
 		}
-		bool multi() const pure nothrow
+		bool multi() const pure nothrow @safe
 		{
 			return _multi;
 		}
-		void multi(bool v) pure nothrow
+		void multi(bool v) pure nothrow @safe
 		{
 			_multi = v;
 		}
@@ -68,6 +68,11 @@ abstract class PropertySpecificationBase(T) : IPropertySpecification
 		this._inherited = _inherited;
 		_multi = false;
 	}
+
+	T getDefaultValue() const pure nothrow @safe
+	{
+		return _default;
+	}
 }
 
 class PropertySpecification(T : float) : PropertySpecificationBase!T
@@ -77,7 +82,7 @@ class PropertySpecification(T : float) : PropertySpecificationBase!T
 		super(_id, _default, _inherited);
 	}
 
-	bool parse(StyleSheetParser parser, Style style)
+	bool parse(StyleSheetParser parser, Style style) const @safe
 	{
 		auto tok = parser.nextToken();
 		float num;
@@ -97,15 +102,22 @@ class PropertySpecification(T : float) : PropertySpecificationBase!T
 		return false;
 	}
 
-	void setDefault(Style style)
+	void setDefault(Style style) const pure nothrow @trusted
 	{
-		if (!multi || style.floats.get(id, null) is null)
-			style.floats[id] = [ _default ];
-		else
-			style.floats[id] ~= _default;
+		try
+		{
+			if (!multi || style.floats.get(id, null) is null)
+				style.floats[id] = [ _default ];
+			else
+				style.floats[id] ~= _default;
+		}
+		catch (Exception)
+		{
+			assert(0);
+		}
 	}
 
-	void clear(Style style)
+	void clear(Style style) const pure nothrow @safe
 	{
 		style.floats[id] = null;
 	}
@@ -126,7 +138,7 @@ class PropertySpecification(T : Duration) : PropertySpecificationBase!T
 		super(_id, _default, _inherited);
 	}
 
-	bool parse(StyleSheetParser parser, Style style)
+	bool parse(StyleSheetParser parser, Style style) const @safe
 	{
 		auto tok = parser.nextToken();
 		float num;
@@ -164,15 +176,22 @@ class PropertySpecification(T : Duration) : PropertySpecificationBase!T
 		return false;
 	}
 
-	void setDefault(Style style)
+	void setDefault(Style style) const pure nothrow @trusted
 	{
-		if (!multi || style.durations.get(id, null) is null)
-			style.durations[id] = [ _default ];
-		else
-			style.durations[id] ~= _default;
+		try
+		{
+			if (!multi || style.durations.get(id, null) is null)
+				style.durations[id] = [ _default ];
+			else
+				style.durations[id] ~= _default;
+		}
+		catch (Exception)
+		{
+			assert(0);
+		}
 	}
 
-	void clear(Style style)
+	void clear(Style style) const pure nothrow @safe
 	{
 		style.durations[id] = null;
 	}
@@ -192,7 +211,7 @@ class PropertySpecification(T : CubicCurveParameters) : PropertySpecificationBas
 		super(_id, _default, _inherited);
 	}
 
-	bool parse(StyleSheetParser parser, Style style)
+	bool parse(StyleSheetParser parser, Style style) const @safe
 	{
 		import animation.interpolate;
 		
@@ -251,15 +270,22 @@ class PropertySpecification(T : CubicCurveParameters) : PropertySpecificationBas
 		}
 	}
 
-	void setDefault(Style style)
+	void setDefault(Style style) const pure nothrow @trusted
 	{
-		if (style.curveParameters.get(id, null) is null)
-			style.curveParameters[id] = [ _default ];
-		else
-			style.curveParameters[id] ~= _default;
+		try
+		{
+			if (style.curveParameters.get(id, null) is null)
+				style.curveParameters[id] = [ _default ];
+			else
+				style.curveParameters[id] ~= _default;
+		}
+		catch (Exception)
+		{
+			assert(0);
+		}
 	}
 
-	void clear(Style style)
+	void clear(Style style) const pure nothrow @safe
 	{
 		style.curveParameters[id] = null;
 	}
@@ -279,7 +305,7 @@ class PropertySpecification(T : PropertyID) : PropertySpecificationBase!T
 		super(_id, _default, _inherited);
 	}
 
-	bool parse(StyleSheetParser parser, Style style)
+	bool parse(StyleSheetParser parser, Style style) const @safe
 	{
 		if (parser.peekToken().type == StyleSheetParser.TokenType.identifier)
 		{
@@ -296,15 +322,22 @@ class PropertySpecification(T : PropertyID) : PropertySpecificationBase!T
 		return false;
 	}
 
-	void setDefault(Style style)
+	void setDefault(Style style) const pure nothrow @trusted
 	{
-		if (!multi || style.propertyIDs.get(id, null) is null)
-			style.propertyIDs[id] = [_default];
-		else
-			style.propertyIDs[id] ~= _default;
+		try
+		{
+			if (!multi || style.propertyIDs.get(id, null) is null)
+				style.propertyIDs[id] = [_default];
+			else
+				style.propertyIDs[id] ~= _default;
+		}
+		catch (Exception)
+		{
+			assert(0);
+		}
 	}
 
-	void clear(Style style)
+	void clear(Style style) const pure nothrow @safe
 	{
 		style.propertyIDs[id] = null;
 	}
@@ -369,7 +402,7 @@ class PropertySpecification(T : Vec2f) : PropertySpecificationBase!T
 		super(_id, _default, _inherited);
 	}
 
-	bool parse(StyleSheetParser parser, Style style)
+	bool parse(StyleSheetParser parser, Style style) const @safe
 	{
 		Vec2f r;
 
@@ -390,12 +423,12 @@ class PropertySpecification(T : Vec2f) : PropertySpecificationBase!T
 		return false;
 	}
 
-	void setDefault(Style style)
+	void setDefault(Style style) const pure nothrow @safe
 	{
 		style.vec2fs[id] = _default;
 	}
 
-	void clear(Style style)
+	void clear(Style style) const pure nothrow @safe
 	{
 		style.vec2fs[id] = T.init;
 	}
@@ -434,7 +467,7 @@ class PropertySpecification(T : Rectf) : PropertySpecificationBase!T
 		super(_id, _default, _inherited);
 	}
 
-	bool parse(StyleSheetParser parser, Style style)
+	bool parse(StyleSheetParser parser, Style style) const @safe
 	{
 		float num1, num2, num3, num4;
 		auto tok1 = parser.nextToken();
@@ -459,12 +492,12 @@ class PropertySpecification(T : Rectf) : PropertySpecificationBase!T
 		return false;
 	}
 
-	void setDefault(Style style)
+	void setDefault(Style style) const pure nothrow @safe
 	{
 		style.rects[id] = _default;
 	}
 
-	void clear(Style style)
+	void clear(Style style) const pure nothrow @safe
 	{
 		style.rects[id] = T.init;
 	}
@@ -520,19 +553,19 @@ class PropertyShorthand : IPropertySpecification
 
 	@property 
 	{
-		PropertyID id() const pure nothrow
+		PropertyID id() const pure nothrow @safe
 		{
 			return _id;
 		}
-		bool inherited() const pure nothrow
+		bool inherited() const pure nothrow @safe
 		{
 			return _inherited;
 		}
-		bool multi() const pure nothrow
+		bool multi() const pure nothrow @safe
 		{
 			return _multi;
 		}
-		void multi(bool f) pure nothrow
+		void multi(bool f) pure nothrow @safe
 		{
 			_multi = f;
 		}
@@ -546,13 +579,15 @@ class PropertyShorthand : IPropertySpecification
 		_multi = false;
 	}
 
-	bool parse(StyleSheetParser parser, Style style)
+	bool parse(StyleSheetParser parser, Style style) const @safe
 	{
 		// Parsed subproperties in order and in a cycle. 
 		// When either a no subproperty has been parsed through an
 		// entire cycle but something is left (an parse error) or the } token
 		// is reached we stop.
-		auto cycleProps = subProperties.dup;
+		const(IPropertySpecification)[] cycleProps; 
+		foreach (i, v; subProperties)
+			cycleProps ~= v;
 		size_t lastLen = 0;
 
 		auto multiDelim = multi ? parser.TokenType.comma : parser.TokenType.semicolon;
@@ -562,8 +597,16 @@ class PropertyShorthand : IPropertySpecification
 			lastLen = cycleProps.length;
 			
 			import std.algorithm;
-			cycleProps = cycleProps.remove!( p => p.parse(parser,style) );
-
+			
+			// BUG WORKAROUND FOR:	cycleProps = cycleProps.remove!( p => p.parse(parser,style) );
+			const(IPropertySpecification)[] newCycleProps;
+			foreach (i, v; cycleProps)
+			{
+				if (!v.parse(parser, style))
+					newCycleProps ~= v;
+			}
+			cycleProps = newCycleProps;
+			
 			if (parser.peekToken().oneOf(parser.TokenType.curlClose, 
 										 parser.TokenType.semicolon,
 										 multiDelim))
@@ -586,7 +629,7 @@ class PropertyShorthand : IPropertySpecification
 		return true;
 	}
 
-	void clear(Style style)
+	void clear(Style style) const pure nothrow @safe
 	{
 		// Set unset props to default value as CSS also does.
 		foreach (p; subProperties)
@@ -595,7 +638,7 @@ class PropertyShorthand : IPropertySpecification
 		}	
 	}
 
-	void setDefault(Style style)
+	void setDefault(Style style) const pure nothrow @safe
 	{
 		assert(0);
 	}

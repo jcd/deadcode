@@ -6,7 +6,9 @@ import core.bufferview;
 import core.copybuffer;
 import core.commandparameter;
 import core.uri;
+import controls.button;
 import controls.command;
+import controls.menu;
 import controls.texteditor;
 import editorcommands;
 import graphics._;
@@ -21,6 +23,8 @@ import std.datetime;
 import std.file;
 import std.path;
 import std.string;
+
+enum appName = "DeadCode";
 
 import std.c.windows.windows;
 extern (Windows) 
@@ -119,18 +123,36 @@ enum ResourceBaseLocation
 
 import jsonx;
 
+class GlobalStyle : Stylable
+{
+	@property 
+	{		
+		string name() const pure @safe { return null; }
+		bool matchStylable(string stylableName) const pure nothrow @safe { return stylableName == "Globals"; }
+		const(string[]) classes() const pure nothrow @safe { return null; }
+		bool hasKeyboardFocus() const pure nothrow @safe { return false; }
+		bool isMouseOver() const pure nothrow @safe { return false; }
+		bool isMouseDown() const pure nothrow @safe { return false; }
+		Stylable parent() pure nothrow @safe { return null; }
+	}
+}
+
 class GUIApplication : Application
 {
 	GUI guiRoot;
+	GlobalStyle globalStyle;
+	Menu menu;
+
+	private string _restartExecutable;
 
 	static struct EditorInfo
 	{
-		this(uint fo, TextEditor ed)
+		this(int fo, TextEditor ed)
 		{
 			focusOrder = fo;
 			editor = ed;
 		}
-		uint focusOrder; // LRU ordering
+		int focusOrder; // LRU ordering
 		
 		@noSerialize
 		TextEditor editor;
@@ -138,7 +160,7 @@ class GUIApplication : Application
 
 	static class Editors
 	{
-		uint focusOrderCounter;
+		int focusOrderCounter;
 		EditorInfo[string] editors;
 	}
 
@@ -156,6 +178,13 @@ class GUIApplication : Application
 
 	Analytics analytics;
 
+	T getGlobalStyle(T)(string name)
+	{
+		T res;
+		defaultStyleSheet.getStyle(globalStyle).getProperty(name, res);
+		return res;
+	}
+
 	class WindowData
 	{
 		CommandControl commandControl;
@@ -164,6 +193,7 @@ class GUIApplication : Application
 	private this()
 	{
 		// This also sets up tracking keys for analytics
+		globalStyle = new GlobalStyle();
 		setupRegistryEntries();
 		
 		analytics = new GoogleAnalytics("UA-42266538-2", analyticsKey, "Ded", "com.streamwinter.ded", appVersion);
@@ -208,10 +238,10 @@ class GUIApplication : Application
 				break;
 			case ResourceBaseLocation.userDataDir:
 				char[MAX_PATH] buffer;
-				auto CSIDL_COMMON_APPDATA = 35;
+				auto CSIDL_APPDATA = 0x001a;
 				void* dummy;
-				if (SHGetSpecialFolderPathA(dummy, buffer.ptr, CSIDL_COMMON_APPDATA, 0) == TRUE)
-					basePath = buffer[0..strlen(buffer.ptr)].idup;
+				if (SHGetSpecialFolderPathA(dummy, buffer.ptr, CSIDL_APPDATA, 0) == TRUE)
+					basePath = absolutePath(buildPath(buffer[0..strlen(buffer.ptr)].idup, appName));
 				else
 					throw new Exception("Cannot get APPDATA dir");
 				break;
@@ -331,14 +361,31 @@ class GUIApplication : Application
 		static import extension;
 		extension.init(this);
 
-		openFile(buildNormalizedPath(resourcesRoot,"default.stylesheet"));
+		// openFile(buildNormalizedPath(resourcesRoot,"iult.stylesheet"));
 
 		loadSession();
 		analyticStopTiming("core", "startup");
 		guiRoot.run();
 		analyticEvent("core", "stop");
 		analytics.stop();
+
+		extension.fini(this);
 		saveSession();
+
+		if (!_restartExecutable.empty)
+		{
+			import std.process;
+			spawnProcess(_restartExecutable);
+			import std.c.stdlib;
+			import core.thread;
+			Thread.sleep(dur!"seconds"(1));
+		}
+	}
+
+	void scheduleRestart(string exePath)
+	{
+		_restartExecutable = exePath;
+		guiRoot.stop();
 	}
 
 	void setupResourcesRoot()
@@ -419,12 +466,12 @@ version (Windows)
 		_resizerWidget.features ~= new WindowResizer();
 		
 		// A widget that can be mousedowned and move the window
-		Widget _draggerWidget = new Widget(win, 0, 0, 20, 32);
-		_draggerWidget.features ~= new WindowDragger();
+		//Widget _draggerWidget = new Widget(win, 0, 0, 20, 32);
+		//_draggerWidget.features ~= new WindowDragger();
 		
 		// A widget that can be mousedowned and move the window
-		Widget _draggerRightWidget = new Widget(win, 0, 0, 20, 32);
-		_draggerRightWidget.features ~= new WindowDragger();
+		//Widget _draggerRightWidget = new Widget(win, 0, 0, 20, 32);
+		//_draggerRightWidget.features ~= new WindowDragger();
 
 		/*
 	ScalarExpr e = new ScalarExpr(mainWidget, WidgetAnchor.Top, 10);
@@ -448,8 +495,9 @@ version (Windows)
 	resizerWidget.heigth = 10.px();
 */
 		// Layout expanding mainWidget to window
-		_mainWidget.alignTo(_draggerWidget, Anchor.BottomLeft, Anchor.TopLeft);
-		_mainWidget.alignTo(Anchor.BottomRight);
+		_mainWidget.alignToWindow(Anchor.TopLeft);
+		// _mainWidget.alignTo(_draggerWidget, Anchor.BottomLeft, Anchor.TopLeft);
+		_mainWidget.alignToWindow(Anchor.BottomRight);
 		_mainWidget.name = "main";
 
 		// Layout setting resizerWidget at bottom left of mainWidget
@@ -457,12 +505,12 @@ version (Windows)
 		_resizerWidget.name = "resizer";
 
 		// Layout setting dragger widget fill top 20px of mainWidget
-		_draggerWidget.alignToWindow(Anchor.TopLeft, Vec2f(220, 24), Vec2f(0,0f));
-		_draggerWidget.name = "dragger";
+		//_draggerWidget.alignToWindow(Anchor.TopLeft, Vec2f(220, 24), Vec2f(0,0f));
+		//_draggerWidget.name = "dragger";
 
-		_draggerRightWidget.alignTo(_draggerWidget, Anchor.TopRight, Anchor.TopLeft, Vec2f(-1, 24));
-		_draggerRightWidget.alignTo(NullWidgetID, Anchor.TopRight, Anchor.TopRight);
-		_draggerRightWidget.name = "draggerRight";
+		//_draggerRightWidget.alignTo(_draggerWidget, Anchor.TopRight, Anchor.TopLeft, Vec2f(-1, 24));
+		//_draggerRightWidget.alignTo(NullWidgetID, Anchor.TopRight, Anchor.TopRight);
+		//_draggerRightWidget.name = "draggerRight";
 
 		
 		// _mainWidget.features ~= new BoxRenderer("window-main");
@@ -470,11 +518,11 @@ version (Windows)
 		// _draggerWidget.features ~= new BoxRenderer("window-head");
 		// _resizerWidget.features ~= new BoxRenderer("window-resizer");
 		
-		_draggerWidget.onMouseClickCallback = (Event e, Widget w) 
-		{
-			std.stdio.writeln("clicked ", w.pos.v, " ", w.size.v);
-			return EventUsed.no; 
-		};
+		//_draggerWidget.onMouseClickCallback = (Event e, Widget w) 
+		//{
+		//    std.stdio.writeln("clicked ", w.pos.v, " ", w.size.v);
+		//    return EventUsed.no; 
+		//};
 
 		auto mainBuf = bufferViewManager["*Messages*"];
 		mainBuf.cursorToEnd();
@@ -493,6 +541,28 @@ version (Windows)
 
 		editorBehavior.onMissingCommandArguments.connect(&cc.onMissingCommandArguments);
 
+		//auto w = new Widget();
+		//w.parent = win;
+		//w.name = "foo";
+		//w.pos = Vec2f(100,200);
+		//
+		//auto w1 = new Widget();
+		//w1.parent = w;
+		//w1.name = "fooa";
+		//w1.pos = Vec2f(100,200);
+		//w1.size = Vec2f(10,10);
+		//
+		//auto w2 = new Widget();
+		//w2.parent = w;
+		//w2.name = "foob";
+		//w2.pos = Vec2f(200,300);
+		//w1.size = Vec2f(10,10);
+		//
+		//w.features ~= new DirectionalLayout!false();
+
+		menu = new Menu("Menu", commandManager);
+		menu.parent = win;
+
 		// Let text editor handle events before normal gui
 		win.onEvent = (ref Event ev) {
 			// Let the shortcut handler do its magic before event is dispatched to
@@ -508,6 +578,8 @@ version (Windows)
 			//return cc.onCommand(ev);
 		};
 	}
+
+
 
 	GenericResource load(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
 	{
@@ -555,9 +627,25 @@ version (Windows)
 		}
 		view.cursorToStart();
 		view.clearUndoStack();
+		debug view.enableUndoStackDumps();
+		view.bufferModified.connect(&onBufferModified);
 		// addMessage("Read %s", view.name);
 		return view;
 		//Application.activeEditor.show(view);			
+	}
+
+	private void onBufferModified(BufferView b, bool isModified)
+	{
+		// Make a backup copy 
+		if (std.file.exists(b.name))
+			backupFile(b.name);
+	}
+
+	private void backupFile(string path)
+	{
+		string to = resourceURI( path.stripDrive() ).uriString;
+		std.file.mkdirRecurse(to.dirName());
+		std.file.copy(path, to);
 	}
 
 	string[] getActiveBufferCompletions(string prefix)
@@ -689,8 +777,8 @@ version (Windows)
 		this() {}
 		int focusOrder;
 		string path;
-		uint cursorPoint;
-		uint lineOffset;
+		int cursorPoint;
+		int lineOffset;
 	}
 	
 	static class SessionCopyBuffer
@@ -735,7 +823,7 @@ version (Windows)
 
 	void loadSession()
 	{
-		sessionData = loadOrCreate(".ded");
+		sessionData = loadOrCreate(".deadcode");
 		auto s = sessionData.get!SessionData();
 		if (s is null)
 		{
@@ -755,6 +843,7 @@ version (Windows)
 				showBufferName = l.path;
 			auto ed = editors.editors[l.path];
 			ed.focusOrder = l.focusOrder;
+			// TODO: Save undo buffer
 			ed.editor.bufferView.cursorPoint = l.cursorPoint;
 			ed.editor.bufferView.lineOffset = l.lineOffset;
 		}
@@ -772,7 +861,6 @@ version (Windows)
 				cb.entries ~= new CopyBuffer.Entry(data.to!dstring);
 			}
 		}
-
 	}
 
 	void analyticEvent(string category, string action, string label = null, string value = null)

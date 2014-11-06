@@ -8,7 +8,7 @@ class WidgetFeature
 {
 	EventUsed send(Event event, Widget widget) { return EventUsed.no; }
 	void update(Widget widget) {}
-	void layout(Widget widget) {}
+	void layout(Widget widget, bool fit) {}
 	void draw(Widget widget) {}
 }
 

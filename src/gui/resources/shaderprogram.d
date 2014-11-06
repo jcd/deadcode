@@ -46,6 +46,11 @@ class ShaderProgram : graphics.material.ShaderProgram, IResource!ShaderProgram
 			return _manager;
 		}
 
+		const(Manager) manager() const pure nothrow @safe
+		{
+			return _manager;
+		}
+
 		void manager(Manager m)
 		{
 			_manager = m;

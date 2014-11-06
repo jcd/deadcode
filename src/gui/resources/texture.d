@@ -44,6 +44,11 @@ class Texture : graphics.material.Texture, IResource!Texture
 			return _manager;
 		}
 
+		const(Manager) manager() const pure nothrow @safe
+		{
+			return _manager;
+		}
+
 		void manager(Manager m)
 		{
 			_manager = m;

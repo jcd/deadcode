@@ -20,17 +20,13 @@ import std.stdio;
 
 import std.c.windows.windows;
 
-// pragma (lib, "Ws2_32.lib");
-// pragma (lib, "User32.lib");
-
-//@CommandDesc("Build using dub") 
-//@CommandName("dub.build") 
-//@CommandShortcut("<f7>")
+@MenuItem("Dub/Build")
+@Shortcut("<f10>")
 class DubBuildCommand : BasicCommand!DubBuildCommand
 {
-	override @property string description() const { return "Build using dub"; }
-	override @property string name() const { return "dub.build"; }
-	override @property string shortcut() const { return "<f7>"; }
+	//override @property string description() const { return "Build using dub"; }
+	// override @property string name() const { return "dub.build"; }
+	//override @property string shortcut() const { return "<f7>"; }
 
 	private Tid tid;
 	private string newExecPath;

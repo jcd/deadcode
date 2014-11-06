@@ -36,16 +36,22 @@ private bool defaultUnittester()
 	return true;
 }
 
-static this()
+private bool noopUnittester()
+{
+	return true;
+}
+
+shared static this()
 {
 	import core.runtime;
 	import std.stdio;
-	Runtime.moduleUnitTester(&defaultUnittester);
+//	Runtime.moduleUnitTester(&defaultUnittester);
+	Runtime.moduleUnitTester(&noopUnittester);
 
 	foreach (m; ModuleInfo)
 	{
-		//writeln("Found module ", m.name);
-		void *mems = m.xgetMembers();
+		writeln("Found module ", m.name, " ", m.unitTest.stringof);
+		void *mems = m.xgetMembers;
 		if (mems is null)
 			continue;
 		auto mi = cast(MemberInfo[]*) mems;
@@ -68,6 +74,11 @@ class UnittestAnchor : TextEditorAnchor
 {
 	Timeline timeline;
 
+	@property TextEditor textEditor()
+	{
+		return cast(TextEditor) parent;
+	}
+
 	this(Timeline timeline)
 	{
 		super();
@@ -80,43 +91,59 @@ class UnittestAnchor : TextEditorAnchor
 		return EventUsed.yes;
 	}
 
+	EventUsed eonMouseClick(Event ev)
+	{
+		import std.stdio;
+		import test;
+		auto bufferName = textEditor.bufferView.name;
+		TestRecord rec = getTestResult(bufferName, textAnchor.number+1);
+		
+		if (rec.file.empty)
+		{
+			writeln("No result");
+		}
+		else
+		{
+			writeln("Result : ", rec.success);
+		}
+		return EventUsed.yes;
+	}
+
 	override EventUsed onMouseClick(Event ev)
 	{
-
 		import std.typetuple;
 		import std.stdio;
 		import std.conv;
+		import test;
 
 		alias tests = TypeTuple!(__traits(getUnitTests, math.rect));
 		import std.string;
 
-		foreach (test; tests)
+		foreach (atest; tests)
 		{
 			// ie. __unittestL235_52
-			enum name = __traits(identifier, test)[11..$];
-			enum line = name[0.. indexOf(name, "_")];
-
-			if (textAnchor.number+1 == line.to!uint)
+			enum testName = __traits(identifier, atest)[11..$];
+			enum line = testName[0.. indexOf(testName, "_")];
+			string tn = testName;
+			
+			if (textAnchor.number+1 == line.to!int)
 			{
-				writeln("Running " ~ line);
-				test();
+				writeln("Running ", line, " ", testName);
+				atest();
+
+				//TestRecord rec = getTestResult(textAnchor.number+1);
+				//if (rec.file.empty)
+				//    writeln("No result");
+				//else
+				//{
+				//    writeln("Result : ", rec.success);
+				//}
 			}
 		}
 
-		auto wi = window.createWidget!TestWidget(window, 100, 100, 100, 100);
-		//auto clip = new Clip!Widget();
-		////clip.createLinearCurve!"x"(0, x, 1, x+100.0);
-		//clip.createCubicCurve!"x"(0, x, 1, x+100.0);
-		//timeline.animate(wi, clip);
-
+		auto wi = window.createWidget!TestWidget(window, 0, 0, 100, 100);
 		return EventUsed.yes;
 	}
-
-	//override void update()
-	//{
-	//    
-	//    // std.stdio.writefln("anchor %s", rect);
-	//}
 }
 
 /**
@@ -158,7 +185,7 @@ class Unittests : BasicExtension!Unittests, TextEditorAnchorOwner
 
 	// Next three handler is in charge of detecting unittest lines and adding/removing anchors
 	// for them.
-	void onLineModified(uint lineNumber)
+	void onLineModified(int lineNumber)
 	{
 		auto editor = currentTextEditor;
 		auto line = editor.bufferView.buffer.lineString(lineNumber);
@@ -173,7 +200,7 @@ class Unittests : BasicExtension!Unittests, TextEditorAnchorOwner
 		}
 	}
 		
-	void onLinesInserted(uint lineNumber, uint lineCount)
+	void onLinesInserted(int lineNumber, int lineCount)
 	{
 		foreach (i; lineNumber..lineNumber+lineCount)
 			onLineModified(i);

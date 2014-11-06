@@ -16,12 +16,14 @@ import guiapplication;
  */
 int main(string args[])
 { 
+	import core.attr;
+
 	version (unittest) 
 	{ 	
 		import test;
 		printStats(true);
 	}
-	else
+	// else
 	{
 
 		GUIApplication app;

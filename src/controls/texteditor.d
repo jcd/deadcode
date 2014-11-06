@@ -32,7 +32,7 @@ class TextEditor : Widget
 	// Child widget of TextEditor
 	TextEditorAnchor[] visibleAnchorsChildWidgets;
 
-	private uint _mouseStartSelectionIdx;
+	private int _mouseStartSelectionIdx;
 
 	this(Widget parent, BufferView buf)
 	{
@@ -52,7 +52,7 @@ class TextEditor : Widget
 		
 		bufferView.onAnchorVisibilityChanged.connect(&onAnchorVisibilityChanged);
 
-		_mouseStartSelectionIdx = uint.max;
+		_mouseStartSelectionIdx = int.max;
 
 		//onKeyboardFocusSignal.connect((Event ev) {
 		//    //window.mouseCursor(MouseCursor.iBeam);
@@ -109,17 +109,11 @@ class TextEditor : Widget
 						renderer.cursorVisible = true;
 						return EventUsed.yes;
 					case "navigate.up":
-						bufferView.cursorUp(1);
-						uint lineNum = bufferView.lineNumber;
-						if (lineNum < bufferView.lineOffset)
-							bufferView.scrollUp();
+						bufferView.cursorUp();
 						renderer.cursorVisible = true;
 						return EventUsed.yes;
 					case "navigate.down":
 						bufferView.cursorDown();
-						uint lineNum = bufferView.lineNumber;
-						if (lineNum > (bufferView.lineOffset + bufferView.visibleLineCount))
-							bufferView.scrollDown();
 						renderer.cursorVisible = true;
 						return EventUsed.yes;
 					default:
@@ -138,13 +132,13 @@ class TextEditor : Widget
 		//return EventUsed.no;
 	}
 
-	override void layout()
+	override void layout(bool fit)
 	{
 		// Get sized ready for the children so that any layouter have them
 		foreach (w; children)
 			w.size = calcSize(w);
 
-		layoutFeatures();
+		layoutFeatures(fit);
 
 		// Position goes last so that a base position calculated by e.g. DirectionalLayout feature
 		// can be used as relative pos for the calcPosition (ie. the styled position)
@@ -153,7 +147,7 @@ class TextEditor : Widget
 		//		w.recalcPosition();
 
 		// Positions and sizes for children are now set and we can recurse
-		layoutChildren();
+		layoutChildren(fit);
 	}
 
 	override void draw()
@@ -182,6 +176,12 @@ class TextEditor : Widget
 		}
 
 		glDisable(GL_SCISSOR_TEST);
+	}
+
+	override EventUsed onMouseClick(Event event)
+	{
+		setKeyboardFocusWidget();
+		return EventUsed.yes;
 	}
 
 	override EventUsed onMouseScroll(Event event)
@@ -249,7 +249,7 @@ class TextEditor : Widget
 
 	override EventUsed onMouseMove(Event event)
 	{
-		if (_mouseStartSelectionIdx == uint.max)
+		if (_mouseStartSelectionIdx == int.max)
 			return super.onMouseMove(event);
 
 		auto info = renderer.getGlyphAt(this, event.mousePos);
@@ -265,7 +265,7 @@ class TextEditor : Widget
 		if (info.isValid)
 			return onGlyphMouseUp(event, info);
 
-		_mouseStartSelectionIdx = uint.max;
+		_mouseStartSelectionIdx = int.max;
 
 		return EventUsed.yes;
 	}
@@ -274,7 +274,7 @@ class TextEditor : Widget
 	{
 		if (event.mouseMod.isShiftDown())
 		{
-			if (_mouseStartSelectionIdx == uint.max)
+			if (_mouseStartSelectionIdx == int.max)
 			{
 				if (bufferView.selection.empty)
 					_mouseStartSelectionIdx = bufferView.cursorPoint;
@@ -296,15 +296,15 @@ class TextEditor : Widget
 	EventUsed onGlyphMouseUp(Event event, GlyphHit hit)
 	{
 		//_updateSelectionEnd(hit, event.mousePos);
-		_mouseStartSelectionIdx = uint.max;
+		_mouseStartSelectionIdx = int.max;
 		bufferView.setPreferredCursorColumnFromIndex();
 		return EventUsed.yes;
 	}
 
 	private void _updateSelectionEnd(GlyphHit hit, Vec2f mousePos)
 	{
-		uint index;
-		if (true || _mouseStartSelectionIdx == uint.max)
+		int index;
+		if (true || _mouseStartSelectionIdx == int.max)
 		{
 			// Selection start not set. Do so.
 			// When picking the start glyph we want to split the hit glyph vertically and if the
@@ -313,7 +313,7 @@ class TextEditor : Widget
 			// selection, not when determining the end or when expanding the selection.
 			auto yPosHalfWayGlyphRect = hit.rect.x + hit.rect.w * .5f;
 			index = yPosHalfWayGlyphRect < mousePos.x ? hit.index+1 : hit.index; 
-			if (_mouseStartSelectionIdx == uint.max)
+			if (_mouseStartSelectionIdx == int.max)
 				_mouseStartSelectionIdx = index;
 		}
 		else
@@ -330,7 +330,7 @@ class TextEditor : Widget
 
 	// TODO: move slots to bufferView
 	// Text inserted at pos and forward
-	private void onTextInserted(BufferView v, BufferView.BufferString text, uint pos)
+	private void onTextInserted(BufferView v, BufferView.BufferString text, int pos)
 	{
 		Region r = bufferView.selection;
 		r.entriesInserted(pos, text.length);
@@ -338,7 +338,7 @@ class TextEditor : Widget
 	}
 
 	// Text remove from pos and forward
-	private void onTextRemoved(BufferView v, BufferView.BufferString text, uint pos)
+	private void onTextRemoved(BufferView v, BufferView.BufferString text, int pos)
 	{
 		Region r = bufferView.selection;
 		r.entriesRemoved(pos, text.length);
@@ -423,27 +423,27 @@ class TextEditor : Widget
 		return null;
 	}
 
-	void setLineAnchor(uint lineNumber, TextBufferAnchorOwner owner)
+	void setLineAnchor(int lineNumber, TextBufferAnchorOwner owner)
 	{
 		bufferView.buffer.ensureLineAnchor(lineNumber, owner);
 	}
 
-	void unsetLineAnchor(uint lineNumber, string type)
+	void unsetLineAnchor(int lineNumber, string type)
 	{
 		auto anchor = bufferView.buffer.getLineAnchor(lineNumber);
-		if (anchor.id == uint.max)
+		if (anchor.id == int.max)
 			return; // no anchor
 		bufferView.buffer.removeLineAnchorByLine(anchor.id); // TODO: optimize
 	}
 
-	Rectf lineRect(uint lineIdx)
+	Rectf lineRect(int lineIdx)
 	{
 		auto lineStart = bufferView.buffer.startAtLineNumber(lineIdx);
 		auto lineEnd = bufferView.buffer.endAtLineNumber(lineIdx);
 		return textRect(lineStart, lineEnd);
 	}
 
-	Rectf textRect(uint startIdx, uint endIdx)
+	Rectf textRect(int startIdx, int endIdx)
 	{
 		if (startIdx < bufferView.bufferStartOffset)
 			return Rectf();
@@ -452,7 +452,7 @@ class TextEditor : Widget
 		return startGlyphRect.makeUnion(endGlyphRect);
 	}
 
-	Rectf glyphRect(uint idx)
+	Rectf glyphRect(int idx)
 	{
 		return renderer.getGlyphRect(this, idx);
 	}
@@ -502,7 +502,7 @@ class TextEditorAnchor : Widget
 		auto lineStart = buffer.startAtLineNumber(lineIdx);
 		auto lineEnd = buffer.endAtLineNumber(lineIdx);
 		auto lineEndChar = buffer.findOneNotOfReverse(lineEnd, " \t\r\n");
-		if (lineEndChar != uint.max)
+		if (lineEndChar != int.max)
 			lineEnd = lineEndChar;
 
 		Rectf lineRect = editor.textRect(lineStart, lineEnd);

@@ -46,7 +46,7 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 		//n.color = Vec3f(0.25, 0.25, 0.25);
 		//features ~= n;
 
-		auto v = app.bufferViewManager.create("Build messages");
+		auto v = app.bufferViewManager.create();
 
 		auto textStyler = new ErrorListStyler!BufferView(v);
 		textRenderer = new TextRenderer!BufferView(textStyler);
@@ -58,10 +58,37 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 		alignToWindow(this, Anchor.BottomRight, rect.size);
 		acceptsKeyboardFocus = true;
 		lines = 0;
+		zOrder = 50;
 		// TODO: Remove line below to enable errorlist
-		visible = false;
+		//visible = false;
+		loadSession();
+		append("Console initialized");
+		v.centerOnLine(v.lineCount-1);
+	}
+
+	override void fini()
+	{
+		saveSession();
 	}
 	
+	static class SessionData
+	{
+		string messages;
+	}
+	
+	private void loadSession()
+	{
+		auto s = loadSessionData!SessionData();
+		append(s.messages);
+	}
+
+	private void saveSession()
+	{
+		auto s = new SessionData();
+		s.messages = textRenderer.text.buffer.toArray().to!string;
+		saveSessionData(s);
+	}
+
 	override EventUsed onMouseScroll(Event event)
 	{
 		// Scroll view
@@ -95,10 +122,10 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 			{
 				writeln(m.captures[2]);
 				BufferView bv = app.openFile(to!string(m.captures[1]));
-				uint errorLine = to!uint(m.captures[2][1..$-1]) - 1; // lines are 0 indexed in buffer but 1 indexed in error message
-				uint errorStartOfLineIndex = bv.buffer.startAtLineNumber(errorLine);
+				int errorLine = to!int(m.captures[2][1..$-1]) - 1; // lines are 0 indexed in buffer but 1 indexed in error message
+				int errorStartOfLineIndex = bv.buffer.startAtLineNumber(errorLine);
 				bv.cursorPoint = errorStartOfLineIndex;
-				bv.lineOffset = errorLine;
+				bv.centerOnLine(errorLine);
 			}
 
 			writeln(line);
@@ -132,21 +159,20 @@ class ErrorListStyler(Text) : TextStyler!Text
 		warning = 3,
 	};
 
-	enum errorLineRe = "(.*?)(\\(\\d+\\)): (Error.*)"d;
+	enum errorLineRe = "(.*?)(\\(\\d+\\)): ((?:Error|Warning).*)"d;
 	
 	this(Text text)
 	{
 		super(text);
 	}
 
-	override void update()
+	override protected void styleRegion(Region r)
 	{
-		regionSet.clear();
-
 		import std.array;
-		auto buf = array(text[0..text.length]);
+		auto buf = array(text[r.a .. r.b]);
 
 		size_t lastEndIdx = 0;
+		size_t offset = r.a;
 
 		import std.regex;		
 		auto ctr = regex(errorLineRe, "mg");
@@ -160,23 +186,23 @@ class ErrorListStyler(Text) : TextStyler!Text
 			auto filePath = m.captures[1];
 			auto end = begin + filePath.length;
 			if (begin != lastEndIdx)
-				regionSet.merge(lastEndIdx, begin, DStyle.other);
-			regionSet.merge(begin, end, DStyle.lineNumber);			
+				_regionSet.merge(offset + lastEndIdx, offset + begin, DStyle.other);
+			_regionSet.set(offset + begin, offset + end, DStyle.lineNumber);			
 
 			auto lineInFile = m.captures[2];
 			begin = end;
 			end = begin + lineInFile.length;
-			regionSet.merge(begin, end, DStyle.error);			
+			_regionSet.set(offset + begin, offset + end, DStyle.error);			
 
 			auto errorMessage = m.captures[3];
 			begin = end + 1;
 			end = begin + errorMessage.length;
-			regionSet.merge(begin, end, DStyle.other);
+			_regionSet.set(offset + begin, offset + end, DStyle.other);
 			lastEndIdx = end;
 		}
 
-		if (lastEndIdx != text.length)
-			regionSet.merge(lastEndIdx, text.length, 0);
+		if (lastEndIdx != r.b)
+			_regionSet.set(offset + lastEndIdx, r.b, DStyle.other);
 
 		onChanged.emit();
 	}

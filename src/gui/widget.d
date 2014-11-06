@@ -48,6 +48,7 @@ class Widget : Stylable
 	private static WidgetID _nextID = 1u;
 
 	WidgetID id;
+	string _name;
 
 	float zOrder;
 
@@ -219,10 +220,10 @@ class Widget : Stylable
 	//        _sizeDirty = true; // force a redraw... TODO: this also forces layout which is wrong (maybe)
 	//}
 
-	Style getStyleForClass(string className)
-	{
-		return window.styleSheet.getStyle(this, [className]);
-	}
+	//Style getStyleForClass(string className)
+	//{
+	//    return window.styleSheet.getStyle(this, [className]);
+	//}
 
 	//void transition(Property*
 
@@ -269,14 +270,16 @@ class Widget : Stylable
 			return result;
 		}
 
-		string name() const pure @safe
+		string name() const pure nothrow @safe 
 		{
-			return window.lookupWidgetName(this.id);
+			return _name;
 		}
 
-		void name(string n)
+		void name(string n) nothrow
 		{
-			return window.setWidgetName(this, n);
+			_name = n;
+			if (window !is null)
+				window.setWidgetName(this, n);
 		}
 
 		bool matchStylable(string stylableName) const pure nothrow @safe
@@ -403,6 +406,11 @@ class Widget : Stylable
 			_rect.size = sz;
 		}
 
+		const(Vec2f) intrinsicSize() {
+			Vec2f invalid;
+			return invalid;
+		}
+
 		void size(Vec2i sz)
 		{
 			size = Vec2f(sz.x, sz.y);
@@ -415,6 +423,7 @@ class Widget : Stylable
 
 		void preferredSize(Vec2f prefSize) 
 		{
+						
 		}
 
 		const(Vec2f) minSize() 
@@ -501,6 +510,8 @@ class Widget : Stylable
 		}
 
 		void onMouseClickCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.MouseClick, del); }
+		void onMouseOverCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.MouseOver, del); }
+		void onMouseOutCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.MouseOut, del); }
 		void onMouseScrollCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.MouseScroll, del); }
 		void onKeyDownCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyDown, del); }
 		void onKeyUpCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyUp, del); }
@@ -513,125 +524,6 @@ class Widget : Stylable
 		void onKeyboardUnfocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyboardUnfocus, del); }
 	}
 
-/*	
-	private Rectf calcRect(Style st)
-	{
-		Rectf baseRectA = calcBaseRectForPosition(st.position);
-		// Rectf baseRectB = calcBaseRectForPosition(st.position.posB);
-		Rectf baseRectB = baseRectA;
-
-		// bool cssPosDiffers = st.position.posA != st.position.posB; // improve
-		bool cssPosDiffers = false;
-
-		Rectf r = void;
-
-		Vec2f mixHorzA = Vec2f(baseRectA.x, baseRectA.w);
-		calcHorz!0(mixHorzA, baseRectA, st);
-		if ( /+st.position.posB != CSSPosition.invalid && +/
-			(st.width.isMixed || st.left.isMixed || st.right.isMixed || cssPosDiffers))
-		{
-			Vec2f mixHorzB = Vec2f(baseRectB.x, baseRectB.w);
-			calcHorz!1(mixHorzB, baseRectB, st);
-			float woffset = st.width.mixOffset.isNaN ? 1f : st.width.mixOffset;
-			float xoffset = st.left.mixOffset.isNaN ? (st.right.mixOffset.isNaN ? 1f : st.right.mixOffset) : st.left.mixOffset;
-			if (xoffset.isNaN)
-				xoffset = 1f;
-
-			r.x = mixHorzA.v[0] * (1 - xoffset) + mixHorzB.v[0] * xoffset;
-			r.w = mixHorzA.v[1] * (1 - woffset) + mixHorzB.v[1] * woffset;
-		}
-		else
-		{
-			r.x = mixHorzA.v[0];
-			r.w = mixHorzA.v[1];
-		}
-
-		Vec2f mixVertA = Vec2f(baseRectA.y, baseRectA.h);
-		calcVert!0(mixVertA, baseRectA, st);
-		if ( /+st.position.posB != CSSPosition.invalid && +/
-			(st.height.isMixed || st.top.isMixed || st.bottom.isMixed || cssPosDiffers))
-		{
-			Vec2f mixVertB = Vec2f(baseRectB.y, baseRectB.h);
-			calcVert!1(mixVertB, baseRectB, st);
-
-			float hoffset = st.height.mixOffset.isNaN ? 1f : st.height.mixOffset;
-			float yoffset = st.top.mixOffset.isNaN ? (st.bottom.mixOffset.isNaN ? 1f : st.bottom.mixOffset) : st.top.mixOffset;
-			if (yoffset.isNaN)
-				yoffset = 1f;
-
-
-			r.y = mixVertA.v[0] * (1 - yoffset) + mixVertB.v[0] * yoffset;
-			r.h = mixVertA.v[1] * (1 - hoffset) + mixVertB.v[1] * hoffset;
-
-		}
-		else
-		{
-			r.y = mixVertA.v[0];
-			r.h = mixVertA.v[1];
-		}
-		return r;
-	}
-*/
-/*
-	private void calcHorz(int i)(ref Vec2f res, Rectf baseRect, Style st)
-	{
-		float wi = cssScaleToPixel!("w")(st.width[i]);
-
-		float l = cssScaleToPixel!("w")(st.left[i]);
-		l = l.isNaN ? 0 : l;
-
-		float r = cssScaleToPixel!("w")(st.right[i]);
-		r = r.isNaN ? 0 : r;
-
-		if (wi.isNaN)
-		{
-			res.v[0] += l;
-			res.v[1] -= l + r;
-		}
-		else
-		{
-			res.v[1] = wi;
-			if (!st.left[i].value.isNaN)
-			{
-				res.v[0] += l;
-				if (!st.right[i].value.isNaN)
-					res.v[1] -= r;
-			}
-			else if (!st.right[i].value.isNaN)
-				res.v[0] -= r;
-		}
-	}
-*/
-/*
-	private void calcVert(int i)(ref Vec2f res, Rectf baseRect, Style st)
-	{
-		float hi = cssScaleToPixel!("h")(st.height[i]);
-
-		float t = cssScaleToPixel!("h")(st.top[i]);
-		t = t.isNaN ? 0 : t;
-
-		float b = cssScaleToPixel!("h")(st.bottom[i]);
-		b = b.isNaN ? 0 : b;
-
-		if (hi.isNaN)
-		{
-			res.v[0] += t;
-			res.v[1] -= t + b;
-		}
-		else
-		{
-			res.v[1] = hi;
-			if (!st.top[i].value.isNaN)
-			{
-				res.v[0] += t;
-				if (!st.bottom[i].value.isNaN)
-					res.v[1] -= b;
-			}
-			else if (!st.bottom[i].value.isNaN)
-				res.v[0] -= b;
-		}
-	}
-*/
 	void moveBy(float x, float y)
 	{
 		_printDirty("moveBy");
@@ -734,12 +626,24 @@ class Widget : Stylable
 	{
 		size_t len = _children.length;
 		_children = std.array.array(std.algorithm.filter!((Widget tw) { return tw.id != toRemove.id; })(_children));
+		window.deregister(toRemove);
 		return len != _children.length;
 	}
 
 	@property Widgets children() nothrow
 	{
 		return _children;
+	}
+
+	Widget getChildByName(string childName) nothrow pure @safe
+	{
+		if (childName.empty)
+			return null;
+		
+		foreach (w; _children)
+			if (w.name == childName)
+				return w;
+		return null;
 	}
 
 	void hideChildren()
@@ -761,10 +665,7 @@ class Widget : Stylable
 
 	bool isAncestorOf(Widget w)
 	{
-		foreach (c; _children)
-			if (c is w || c.isAncestorOf(w))
-				return true;
-		return false;
+		return w.isDecendantOf(this);
 	}
 
 	void setKeyboardFocusWidget()
@@ -809,29 +710,6 @@ class Widget : Stylable
 		window.releaseMouse();
 	}
 
-	/*
-	this(Rectf windowRect, WidgetID _parentId = NullWidgetID)
-	{
-		rect = windowRect;
-		id = nextId++;
-		this._parentId = _parentId;
-		this.acceptsKeyboardFocus = false;
-		
-		widgets[id] = this;
-		if (_parentId != NullWidgetID)
-		{
-	//		Widgets * w = _parentId in window._widgetChildren;
-			if (w is null)
-			{
-		//		window._widgetChildren[_parentId] = [this];
-			}
-			else
-			{
-				*w ~= this;
-			}
-		}
-	}
-*/
 	package this(WidgetID _id, Widget _parent, float x = 0, float y = 0, float width = 100, float height = 100) nothrow
 	{
 		assert(_parent !is null);
@@ -880,6 +758,9 @@ class Widget : Stylable
 
 		EventUsed used = EventUsed.no;
 		
+		if (event.type == EventType.MouseClick)
+			std.stdio.writeln("fdsaf");
+
 		if (handler)
 		{
 			used = (*handler)(event, this);
@@ -944,16 +825,16 @@ class Widget : Stylable
 		}
 	}
 
-	protected void layoutFeatures()
+	void layoutFeatures(bool fit)
 	{
 		foreach (f; features)
-			f.layout(this);
+			f.layout(this, fit);
 	}
 
-	protected void layoutChildren()
+	protected void layoutChildren(bool fit)
 	{
 		foreach (w; children)
-			w.layout();
+			w.layout(fit);
 	}
 
 	//private void recalcSize()
@@ -976,24 +857,33 @@ class Widget : Stylable
 	//    //}
 	//}
 
-	void layout()
+	protected void calculateSize()
+	{
+		size = calcSize(this);
+	}
+
+	protected void calculatePosition()
+	{
+		pos = calcPosition(this);
+	}
+
+	void layout(bool fit)
 	{
 		// Get sized ready for the children so that any layouter have them
 		foreach (w; children)
 			if (!w.manualLayout)
-				w.size = calcSize(w);
+				w.calculateSize();
 
-		layoutFeatures();
+		layoutFeatures(false);
 
 		// Position goes last so that a base position calculated by e.g. DirectionalLayout feature
 		// can be used as relative pos for the calcPosition (ie. the styled position)
 		foreach (w; children)
 			if (!w.manualLayout)
-				w.pos = calcPosition(w);
-			//		w.recalcPosition();
+				w.calculatePosition();
 
 		// Positions and sizes for children are now set and we can recurse
-		layoutChildren();
+		layoutChildren(fit);
 	}
 
 	void draw()

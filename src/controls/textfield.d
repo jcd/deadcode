@@ -27,6 +27,7 @@ class TextField : TextEditor
 	override void draw()
 	{
 		renderer.ensureLayedOut(this);
+		renderer.cursorSupported = hasKeyboardFocus;
 		super.draw();
 	}
 }

@@ -12,10 +12,38 @@ import gui.style.parser;
 import gui.style.style;
 import gui.style.types;
 
-version (unittest) import test;
-
 import std.algorithm;
 import std.range;
+
+version (unittest) 
+{
+	import test;
+
+	class TestStylable : Stylable
+	{
+		string n;
+		Stylable _parent;
+		
+		@property 
+		{		
+			string name() const pure @safe { return n; }
+			void name(string nn) { n = nn; }
+			
+			bool matchStylable(string stylableName) const pure nothrow @safe { return matchStylableImpl(this, stylableName); }
+			const(string[]) classes() const pure nothrow @safe { return [""]; }
+			bool hasKeyboardFocus() const pure nothrow @safe { return false; }
+			bool isMouseOver() const pure nothrow @safe { return false; }
+			bool isMouseDown() const pure nothrow @safe { return false; }
+			Stylable parent() pure nothrow @safe { return _parent; }
+		}
+	
+		this(Stylable p)
+		{	
+			_parent = p;
+		}
+	}
+}
+
 
 bool matchStylableImpl(S)(S styleable, string stylableName) pure nothrow @safe
 {
@@ -110,6 +138,11 @@ class StylableSelector
 		auto classMatch = className.empty ? true : classNames.canFind(className);
 		auto pseudoMatch = true;
 
+		if (w.name == "Menu/leaf")
+		{
+			pseudoMatch = true;
+		}
+
 		final switch (pseudoClass)
 		{
 			case PseudoClass.none:
@@ -144,14 +177,14 @@ unittest
 	auto testWin = createTestWindow();
 
 	// Wildcard match
-	auto w1 = new Stylable(testWin);
+	auto w1 = new TestStylable(testWin);
 	auto sel1 = new StylableSelector(null, null);
 	AssertIs(sel1.match(w1, null), w1, "Wildcard StylableSelector matches unnamed");
 	w1.name = "testStylable";
 	AssertIs(sel1.match(w1, null), w1, "Wildcard StylableSelector matches named");
 
 	// Name match
-	auto w2 = new Stylable(testWin);
+	auto w2 = new TestStylable(testWin);
 	auto sel2 = new StylableSelector(null, "testStylable");
 	AssertIsNot(sel2.match(w2, null), w2, "TypeWildcard StylableSelector does not match unnamed");
 	w2.name = "testStylablexx";
@@ -160,13 +193,13 @@ unittest
 	AssertIs(sel2.match(w2, null), w2, "TypeWildcard StylableSelector matches name");
 
 	// Type match
-	auto w3 = new Stylable(testWin);
+	auto w3 = new TestStylable(testWin);
 	auto sel3 = new StylableSelector("Stylable",null);
 	AssertIs(sel3.match(w3, null), w3, "NameWildcard StylableSelector matches direct Stylable");
 	auto sel4 = new StylableSelector("StylableX",null);
 	AssertIsNot(sel4.match(w3, null), w3, "NameWildcard StylableSelector does not match direct StylableX");
 
-	class TestStylable1 : Stylable { this(Stylable w) { super(w); } }
+	class TestStylable1 : TestStylable { this(Stylable w) { super(w); } }
 	class TestStylable2 : TestStylable1 { this(Stylable w) { super(w); } }
 
 	auto w4 = new TestStylable2(testWin);
@@ -198,11 +231,11 @@ class ChildSelector : StylableSelector
 unittest
 {
 	auto win = createTestWindow();
-	auto w1 = new Stylable(win);
+	auto w1 = new TestStylable(win);
 	w1.name = "testParent";
-	auto w2 = new Stylable(w1);
+	auto w2 = new TestStylable(w1);
 	w2.name = "testChild";
-	auto w3 = new Stylable(w2);
+	auto w3 = new TestStylable(w2);
 	w3.name = "testGrandChild";
 
 	auto sel = new ChildSelector(null,"testParent");
@@ -236,11 +269,11 @@ class DescendantSelector : StylableSelector
 unittest
 {
 	auto win = createTestWindow();
-	auto w1 = new Stylable(win);
+	auto w1 = new TestStylable(win);
 	w1.name = "testParent";
-	auto w2 = new Stylable(w1);
+	auto w2 = new TestStylable(w1);
 	w2.name = "testChild";
-	auto w3 = new Stylable(w2);
+	auto w3 = new TestStylable(w2);
 	w3.name = "testGrandChild";
 
 	auto sel = new DescendantSelector(null,"testParent");
@@ -312,9 +345,9 @@ unittest
 	auto testWin = createTestWindow();
 	auto sel1 = new Rule;
 	sel1.selectors ~= new StylableSelector("Stylable", null);
-	auto w1 = new Stylable(testWin);
+	auto w1 = new TestStylable(testWin);
 	w1.name = "testParent";
-	auto w2 = new Stylable(w1);
+	auto w2 = new TestStylable(w1);
 	w2.name = "testChild";
 
 	Assert(sel1.match(w1, null), "Wildcard selector matches single");
@@ -439,11 +472,11 @@ class StyleSheet : Resource!StyleSheet
 unittest
 {
 	auto win = createTestWindow();
-	auto w1 = new Stylable(win);
+	auto w1 = new TestStylable(win);
 	w1.name = "testParent";
-	auto w2 = new Stylable(w1);
+	auto w2 = new TestStylable(w1);
 	w2.name = "testChild";
-	auto w3 = new Stylable(w2);
+	auto w3 = new TestStylable(w2);
 	w3.name = "testGrandChild";
 
 	auto sheet = new StyleSheet;
@@ -456,9 +489,9 @@ unittest
 	// sel1.style.compute();		
 	sheet.rules ~= sel1;
 
-	Assert(sheet.getStyleForStylable(w1).color, Color.red, "Selector(Stylable) w1 has color red");
-	Assert(sheet.getStyleForStylable(w2).color, Color.red, "Selector(Stylable) w2 has color red");
-	Assert(sheet.getStyleForStylable(w3).color, Color.red, "Selector(Stylable) w2 has color red");
+	Assert(sheet.getStyle(w1).color, Color.red, "Selector(Stylable) w1 has color red");
+	Assert(sheet.getStyle(w2).color, Color.red, "Selector(Stylable) w2 has color red");
+	Assert(sheet.getStyle(w3).color, Color.red, "Selector(Stylable) w2 has color red");
 
 	// ChildSelector
 	Rule sel2 = new Rule;
@@ -468,9 +501,9 @@ unittest
 	//sel2.style.compute();
 	sheet.rules ~= sel2;
 
-	Assert(sheet.getStyleForStylable(w1).color, Color.red, "Selector(#testParent Stylable) w1 has color red");
-	Assert(sheet.getStyleForStylable(w2).color, Color.green, "Selector(#testParent Stylable) w2 has color green");
-	Assert(sheet.getStyleForStylable(w3).color, Color.red, "Selector(#testParent Stylable) w3 has color red");
+	Assert(sheet.getStyle(w1).color, Color.red, "Selector(#testParent Stylable) w1 has color red");
+	Assert(sheet.getStyle(w2).color, Color.green, "Selector(#testParent Stylable) w2 has color green");
+	Assert(sheet.getStyle(w3).color, Color.red, "Selector(#testParent Stylable) w3 has color red");
 
 	// DescendantSelector
 	Rule sel3 = new Rule;
@@ -480,9 +513,9 @@ unittest
 	//sel3.style.compute();
 	sheet.rules ~= sel3;
 
-	Assert(sheet.getStyleForStylable(w1).color, Color.red, "Selector(#testParent Stylable) w1 has color red");
-	Assert(sheet.getStyleForStylable(w2).color, Color.blue, "Selector(#testParent Stylable) w2 has color blue");
-	Assert(sheet.getStyleForStylable(w3).color, Color.blue, "Selector(#testParent Stylable) w3 has color blue");
+	Assert(sheet.getStyle(w1).color, Color.red, "Selector(#testParent Stylable) w1 has color red");
+	Assert(sheet.getStyle(w2).color, Color.blue, "Selector(#testParent Stylable) w2 has color blue");
+	Assert(sheet.getStyle(w3).color, Color.blue, "Selector(#testParent Stylable) w3 has color blue");
 }
 
 class StyleSheetSerializer : ResourceSerializer!StyleSheet

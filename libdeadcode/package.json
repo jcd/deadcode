@@ -1,0 +1,55 @@
+{
+	"name": "libdeadcode",
+	"description": "DeadCode Library - Code Editor Library",
+	"homepage": "http://foobar.dk",
+	"copyright": "Copyright © 2013, Jonas Drewsen",
+	"authors": [
+		"Jonas Drewsen"
+	],
+	"dependencies": {
+		"derelict-gl3": "1.0.10",
+		"derelict-sdl2": "1.2.8",
+		"derelict-ft": "1.0.0"
+	},
+	"buildRequirements": ["allowWarnings"],
+	"configurations": [
+		{
+	        "name": "libdeadcode-debug",
+	        "targetType": "staticLibrary",
+			"targetName" : "libdeadcoded",
+			"excludedSourceFiles" : [ "src/app.d" ],
+			"lflags": ["/NOCODEVIEW"],
+			"dflags": ["-H", "-Hdimport", "-vgc", "-profile"],
+			"buildOptions" : [ "debugMode", "debugInfo"]
+		},
+		{
+	        "name": "debugexe",
+	        "targetType": "executable",
+			"targetName" : "ded-testdebug",
+			"mainSourceFile" : "src/app.d",
+			"lflags": ["/NOCODEVIEW"],
+			"buildOptions" : [ "debugMode", "debugInfo"]
+		},
+		{
+	        "name": "udebug",
+	        "targetType": "executable",
+			"targetName" : "ded-debug",
+			"lflags": ["/NOCODEVIEW"],
+			"buildOptions" : [ "debugMode", "debugInfo","unittests"]
+		},
+		{
+	        "name": "release",
+	        "targetType": "executable",
+			"targetName" : "ded",
+			"lflags": ["/NOCODEVIEW"],
+			"buildOptions" : [ "releaseMode", "debugInfo"]
+		},
+		{
+	        "name": "unittest",
+	        "targetType": "executable",
+			"targetName" : "ded-unittest",
+			"lflags": ["/NOCODEVIEW"],
+			"buildOptions" : ["unittests", "debugMode", "debugInfo"]
+		}
+	]
+}

@@ -7,81 +7,160 @@ import std.container;
 import std.signals;
 import std.string;
 
-class TextStyler(Text)
+T instantiate(T)(T o)
 {
-	Text text;
+	import std.stdio;
+	T result = cast(T) o.classinfo.create();
+	writefln("Instantiating %s", result.classinfo.name);
+	return result;
+}
 
+static 
+{
+	TextStyler[] s_Stylers;
+
+	void register(TextStyler styling)
+	{
+		s_Stylers ~= styling;	
+	}
+
+	TextStyler createTextStyler(BufferView text)
+	{
+		return createTextStyler(text, text.name);
+	}
+
+	TextStyler createTextStyler(Text)(Text text, string name)
+	{
+		TextStyler styler;
+		
+		foreach (s; s_Stylers)
+		{
+			if (s.canStyle(name))
+			{
+				styler = instantiate(s);
+				break;
+			}
+		}
+
+		if (styler is null)
+			styler = new TextStyler();
+
+		static if ( is(Text : BufferView) )
+		{
+			text.onInsert.connect(&styler.textInsertedCallback);
+			text.onRemove.connect(&styler.textRemovedCallback);
+		}
+		return styler;
+	}
+}
+
+static this()
+{
+	register(new StyleSheetStyler());
+	register(new ChangeLogStyler());
+}
+
+class TextStyler
+{
+//	protected Text _text;
 	protected RegionSet _regionSet;
 	private Region _dirtyRegion;
 
+	//@property Text text()
+	//{
+	//    return _text;
+	//}
+	
 	@property RegionSet regionSet()
 	{
-		if (!_dirtyRegion.empty)
-		{
-			update(_dirtyRegion);
-			_dirtyRegion.a = _dirtyRegion.b;
-		}
+		//if (!_dirtyRegion.empty)
+		//{
+		//    update(_dirtyRegion);
+		//    _dirtyRegion.a = _dirtyRegion.b;
+		//}
 		return _regionSet;
 	}
 
 	mixin Signal!() onChanged;
 
-	this(Text text)
+	this()
 	{
-		this.text = text;
 		this._regionSet = new RegionSet();
-		
-		static if ( is(Text : BufferView) )
-		{
-			text.onInsert.connect(&textInsertedCallback);
-			text.onRemove.connect(&textRemovedCallback);
-		}
 	}
 
-	static if ( is(Text : BufferView) )
+	/** Returns true if the name can be styled
+	
+		The name should be either a filename or a full file path.
+
+		Returns: true if this styler can handle the file type
+	*/
+	bool canStyle(string name) const pure
 	{
-		protected void textInsertedCallback(BufferView b, BufferView.BufferString str,int from)
-		{
-			// Update region set
-			_regionSet.entriesInserted(from, str.length);
+		return true;
+	}
 
-			scheduleRegion(Region(from, from + str.length));
+//    void initialize(Text text)
+//    {
+//        if (_regionSet !is null)
+//            throw new Exception("Double initialization of ", typeof(this).stringof);
+//
+////		this.text = text;
+//        this._regionSet = new RegionSet();
+//        
+//        //static if ( is(Text : BufferView) )
+//        //{
+//        //    text.onInsert.connect(&textInsertedCallback);
+//        //    text.onRemove.connect(&textRemovedCallback);
+//        //}
+//    }
+
+	// In case a bufferview is hooked up to this styling
+	protected void textInsertedCallback(BufferView b, BufferView.BufferString str,int from)
+	{
+		// Update region set
+		_regionSet.entriesInserted(from, str.length);
+		import std.stdio;
+		//writefln("Insert styler %s from %s", str.length, from);
+		scheduleRegion(Region(from, from + str.length));
+	}
+
+	// In case a bufferview is hooked up to this styling
+	protected void textRemovedCallback(BufferView b, BufferView.BufferString str,int from)
+	{
+		// Update region set
+		_regionSet.entriesRemoved(from, str.length);
+		
+		import std.stdio;
+		writefln("Removed styler %s from %s", str.length, from);
+
+		// Just dirty something on the same line
+		if (from > 0)
+		{
+			scheduleRegion(Region(from-1, from));
 		}
-
-		protected void textRemovedCallback(BufferView b, BufferView.BufferString str,int from)
+		else if (b.length)
 		{
-			// Update region set
-			_regionSet.entriesRemoved(from, str.length);
-			
-			// Just dirty something on the same line
-			if (from > 0)
-			{
-				scheduleRegion(Region(from-1, from));
-			}
-			else if (b.length)
-			{
-				scheduleRegion(Region(0, 1));
-			}
-			else
-			{
-				// Empty buffer. We can clear the regions set and dirty area
-				_regionSet.clear();
-				_dirtyRegion.a = _dirtyRegion.b;
-			}
+			scheduleRegion(Region(0, 1));
+		}
+		else
+		{
+			// Empty buffer. We can clear the regions set and dirty area
+			_regionSet.clear();
+			_dirtyRegion.a = _dirtyRegion.b;
 		}
 	}
 
 	void scheduleRegion(Region r)
 	{
 		_dirtyRegion = _dirtyRegion.cover(r);
-		if (_dirtyRegion.b > text.length)
-			_dirtyRegion.b = text.length;
+		//if (_dirtyRegion.b > text.length)
+		//    _dirtyRegion.b = text.length;
 	}
 
 	void scheduleAll()
 	{
 		_dirtyRegion.a = 0;
-		_dirtyRegion.b = text.length;
+		_dirtyRegion.b = int.max;
 	}
 
 	string styleIDToName(int id)
@@ -89,125 +168,72 @@ class TextStyler(Text)
 		return null;
 	}
 
-	protected void styleRegion(Region r)
+	/// This should overridden in derived classes to do the actual styling
+	private void styleRegion(Text)(Region r, Text text)
+	{
+		assert(r.a >= 0 && r.a <= text.length);
+		assert(r.b >= 0 && r.b <= text.length);
+		import std.stdio;
+		writeln("styler.styleRegion() ", _dirtyRegion);
+		static if (is(Text : BufferView))
+			styleBufferViewRegion(r, text);
+		else
+			styleStringRegion(r, text);
+	}
+
+	protected void styleBufferViewRegion(Region r, BufferView text)
 	{
 		_regionSet.merge(r.a, r.b, 0);
 	}
 
-	protected void update(Region r)
+	protected void styleStringRegion(Region r, string text)
 	{
+		_regionSet.merge(r.a, r.b, 0);
+	}
+
+	private void forceUpdate(Text)(Region r, Text text)
+	{
+		// Sanitize the region
+		r = r.clip(0, text.length);
+		
 		// Look for the preceeding and succeeding whitespace and form a region using that 
 		// to use for restyling.
 		// Restyle entire lines
 		static if ( is(Text : BufferView) )
-		{
-			
+		{		
 			int a = text.buffer.findOneOfReverse(r.a, "\r\n");
 			int b = text.buffer.findOneOf(r.b, "\r\n");
 			a = a == int.max ? 0 : a;
 			b = b == int.max ? text.length : b;
-			styleRegion(Region(a, b));
+			styleRegion(Region(a, b), text);
 			//styleRegion(Region(0, text.length));
 		}
 		else
 		{
-			styleRegion(Region(0, text.length));
+			styleRegion(Region(0, text.length), text);
 		}
 	}
 
-	protected void update()
+	private void updateAll(Text)(Text text)
 	{
 		_regionSet.clear();
-		update(Region(0, text.length, 0));
+		forceUpdate(Region(0, text.length, 0), text);
 	}
-}
 
-class DSourceStyler(Text) : TextStyler!Text
-{
-	enum DStyle
+	private void update(Text)(Text text)
 	{
-		other = 0,
-		declaration = 1,
-		type = 2
-	};
-	
-	this(Text text)
-	{
-		super(text);
-	}
-	
-	override protected void styleRegion(Region r)
-	{
-		// TODO: use ctRegex
-		enum decls = [ "@property"d, 
-			"alias", "auto", "assert", "break", "case", "class", "const", "default", "do", "else", "enum", "extern", "for", "foreach", "goto", "if", "import", "in", "interface", "is", "!is",
-			"module", "new", "nothrow", "null", "override", "package", "private", "public", "pure", "return", "safe", "scope", 
-			"static", "struct", "switch", "template", "this", "union", "unittest", "version", "while" ];
-		enum types = [ "bool"d, 
-			"byte", "char", "dchar", "double", "dstring", "float", "int", "long", "short", "size_t", "string", "ubyte", "uint", "ulong", 
-			"ushort", "void", "wchar", "wstring" ];
-		dstring re = "\\b(";
-		dstring delim = "";
-		foreach (tt; decls)
+		//import std.stdio;
+		//writeln("styler.update() ", _dirtyRegion);
+		if (!_dirtyRegion.empty)
 		{
-			re ~= delim;
-			re ~= tt;
-			delim = "|";
-		}
-		foreach (tt; types)
-		{
-			re ~= delim;
-			re ~= tt;
-		}
-		re ~= ")\\b";
-		
-		import std.regex;		
-		auto ctr = regex(re, "mg");
-
-		int[dstring] templates;
-
-		foreach (d; decls)
-			templates[d] = DStyle.declaration;
-		foreach (t; types)
-			templates[t] = DStyle.type;
-
-		import std.array;
-		auto buf = array(text[r.a..r.b]); // TODO: make request for adding string like support to std.regex
-
-		size_t lastEndIdx = 0;
-		size_t offset = r.a;
-
-		foreach (m; match(buf, ctr))
-		{
-			auto t = templates[m.hit];
-			auto begin = m.pre.length;
-			auto end = begin + m.hit.length;
-			if (begin != lastEndIdx)
-				_regionSet.set(offset + lastEndIdx, offset + begin, DStyle.other);
-			_regionSet.set(offset + begin, offset + end, t);
-			lastEndIdx = end;
-		}
-
-		if (lastEndIdx != r.b)
-			_regionSet.set(offset + lastEndIdx, r.b, DStyle.other);
-
-		onChanged.emit();
-	}
-		
-	override string styleIDToName(int id)
-	{
-		DStyle styleID = cast(DStyle)id;
-		final switch(styleID)
-		{
-		case DStyle.other:
-			return "dsource-other";
-		case DStyle.declaration:
-			return "dsource-declaration";
-		case DStyle.type:
-			return "dsource-type";
+			//writeln("styler.update()... ");
+		    forceUpdate(_dirtyRegion, text);
+		    _dirtyRegion.a = _dirtyRegion.b;
 		}
 	}
 }
+
+
 
 
 unittest
@@ -236,7 +262,7 @@ unittest
 */
 }
 	
-class StyleSheetStyler(Text) : TextStyler!Text
+class StyleSheetStyler : TextStyler
 {
 	enum StyleSheetStyle
 	{
@@ -245,12 +271,12 @@ class StyleSheetStyler(Text) : TextStyler!Text
 		type = 2
 	};
 
-	this(Text text)
+	override bool canStyle(string name) const pure
 	{
-		super(text);
+		return name.endsWith(".stylesheet");
 	}
 
-	protected override void styleRegion(Region r)
+	protected override void styleBufferViewRegion(Region r, BufferView text)
 	{
 		// TODO: use ctRegex
 		enum keys = [ "background"d, "color", "font", "padding" ];
@@ -282,6 +308,8 @@ class StyleSheetStyler(Text) : TextStyler!Text
 			templates[t] = StyleSheetStyle.type;
 
 		import std.array;
+		assert(r.a >= 0 && r.a <= text.length);
+		assert(r.b >= 0 && r.b <= text.length);
 		auto buf = array(text[r.a .. r.b]);
 		
 		size_t lastEndIdx = 0;
@@ -325,7 +353,7 @@ class StyleSheetStyler(Text) : TextStyler!Text
 	}
 }
 
-class ChangeLogStyler(Text) : TextStyler!Text
+class ChangeLogStyler : TextStyler
 {
 	enum Styling
 	{
@@ -336,18 +364,20 @@ class ChangeLogStyler(Text) : TextStyler!Text
 		bullet
 	};
 
-	this(Text text)
+	override bool canStyle(string name) const pure 
 	{
-		super(text);
+		return name.toLower.startsWith("changelog");
 	}
 
-	private void setStyleByRegex(Region r, dstring re, Styling styling)
+	private void setStyleByRegex(Text)(Region r, dstring re, Styling styling, Text text)
 	{
 		import std.regex;		
 		//auto ctr = regex(r"\s+([a-f0-9]+)\*?\s+ ", "mg");		
 		auto ctr = regex(re, "mg");		
 
 		import std.array;
+		assert(r.a >= 0 && r.a <= text.length);
+		assert(r.b >= 0 && r.b <= text.length);
 		auto buf = array(text[r.a .. r.b]);
 		size_t offset = r.a;
 
@@ -359,14 +389,14 @@ class ChangeLogStyler(Text) : TextStyler!Text
 		}
 	}
 
-	protected override void styleRegion(Region r)
+	protected override void styleBufferViewRegion(Region r, BufferView text)
 	{
 		import std.stdio;
 		_regionSet.set(r.a, r.b, Styling.other);
-		setStyleByRegex(r, r"^()(Changes:|Overview:)\s*$"d, Styling.subTitle);
-		setStyleByRegex(r, r"^()(Release.*?\s+[\.0-9]+\s.*)$"d, Styling.releaseTitle);	
-		setStyleByRegex(r, r"^(\s+)([0-9a-f]+)\s"d, Styling.changeset);
-		setStyleByRegex(r, r"(\s)(\*)\s"d, Styling.bullet);
+		setStyleByRegex(r, r"^()(Changes:|Overview:)\s*$"d, Styling.subTitle, text);
+		setStyleByRegex(r, r"^()(Release.*?\s+[\.0-9]+\s.*)$"d, Styling.releaseTitle, text);	
+		setStyleByRegex(r, r"^(\s+)([0-9a-f]+)\s"d, Styling.changeset, text);
+		setStyleByRegex(r, r"(\s)(\*)\s"d, Styling.bullet, text);
 		onChanged.emit();
 	}
 

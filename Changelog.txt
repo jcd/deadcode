@@ -7,7 +7,7 @@ Overview:
     * @Menu and @Shortcut attribute support for extensions
     * @CommandFunction attibute for using functions as commands
     * Support for general command call and completion on command control
-    * Manu workflow improvements and fixes
+    * Many workflow improvements and fixes
 
 Changes:
 

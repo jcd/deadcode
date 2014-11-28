@@ -10,7 +10,7 @@
 }
 
 Globals {
-	page-down-speed: 8.0;
+	page-down-speed: 16.0;
 }
 
 TestWidget {
@@ -131,15 +131,39 @@ UnittestAnchor:focus {
 }
 
 .dsource-other {
-	color: #f8f8f2;
+	color: #f2f8f8;
 }
 
-.dsource-declaration {
-	color: #2a9eb9;
+.dsource-keyword {
+	color: #93C763;
+}
+
+.dsource-comment {
+	color: #66747B;
+}
+
+.dsource-doc {
+	color: #99A38A;
+}
+
+.dsource-character-literal {
+	color: #EC7600;
+}
+
+.dsource-number-literal {
+	color: #FFCD22;
+}
+
+.dsource-operator {
+	color: #E8E2B7;
 }
 
 .dsource-type {
-	color: #a0ffa0;
+	color: #678CB1;
+}
+
+.dsource-identifier {
+	color: #f2f8f8;
 }
 
 .stylesheet-other {
@@ -233,6 +257,13 @@ CommandControl.multiline > TextField#commandEntryField
 }	
 
 CommandControl.twoline > TextField#commandEntryField
+{
+	font : url(fonts/cour.ttf) 16;
+	height: 24px;
+	transition: height 0.05s;
+}	
+
+CommandControl.oneline > TextField#commandEntryField
 {
 	font : url(fonts/cour.ttf) 16;
 	height: 24px;
@@ -336,6 +367,7 @@ Tree#Menu {
 }
 
 Tree#Menu.hidden {
+	padding : 0 0 0 0;
 	width: 0%;
 	height: 24px;
 	transition: width 0.1s, height 0.1s;

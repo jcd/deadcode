@@ -10,7 +10,7 @@ import io.iomanager;
 import math._; // Vec2f
 import derelict.sdl2.sdl; 
 import std.range;
-import std.signals;
+import core.signals;
 
 class GUI
 {
@@ -81,6 +81,7 @@ class GUI
 	KeyMod keyMod;
 
 	mixin Signal!string onFileDropped;
+	mixin Signal!() onActivity;
 
 	/*
 	static @property GUI the()
@@ -173,7 +174,7 @@ class GUI
 				Duration d = t2 - t;
 				t = t2;
 				double secs = cast(double)d.total!"hnsecs" * 0.0000001;
-				std.stdio.writeln(std.conv.text("FPS ", 100.0 / secs));
+				// std.stdio.writeln(std.conv.text("FPS ", 100.0 / secs));
 			}
 		}
 	}
@@ -196,6 +197,7 @@ class GUI
 		// TODO: handle multiple windows
 		auto waitForEvents = !timeline.hasPendingAnimation;
 		handleEvents(waitForEvents);
+		onActivity.emit();
 		timeline.update();
 
 		foreach (k, v; _windows)

@@ -3,6 +3,8 @@ module gui.widget;
 import animation.mutator;
 import animation.timeline;
 
+import core.visitor;
+
 import graphics._;
 import gui.event;
 import gui.style;
@@ -10,7 +12,7 @@ import gui.widgetfeature._;
 import gui.window;
 import math._; // Rectf;
 
-import std.signals;
+import core.signals;
 
 // widget
 // control
@@ -47,12 +49,20 @@ class Widget : Stylable
 {	
 	private static WidgetID _nextID = 1u;
 
+	// mixin Reflect;
+
 	WidgetID id;
+	
+	@Persist
 	string _name;
 
+	@Persist
 	float zOrder;
 
+	@Persist
 	bool acceptsKeyboardFocus;
+	
+	@Persist
 	bool manualLayout;
 
 	// Events
@@ -69,15 +79,47 @@ class Widget : Stylable
 
 	Style _targetStyle;
 	Timeline.Runner runner;
-	Style _style;
-
+	Style _computedStyle;
+	Style _widgetSpecificStyle; // Used to set style programatically and will override any
+	
 	WidgetFeature[] features;
 	NineGridRenderer _background;
-
+/*
+	void accept(Serializer v)
+	{
+		v.visit(_name);
+		v.visit(zOrder);
+		v.visit(acceptsKeyboardFocus);
+		v.visit(manualLayout);
+		v.visit(featureNamesxxx);
+		foreach (f; features)
+			v.visit(f);
+	}
+*/
 	const(string[]) classes() const pure nothrow @safe { return null; }
 
 	mixin Signal!(Event) onKeyboardFocusSignal;
 	mixin Signal!(Event) onKeyboardUnfocusSignal;
+
+	// Move features to managers
+	auto featuresByType(T)(Widget w)
+	{
+		return features
+				    .map!(a => cast(T)a)
+				    .filter!(a => a !is null);
+	}
+
+	@property bool hasStyleOverride()
+	{
+		return _widgetSpecificStyle !is null;
+	}
+	
+	@property Style styleOverride()
+	{
+		if (_widgetSpecificStyle is null)
+			_widgetSpecificStyle = new Style("");
+		return _widgetSpecificStyle;
+	}
 
 	// Convenience accessors
 	@property NineGridRenderer background()
@@ -129,11 +171,22 @@ class Widget : Stylable
 		// animate style changes.
 		Style newTargetStyle = window.styleSheet.getStyle(this, classes);
 
-		if (_style is null)
+		if (_computedStyle is null)
 		{
-			_style = newTargetStyle;
-			//_style = newTargetStyle.clone();
+			// Overlay the override style on top of targetStyle
 			_targetStyle = newTargetStyle;
+			
+			Style endTargetStyle = _targetStyle;
+			if (_widgetSpecificStyle !is null)
+			{
+				endTargetStyle = _widgetSpecificStyle.clone();
+				endTargetStyle.styleSheet = null;
+				endTargetStyle.overlay(_targetStyle);
+			}
+
+			_computedStyle = endTargetStyle;
+			//_computedStyle = newTargetStyle.clone();
+			
 		}
 		else if (_targetStyle !is newTargetStyle)
 		{
@@ -141,56 +194,76 @@ class Widget : Stylable
 
 			if (_targetStyle.hasTransitions)
 			{
-				if (_style.styleSheet !is null)
+				if (_computedStyle.styleSheet !is null)
 				{
 					// A transition animation is going to be done and the current style
 					// is owned by a style sheet. Make a clone that the widget can own and
 					// animate.
-					_style = _style.clone();
-					_style.styleSheet = null;
+					_computedStyle = _computedStyle.clone();
+					_computedStyle.styleSheet = null;
 				}
 
 				import animation.interpolate;
 				auto clip = new Clip!Style();
-				//clip.createCurves!CubicCurve(0, _style, 0.5, _targetStyle);
+				//clip.createCurves!CubicCurve(0, _computedStyle, 0.5, _targetStyle);
 				snapshotInterpolatedStyle();
-				clip.createCurves(_style, _targetStyle);
+
+				// Overlay the override style on top of targetStyle
+				Style endTargetStyle = _targetStyle;
+				if (_widgetSpecificStyle !is null)
+				{
+					endTargetStyle = _targetStyle.clone();
+					endTargetStyle.styleSheet = null;
+					endTargetStyle.overlay(_widgetSpecificStyle);
+				}
+
+				clip.createCurves(_computedStyle, endTargetStyle);
+				
 				// clip.createCubicCurve!"x"(0, x, 1, x+100.0);
 				if (runner !is null)
 					runner.abort();
-				runner = window.timeline.animate(_style, clip);
+				runner = window.timeline.animate(_computedStyle, clip);
 			}
 			else 
 			{
 				if (runner !is null)
 					runner.abort();
 
-				if (_style.styleSheet is null)
-					destroy(_style);
-				
-				_style = _targetStyle;
+				if (_computedStyle.styleSheet is null)
+					destroy(_computedStyle);
+
+				// Overlay the override style on top of targetStyle
+				Style endTargetStyle = _targetStyle;
+				if (_widgetSpecificStyle !is null)
+				{
+					endTargetStyle = _targetStyle.clone();
+					endTargetStyle.styleSheet = null;
+					endTargetStyle.overlay(_widgetSpecificStyle);
+				}
+
+				_computedStyle = endTargetStyle;
 			}
 		}
 
-		return _style;
+		return _computedStyle;
 	}
 	
 	// Copy current dimensions of this widget to it style in order to use the style as starting point for 
 	// an animation.
 	private void snapshotInterpolatedStyle()
 	{
-		assert(_style.styleSheet is null);
+		assert(_computedStyle.styleSheet is null);
 		CSSScale nullScale = CSSScale(0, CSSUnit.pixels);
-		// Vec2f p = calcPosition(_style);
+		// Vec2f p = calcPosition(_computedStyle);
 
-		_style.position = CSSPosition.fixed;
-		_style.right = nullScale;
-		_style.bottom = nullScale;
+		_computedStyle.position = CSSPosition.fixed;
+		_computedStyle.right = nullScale;
+		_computedStyle.bottom = nullScale;
 
-		_style.left = CSSScale(_rect.x, CSSUnit.pixels);
-		_style.top = CSSScale(_rect.y, CSSUnit.pixels);
-		_style.width = CSSScale(_rect.w, CSSUnit.pixels);
-		_style.height = CSSScale(_rect.h, CSSUnit.pixels);
+		_computedStyle.left = CSSScale(_rect.x, CSSUnit.pixels);
+		_computedStyle.top = CSSScale(_rect.y, CSSUnit.pixels);
+		_computedStyle.width = CSSScale(_rect.w, CSSUnit.pixels);
+		_computedStyle.height = CSSScale(_rect.h, CSSUnit.pixels);
 	}
 
 	/*
@@ -203,8 +276,8 @@ class Widget : Stylable
 		Style newTargetStyle = window.styleSheet.getStyleForWidget(this);
 		
 		return newTargetStyle;
-		//if (_style.matchesStyle(newTargetStyle))
-		//    return _style;
+		//if (_computedStyle.matchesStyle(newTargetStyle))
+		//    return _computedStyle;
 
 		// Got a new target. Schedule transitions if necessary. (and abort existing)
 		
@@ -214,7 +287,7 @@ class Widget : Stylable
 	//
 	//private void onStyleChanged(UsedStyle s)
 	//{
-	//    if (s !is _style)
+	//    if (s !is _computedStyle)
 	//        s.onChanged.disconnect(&onStyleChanged);
 	//    else
 	//        _sizeDirty = true; // force a redraw... TODO: this also forces layout which is wrong (maybe)
@@ -590,10 +663,11 @@ class Widget : Stylable
 				window.deregister(this);	
 			removeFromParent();
 			_parent = null;
-			return;
 		}
-
-		newParent.addChild(this);		
+		else
+		{
+			newParent.addChild(this);		
+		}
 	}
 
 	/*
@@ -604,7 +678,7 @@ class Widget : Stylable
 		return _parent !is null && _parent.removeChild(this);
 	}
 
-	private void addChild(Widget w) nothrow
+	protected void addChild(Widget w) nothrow
 	{
 		Window oldWindow = w.window;
 		w.removeFromParent();
@@ -619,6 +693,43 @@ class Widget : Stylable
 		_children ~= w;
 	}
 
+	void replaceChild(Widget replaceThisChild, Widget withThisWidget)
+	{
+		import std.array;
+		import std.algorithm;
+		auto idx = _children.countUntil(replaceThisChild);
+		if (idx == -1)
+			return;
+		
+		withThisWidget.parent = null;
+
+		auto old = _children[idx];
+		_children.replaceInPlace(idx, idx+1, [withThisWidget]);
+
+		if (withThisWidget.window is null && window !is null)
+			window.register(withThisWidget);
+	
+		withThisWidget._parent = this;
+
+		old.parent = null;
+	}
+
+	//void moveChildBefore(Widget moveThisChild, Widget beforeThisChild)
+	//{
+	//    import std.array;
+	//    
+	//    auto idx = _children.countUntil(beforeThisChild);
+	//    if (idx == -1)
+	//        return;
+	//    
+	//    _children.insertInPlace(idx, moveThisChild);
+	//
+	//    foreach (ref w; _children)
+	//    {
+	//        if (
+	//    }
+	//}
+
 	/*
 	 * Returns: true is toRemove was removed from this widget ie. was a child
 	 */
@@ -626,7 +737,6 @@ class Widget : Stylable
 	{
 		size_t len = _children.length;
 		_children = std.array.array(std.algorithm.filter!((Widget tw) { return tw.id != toRemove.id; })(_children));
-		window.deregister(toRemove);
 		return len != _children.length;
 	}
 
@@ -759,7 +869,9 @@ class Widget : Stylable
 		EventUsed used = EventUsed.no;
 		
 		if (event.type == EventType.MouseClick)
-			std.stdio.writeln("fdsaf");
+		{
+		//	std.stdio.writeln("fdsaf");
+		}
 
 		if (handler)
 		{
@@ -867,20 +979,28 @@ class Widget : Stylable
 		pos = calcPosition(this);
 	}
 
-	void layout(bool fit)
+	protected void calculateChildrenSizes()
 	{
 		// Get sized ready for the children so that any layouter have them
 		foreach (w; children)
 			if (!w.manualLayout)
 				w.calculateSize();
+	}
 
-		layoutFeatures(false);
-
+	protected void calculateChildrenPositions()
+	{
 		// Position goes last so that a base position calculated by e.g. DirectionalLayout feature
 		// can be used as relative pos for the calcPosition (ie. the styled position)
 		foreach (w; children)
 			if (!w.manualLayout)
 				w.calculatePosition();
+	}
+
+	void layout(bool fit)
+	{
+		calculateChildrenSizes();
+		layoutFeatures(false);
+		calculateChildrenPositions();
 
 		// Positions and sizes for children are now set and we can recurse
 		layoutChildren(fit);
@@ -987,7 +1107,6 @@ class Widget : Stylable
 		//		transform = Mat4f.makeTranslate(Vec3f(wrect.x, wrect.y, 0)) * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
 		transform = transform * Mat4f.makeScale(Vec3f(scale.x, scale.y, 1.0));
 	}
-
 }
 
 bool isInFrontOf(Widget isThis, Widget inFrontOfThis)

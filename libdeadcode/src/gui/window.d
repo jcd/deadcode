@@ -3,6 +3,7 @@ module gui.window;
 import animation.timeline;
 
 import core.time;
+import core.visitor;
 import derelict.sdl2.sdl;
 import graphics._;
 import gui.event;
@@ -11,7 +12,7 @@ import gui.style;
 import gui.widget;
 import math._;
 import std.range;
-import std.signals;
+import core.signals;
 import std.stdio;
 import std.typecons;
 
@@ -38,6 +39,8 @@ class Window : Widget
 	// Return true if event has been used
 	alias EventUsed delegate(ref Event) OnEvent;
 	alias void delegate() OnUpdate;
+
+	// mixin Reflect;
 
 	private
 	{
@@ -302,8 +305,10 @@ class Window : Widget
 				mouseWidgets ~= w.id;
 
 				//std.stdio.writeln("hit ", w.name);
-				bool isDecentSameDepth = (cur is null || w.zOrder == cur.zOrder) && w.isDecendantOf(cur);
-				if ( isDecentSameDepth || w.isInFrontOf(cur) )
+				bool isInFront = cur is null || 
+					w.zOrder > cur.zOrder || // Order is prioritized
+					(w.zOrder == cur.zOrder && w.isDecendantOf(cur)); // And if order is equal then test if in same branch
+				if (isInFront)
 				{
 					//std.stdio.writeln(w.name, " desc of ", cur is null ? "null" : cur.name, " rect ", w.rect.pos.v, w.rect.size.v, p.v);
 					cur = w;
@@ -494,7 +499,7 @@ class Window : Widget
 	{
 		return w.id == mouseGrabbedBy;
 	}
-	
+
 	override void releaseMouse() pure nothrow @safe
 	{
 		// assert(mouseGrabbedBy != NullWidgetID);
@@ -567,11 +572,11 @@ TODO:
 */		
 		if (event.type == EventType.MouseDown)
 		{
-			std.stdio.writeln("Fdsa");
+			//std.stdio.writeln("Fdsa");
 		}
 		if (event.type == EventType.MouseUp)
 		{
-			std.stdio.writeln("Fdsa");
+			//std.stdio.writeln("Fdsa");
 		}
 
 		// !not all events have a mouse pos! remember last mouse pos if needed

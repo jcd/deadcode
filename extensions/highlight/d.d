@@ -8,6 +8,7 @@ import math.region;
 import std.d.lexer;
 import std.d.parser;
 
+import std.range;
 import std.string;
 
 static this()
@@ -32,7 +33,7 @@ class DSourceStyler : TextStyler
 
 	override bool canStyle(string name) const pure
 	{
-		return name.endsWith(".d") || name.endsWith(".di");
+		return name.endsWith(".d") || name.endsWith(".di") || name.startsWith("Buffer ");
 	}
 
 	//void XXstyleRegion(Text)(Region r, Text text)
@@ -40,6 +41,9 @@ class DSourceStyler : TextStyler
 	{
 		import std.array;
 		import std.conv;
+		import extensions.language.d;
+		import std.d.lexer;
+		
 		if (!(r.b >= 0 && r.b <= txt.length))
 			return;
 		assert(r.a >= 0 && r.a <= txt.length);
@@ -48,57 +52,108 @@ class DSourceStyler : TextStyler
 //		auto buf = array(txt[r.a..r.b]).to!string; // TODO: make request for adding string like support to std.regex
 		
 		_regionSet.clear();
-		auto buf = array(txt[0..txt.length]).to!string; // TODO: make request for adding string like support to std.regex
+		 
+		// prefer using existing tokens in buffer and not re-lexing
+		int lastEnd = 0;
+		// if (auto d = txt.dCodeModel)
+		if (false)
+		{
+			// TODO: The tokens used for the parser does not include white space and attaches comments to decl tokens
+			//auto toks = d.tokens;
+			//styleBufferViewRegionHelper!(typeof(toks))(toks);
+		}
+		else
+		{
+			auto buf = array(txt[0..txt.length]).to!string; // TODO: make request for adding string like support to std.regex
 
-		StringCache cache = StringCache(StringCache.defaultBucketCount);
-		LexerConfig config;
-		config.stringBehavior = StringBehavior.source;
-		auto tokens = byToken(cast(ubyte[])buf, config, &cache);
+			StringCache cache = StringCache(StringCache.defaultBucketCount);
+			LexerConfig config;
+			config.stringBehavior = StringBehavior.source;
+			auto tokens = byToken(cast(ubyte[])buf, config, &cache);
+			lastEnd = styleBufferViewRegionHelper!(typeof(tokens))(tokens);
+		}
+		if (lastEnd < txt.length)
+			set(lastEnd, txt.length - lastEnd, DStyle.other);
 
+	}
+
+	private int styleBufferViewRegionHelper(Range)(ref Range tokens)
+	{
+		int lastEnd = 0;
 		while (!tokens.empty)
 		{
 			auto t = tokens.front;
 			tokens.popFront();
 
+			// Untokenable chars
+			if (t.index > lastEnd)
+			    set(lastEnd, t.index - lastEnd, DStyle.other);
+
 			if (isBasicType(t.type))
 			{
 				auto s = str(t.type);
 				set(t.index, s.length, DStyle.type);
+				lastEnd = t.index + s.length;
 			}
 			else if (isKeyword(t.type))
 			{
 				auto s = str(t.type);
 				set(t.index, s.length, DStyle.keyword);
+				lastEnd = t.index + s.length;
 			}
 			else if (t.type == tok!"identifier")
 			{
 				bool isString = t.text == "string";
 				set(t.index, t.text.length, isString ? DStyle.type : DStyle.identifier);
+				lastEnd = t.index + t.text.length;
 			}
 			else if (t.type == tok!"comment")
 			{
 				bool isDoc = t.text.startsWith("/**") || t.text.startsWith("/**") || t.text.startsWith("///");
 				set(t.index, t.text.length, isDoc ? DStyle.doc : DStyle.comment);
+				lastEnd = t.index + t.text.length;
 			}
 			else if (isStringLiteral(t.type) || t.type == tok!"characterLiteral")
+			{
 				set(t.index, t.text.length, DStyle.characterLiteral);
+				lastEnd = t.index + t.text.length;
+			}
 			else if (isNumberLiteral(t.type))
+			{
 				set(t.index, t.text.length, DStyle.numberLiteral);
+				lastEnd = t.index + t.text.length;
+			}
 			else if (isOperator(t.type))
 			{
 				auto s = str(t.type);
 				set(t.index, s.length, DStyle.operator);
+				lastEnd = t.index + s.length;
 			}
 			else if (t.type == tok!"specialTokenSequence" || t.type == tok!"scriptLine")
+			{
 				set(t.index, t.text.length, DStyle.other);
+				lastEnd = t.index + t.text.length;
+			}
 			else
+			{
 				set(t.index, t.text.length, DStyle.other);
+				
+				// In case of invalid token the text is empty
+				if (t.text.length)
+					lastEnd = t.index + t.text.length;
+			}
 		}
+
+		return lastEnd;
 	}
 
 	void set(int a, int len, DStyle st)
 	{
-		_regionSet.set(a, a + len, st);
+		// We can simply append since order it guaranteed
+		_regionSet ~= Region(a, a + len, st); 
+	
+		//_regionSet.set(a, a + len, st);
+		// _regionSet.merge(Region(a, a + len, st));
 	}
 
 	protected void xxxstyleBufferViewRegion(Region r, BufferView text)

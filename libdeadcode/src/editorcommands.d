@@ -11,39 +11,6 @@ static import std.conv;
 // move imports into func when compiler does break on it
 import std.algorithm;
 
-auto filesystemCompletions(string path)
-{	
-	import std.file;
-	import std.path; 
-	import std.string;
-
-	string relDirPath = path;
-	string filenamePrefix;
-	if (!path.empty)
-	{
-		auto ch = path[$-1];
-		if (!isDirSeparator(ch))
-		{
-			relDirPath = dirName(path);
-			filenamePrefix = baseName(path);
-		}
-			
-		if (relDirPath == ".")
-			relDirPath = "";
-	}
-
-	//auto dirPath = dirName(absolutePath(path));
-	//	auto filenamePrefix = baseName(path);	
-
-	debug std.stdio.writeln(path, " ", relDirPath, " : ", filenamePrefix, " ", dirEntries(relDirPath, SpanMode.shallow));
-
-	return dirEntries(relDirPath, SpanMode.shallow)
-		.filter!(a => a.name.baseName.startsWith(filenamePrefix))
-		.map!(a => a.isDir ? tr(a.name, r"\", "/") ~ '/' : tr(a.name, r"\", "/"));
-		//.filter!(a => a.name.baseName.startsWith(filenamePrefix))
-		//.map!(a => a.isDir ? buildNormalizedPath(relDirPath, a.name.baseName, "") : a.name);
-}
-
 enum getBufferOrReturn = q{
 	auto b = app.currentBuffer;
 	if (b is null)
@@ -484,54 +451,7 @@ void register(GUIApplication app)
 	//    }
 	});
 
-	cmgr.create("edit.saveBuffer", "Save file", 
-				null,
-				delegate(CommandParameter[] data) {
-		mixin(getBufferOrReturn);
-		auto view = b;
-    	auto file = std.stdio.File(view.name, "wb");
-		view.write(file);
-    	file.flush();
-    	file.close();
-    	std.stdio.writefln("Wrote %s", view.name);
-    });
-
-	cmgr.create("edit.save", "Save file", 
-				null,
-				delegate(CommandParameter[] data) {
-		mixin(getBufferOrReturn);
-		auto view = b;
-		// handle encoding
-		auto file = std.stdio.File(view.name, "wb");
-		view.write(file);
-		file.flush();
-		file.close();
-		std.stdio.writefln("Wrote %s", view.name);
-	});
-
-	class OpenFileCommand : Command
-	{
-		override @property string name() const { return "edit.open"; }
-		override @property string description() const { return "Open file"; }
-
-		this()
-		{
-			super(createParams(""));
-		}
-
-		override void execute(CommandParameter[] data)
-		{
-			auto path = data[0].get!string;
-			app.openFile(path);
-		}
-
-		override CompletionEntry[] getCompletions(CommandParameter[] data)
-		{
-			return std.array.array(filesystemCompletions(data[0].get!string()).map!(a => CompletionEntry(a,a))());
-		}
-	}
-
-	cmgr.add(new OpenFileCommand);
+	// cmgr.add(new OpenFileCommand);
 
 	class ShowBufferCommand : Command
 	{
@@ -598,9 +518,7 @@ void register(GUIApplication app)
 			}
 			else
 			{
-				auto cmd = app.commandManager.lookup("app.toggleCommandArea");
-				auto args = createArgs("edit.incrSearch ");
-				cmd.execute(args);
+				app.commandManager.execute("app.toggleCommandArea", createArgs("edit.incrSearch "));
 			}
 		}
 

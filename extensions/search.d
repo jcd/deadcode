@@ -36,7 +36,7 @@ class SearchCommand : BasicCommand
 	}
 }
 
-@MenuItem("Edit/Search2")
+//@MenuItem("Edit/Search2")
 @Shortcut("<ctrl> + j")
 @Shortcut("<alt> + j", "Lin")
 void search2(GUIApplication app, string needle)
@@ -65,7 +65,7 @@ void search2(GUIApplication app, string needle)
 		app.currentBuffer.cursorPoint = app.currentBuffer.cursorPoint + idx;
 }
 
-@MenuItem("Edit/Uppercase")
+//@MenuItem("Edit/Uppercase")
 @Shortcut("<ctrl> + u")
 void wordUppercase(GUIApplication app, string dummy)
 {
@@ -92,7 +92,7 @@ void wordUppercase(GUIApplication app, string dummy)
 	b.cursorPoint = origPoint;
 }
 
-@MenuItem("Text/Uppercase") 
+//@MenuItem("Text/Uppercase") 
 @Shortcut("<ctrl> + o")
 void textUppercase(GUIApplication app, string dummy)
 {
@@ -102,10 +102,26 @@ void textUppercase(GUIApplication app, string dummy)
 		b.replace(cast(immutable)std.uni.toUpper(b.getText(r)), r);
 }
 
-@MenuItem("Dub/Uppercase2") 
+//@MenuItem("Dub/Uppercase2") 
 @Shortcut("<ctrl> + r")
 void textUppercase2(BufferView buf)
 {
-	buf.transform!(std.uni.toUpper)(RegionQuery.selectionOrWord);
+	buf.map!(std.uni.toUpper)(RegionQuery.selectionOrWord);
 }
 
+/*
+@MenuItem("Dub/Uppercase3") 
+@Shortcut("<ctrl> + R")
+void textUppercase3(BufferView buf)
+{
+	import std.uni;
+	auto r = buf[RegionQuery.selectionOrWord];
+	
+		// auto r = buf.getRegionView(RegionQuery.selectionOrWord);
+	r.replace(r.toUpper);
+	
+	r.toUpper.copy(r);
+	
+	r = toUpper(r);
+}
+*/

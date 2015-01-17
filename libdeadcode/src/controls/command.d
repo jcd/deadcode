@@ -9,6 +9,7 @@ import core.commandparameter;
 import graphics._;
 import gui.event;
 import gui.keycode;
+import gui.label;
 import gui.models;
 import gui.style;
 import gui.styledtext;
@@ -123,7 +124,7 @@ class CommandControl : Widget
 	float height; // height when control is visible
 	float onelineHeight;
 
-	mixin styleProperty!("float", "expandDuration");
+	// mixin styleProperty!("float", "expandDuration");
 
 	enum Mode 
 	{
@@ -134,14 +135,18 @@ class CommandControl : Widget
 	}
 
 	Mode _mode = Mode.hidden;
-
+	void delegate(bool, string) _promptDelegate;
+	CompletionEntry[] delegate(string) _completionDelegate;
+	bool _promptCompletionsShown;
+	
 	//float expandDuration; //
-	float contractDuration; //
+	// float contractDuration; //
 
 	TextField commandField;
 	TextEditor completionWidget;
 	CompletionListStyler completionStyler;
-	
+	Label questionLabel;
+
 	WidgetID resumeWidgetID;
 	string[string] commandMap;
 	GUIApplication app;
@@ -195,9 +200,9 @@ class CommandControl : Widget
 		app = _app;
 		commandMap = [ "f" : "edit.open", "b" : "edit.showBuffer" ];
 		
-		expandDuration = 0.10f;
-		clearExpandDuration();
-		contractDuration = 0.03f;
+		//expandDuration = 0.10f;
+		/// clearExpandDuration();
+		//contractDuration = 0.03f;
 		height = _height;
 		onelineHeight = 24;
 		
@@ -207,7 +212,15 @@ class CommandControl : Widget
 		cycleBufferStartOffset = -1; // cycling off initially
 
 		// Layout
-		features ~= new VerticalLayout;
+		//features ~= new VerticalLayout;
+		features ~= new GridLayout(GridLayout.Direction.column, 2);
+//        auto commandContainer = new Widget(this);
+//        commandContainer.name = "commandContainer";
+////		commandContainer.features ~= new HorizontalLayout;
+//        commandContainer.features ~= new GridLayout(GridLayout.Direction.column, 2);
+
+		questionLabel = new Label("");
+		questionLabel.parent = this;
 
 		// Command text entry field
 		commandField = new TextField(this, bufView);
@@ -218,6 +231,9 @@ class CommandControl : Widget
 		commandField.onCommandCallback = (Event event, Widget w) => onCommand(event);
 		commandField.onKeyDownCallback = (Event event, Widget w) => onKeyDown(event);
 		commandField.onKeyUpCallback = (Event event, Widget w) => onKeyUp(event);
+
+		auto ww = new Widget(this, 0, 0, 1, 1); // dummy for grid cell
+		ww.name = "dummy";
 
 		// Child widget showing the completions
 		auto completionView = app.bufferViewManager.create();
@@ -235,10 +251,21 @@ class CommandControl : Widget
 
 		onKeyboardUnfocusCallback = (Event ev, Widget w) {
 			hide();
+			if (_promptDelegate !is null)
+				endPrompt(false, commandField.text.to!string);
 			return EventUsed.yes;
 		};
 	}
-
+	
+	private void endPrompt(bool success, string result)
+	{
+		_promptDelegate(success, result);
+		_promptDelegate = null;
+		_completionDelegate = null;
+		_promptCompletionsShown = false;
+		questionLabel.text = "";
+	}
+		
 	override EventUsed onMouseClick(Event event)
 	{
 		if (!isShown)
@@ -252,11 +279,22 @@ class CommandControl : Widget
 		{
 			hide();
 			clearCompletions();
+			if (_promptDelegate is null)
+				executeCommand();
+			else
+			{				
+				endPrompt(false, commandField.text.to!string);
+			}
 		}
 		else if (ev.keyCode == stringToKeyCode("return"))
 		{
 			hide();
-			executeCommand();
+			if (_promptDelegate is null)
+				executeCommand();
+			else
+			{
+				endPrompt(true, commandField.text.to!string);
+			}
 		}
 		else if (ev.mod == 0 && isBufferCycleMode)
 		{
@@ -272,6 +310,9 @@ class CommandControl : Widget
 
 	override EventUsed onKeyUp(Event ev)
 	{
+		if (_promptCompletionsShown)
+			updatePromptCompletions();
+
 		if (ev.mod == 0 && isBufferCycleMode)
 		{
 			hide();
@@ -300,11 +341,25 @@ class CommandControl : Widget
 		switch (event.name)
 		{
 		case "edit.commitCompletion":
+			if (_promptDelegate is null)
+			{
+				executeCommand();
+			}
+			else
+			{
+				endPrompt(true, commandField.text.to!string);
+			}
 			hide();
-			executeCommand();
 			return EventUsed.yes;
 		case "edit.complete":
-			completeCommand();
+			if (_promptDelegate is null)
+				completeCommand();
+			else if (_completionDelegate !is null)
+			{
+				if (_promptCompletionsShown)
+					completePrompt();
+				updatePromptCompletions();
+			}
 			return EventUsed.yes;
 		case "edit.incrFind":
 			if (visible)
@@ -361,42 +416,53 @@ class CommandControl : Widget
 		if (completionStyler.lineHighlighted > 0)
 		{
 			completionStyler.lineHighlighted--;
-			if (completionStyler.lineHighlighted < completionWidget.bufferView.lineOffset)
-				completionWidget.bufferView.scrollUp();
+			auto bufView = completionWidget.bufferView;
+			bufView.scrollToLineInView(completionStyler.lineHighlighted);
+			//if (completionStyler.lineHighlighted < completionWidget.bufferView.lineOffset)
+			//    completionWidget.bufferView.scrollUp();
 			completionWidget.renderer.textStyler.scheduleAll();
 		}	
 	}
 
 	void navigateDown()
 	{
-		auto lc = completionWidget.bufferView.buffer.lineCount;			
+		auto bufView = completionWidget.bufferView;
+		auto lc = bufView.buffer.lineCount;			
 		if (lc > completionStyler.lineHighlighted)
 		{
 			completionStyler.lineHighlighted++;
-			if (completionStyler.lineHighlighted > (completionWidget.bufferView.lineOffset + completionWidget.bufferView.visibleLineCount))
-				completionWidget.bufferView.scrollDown();
+			bufView.scrollToLineInView(completionStyler.lineHighlighted);
+			//if (completionStyler.lineHighlighted > (bufView.lineOffset + bufView.visibleLineCount))
+			//bufView.scrollToLineInView(completionStyler.lineHighlighted);
+			//if (!bufView.isLineInView(completionStyler.lineHighlighted))
+			//    bufview.scrollDown();
 			completionWidget.renderer.textStyler.scheduleAll();
 		}	
 	}
 
 	void navigateTo(int idx)
 	{		
-		int prev = -1;
-		while (idx > completionStyler.lineHighlighted && prev != completionStyler.lineHighlighted)
-		{
-			prev = completionStyler.lineHighlighted;
-			navigateDown();
-		}
-		prev = -1;
-		while (idx < completionStyler.lineHighlighted && idx >= 0 && prev != completionStyler.lineHighlighted)
-		{
-			prev = completionStyler.lineHighlighted;
-			navigateUp();
-		}
+		auto bufView = completionWidget.bufferView;
+		bufView.scrollToLineInView(idx);
+		completionStyler.lineHighlighted = idx;
+		completionWidget.renderer.textStyler.scheduleAll();
+		//int prev = -1;
+		//while (idx > completionStyler.lineHighlighted && prev != completionStyler.lineHighlighted)
+		//{
+		//    prev = completionStyler.lineHighlighted;
+		//    navigateDown();
+		//}
+		//prev = -1;
+		//while (idx < completionStyler.lineHighlighted && idx >= 0 && prev != completionStyler.lineHighlighted)
+		//{
+		//    prev = completionStyler.lineHighlighted;
+		//    navigateUp();
+		//}
 	}
 
 	void cycleBuffers(int i)
 	{
+		bool startingCycleMode = false;
 		if (!isBufferCycleMode)
 		{
 			// Start cycling mode
@@ -404,8 +470,9 @@ class CommandControl : Widget
 			cycleBufferStartOffset = 0;
 			cycleBufferNames = app.getActiveBufferCompletions("");
 			displayStringList(cycleBufferNames);
+			startingCycleMode = true;
 		}
-
+		
 		while (i < 0)
 			i += cycleBufferNames.length;
 		
@@ -413,7 +480,18 @@ class CommandControl : Widget
 		cycleBufferStartOffset = (cycleBufferStartOffset + i) % cycleBufferNames.length;
 
 		app.previewBuffer(cycleBufferNames[cycleBufferStartOffset]);
-		navigateTo(cycleBufferStartOffset);
+		
+		// TODO: This is not solid. It is needed because the completionWidget is animated when it is shown
+		//       and that also animates the visible line count for the bufferView and forces it to 1 line initially
+		if (startingCycleMode)
+		{
+			navigateTo(0);
+			completionStyler.lineHighlighted = cycleBufferStartOffset;
+		}
+		else
+		{
+			navigateTo(cycleBufferStartOffset);
+		}
 	}
 
 	void endCycleBufferMode()
@@ -477,6 +555,19 @@ class CommandControl : Widget
 			return _mode != Mode.hidden;
 			//return h != 0f;
 		}
+	}
+
+	void setPrompt(string question, string answer, void delegate(bool, string) dg, CompletionEntry[] delegate(string) getCompletionsDg = null)
+	{
+		_completionsEnabled = false;
+		completionWidget.bufferView.clear();
+		commandField.bufferView.cursorToBeginningOfLine();
+		commandField.bufferView.deleteToEndOfLine();
+		commandField.bufferView.append(answer);
+		_promptDelegate = dg;
+		_completionDelegate = getCompletionsDg;
+		questionLabel.text = question ~ ":";
+		show(Mode.oneline);
 	}
 
 	void setCommand(string cmd)
@@ -670,6 +761,30 @@ version(oldvw)
 		}
 	}
 
+	private void updatePromptCompletions()
+	{
+		auto txt = std.conv.text(commandField.bufferView.lastLine);
+		auto completions = _completionDelegate(txt);
+		if (completions.empty)
+			clearCompletions();
+		else
+			displayStringList(completions.map!(a => a.label).array);
+		show(Mode.multiline);
+		_promptCompletionsShown = true;
+	}
+	
+	private void completePrompt()
+	{
+		auto txt = std.conv.text(commandField.bufferView.lastLine);
+		auto completions = _completionDelegate(txt);
+		auto res = completions.dropExactly(completionStyler.lineHighlighted);
+		if (!res.empty)
+		{
+			commandField.bufferView.clear();
+			commandField.bufferView.insert(dtext(res.front.label));
+		}
+	}
+
 	void completeCommand()
 	{
 		auto cmdData = getActiveCommand();
@@ -751,7 +866,7 @@ version(NONE)
 		// setCommand("");
 		clearCompletions();
 		hide();
-		cmdData.cmd.execute(ps);
+		app.commandManager.execute(cmdData.cmd, ps);
 		//window.app.
 	}
 

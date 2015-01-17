@@ -177,12 +177,25 @@ class GenericResource : Resource!GenericResource
 			helpers[0] = new Helper!T(value);
 	}
 
-	int add(T)(T value, string key = null)
+	int set(T)(T value, string key)
 	{
+		assert(key !in index);
 		helpers ~= new Helper!T(value);
 		auto idx = helpers.length - 1;
+		index[key] = idx;
+		return idx;
+	}
+
+	int add(T)(T value, string key = null)
+	{
+		auto idx = helpers.length - 1;
 		if (key !is null)
+		{
+			if (key in index)
+				return -1;
 			index[key] = idx;
+		}
+		helpers ~= new Helper!T(value);
 		return idx;
 	}
 

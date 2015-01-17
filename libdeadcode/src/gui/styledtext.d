@@ -4,14 +4,14 @@ import core.bufferview;
 import gui.style;
 import math.region;
 import std.container;
-import std.signals;
+import core.signals;
 import std.string;
 
 T instantiate(T)(T o)
 {
 	import std.stdio;
 	T result = cast(T) o.classinfo.create();
-	writefln("Instantiating %s", result.classinfo.name);
+	// writefln("Instantiating %s", result.classinfo.name);
 	return result;
 }
 
@@ -64,7 +64,9 @@ class TextStyler
 {
 //	protected Text _text;
 	protected RegionSet _regionSet;
+	protected RegionSet _regionSetUpdateThread;
 	private Region _dirtyRegion;
+
 
 	//@property Text text()
 	//{
@@ -131,7 +133,7 @@ class TextStyler
 		_regionSet.entriesRemoved(from, str.length);
 		
 		import std.stdio;
-		writefln("Removed styler %s from %s", str.length, from);
+		// writefln("Removed styler %s from %s", str.length, from);
 
 		// Just dirty something on the same line
 		if (from > 0)
@@ -174,7 +176,7 @@ class TextStyler
 		assert(r.a >= 0 && r.a <= text.length);
 		assert(r.b >= 0 && r.b <= text.length);
 		import std.stdio;
-		writeln("styler.styleRegion() ", _dirtyRegion);
+		// writeln("styler.styleRegion() ", _dirtyRegion);
 		static if (is(Text : BufferView))
 			styleBufferViewRegion(r, text);
 		else
@@ -279,7 +281,8 @@ class StyleSheetStyler : TextStyler
 	protected override void styleBufferViewRegion(Region r, BufferView text)
 	{
 		// TODO: use ctRegex
-		enum keys = [ "background"d, "color", "font", "padding" ];
+		enum keys = [ "background"d, "color", "font", "padding", "transition", "position",
+					  "left", "right", "top", "bottom", "width", "height", "offset" ];
 		enum types = [ "#"d, "\\\\." ];
 
 		dstring re = "\\b(";

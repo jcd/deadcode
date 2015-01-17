@@ -32,24 +32,25 @@ template registerModuleCommandClassByName(alias Mod)
 	alias registerModuleCommandClassByName(string symName) = BasicCommandWrap!(__traits(getMember, Mod, symName));
 }
 
-enum isInvalid(alias T) = T != "x";
+enum isValid(alias T) = T != "x"; // __traits(compiles, Filter!(isPublicBasicCommandClassInModule!(Mod), T));
 
 alias moduleCommandFunctions(alias Mod) = Filter!(isPublicFunctionInModule!(Mod), __traits(allMembers, Mod));
-alias moduleCommandClasses(alias Mod) = Filter!(isPublicBasicCommandClassInModule!(Mod), Filter!(isInvalid, __traits(allMembers, Mod)));
+alias moduleCommandClasses(alias Mod) = Filter!(isPublicBasicCommandClassInModule!(Mod), Filter!(isValid, __traits(allMembers, Mod)));
 
 alias extensionCommandFunctions(alias Mod) = staticMap!(registerModuleCommandFunctionByName!Mod, moduleCommandFunctions!Mod);
 alias extensionCommandFunctions(string Mod = __MODULE__) = staticMap!(registerModuleCommandFunctionByName!(mixin(Mod)), moduleCommandFunctions!(mixin(Mod)));
 
 alias extensionCommandClasses(alias Mod) = moduleCommandClasses!Mod;
 // alias extensionCommandClasses(string Mod = __MODULE__) = moduleCommandClasses!(mixin(Mod));
-alias extensionCommandClasses(string Mod = __MODULE__)   = staticMap!(registerModuleCommandClassByName!(mixin(Mod)), moduleCommandClasses!(mixin(Mod)));
+alias extensionCommandClasses(string Mod = __MODULE__) = staticMap!(registerModuleCommandClassByName!(mixin(Mod)), moduleCommandClasses!(mixin(Mod)));
 
 alias getCommandFunctionFunction(alias F) = F.Function;
 
 template registerCommands(string Mod = __MODULE__) 
 {	
 	import std.typetuple;
-	pragma(msg, "Registering command functions: ", staticMap!(getCommandFunctionFunction, extensionCommandFunctions!Mod));
+	pragma(msg, "Registering command functions: ", Mod, " ", staticMap!(getCommandFunctionFunction, extensionCommandFunctions!Mod));
+	//pragma(msg, "xx ", __traits(allMembers, Mod));
 	//alias x = TypeTuple!(extensionCommandClasses!Mod);
-	pragma(msg, "Registering command classes  : ", TypeTuple!(extensionCommandClasses!Mod));
+	pragma(msg, "Registering command classes  : ", Mod, " ", TypeTuple!(extensionCommandClasses!Mod));
 }

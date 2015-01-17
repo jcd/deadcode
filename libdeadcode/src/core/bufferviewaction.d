@@ -105,7 +105,7 @@ class CursorDownAction : Action
 		if (selecting)
 			bv.selectTo(v);
 		else if (!bv.selection.empty)
-			bv.selection = Region(bv.selection.a, bv.selection.a);
+			bv.setSelectRegion(Region(bv.selection.a, bv.selection.a));
 
 		bv._cursorPoint = v;
 
@@ -124,7 +124,7 @@ class CursorDownAction : Action
 		auto v = bv.buffer.offsetVertically(bv._cursorPoint, -count, bv.preferredCursorColumn);
 		bv._cursorPoint = v;
 		if (selecting)
-			bv.selection = Region(origPoint, v);
+			bv.setSelectRegion(Region(origPoint, v));
 
 		bv.navigated();
 		//bv.preferredCursorColumn(preferredColumn);
@@ -401,7 +401,7 @@ class RemoveAction : Action
 		bv.onInsert.emit(bv, text, origCursorPoint);
 		text = null;
 		selected = false;
-		bv.selection = Region(origCursorPoint, restoredCursorPoint);
+		bv.setSelectRegion(Region(origCursorPoint, restoredCursorPoint));
 	}
 
 	debug override void dump(int indent) const
@@ -505,12 +505,12 @@ class RemoveSelectedAction : Action
 		
 		if (cursorAtStartOfSelection)
 		{
-			bv.selection = Region(bv._cursorPoint, bv._cursorPoint + text.length);
+			bv.setSelectRegion(Region(bv._cursorPoint, bv._cursorPoint + text.length));
 		}
 		else
 		{
 			bv._cursorPoint += text.length; 
-			bv.selection = Region(bv._cursorPoint, bv._cursorPoint - text.length);
+			bv.setSelectRegion(Region(bv._cursorPoint, bv._cursorPoint - text.length));
 		}
 		bv.preferredCursorColumn(preferredColumn);
 		//bv.setIndexFromPreferredCursorColumn();
@@ -712,7 +712,7 @@ class CursorAction : Action
 			if (selecting)
 				bv.selectTo(idx);
 			else if (!bv.selection.empty)
-				bv.selection = Region(bv.selection.a, bv.selection.a);
+				bv.setSelectRegion(Region(bv.selection.a, bv.selection.a));
 
 			bv._cursorPoint = idx; 
 			bv.setPreferredCursorColumnFromIndex();
@@ -733,7 +733,7 @@ class CursorAction : Action
 		bv.preferredCursorColumn = preferredColumn;
 		// bv.setPreferredCursorColumnFromIndex();
 		if (selecting)
-			bv.selection = Region(origPoint, offset);
+			bv.setSelectRegion(Region(origPoint, offset));
 	}
 	
 	debug override void dump(int indent) const
@@ -1153,7 +1153,7 @@ unittest
 	Assert(v.buffer.toArray(), "testing"d);
 
 	// Testing insertion redo and undo with offset
-	st.push!CursorAction(v, TextBoundary.chr, -5);
+	st.push!CursorAction(v, TextBoundary.chr, -5, false);
 	st.insert(v, "foo"); 
 	Assert(v.buffer.toArray(), "tefoosting"d);
 
@@ -1164,7 +1164,7 @@ unittest
 	Assert(v.buffer.toArray(), "tefoosting"d);
 
 	// Testing remove redo/undo with positive length
-	st.push!CursorAction(v, TextBoundary.chr, -3);
+	st.push!CursorAction(v, TextBoundary.chr, -3, false);
 	st.remove(v, 3);
 	Assert(v.buffer.toArray(), "testing"d);
 
@@ -1175,7 +1175,7 @@ unittest
 	Assert(v.buffer.toArray(), "testing"d);
 
 	// Testing remove redo/undo with negative length
-	st.push!CursorAction(v, TextBoundary.chr, 3);
+	st.push!CursorAction(v, TextBoundary.chr, 3, false);
 	st.remove(v, -1);
 	Assert(v.buffer.toArray(), "testng"d);
 
@@ -1183,7 +1183,7 @@ unittest
 	Assert(v.buffer.toArray(), "testing"d);
 
 	// Testing undo with after moveing cursor
-	st.push!CursorAction(v, TextBoundary.chr, -4);
+	st.push!CursorAction(v, TextBoundary.chr, -4, false);
 	st.remove(v, -1);
 	Assert(v.buffer.toArray(), "esting"d);
 

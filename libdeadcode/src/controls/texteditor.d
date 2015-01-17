@@ -29,6 +29,11 @@ class TextEditor : Widget
 	BufferView bufferView;
 	BufferViewRenderer renderer;
 
+	@property TextBuffer.CharType[] text() const
+	{
+		return bufferView.getText();
+	}
+
 	// Child widget of TextEditor
 	TextEditorAnchor[] visibleAnchorsChildWidgets;
 
@@ -156,6 +161,7 @@ class TextEditor : Widget
 			return;
 		
 		renderer.selection = bufferView.selection.normalized();
+
 		import derelict.opengl3.gl3;
 		
 		Rectf r = rect;
@@ -332,17 +338,17 @@ class TextEditor : Widget
 	// Text inserted at pos and forward
 	private void onTextInserted(BufferView v, BufferView.BufferString text, int pos)
 	{
-		Region r = bufferView.selection;
-		r.entriesInserted(pos, text.length);
-		bufferView.selection = r;
+		//Region r = bufferView.selection;
+		//r.entriesInserted(pos, text.length);
+		//bufferView.selection = r;
 	}
 
 	// Text remove from pos and forward
 	private void onTextRemoved(BufferView v, BufferView.BufferString text, int pos)
 	{
-		Region r = bufferView.selection;
-		r.entriesRemoved(pos, text.length);
-		bufferView.selection = r;
+		//Region r = bufferView.selection;
+		//r.entriesRemoved(pos, text.length);
+		//bufferView.selection = r;
 	}
 
 	//private void onBufferViewDirty(BufferView bv)
@@ -365,7 +371,7 @@ class TextEditor : Widget
 		{
 			if (c.name == candidateName)
 			{
-				removeChild(c);
+				c.parent = null;
 				return;
 			}
 		}
@@ -423,9 +429,9 @@ class TextEditor : Widget
 		return null;
 	}
 
-	void setLineAnchor(int lineNumber, TextBufferAnchorOwner owner)
+	auto setLineAnchor(int lineNumber, TextBufferAnchorOwner owner)
 	{
-		bufferView.buffer.ensureLineAnchor(lineNumber, owner);
+		return bufferView.buffer.ensureLineAnchor(lineNumber, owner);
 	}
 
 	void unsetLineAnchor(int lineNumber, string type)
@@ -434,6 +440,11 @@ class TextEditor : Widget
 		if (anchor.id == int.max)
 			return; // no anchor
 		bufferView.buffer.removeLineAnchorByLine(anchor.id); // TODO: optimize
+	}
+
+	void unsetAnchorById(int anchorID)
+	{
+		bufferView.buffer.removeLineAnchorByID(anchorID);
 	}
 
 	Rectf lineRect(int lineIdx)

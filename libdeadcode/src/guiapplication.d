@@ -5,6 +5,8 @@ import core.analytics;
 import core.bufferview;
 import core.copybuffer;
 import core.commandparameter;
+import core.future;
+import core.container;
 import core.uri;
 import editorcommands;
 import graphics._;
@@ -45,6 +47,20 @@ extern (Windows)
 	//                                  LPDWORD lpBytesReturned,
 	//                                  LPOVERLAPPED lpOverlapped,
 	//								  LPOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
+}
+
+///
+enum RelativeLocation
+{
+	topOf,
+	bottomOf,
+	leftIn,
+	rightIn,
+	above,
+	below,
+	leftOf,
+	rightOf,
+	inside,
 }
 
 class DirectoryWatcher
@@ -137,13 +153,45 @@ class GlobalStyle : Stylable
 	}
 }
 
+interface IWidgetLocationUpdater
+{
+	void scheduleWidgetPlacement(Widget placeThisWidget, string relativeToWidgetWithThisName, RelativeLocation loc);
+	void performLocationUpdates();
+}
+
+class PromptQuery
+{
+	this(string q, string a, Promise!PromptQueryResult p, CompletionEntry[] delegate(string) _getCompletionsDg)
+	{
+		question = q;
+		answer = a;
+		promise = p;
+		getCompletionsDg = _getCompletionsDg;
+	}
+
+	string question;
+	string answer;
+	Promise!PromptQueryResult promise;
+	CompletionEntry[] delegate(string) getCompletionsDg;
+}
+
+class PromptQueryResult
+{
+	string answer;
+	bool success;
+}
+
 class GUIApplication : Application
 {
 	GUI guiRoot;
 	GlobalStyle globalStyle;
 	Menu menu;
 
+	import std.container;
+	Stack!PromptQuery _promptStack;
+
 	private string _restartExecutable;
+	private IWidgetLocationUpdater _widgetLocationUpdater;
 
 	static struct EditorInfo
 	{
@@ -161,7 +209,7 @@ class GUIApplication : Application
 	static class Editors
 	{
 		int focusOrderCounter;
-		EditorInfo[string] editors;
+		EditorInfo[int] editors;
 	}
 
 	enum appVersion = "0.4";
@@ -195,13 +243,14 @@ class GUIApplication : Application
 		// This also sets up tracking keys for analytics
 		globalStyle = new GlobalStyle();
 		setupRegistryEntries();
+		_promptStack = new Stack!PromptQuery();
 		
 		// analytics = new GoogleAnalytics("UA-42266538-2", analyticsKey, "Ded", "com.streamwinter.ded", appVersion);
 		
 		// analytics = new NullAnalytics;
 		analyticEvent("core", "start");
 		analyticStartTiming("core", "startup");
-
+		_widgetLocationUpdater = new WidgetLocationUpdater(this);
 		super();
 		register(this);
 		editors = new Editors;
@@ -357,6 +406,8 @@ class GUIApplication : Application
 
 		guiRoot.init();
 		
+		guiRoot.timeout(dur!"msecs"(500), () { this._widgetLocationUpdater.performLocationUpdates(); return true; }); 
+
 		setupMainWindow();
 
 		static import extension;
@@ -366,6 +417,9 @@ class GUIApplication : Application
 
 		loadSession();
 		analyticStopTiming("core", "startup");
+		
+		guiRoot.onActivity.connect(&handleActivity);
+		
 		guiRoot.run();
 		analyticEvent("core", "stop");
 		if (analytics !is null)
@@ -382,6 +436,35 @@ class GUIApplication : Application
 			import core.thread;
 			Thread.sleep(dur!"seconds"(1));
 		}
+	}
+
+	private void handleActivity()
+	{
+		// Since this is called by onActivity the futures supported currently are only those
+		// being fulfilled by an activity ie. key press, mouse move etc.
+		handleFiberFutures();
+		handlePromptQuery();
+	}
+
+	private void handlePromptQuery()
+	{
+		if (_promptStack.empty)
+			return;
+		
+		// If another command control query is already shown we wait for the users answer		
+		CommandControl cc = guiRoot.activeWindow.userData.get!WindowData().commandControl;
+		if (cc.isShown)
+			return;
+
+		auto q = _promptStack.top;
+
+		cc.setPrompt(q.question, q.answer, (bool success, string answer) { 
+			auto result = new PromptQueryResult;
+			result.answer = answer;
+			result.success = success;
+			q.promise.setValue(result);
+			_promptStack.remove(q);
+		}, q.getCompletionsDg);
 	}
 
 	void scheduleRestart(string exePath)
@@ -412,7 +495,7 @@ class GUIApplication : Application
 		guiRoot.locationsManager.scan(resourceURI("*", ResourceBaseLocation.resourceDir));
 	}
 
-	Window createWindow(string name = "mainWindow", int width = 1000, int height = 1000)
+	Window createWindow(string name = "mainWindow", int width = 854, int height = 480)
 	{
 		auto win = guiRoot.createWindow(name, width, height);
 		win.styleSheet = defaultStyleSheet;
@@ -454,7 +537,7 @@ version (Windows)
 	{
 		auto existingRect = getExistingWindowRect();
 		auto win = createWindow("Ded");
-		if (!existingRect.empty)
+		if (!existingRect.empty && false)
 		{
 			win.position = existingRect.pos;
 			win.size = existingRect.size;
@@ -462,6 +545,7 @@ version (Windows)
 
 		// A main widget
 		_mainWidget = new Widget(win, 100, 100, 20, 32);
+		_mainWidget.features ~= new StackLayout();
 
 		// A widget that can be mousedowned and resize the window
 		Widget _resizerWidget = new Widget(win, 0, 0, 24, 24);
@@ -641,8 +725,8 @@ version (Windows)
 			return null;
 		}
 		auto view = bufferViewManager.create("", path);
+		view.isPersistant = true;
 		view.ensureCapacity(cast(uint)file.size);
-		showBuffer(view);
 		//view.buffer.gbuffer.ensureGapCapacity(cast(uint)file.size);
 		auto r = file.byLine!(char,	char)(std.stdio.KeepTerminator.yes, '\x0a');
 		foreach (line; r)
@@ -651,11 +735,20 @@ version (Windows)
 		}
 		view.cursorToStart();
 		view.clearUndoStack();
+		showBuffer(view);
 		//debug view.enableUndoStackDumps();
 		view.bufferModified.connect(&onBufferModified);
 		// addMessage("Read %s", view.name);
 		return view;
 		//Application.activeEditor.show(view);			
+	}
+
+	BufferView createBuffer()
+	{
+		auto view = bufferViewManager.create();
+		addMessage("Create buffer %s", view.name);
+		view.bufferModified.connect(&onBufferModified);
+		return view;
 	}
 
 	private void onBufferModified(BufferView b, bool isModified)
@@ -685,29 +778,33 @@ version (Windows)
 
 	string[] getBufferCompletions(string prefix)
 	{
-		return std.array.array(bufferViewManager.buffers.keys.filter!(a => a.startsWith(prefix))());
+		return std.array.array(bufferViewManager.buffers.values.map!"a.name".filter!(a => a.startsWith(prefix))());
 	}
 
 	private auto setBufferVisible(BufferView buf)
 	{
+		import core.language;
+		auto dinfo = manager().lookup("D");
 		_mainWidget.hideChildren();
-		EditorInfo* w = buf.name in editors.editors;
+		EditorInfo* w = buf.id in editors.editors;
 		if (w is null)
 		{
 			//a create a new widget for this buffer
 			auto editorWidget = new TextEditor(_mainWidget, buf);
 			guiRoot.timeout(dur!"msecs"(500), () { editorWidget.toggleCursorVisibility(); return true; });
-			editorWidget.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
-			editorWidget.alignTo(Anchor.BottomRight);
-			editors.editors[buf.name] = EditorInfo(++editors.focusOrderCounter, editorWidget);
-			editorWidget.name = "editor-" ~ buf.name;
+			//editorWidget.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
+			//editorWidget.alignTo(Anchor.BottomRight);
+			editors.editors[buf.id] = EditorInfo(++editors.focusOrderCounter, editorWidget);
+			editorWidget.name = "editor-buffer-" ~ buf.id.to!string;
 			editorWidget.onKeyboardFocusCallback = (Event ev, Widget w) {
-				editors.editors[buf.name].focusOrder = ++editors.focusOrderCounter;
+				editors.editors[buf.id].focusOrder = ++editors.focusOrderCounter;
 				currentBuffer = buf;
 				return EventUsed.yes;
 			};
 			editorWidget.renderer.textStyler = createTextStyler(buf);
-			w = buf.name in editors.editors;
+			if (buf.name.endsWith(".d"))
+				buf.codeModel = dinfo.createModel(buf);
+			w = buf.id in editors.editors;
 		}
 		w.editor.visible = true;
 		return w;
@@ -763,6 +860,132 @@ version (Windows)
 		currentBuffer = buf;
 	}
 	
+	void scheduleWidgetPlacement(Widget placeThisWidget, string relativeToWidgetWithThisName, RelativeLocation loc)
+	{
+		_widgetLocationUpdater.scheduleWidgetPlacement(placeThisWidget, relativeToWidgetWithThisName, loc);
+	}
+	
+	enum WidgetPlacementResult
+	{
+		success,
+		unknownRelativeWidget,
+		placementInsideNotPossible,
+	}
+
+	WidgetPlacementResult placeWidgetRelative(Widget placeThisWidget, string relativeToWidgetWithThisName, RelativeLocation loc)
+	{
+		Widget w = guiRoot.activeWindow.getWidget(relativeToWidgetWithThisName);
+		if (w is null)
+		{
+			return WidgetPlacementResult.unknownRelativeWidget;
+		}
+		else
+		{
+			Widget layoutWidget = null;
+
+			// TODO: fix bottom and right positions
+			final switch (loc)
+			{
+				case RelativeLocation.bottomOf:
+					bool horz = true;
+					auto feat = getFeatureByType!GridLayout(w);
+					if (feat !is null && feat.direction == GridLayout.Direction.column)
+					{
+						placeThisWidget.parent = w;
+					}
+					else
+					{
+						auto newLayout = new Widget();
+						//newLayout.features ~= new VerticalLayout(false, VerticalLayout.Mode.scaleChildren);
+						newLayout.features ~= new GridLayout(GridLayout.Direction.column, 1);
+
+						//newLayout.features ~= new VerticalLayout(false);
+						w.parent.replaceChild(w, newLayout);
+						w.parent = newLayout;
+						w.features = w.features.filter!(a => cast(ConstraintLayout)a is null).array;
+						w.manualLayout = false;
+						placeThisWidget.parent = newLayout;
+					}
+					break;
+				case RelativeLocation.topOf:
+					bool horz = true;
+					layoutWidget = getFirstAncestorWithFeature!VerticalLayout(w);
+					break;
+				case RelativeLocation.leftIn:
+					bool horz = false;
+					layoutWidget = getFirstAncestorWithFeature!HorizontalLayout(w);
+					if (layoutWidget !is null)
+						placeThisWidget.parent = layoutWidget;
+					break;
+				case RelativeLocation.rightIn:
+					bool horz = false;
+					layoutWidget = getFirstAncestorWithFeature!HorizontalLayout(w);
+					break;
+				case RelativeLocation.above:
+					bool horz = true;
+					layoutWidget = getFirstAncestorWithFeature!VerticalLayout(w);
+					if (layoutWidget is w)
+						layoutWidget = getFirstAncestorWithFeature!VerticalLayout(w.parent);
+					if (layoutWidget !is null)
+						placeThisWidget.parent = layoutWidget;
+					break;
+				case RelativeLocation.below:
+					bool horz = true;
+					layoutWidget = getFirstAncestorWithFeature!VerticalLayout(w);
+					if (layoutWidget is w)
+						layoutWidget = getFirstAncestorWithFeature!VerticalLayout(w.parent);
+					break;
+				case RelativeLocation.leftOf:
+					bool horz = false;
+					layoutWidget = getFirstAncestorWithFeature!HorizontalLayout(w);
+					if (layoutWidget is w)
+						layoutWidget = getFirstAncestorWithFeature!HorizontalLayout(w.parent);
+					if (layoutWidget !is null)
+						placeThisWidget.parent = layoutWidget;
+					break;
+				case RelativeLocation.rightOf:
+					bool horz = false;
+					layoutWidget = getFirstAncestorWithFeature!HorizontalLayout(w);
+					if (layoutWidget is w)
+						layoutWidget = getFirstAncestorWithFeature!HorizontalLayout(w.parent);
+					break;
+				case RelativeLocation.inside:
+					layoutWidget = getFirstAncestorWithFeature!StackLayout(w);
+					if (layoutWidget is w)
+						placeThisWidget.parent = w;
+					else
+					{
+						return WidgetPlacementResult.placementInsideNotPossible;
+						//addMessage("Cannot put widget '%s' inside widget '%s'", placeThisWidget.name, relativeToWidgetWithThisName);
+					}
+					break;
+			}
+		}
+		return WidgetPlacementResult.success;
+	}
+
+	private Widget getFirstAncestorWithFeature(FeatureType)(Widget _parent)
+	{
+		while (_parent !is null)
+		{
+			if (getFeatureByType!FeatureType(_parent) !is null)
+				return _parent;				
+			_parent = _parent.parent;
+		}
+		return null;
+	}
+
+	private FeatureType getFeatureByType(FeatureType)(Widget w)
+	{
+		foreach (f; w.features)
+		{
+			auto ft = cast(FeatureType)f;
+			if (ft !is null)
+				return ft;
+		}
+		return null;
+	}
+
 	private void styleSheetSourceChanged(StyleSheet sheet)
 	{
 		analyticEvent("core", "changed", "stylesheet", sheet.uri.uriString);
@@ -798,11 +1021,20 @@ version (Windows)
 		string[] entries;
 	}
 
+	static class Layout
+	{
+		bool horizontal;
+		// name of the child widgets. In case the string is null it is a layout in the field below this.
+		string[] childWidgetNames;
+		Layout[string] childLayouts; // A child layout is always orthogonal to current layout ie. this.horizontal == !child.horizontal
+	}
+
 	static class SessionData
 	{
 		int focusOrderCounter;
 		SessionBuffer[] buffers;
 		SessionCopyBuffer copyBuffer;
+		Layout windowLayout;
 	}
 
 	void saveSession()
@@ -812,11 +1044,12 @@ version (Windows)
 		s.buffers.length = 0;
 		foreach (key, ed; editors.editors)
 		{
-			if (key == "*Messages*")
+			string bufferName = ed.editor.bufferView.name;
+			if (bufferName == "*Messages*")
 				continue;
 			SessionBuffer data = new SessionBuffer;
 			data.focusOrder = ed.focusOrder;
-			data.path = key;
+			data.path = bufferName;
 			data.cursorPoint = ed.editor.bufferView.cursorPoint;
 			data.lineOffset = ed.editor.bufferView.lineOffset;
 			s.buffers ~= data;
@@ -852,14 +1085,16 @@ version (Windows)
 
 		foreach (l; s.buffers)
 		{
-			if (openFile(l.path) is null)
+			auto p = buildNormalizedPath(l.path);
+			BufferView bv = openFile(p);
+			if (bv is null)
 				continue;
 			if (l.focusOrder == s.focusOrderCounter)
-				showBufferName = l.path;
-			auto ed = editors.editors[l.path];
+				showBufferName = p;
+			auto ed = editors.editors[bv.id];
 			ed.focusOrder = l.focusOrder;
 			// TODO: Save undo buffer
-			ed.editor.bufferView.cursorPoint = l.cursorPoint;
+			ed.editor.bufferView.cursorPoint = min(l.cursorPoint, ed.editor.bufferView.length);
 			ed.editor.bufferView.lineOffset = l.lineOffset;
 		}
 		if (!showBufferName.empty)
@@ -877,6 +1112,72 @@ version (Windows)
 			}
 		}
 	}
+
+	Future!PromptQueryResult prompt(string question, string answer = "", CompletionEntry[] delegate(string) getCompletionsDg = null)
+	{
+		PromptQueryResult result;
+		auto promise = new Promise!PromptQueryResult();
+		auto q = new PromptQuery(question, answer, promise, getCompletionsDg);
+		_promptStack.push(q);
+		return promise.getFuture();
+	}
+
+	PromptQueryResult yieldPrompt(string question, string answer = "", CompletionEntry[] delegate(string) getCompletionsDg = null)
+	{
+		import core.thread;
+		assert(Fiber.getThis() !is null);
+		auto future = prompt(question, answer, getCompletionsDg);
+		yieldFuture(future);
+		return future.get();
+	}
+
+	private struct FiberFutureWait
+	{
+		import core.thread;
+		Fiber fiber;
+		IFuture future;
+	}
+
+	FiberFutureWait[] _fiberFutureWaitList;
+
+	private void yieldFuture(IFuture f)
+	{
+		import core.thread;
+		assumeSafeAppend(_fiberFutureWaitList);
+		_fiberFutureWaitList ~= FiberFutureWait(Fiber.getThis(), f);
+		Fiber.yield();
+	}
+
+	private void handleFiberFutures()
+	{
+		bool done = false;
+		assumeSafeAppend(_fiberFutureWaitList);
+		while (!done)
+		{
+			done = true;
+			foreach (i, ff; _fiberFutureWaitList)
+			{
+				if (ff.future.isValid)
+				{
+					_fiberFutureWaitList[i] = _fiberFutureWaitList[$-1];
+					_fiberFutureWaitList.length = _fiberFutureWaitList.length - 1;
+					done = false;
+					
+					// Future ready... resume fiber
+					ff.fiber.call();
+					break;
+				}
+			}
+		}
+	}
+
+	//static import core.future;
+	//core.future.Fiber getFiber()
+	//{
+	//    static import core.thread;
+	//    auto f =  core.thread.Fiber.getThis();
+	//    return cast(core.future.Fiber)f;
+	//}
 
 	void analyticEvent(string category, string action, string label = null, string value = null)
 	{
@@ -907,4 +1208,83 @@ version (Windows)
 		if (analytics !is null)
 			analytics.addException(description, isFatal);
 	}
+}
+
+
+// Dispatch.
+class WidgetLocationUpdater : IWidgetLocationUpdater
+{
+    private
+    {
+        static struct ScheduledLocationUpdate
+        {
+            bool done =  false;
+            Widget w;
+			string relativeWidget;
+            RelativeLocation location;
+        }
+        ScheduledLocationUpdate[] _items;
+		GUIApplication app;
+    }
+
+	this(GUIApplication a)
+	{
+		app = a;
+	}
+
+    // Schedule a widget to have its location relative to another widget
+    // set.
+	void scheduleWidgetPlacement(Widget placeThisWidget, string relativeToWidgetWithThisName, RelativeLocation loc)
+    {
+        assumeSafeAppend(_items);
+        _items ~= ScheduledLocationUpdate(false, placeThisWidget, relativeToWidgetWithThisName, loc);
+    }
+
+    void performLocationUpdates()
+    {
+        if (_items.empty)
+                return;
+
+        bool changed = true;
+        bool anyChange = false;
+        while (changed)
+        {
+            changed = false;
+            foreach (ref i; _items)
+            {
+                if (!i.done)
+                {
+					auto res = app.placeWidgetRelative(i.w, i.relativeWidget, i.location);
+					final switch (res)
+					{
+						case GUIApplication.WidgetPlacementResult.success:
+							i.done = true;
+							break;
+						case GUIApplication.WidgetPlacementResult.placementInsideNotPossible:
+							app.addMessage("Cannot place %s inside %s", i.w.name, i.relativeWidget);
+							i.done = true;
+							break;
+						case GUIApplication.WidgetPlacementResult.unknownRelativeWidget:
+							break;
+					}
+                    changed = changed || i.done;
+                    anyChange = anyChange || changed;
+                }
+            }
+        }
+
+        if (anyChange)
+        {
+            assumeSafeAppend(_items);
+            int nextSlot = 0;
+            foreach (i, loc; _items)
+            {
+                if (!loc.done)
+                {
+                    swap(_items[nextSlot], loc);
+                    nextSlot++;
+                }
+            }
+        }
+    }
 }

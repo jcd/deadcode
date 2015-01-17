@@ -54,6 +54,9 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		Text _text;
 		TextStyler _textStyler;
 		Model _cursorModel = null;
+		
+		uint lastStyleID;
+		uint lastStyleVersion;
 
 		TextBoxLayout _layout;
 		bool _multiLine = true;
@@ -111,6 +114,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		 // TODO: maybe model should be owner of styledText_
 		import util.system;
 		_cursorModel = createQuad(Rectf(0,0,1, 1), gui.resources.material.Material.create(getRunningExecutablePath() ~ "white.png"));
+		_cursorModel.subModel.blend = false;
 		cursorVisible = true;
 		// std.stdio.writeln(getRunningExecutablePath() ~ "white.png");
 		// this._cursorModel.material.texture = font.fontMap;
@@ -236,7 +240,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 	void runCommand(EditorCommand c, Variant data)
 	{
 		if (c.canExecute(data))
-			c.execute(data);
+			USE CMDMANAGER -> c.execute(data);
 	}
 	*/
 	
@@ -274,8 +278,13 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 	
 		// Now calc the column and row of the cursor in order to find out the x and y coord:
 		// TODO: do
-		if (layoutSize.y == 0f || (!_textDirty && _layout.bounds.size == layoutSize))
+		Style st = widget.style;
+		bool styleDirty = lastStyleVersion != st.currentVersion || lastStyleID != st.id;
+		if (layoutSize.y == 0f || (!_textDirty && _layout.bounds.size == layoutSize && !styleDirty))
 			return;
+
+		lastStyleID = st.id;
+		lastStyleVersion = st.currentVersion;
 
 		//if (layoutSize.y == 0f)
 			//return;
@@ -284,14 +293,14 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 
 		static if (_isBasicText)
 		{
-			if (_textDirty) 
+			if (_textDirty || styleDirty) 
 			{
 				updateTextModel(layoutSize, widget);	
 			}
 		}
 		else
 		{
-			if (true || _textDirty || text.dirty)
+			if (true  || styleDirty || _textDirty || text.dirty)
 			{
 				Style style = widget.style;
 				if (style is null)
@@ -489,7 +498,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		auto relIdx = cast(int)idx - cast(int)textBufferStartOffset;
 		Rectf rect = Rectf(0, 0, 0, 0);
 
-		if (relIdx < 0)
+		if (relIdx < 0 || _model is null)
 		{
 			return rect;
 		}
@@ -665,11 +674,28 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		else
 		{
 			// Check if window rect for glyph is cached
-			foreach (r; _glyphWindowRectCache)
+			foreach (idx, r; _glyphWindowRectCache)
 			{
 				if (pos.y <= r.y2)
-					return GlyphHit(false, !r.x.isFinite() || bufOffset == i ? 
-									int.max : i-1, r);
+				{
+					static if (!_isBasicText)
+					{
+						// TODO: do same prev() stuff in fallback loop below
+						int delta = text.buffer.prev(i) - i;
+						if (idx + delta >= 0)
+						{
+							i += delta;
+							r = _glyphWindowRectCache[idx+delta];
+						}
+						return GlyphHit(false, !r.x.isFinite() || bufOffset == i ? 
+										int.max : i, r);
+					}
+					else
+					{
+						return GlyphHit(false, !r.x.isFinite() || bufOffset == i ? 
+									int.max : i - 1, r);
+					}
+				}
 
 				if (r.contains(pos))
 					return GlyphHit(true, i, r);
@@ -700,7 +726,21 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		}
 		if (found)
 			return GlyphHit(true, i, glyphRect);
-		return GlyphHit(false, !glyphRect.x.isFinite()|| bufOffset == i ? int.max : i-1, glyphRect);
+		else if (!glyphRect.x.isFinite() || bufOffset == i)
+			return GlyphHit(false, int.max, glyphRect);
+		else
+		{
+			if (i != 0)
+			{
+				i--;
+				if (i != 0 && text[i-1] == '\r')
+							i--;
+			}
+				
+			return GlyphHit(false, i, glyphRect);
+		}
+
+		//return GlyphHit(false, !glyphRect.x.isFinite()|| bufOffset == i ? int.max : i-1, glyphRect);
 	}
 
 	void drawCursor(Widget widget, ref Mat4f transform, float fontLineSkip)

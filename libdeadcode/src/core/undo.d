@@ -1,5 +1,7 @@
 module core.undo;
 
+version(OFF):
+
 import std.container;
 
 class CommandExecution

@@ -91,6 +91,11 @@ class UnittestAnchor : TextEditorAnchor
 		return EventUsed.yes;
 	}
 
+	override EventUsed onMouseDown(Event ev)
+	{
+		return EventUsed.yes;
+	}
+
 	EventUsed eonMouseClick(Event ev)
 	{
 		import std.stdio;
@@ -165,8 +170,6 @@ class Unittests : BasicExtension!Unittests, TextEditorAnchorOwner
 		app.bufferViewManager.onBufferViewCreated.connect(&onBufferViewCreated);
 		foreach (bv; app.bufferViewManager.buffers)
 			onBufferViewCreated(bv);
-
-
 	}
 
 	private bool runUnittest()

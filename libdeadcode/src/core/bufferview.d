@@ -3,12 +3,13 @@ module core.bufferview;
 import core.buffer; // : TextBuffer;
 import core.bufferviewaction;
 import core.copybuffer;
+import core.language;
 import math.region;
 import std.container;
 import std.conv;
 import std.exception;
 import std.range;
-import std.signals;
+import core.signals;
 import std.stdio;
 import std.variant;
 
@@ -27,6 +28,100 @@ enum RegionQuery
 	line,
 	buffer,
 }
+/*
+class RegionView
+{
+	BufferView bufferView;
+	Region region;
+	alias toString this;
+
+	@property
+	{
+		int length() const pure nothrow @safe
+		{
+			return region.length;
+		}
+
+		bool empty() const pure nothrow @safe
+		{
+			return region.empty;
+		}
+	}
+
+	private this(BufferView bv, Region r)
+	{
+		bufferView = bv;
+		region = r;
+		bufferView.onInsert.connect(&this.textInserted);
+		bufferView.onRemove.connect(&this.textRemoved);
+	}
+
+	dstring toString() const
+	{
+		return bufferView.getText(region);
+	}
+
+	private void textInserted(BufferView v, BufferView.BufferString text, int pos)
+	{
+		r.entriesInserted(pos, text.length);
+	}
+
+	private void textRemoved(BufferView v, BufferView.BufferString text, int pos)
+	{
+		r.entriesRemoved(pos, text.length);
+	}
+
+	RegionView opAssign(dstring s)
+	{
+		bufferView.replace(s, region);
+		return this;
+	}
+
+	RegionView opAssign(string s)
+	{
+		bufferView.replace(dtext(s), region);
+		return this;
+	}
+
+	RegionView opSlice(Region r)
+	{
+		assert(r.a >= 0 && r.a <= region.a);
+		assert(r.b >= 0 && r.b <= region.b);
+		return RegionView(this, r);
+	}
+
+	RegionView opSlice(int a, int b)
+	{
+		return opSlice(Region(a,b));
+	}
+
+	// Replace this RegionView content with the contents of v
+	void doPut(RegionView v)
+	{
+		bufferView.replace(v.toString(), region);
+	}
+
+	void doPut(string v)
+	{
+		bufferView.replace(dtext(v), region);
+	}
+
+	void doPut(dstring v)
+	{
+		bufferView.replace(v, region);
+	}
+
+	void doPut(dchar v)
+	{
+		bufferView.replace(dtext(v), region);
+	}
+
+	void doPut(char v)
+	{
+		bufferView.replace(dtext(v), region);
+	}
+}
+*/
 
 // TODO:
 //  * Cannot page down until out after buffer length. Think buffer.startOfLine/endOfLine are guilty
@@ -40,6 +135,7 @@ enum RegionQuery
  */
 class BufferView
 {	
+	int id;
 	string name;
 	TextBuffer buffer;     // This should be changeable to something else if wanted
 	// private GapBuffer!int lineStarts; // Indexes into buffer for all line starts. Purely a optimization.
@@ -55,6 +151,7 @@ class BufferView
 	alias immutable(TextBuffer.CharType)[] BufferString;
 	alias TextBuffer.CharType CharType;
 
+	ICodeModel codeModel;
 	Variant[string] userData;
 
 	TextBufferAnchor[] visibleAnchors;
@@ -62,6 +159,8 @@ class BufferView
 	// 
 	private bool _dirty;
 	
+	// TODO: hese signals should really be forwarde from the underlaying buffer in order to
+	// get signal when other bufferviews alters the underlaying buffer!
 	// emit(this, text, insertedTextAfterThisIndex)
 	mixin Signal!(BufferView, BufferString, int) onInsert;
 	
@@ -85,12 +184,34 @@ class BufferView
 
 	@property 
 	{
+		bool isPersistant() const pure nothrow @safe
+		{
+			return buffer.isPersistant;
+		}
+		
+		void isPersistant(bool p) pure nothrow @safe
+		{
+			buffer.isPersistant = p;
+		}
+
 		void selection(Region r)
 		{
 			if (_selection == r)
 				return;
-			_selection = r;
-			dirty = true;
+			
+			selectionStartIndex = r.a;
+			cursorPoint = r.a;
+
+			if (_cursorPoint == r.b)
+			{
+				_selection = r;
+			}
+			else
+			{
+				_undoStack.push!CursorAction(this, TextBoundary.unit, r.b - _cursorPoint, true);
+			}
+			// _selection = r;
+			//dirty = true;
 		}
 
 		const(Region) selection() const pure nothrow
@@ -148,6 +269,14 @@ class BufferView
 		return line >= lineOffset && line < lineOffset + visibleLineCount;
 	}
 
+	void scrollToLineInView(int line)
+	{
+		if (line < lineOffset)
+			lineOffset = line;
+		else if (line >= lineOffset + visibleLineCount)
+			lineOffset = line - visibleLineCount + 1;
+	}
+
 	void centerOnLine(int line)
 	{
 		auto offset = visibleLineCount / 2;
@@ -179,11 +308,26 @@ class BufferView
 		return buffer.opSlice(from, to);
 	}
 
+/*
+	RegionView opSlice(Region r)
+	{
+		assert(r.a >= 0 && r.a <= region.a);
+		assert(r.b >= 0 && r.b <= region.b);
+		return RegionView(this, r);
+	}
+*/
 	auto opIndex(size_t i) const
 	{
 		return buffer[i];
 	}
 
+	/*
+	RegionView opIndex(RegionQuery q) const
+	{
+		auto r = getRegion(q);
+		return new RegionView(this, q);
+	}
+*/
 	void ensureCapacity(size_t s)
 	{
 		if (s <= buffer.length)
@@ -205,13 +349,13 @@ class BufferView
 	
 	debug void enableUndoStackDumps() { _undoStack.dumpEnabled = true; }
 	
-	this(string txt)
+	package this(string txt)
 	{
 		import std.conv;
 		this(new TextBuffer(to!dstring(txt), 10));
 	}
 
-	this(TextBuffer buffer)
+	package this(TextBuffer buffer)
 	{
 		this.buffer = buffer;
 		_dirty = true;
@@ -378,7 +522,7 @@ class BufferView
 		
 		// cursorPoint = r.a;
 
-		writeln("replaceA");
+		//writeln("replaceA");
 		auto offsetToStart = r.a - _cursorPoint;
 		_undoStack.push!ActionGroupAction(this, 
 										  new CursorAction(TextBoundary.unit, offsetToStart),
@@ -394,15 +538,14 @@ class BufferView
 		// selection = oldSelection;
 	}
 
-	void transform(alias Func)(Region r)
+	void map(alias Func, Rs...)(Rs r) if (Rs.length > 0 && is(Rs[0] : Region))
 	{
-		if (!r.empty)
-			replace(cast(immutable)Func(getText(r)), r);
+		replace(cast(immutable)Func(getText(r)), r);
 	}
 
-	void transform(alias Func)(RegionQuery query)
+	void map(alias Func)(RegionQuery query)
 	{
-		transform!Func(getRegion(query));
+		this.map!Func(getRegion(query));
 	}
 
 	Region wordAtCursor() const
@@ -464,7 +607,6 @@ class BufferView
 
 	void cut()
 	{
-		writeln("cutA");
 		_undoStack.push!ActionGroupAction(this, 
 										  new CopySelectedAction(),
 										  new RemoveAction(TextBoundary.unit, 0)); // remove 0 to remove selection
@@ -472,12 +614,10 @@ class BufferView
 
 	void clear(immutable(TextBuffer.CharType)[] dl)
 	{
-		writeln("clearA1 ", name, " ", length, " ", dl.length);
 		_undoStack.push!ActionGroupAction(this, 
 											new CursorAction(TextBoundary.buffer, -1),
 											new RemoveAction(TextBoundary.buffer, 1),
 											new InsertAction(dl));
-		writeln("clearA2");
 	}
 
 	void write(File file)
@@ -485,6 +625,7 @@ class BufferView
 		// TODO: use iomanager and IOs for writing
 		file.rawWrite(std.conv.text(buffer.beforeGap));
 		file.rawWrite(std.conv.text(buffer.afterGap));
+		isPersistant = true;
 	}
 
 	void cursorToStart() 
@@ -624,17 +765,17 @@ class BufferView
 
 	void remove(int count)
 	{
-		writeln("removeA");
+		//writeln("removeA");
 		_undoStack.push!RemoveAction(this, TextBoundary.chr, count);
 	}
 	
 	void clear()
 	{
-		writeln("clearB");
+		//writeln("clearB");
 		_undoStack.push!ActionGroupAction(this, 
 										  new CursorAction(TextBoundary.buffer, -1),
 										  new RemoveAction(TextBoundary.buffer, 1));
-		writeln("clearB");
+		//writeln("clearB");
 
 	}
 	
@@ -683,16 +824,24 @@ class BufferView
 	// Should only be called from an Action (see bufferviewaction.d)
 	package void selectTo(int c)
 	{
-		if (selection.empty)
+		if (_selection.empty)
 			selectionStartIndex = cursorPoint;
 		
 		import std.algorithm;
 
 		if (selectionStartIndex < c)
-			selection = Region(selectionStartIndex, min(c, buffer.length));
+			_selection = Region(selectionStartIndex, min(c, buffer.length));
 		else
-			selection = Region(max(c,0), selectionStartIndex);
+			_selection = Region(max(c,0), selectionStartIndex);
 	}
+	
+	// Should only be called from an Action (see bufferviewaction.d)
+	package void setSelectRegion(Region r)
+	{
+		_selection = r;
+		selectionStartIndex = r.a;
+	}
+
 
 	void scrollUp()
 	{	
@@ -766,7 +915,7 @@ class BufferView
 
 	void deleteToWordBefore()
 	{ 
-		writeln("dtwb");
+		//writeln("dtwb");
 		_undoStack.push!RemoveAction(this, TextBoundary.word, -1);
 	}
 
@@ -782,13 +931,13 @@ class BufferView
 
 	void deleteToWordAfter()
 	{	
-		writeln("dtwa");
+		//writeln("dtwa");
 		_undoStack.push!RemoveAction(this, TextBoundary.word, 1);
 	}
 
 	void deleteToEndOfLine()
 	{
-		writeln("dtweol");
+		//writeln("dtweol");
 
 		_undoStack.push!RemoveAction(this, TextBoundary.line, 1);
 	}
@@ -857,9 +1006,12 @@ class BufferView
 
 class BufferViewManager
 {
-	BufferView[string] buffers;
-	int _namingSeq;
+	private 
+	{	
+		int _nextBufferViewID = 1;
+	}
 
+	BufferView[int] buffers;
 	CopyBuffer copyBuffer;
 
 	mixin Signal!BufferView onBufferViewCreated;
@@ -876,12 +1028,13 @@ class BufferViewManager
 
 	private string uniqueName()
 	{
+		int namingSeq = 0;
 		while (true)
 		{
-			string autoName = text("Buffer ", _namingSeq);
-			if (autoName !in buffers)
+			string autoName = text("Buffer ", namingSeq);
+			if (this[autoName] is null)
 				return autoName;
-			_namingSeq++;
+			namingSeq++;
 		}
 	}
 
@@ -905,19 +1058,20 @@ class BufferViewManager
 	{
 		if (name is null)
 			name = uniqueName();
-		enforceEx!Exception(! (name in buffers), text("A buffer with the name ", name, "already exists"));
+		enforceEx!Exception(this[name] is null, text("A buffer with the name ", name, "already exists"));
 	}
 
 	private auto setup(BufferView b, string name)
 	{
 		if (name is null)
 			name = uniqueName();
-		enforceEx!Exception(! (name in buffers), text("A buffer with the name ", name, "already exists"));
+		enforceEx!Exception(this[name] is null, text("A buffer with the name ", name, "already exists"));
 
 		b.bufferModified.connect(&onBufferModified);
 		b.copyBuffer = copyBuffer;
-		buffers[name] = b;
 		b.name = name;
+		b.id = _nextBufferViewID++;
+		buffers[b.id] = b;
 		onBufferViewCreated.emit(b);
 	}
 
@@ -942,8 +1096,11 @@ class BufferViewManager
 	
 	BufferView opIndex(string name)
 	{
-		auto b = name in buffers;
-		if (b) return *b;
+		foreach (b; buffers)
+		{
+			if (b.name == name)
+				return b;
+		}
 		return null;
 	}
 	
@@ -957,19 +1114,20 @@ class BufferViewManager
 	void rename(string from, string to)
 	{
 		auto b = this[from];
-		buffers.remove(from);
-		buffers[to] = b;
-		b.name = to;
-		onBufferViewRenamed.emit(b, from);
+		if (b !is null)
+		{
+			b.name = to;
+			onBufferViewRenamed.emit(b, from);
+		}
 	}
 
 	void destroy(string name)
 	{
-		auto b = name in buffers;
+		auto b = this[name];
 		if (b)
 		{
-			buffers.remove(name); // TODO: make sure dependent actors get notified? or rely on GC?
-			onBufferViewDestroyed.emit(*b);
+			buffers.remove(b.id); // TODO: make sure dependent actors get notified? or rely on GC?
+			onBufferViewDestroyed.emit(b);
 		}
 	}
 	
@@ -979,7 +1137,7 @@ class BufferViewManager
 		{
 			if (value == b)
 			{
-				destroy(key);
+				destroy(value.name);
 				return;
 			}
 		}

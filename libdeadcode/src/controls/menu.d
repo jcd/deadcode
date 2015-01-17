@@ -8,7 +8,7 @@ import core.command;
 import gui.event;
 import gui.widget;
 
-import std.signals;
+import core.signals;
 import std.stdio;
 import std.typetuple;
 
@@ -48,9 +48,9 @@ class Menu : Tree
 			return EventUsed.yes;
 		};
 
-		addTreeItem("Bar/Bazzimusss", "edit.scrollPageDown");
-		addTreeItem("Bar/Baxx");
-		addTreeItem("Lars");
+		//addTreeItem("Bar/Bazzimusss", "edit.scrollPageDown");
+		//addTreeItem("Bar/Baxx");
+		//addTreeItem("Lars");
 
 		menuButton = new Button("Menu");
 		menuButton.name = "menuButton";

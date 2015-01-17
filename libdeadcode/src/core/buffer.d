@@ -5,7 +5,7 @@ import std.conv;
 import std.exception;
 import std.range;
 import std.typecons;
-import std.signals;
+import core.signals;
 import std.variant;
 import math.region;
 
@@ -293,7 +293,10 @@ class GapBuffer(T = dchar)
 
 		// range is before startGap
 		if (to <= gapStart || gapSize == 0)
-			return buffer[from..to].dup;
+		{
+			int clampTo = min(to, buffer.length);
+			return buffer[from..clampTo].dup;
+		}
 		
 		int end = int.max - gapSize <= to ? buffer.length : to+gapSize; 
 		
@@ -780,6 +783,8 @@ class TextBuffer
 	GapBuffer!CharType gbuffer;
 	
 	Variant[string] userData;
+
+	bool isPersistant = false;
 
 	// Offsets of first char in lines in gbuffer. For quick navigation by line.
 	LineBuffer!(CharType,TextBuffer) lbuffer; 

@@ -44,13 +44,17 @@ import std.typetuple;
 		@Shortcut("<ctrl> + u")
 		void textUppercase(GUIApplication app, string dummy) 
 {
-			app.currentBuffer.transform!(std.uni.toUpper)(RegionQuery.selectionOrWord);
+			app.currentBuffer.map!(std.uni.toUpper)(RegionQuery.selectionOrWord);
 		}
 */
 struct Shortcut
 {
 	string keySequence;
 	string argument;
+}
+
+struct InFiber
+{
 }
 
 /** Attribute to Register a free function as a Command
@@ -92,7 +96,7 @@ class FunctionCommand(alias Func) : BasicCommand
 		alias p3 = Filter!(isNotType!BufferView, p2);
 		alias p4 = staticMap!(getDefaultValue, p3);
 
-		enum names = [ ParameterIdentifierTuple!Func ][p4.length..$];
+		enum names = [ParameterIdentifierTuple!Func];
 		setCommandParameterDefinitions(createParams(names, p4));
 	}
 
@@ -107,6 +111,13 @@ class FunctionCommand(alias Func) : BasicCommand
 		{
 			return getAttributes!(Func,Shortcut);
 		}
+
+	static if (hasAttribute!(Func, InFiber))
+		override bool mustRunInFiber() const pure nothrow @safe
+		{
+			return true;
+		}
+
 /*
 	@property BufferView currentBuffer()
 	{
@@ -182,7 +193,7 @@ void init(GUIApplication app)
 			app.menu.addTreeItem(c.menuItem.path, c.name);
 		
 		import std.stdio;
-		writeln(c.name);
+		//writeln(c.name);
 		foreach (sc; c.shortcuts)
 		{
 			if (sc.argument is null)
@@ -230,19 +241,6 @@ T getExtension(T)(string name)
 		}
 	}
 	return null;
-}
-
-///
-enum RelativeLocation
-{
-	topOf,
-	bottomOf,
-	leftIn,
-	rightIn,
-	above,
-	below,
-	leftOf,
-	rightOf,
 }
 
 /// The preferred location of a widget
@@ -359,12 +357,17 @@ class BasicCommand : Command
 		return app.getCurrentTextEditor();
 	}
 
-	IBasicWidget getBasicWidget(string name)
+	protected final IBasicWidget getBasicWidget(string name)
 	{
 		auto w = app.guiRoot.activeWindow.getWidget(name);
 		return cast(IBasicWidget)(w);
 	}	
 	
+	protected final T getWidget(T)(string name)
+	{
+		return cast(T)getBasicWidget(name);
+	}
+
 	override void execute(CommandParameter[] v)
 	{
 		assert(0);
@@ -389,6 +392,10 @@ class BasicCommand : Command
 	{
 		// no-op		
 	}
+
+
+
+
 }
 /*
 class BasicCommand(T) : BasicCommand
@@ -519,6 +526,48 @@ class BasicCommandWrap(T) : T
 			pragma(msg, "Add support for more argments in Command extension. Only 3 supported now.");
 		}
 	}
+
+	static if (__traits(hasMember, T, "complete") &&  isSomeFunction!(T.complete))
+	{
+		override CompletionEntry[] getCompletions(CommandParameter[] v) 
+		{
+			alias Func = complete;
+			enum parameterCount = ParameterTypeTuple!Func.length;
+
+			//alias convertedArgs = staticMap!(convertToType!(v,Func), Iota!(0, parameterCount));
+			//Func(convertedArgs);
+
+			static if (parameterCount == 0)
+			{
+				return Func();
+			}
+			else static if (parameterCount == 1)
+			{
+				assert(v.length >= 1);
+				alias a1 = ParameterTypeTuple!Func[$-1];
+				return Func(v[0].get!a1);
+			}
+			else static if (parameterCount == 2)
+			{
+				assert(v.length >= 2);
+				alias a1 = ParameterTypeTuple!Func[$-2];
+				alias a2 = ParameterTypeTuple!Func[$-1];
+				return Func(v[0].get!a1, v[1].get!a2);
+			}
+			else static if (parameterCount == 3)
+			{
+				assert(v.length >= 3);
+				alias a1 = ParameterTypeTuple!Func[$-3];
+				alias a2 = ParameterTypeTuple!Func[$-2];
+				alias a3 = ParameterTypeTuple!Func[$-1];
+				return Func(v[0].get!a1, v[1].get!a2, v[2].get!a3);
+			}
+			else
+			{
+				pragma(msg, "Add support for more argments in Command extension completion. Only 3 supported now.");
+			}
+		}
+	}
 }
 
 class IBasicExtension
@@ -624,7 +673,8 @@ class TestExtension : Extension!TestExtension
 		import core.command;
 		Command cmd = app.commandManager.lookup("edit.insert");
 		cmd.execute("Hello again!");
-	
+		// or app.commandManager.execute("edit.insert", "Hello again!");
+
 		app.currentBuffer.insert("Hello again");
 
 	}

@@ -6,10 +6,10 @@ import gui.widgetfeature._;
 import math._;
 
 /** Layouting of child widgets
- * 
- * When this feature is set on a widget all child widgets will
- * be layed by this class.
- */
+* 
+* When this feature is set on a widget all child widgets will
+* be layed by this class.
+*/
 class DirectionalLayout(bool isHorz) : WidgetFeature
 {	
 	//override EventUsed send(Event event, Widget widget)
@@ -23,15 +23,38 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 
 	private bool _stretchLastItem;
 
-	this(bool stretchLastItem = true)
+	enum Mode
+	{
+		scaleChildren,
+		cullChildren,
+	}
+	private Mode _mode;
+
+	this(bool stretchLastItem = true, Mode mode = Mode.cullChildren)
 	{
 		_stretchLastItem = stretchLastItem;
+		_mode = mode;
 	}
 
 	override void layout(Widget widget, bool fit)
 	{
 		auto children = widget.children;
 		if (children is null || children.length == 0) return; // nothing to layout
+
+		final switch (_mode) 
+		{
+			case Mode.scaleChildren:
+				scaledLayout(widget, fit);
+				break;
+			case Mode.cullChildren:
+				culledLayout(widget, fit);
+				break;
+		}
+	}
+	
+	final private void culledLayout(Widget widget, bool fit)
+	{
+		auto children = widget.children;
 
 		Rectf rect = widget.rect;
 
@@ -52,7 +75,7 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 
 			// Layout children until out of widget rect bounds
 			auto r = Rectf(rect.x + pad.left, rect.y + pad.top, rect.w, 0);
-			
+
 			if (fit)
 			{
 				rect.h = 1000000f;
@@ -61,9 +84,13 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 
 			foreach (ref w; children)
 			{
+				//Style childStyle = w.style;
+				//if (style.position == CSSPosition.absolute || style.position == CSSPosition.fixed)
+				//    continue;
+				
 				// no more room to in parent widget to layout children
 				w.visible = r.y < rect.y2;
-				
+
 				// r.h = w.preferredSize.y;
 				Vec2f childSizeStyled = w.size;
 				r.w = childSizeStyled.x;
@@ -81,7 +108,7 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 				{
 					w.rect = r;
 				}
-				
+
 				//if (w.id == 8)
 				//    std.stdio.writeln("w8 pos ", w.pos.y);
 
@@ -97,19 +124,20 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 			}
 		}
 	}
-	
-	void updateLayoutEven(Widget widget)
+
+	final private void scaledLayout(Widget widget, bool fit)
 	{
 		auto children = widget.children;
-		if (children is null || children.length == 0) return; // nothing to layout
-		
+
+		RectfOffset pad = widget.style.padding;
 		const rect = widget.rect;
-		
+		auto r = Rectf(rect.x + pad.left, rect.y + pad.top, rect.w, 0);
+
 		static if (isHorz)
 		{
 			// Divide the current width into even horizontal pieces
 			float d = rect.w / children.length;
-			auto r = Rectf(rect.x, rect.y, d, rect.w);
+			r.w = d;
 			foreach (ref w; children)
 			{
 				w.rect = r;
@@ -118,9 +146,18 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 		}
 		else
 		{
+			//// Get accumulated height for children
+			//float fixedH = 0f;    // child has a fixed height set
+			//float relativeH = 0f; // child has a relative height set
+			//foreach (ref w; children)
+			//{
+			//        
+			//    h += w.h;
+			//}
+
 			// Divide the current width into even horizontal pieces
 			float d = rect.h / children.length;
-			auto r = Rectf(rect.x, rect.y, rect.w, d);
+			r.h = d;
 			foreach (ref w; children)
 			{
 				w.rect = r;
@@ -128,11 +165,6 @@ class DirectionalLayout(bool isHorz) : WidgetFeature
 			}
 		}
 	}
-	
-	//override void update(Widget widget) 
-	//{
-	//    updateLayoutPreferred(widget);
-	//}
 }
 
 alias DirectionalLayout!true HorizontalLayout;

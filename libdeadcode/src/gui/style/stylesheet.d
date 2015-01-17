@@ -143,12 +143,26 @@ class StylableSelector
 			pseudoMatch = true;
 		}
 
+		if (w.name == "toggleErrors" && stylableTypeName == "ToggleButton")
+		{
+			pseudoMatch = true;
+		}
+
 		final switch (pseudoClass)
 		{
 			case PseudoClass.none:
 				break;
 			case PseudoClass.hover:
 				pseudoMatch = w.isMouseOver();
+				import controls.button;
+				if (w.name == "toggleErrors")
+				{
+					bool isOver = Button.isover !is null;
+					if (isOver && stylableTypeName == "ToggleButton")
+					{
+						pseudoMatch = pseudoMatch;
+					}
+				}
 				break;
 			case PseudoClass.active:
 				pseudoMatch = w.isMouseDown();
@@ -194,7 +208,7 @@ unittest
 
 	// Type match
 	auto w3 = new TestStylable(testWin);
-	auto sel3 = new StylableSelector("Stylable",null);
+	auto sel3 = new StylableSelector("TestStylable",null);
 	AssertIs(sel3.match(w3, null), w3, "NameWildcard StylableSelector matches direct Stylable");
 	auto sel4 = new StylableSelector("StylableX",null);
 	AssertIsNot(sel4.match(w3, null), w3, "NameWildcard StylableSelector does not match direct StylableX");
@@ -203,7 +217,7 @@ unittest
 	class TestStylable2 : TestStylable1 { this(Stylable w) { super(w); } }
 
 	auto w4 = new TestStylable2(testWin);
-	auto sel5 = new StylableSelector("Stylable",null);
+	auto sel5 = new StylableSelector("TestStylable",null);
 	AssertIs(sel5.match(w4, null), w4, "NameWildcard StylableSelector matches decendant of Stylable");
 	auto sel6 = new StylableSelector("TestStylable1",null);
 	AssertIs(sel6.match(w4, null), w4, "NameWildcard StylableSelector matches decendant of TestStylable1");
@@ -344,7 +358,7 @@ unittest
 {
 	auto testWin = createTestWindow();
 	auto sel1 = new Rule;
-	sel1.selectors ~= new StylableSelector("Stylable", null);
+	sel1.selectors ~= new StylableSelector("TestStylable", null);
 	auto w1 = new TestStylable(testWin);
 	w1.name = "testParent";
 	auto w2 = new TestStylable(w1);
@@ -442,7 +456,8 @@ class StyleSheet : Resource!StyleSheet
 		version(dunittest) {}
 		else 
 		{
-			st.background = mgr.materialManager.declare(CustomMaterialLoader.singleton);
+			if (mgr !is null)
+				st.background = mgr.materialManager.declare(CustomMaterialLoader.singleton);
 		}
 
 		styleCache[matchedRules] = st;
@@ -483,7 +498,7 @@ unittest
 
 	// StylableSelector
 	Rule sel1 = new Rule;
-	sel1.selectors ~= new StylableSelector("Stylable", null);
+	sel1.selectors ~= new StylableSelector("TestStylable", null);
 	sel1.style = new Style(sheet);
 	sel1.style.color = Color.red;
 	// sel1.style.compute();		

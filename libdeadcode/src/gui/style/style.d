@@ -15,7 +15,7 @@ import gui.style.types;
 
 import std.datetime;
 import std.string;
-import std.signals;
+import core.signals;
 
 alias string StyleID;
 immutable StyleID NullStyleName = "";
@@ -57,6 +57,15 @@ class Style
 {
 	@NonBindable()
 	StyleSheet styleSheet; // StyleSheet owning this style
+
+	private static uint _nextID = 1;
+	uint id = 0;
+	uint currentVersion = 0;
+
+	void increaseVersion() pure @safe nothrow
+	{
+		currentVersion++;
+	}
 
 	public
 	// package 
@@ -347,13 +356,15 @@ class Style
 
 	string _name;
 
-	this(string name) pure nothrow @safe
+	this(string name) nothrow @safe
 	{
+		id = _nextID++;
 		this._name = name;	
 	}
 
-	this(StyleSheet s) pure nothrow @safe
+	this(StyleSheet s) nothrow @safe
 	{
+		id = _nextID++;
 		styleSheet = s;
 	}
 
@@ -637,9 +648,10 @@ class Style
 		setInvalid(src.h, dst.h);
 	}
 
-	// Merge s into this but only set fields that are not null set on s
+	// Override fields on this that are null with the values of sf
 	void overlay(Style sf)
 	{
+		increaseVersion();
 		if (_font is null)
 			_font = sf._font;
 
@@ -706,7 +718,7 @@ class Style
 			PropertySpecification!Vec2f.overlay(vec2fs, key, value);
 	}
 
-	Style clone() pure @safe
+	Style clone() @safe
 	{
 		auto st = new Style(styleSheet);
 		copy(st);
@@ -716,6 +728,7 @@ class Style
 	void copy(Style target) pure @safe
 	{
 		Style st = target;
+		st.increaseVersion();
 		st._position = _position;
 		st._width = _width;
 		st._height= _height;
@@ -765,7 +778,7 @@ class UsedStyle
 	Style to;
 	private float _offset; // 0 = from style, 1 = to style. interval [0..1].
 
-	mixin Signal!MixedStyle onChanged;
+	Signal!MixedStyle onChanged;
 
 	this(Style fromStyle, Style toStyle)
 	{

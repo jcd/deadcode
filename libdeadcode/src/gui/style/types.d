@@ -205,13 +205,18 @@ enum CSSUnit : byte
 
 struct CSSScale
 {
+	import std.math;
 	float value;
 	CSSUnit unit;
 
 	@property float valueOrZero() const pure nothrow
 	{
-		import std.math;
 		return value.isNaN ? 0 : value;
+	}
+
+	@property bool isValid() const pure nothrow @safe
+	{
+		return !value.isNaN;
 	}
 
 	@property CSSScale clamped() const pure nothrow

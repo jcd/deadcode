@@ -25,6 +25,19 @@ class Label : Widget
 		_renderer = content(this, text);
 	}
 
+	@property 
+	{
+		void text(string text)
+		{
+			_renderer.text = text;
+		}
+
+		string text()
+		{
+			return _renderer.text;
+		}
+	}
+
 	//override protected void calculateSize()
 	//{
 	//    size = intrinsicSize;

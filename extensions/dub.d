@@ -19,6 +19,8 @@ import std.stdio;
 
 import std.c.windows.windows;
 
+import extensions.statuspanel;
+
 mixin registerCommands;
 
 @MenuItem("Dub/Build")
@@ -34,28 +36,43 @@ class DubBuildCommand : BasicCommand
 
 	void run() 
 	{
+		clearLog();	
 		showBuildWidget();	
 		newExecPath = null;
-		clearLog();	
 		tid = spawn(&build, thisTid);
 		app.guiRoot.timeout(dur!"msecs"(200), &buildUpdate);
 	}
 
 	void showBuildWidget()
 	{
-		auto w = getBasicWidget("errorlist");
+		import extensions.errorlist;
+		auto w = getWidget!ErrorListWidget("errorlist");
 		
 		if (w is null)
 			return;
 		
 		w.visible = true;
+		w.showProgress(true);
+
+		auto p = getWidget!StatusPanel("statuspanel");
+		if (p is null)
+			return;
+
+		p.mode = StatusPanel.Mode.discrete;
+
+		//auto we = cast(ErrorListWidget)w;
+		//if (we !is null)
+		//{
+		//    we.
+		//}
+		
 	}
 
 	void log(string msg)
 	{
 		// Use messages instead of calls
 		import extensions.errorlist;
-		auto w = cast(ErrorListWidget)(getBasicWidget("errorlist"));
+		auto w = getWidget!ErrorListWidget("errorlist");
 		if (w is null)
 			return;
 
@@ -78,7 +95,7 @@ class DubBuildCommand : BasicCommand
 	{
 		// Use messages instead of calls
 		import extensions.errorlist;
-		auto w = cast(ErrorListWidget)(getBasicWidget("errorlist"));
+		auto w = getWidget!ErrorListWidget("errorlist");
 		if (w is null)
 			return;
 		w.clear();
@@ -111,10 +128,21 @@ class DubBuildCommand : BasicCommand
 		}
 	}
 
+	final private void showProgress(bool f)
+	{
+		import extensions.errorlist;
+		auto w = getWidget!ErrorListWidget("errorlist");
+		if (w !is null)
+			w.showProgress(f);		
+	}
+
 	bool buildUpdate()
 	{		
 		if (tid == Tid.init)
+		{
+			showProgress(false);
 			return false;
+		}
 		
 		import std.datetime;
 		while (receiveTimeout(dur!"seconds"(0), 
@@ -123,6 +151,7 @@ class DubBuildCommand : BasicCommand
 		
 		if (!newExecPath.empty)
 		{
+			showProgress(false);
 			scope (exit) newExecPath = null;
 			log("Restarting " ~ newExecPath);
 			app.saveSession();
@@ -334,7 +363,7 @@ class Project : BasicExtension!Project
 				c.sourcePaths ~= p.str;			
 
 			if (c.sourcePaths.empty)
-				app.addMessage("Warning: No paths in sourcePaths field in dub config file for configuration " ~ c.name);
+		 		app.addMessage("Warning: No paths in sourcePaths field in dub config file for configuration " ~ c.name);
 		}
 
 		return c;
@@ -356,7 +385,7 @@ class Project : BasicExtension!Project
 			foreach (e; entries)
 			{
 				if (e.isFile())
-					result ~= e.name;
+					result ~= buildNormalizedPath(e.name);
 			}
 			return result;
 		}
@@ -364,11 +393,11 @@ class Project : BasicExtension!Project
 	}
 }
 
-class QuickOpenCommand : BasicCommand
+class DubQuickOpenCommand : BasicCommand
 {
-	override @property string description() const { return "Quick open file in dub project"; }
-	override @property string name() const { return "dub.quickopen"; }
-	override @property string shortcut() const { return "<ctrl> + ,"; }
+	// override @property string description() const { return "Quick open file in dub project"; }
+	// override @property string name() const { return "dub.quickopen"; }
+	// override @property string shortcut() const { return "<ctrl> + ,"; }
 	
 	void run(string path)
 	{

@@ -16,6 +16,8 @@ public import gui.widgetfeature.boxrenderer;
 public import gui.widgetfeature.constraintlayout;
 public import gui.widgetfeature.directionallayout;
 public import gui.widgetfeature.dragger;
+public import gui.widgetfeature.gridlayout;
+public import gui.widgetfeature.stacklayout;
 public import gui.widgetfeature.textrenderer;
 public import gui.widgetfeature.windowdragger;
 public import gui.widgetfeature.windowresizer;

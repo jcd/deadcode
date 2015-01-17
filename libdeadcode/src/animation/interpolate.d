@@ -114,6 +114,8 @@ class Clip(T)
 
 	void update(T object, double timeOffset)
 	{
+		static if (hasMember!(T, "increaseVersion"))
+			object.increaseVersion();
 		foreach (b; bindings)
 			b.update(object, timeOffset);
 	}
@@ -159,7 +161,7 @@ void createCurves(Clip!Style clip, Style y1, Style y2)
 		Curve!FieldType getCurve(OwnerType, FieldType, string fieldPath)(FieldType q1, FieldType q2)
 		{
 			// Lookup transitions in the y2 style
-			pragma(msg, "FP " ~ fieldPath ~ " -> " ~ stylePropertyToCSSName(fieldPath));
+			// pragma(msg, "FP " ~ fieldPath ~ " -> " ~ stylePropertyToCSSName(fieldPath));
 			string cssName = stylePropertyToCSSName(fieldPath);
 			Transition* transition = cssName in b.transitionCache;
 			if (transition is null)
@@ -202,11 +204,13 @@ static CurveBinding!T[] getCurves(T)()
 			{
 				static if (is(typeof(attr) : Bindable))
 				{
-					writeln("Bindable ", field.stringof);
+					// writeln("Bindable ", field.stringof);
 					result ~= new CurveBinding!(T, field);
 				}
 				else
-					writeln("Not bindable ", field.stringof);
+				{
+					// writeln("Not bindable ", field.stringof);
+				}
 			}
 		}
 	}
@@ -278,6 +282,7 @@ static CurveBinding!T[] getTransitionCurves(CurveProvider, T)(CurveProvider p, T
 //    auto curves = getCurves!T();
 //
 //}
+
 
 static this()
 {

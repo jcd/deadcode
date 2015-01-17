@@ -4,7 +4,7 @@ import core.uri;
 
 import std.datetime;
 import std.exception;
-import std.signals;
+import core.signals;
 import std.typecons;
 
 import io.iomanager;

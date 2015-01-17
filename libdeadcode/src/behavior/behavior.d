@@ -11,7 +11,7 @@ import gui.keybinding;
 import gui.ruleset;
 import gui.window;
 
-import std.signals;
+import core.signals;
 
 class EditorBehavior // : KeyBindingValidator
 {

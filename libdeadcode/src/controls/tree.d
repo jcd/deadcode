@@ -9,7 +9,7 @@ import gui.widget;
 
 import std.array;
 import std.range;
-import std.signals;
+import core.signals;
 
 import gui.widgetfeature.directionallayout;
 import gui.widgetfeature.textrenderer;

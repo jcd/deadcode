@@ -76,11 +76,10 @@ class EmacsBehavior : EditorBehavior
 
 		set.setKeyBinding("<ctrl> + <shift> + <tab>", "app.cycleBuffers", -1);
 		
-		set.setKeyBinding("<ctrl> + x <ctrl> + f", "edit.open");
+		set.setKeyBinding("<ctrl> + x <ctrl> + f", "file.open");
 		set.setKeyBinding("<ctrl> + x b", "edit.showBuffer");
-		set.setKeyBinding("<ctrl> + x <ctrl> + s", "edit.save");
-		set.setKeyBinding("<ctrl> + x <ctrl> + w", "edit.saveBufferAs");
-		set.setKeyBinding("<ctrl> + x <ctrl> + w", "edit.saveBufferAs");
+		set.setKeyBinding("<ctrl> + x <ctrl> + s", "file.save");
+		set.setKeyBinding("<ctrl> + x <ctrl> + w", "file.saveAs");
 
 		set.setKeyBinding("<ctrl> + /", "edit.undo");
 		set.setKeyBinding("<ctrl> + _", "edit.undo");
@@ -96,7 +95,7 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<ctrl> + p", "app.toggleCommandArea", "");
 
 		set.setKeyBinding("<f7>", "dub.build");
-		set.setKeyBinding("<ctrl> + ,", "dub.quickopen");
+		set.setKeyBinding("<ctrl> + ,", "dub.quickOpen");
 		set.setKeyBinding("<ctrl> + i", "edit.incrFind");
 
 		set.setKeyBinding("<alt> + /", "edit.undo");
@@ -197,7 +196,7 @@ class EmacsBehavior : EditorBehavior
 							auto defs = command.getCommandParameterDefinitions();
 							if (defs is null || defs.setValues(params, matchedBinding.args))
 							{
-								command.execute(params);
+								commandManager.execute(command, params);
 							}
 							else
 							{

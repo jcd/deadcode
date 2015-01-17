@@ -31,7 +31,7 @@ enum Hints : ubyte
 class Command
 {
 	private CommandParameterDefinitions _commandParamtersTemplate;
-	
+
 	@property
 	{
 		string name() const
@@ -70,15 +70,26 @@ class Command
 		static protected string classNameToCommandName(string className)
 		{
 			string cmdName;
-
-			while (!className.empty)
+			cmdName ~= className.munch("A-Z").toLower;
+			cmdName ~= className.munch("[a-z0-9_]");
+			if (!className.empty)
 			{
-				if (!cmdName.empty)
-					cmdName ~= ".";
-				cmdName ~= className.munch("A-Z")[0].toLower;
-				cmdName ~= className.munch("[a-z0-9_]");
+				cmdName ~= ".";
+				cmdName ~= className.munch("A-Z").toLower;
+				cmdName ~= className;
 			}
 			return cmdName;
+
+			//string cmdName;
+			//
+			//while (!className.empty)
+			//{
+			//    if (!cmdName.empty)
+			//        cmdName ~= ".";
+			//    cmdName ~= className.munch("A-Z")[0].toLower;
+			//    cmdName ~= className.munch("[a-z0-9_]");
+			//}
+			//return cmdName;
 		}
 
 		string description() const
@@ -94,6 +105,11 @@ class Command
 		int hints() const
 		{
 			return Hints.all;
+		}
+
+		bool mustRunInFiber() const pure nothrow @safe
+		{
+			return false;
 		}
 	}
 	
@@ -284,10 +300,28 @@ class CommandManager
 	void execute(CommandCall c)
 	{
 		auto cmd = lookup(c.name);
-		if (cmd !is null && cmd.canExecute(c.arguments))
-			cmd.execute(c.arguments);
+		execute(cmd, c.arguments);
 	}
-		
+
+	void execute(string cmdName, CommandParameter[] args)
+	{
+		auto cmd = lookup(cmdName);
+		execute(cmd, args);
+	}
+
+	void execute(Command cmd, CommandParameter[] args)
+	{
+		// TODO: handle fibers
+		if (cmd !is null && cmd.canExecute(args))
+		{
+			import core.thread;
+			if (cmd.mustRunInFiber)
+				new Fiber( () { cmd.execute(args); } ).call();
+			else
+				cmd.execute(args);
+		}
+	}
+
 	Command lookup(string commandName)
 	{
 		auto c = commandName in commands;

@@ -1,3 +1,103 @@
+Release 0.11 - 17 January 2015 
+
+Overview:
+
+    * Language Intel Framework and initial support for D language
+    * Improved extension API
+    * Add message filtering to errorlist panel.
+    * Much fixing and polish
+
+Changes:
+
+    6b6aade When clicking unittest icon do not position cursor.
+    b71cd31 Cleanup
+    2e9af03 Find in files extension.
+    fa704c7 Stack container
+    f147934 WIP visitor class
+    989761b Build progress anim icon.
+    55a7dc8 Stylesheet update for StatusPanel, ErrorlistWidget in different modes. ToggleButtons on errorlist. AnalysisAnchors. CommandControl. Menu tree.
+    c405bfb Make dub extension change size of errorlist depending on build status.
+    9ef8a9b Make D styler style on tokenable text.
+    526d898 Disable a bunch of debug menu items.
+    a76e9e1 Clean up debug messages. 
+            Hardcode special case when animating a style to also change style version automatically.
+    57c78f3 Make emacs behaviour execute commands using command manager and not commands directly.
+    8691310 Add onActivity signal to GUI class.
+    f3b729a WIP gc tracker extension.
+    8bc666e Added basic D language intel
+    4f613ae Add new file command extension.
+    5b72098 Move open/save file commands from core to extension.
+    c0ad836 Add support for completion functions with automatic parameter type convertions to extension commands. 
+            Add support for UDA which signals that a command function must run in a fiber. 
+            Added come convenience methods.
+    fb7007e Changed GenericResource to have a add and set method where the former only inserts the item if the provided key is not already there.
+    28903be Add padding, border size and line height handling to text layouter
+    588892c Add new layouts to package module
+    482e0c7 Language intel interfaces
+    5be8e19 Future class implementation.
+    72d025b New GridLayout and StackLayout.
+    a138399 std.signals to core.signals
+    a52cbbc Added computed style and override style to Widget. 
+            Add replaceChild on widget. 
+            Add Persist attributes to some widget fields.
+    20e3ad0 Clean up log messages. Add more keywords to stylesheet styler.
+    e97a802 Add support for scheduling a position to place a widget - used mostly by extension widgets. 
+            Add support for prompting async prompting. 
+            Support for adding correct code intel when opening a buffer from file.
+    d2403ee Make directional layout support both culling and scaling mode.
+    b3f2020 Fix depth hit test on widget. Clean up log messages.
+    3475383 Fix end of line hit test on TextRenderer to not return beginning of next line. 
+            Fix style update refresh on TextRenderer when text or widget layout has not changed.
+    2878c0a Disable unused code
+    19b6588 Remove debug code
+    b34bb52 Add toggles for errors, warnings are messages to errorlist. 
+            Make errorlist use statuspanel.
+    2d0286b New status panel that can be a container of errorlist and things like that.
+    58a1c2e Better handling of automatic name for Commands. 
+            Flag in Command if it should be run in a fiber. 
+            Make it possible to execute a command by name and params only.
+    4b2a46c CommandPanel is now using GridLayout. 
+            Support for async promp on CommandPanel. 
+            Support for prefix label on CommandPanel.
+    eace43b Remove selection range changes when text are modified in TextEditor since that is already handled. 
+            Make it possible to unset a text anchor by ID on a TextEditor.
+    ffdb870 Changes for buffer actions to make them work with BufferView changes.
+    e6772dd Fix buffer overflow on GapBuffer. 
+            Add flag on TextBuffer to tell if it is persisted.
+    8a17aac Add ID on BufferView. 
+            Add ICodeModel on BufferView. 
+            Make setting selection also set cursorPoint. 
+            Rename transform to map on BufferView.
+    6416a6d Made Button work correctly with styling. 
+            Added ToggleButton.
+    bc685be Add an ID and a version to a Style. 
+            Fix unittests for styles. 
+            Fix crash when material manager is not set while getting style for widget.
+    d5ec9dd Expose text property on Label widget
+    fa7665c Decouple TextStyler and TextRenderer. 
+            Make DSourceStyler use libdparser TextStylers are now registered and looked up in manager making it possible to do them as extensions. 
+            DSourceStyler is now an extension. 
+            Automatic detections and convertion to correct argument types when calling a CommandFunction or Command. 
+            Get rid of CRTP for BasicCommand and require mixin registerCommands instead. 
+            Improve resource loading and exception handling. 
+            Move core stuff into libdeadcode making it possible to create a static lib to link with extension ie. fast rebuilds. 
+            Add new button control. 
+            Add UDA helper functions. 
+            Improve const pure and safeness of some functions. 
+            GenericResource can now contain multiple objects looked up by index or name.
+            Handle restarting editor after rebuild when running through visual studio.
+            Support for going to correct column when clicking error message in ErrorList. 
+            All non-private function in an extension is now treated as a command ie. no more need to @RegisterCommand!myfunction. 
+            Add clip(Region) to Region. 
+            Fix crash when reading from an empty IO. 
+            Add support for a textrenderer to have no text styler set. 
+            Stop propergating click even when clicking a menu item. 
+            Handle missing command args for comand called through menu. 
+            Make animated page scrolling more responsive. 
+            Add toString to Event.
+    0698381 Move files
+
+
 Release 0.10 - 06 November 2014 
 
 Overview:

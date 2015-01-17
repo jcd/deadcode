@@ -2,8 +2,10 @@ module extensions.errorlist;
 
 import extension;
 
+import controls.button;
 import gui.event;
 import gui.widgetfeature.constraintlayout;
+import gui.widgetfeature.gridlayout;
 import gui.widgetfeature.ninegridrenderer;
 import gui.widgetfeature.textrenderer;
 import gui.styledtext;
@@ -12,28 +14,149 @@ import math.rect;
 import math.region;
 import math.smallvector;
 
+import std.algorithm;
 import std.conv;
 import std.regex;
+import core.signals;
+import std.typecons;
 
 class ErrorListWidget : BasicWidget!ErrorListWidget
 {
 	static WidgetID widgetID;
 	
 	private TextRenderer!BufferView textRenderer;
+	private BufferView messagesBuffer;
 
 	private int lines = 0;
 	private int preferredEmptyBottomLines = 1;
+	
+	private enum MessageType : ubyte
+	{
+		messages = 1,
+		warnings = 2,
+		errors   = 4,
+		all = ubyte.max
+	}
+	private ubyte _shownMessageTypes = 6;
+	
+	ToggleButton _messageToggle;
+	private int _messageCount = 0;
+	ToggleButton _errorToggle;
+	private int _errorCount = 0;
+	ToggleButton _warningToggle;
+	private int _warningCount = 0;
+	private Widget _progressWidget;
+
+	private void enable(MessageType t)
+	{
+		_shownMessageTypes = _shownMessageTypes | t;
+		rebuildMessages();
+	}
+
+	private void disable(MessageType t)
+	{
+		_shownMessageTypes = _shownMessageTypes & ~t;
+		rebuildMessages();
+	}
+
+	private void set(MessageType t, bool isOn)
+	{
+		if (isOn)
+			enable(t);
+		else
+			disable(t);
+	}
+
+	void showProgress(bool f)
+	{
+		_progressWidget.visible = f;
+	}
+
+	//enum Mode
+	//{
+	//    Hidden,
+	//    Oneline,
+	//    Compiling,
+	//}
+
+	//enum _classes = [["hidden"],["oneline"], ["twoline"], ["multiline"]];
+	//
+	//override protected @property const(string[]) classes() const pure nothrow @safe
+	//{
+	//    return _classes[mode];
+	//}
+
+	//override const(string[]) classes() const pure nothrow @safe { return null; }
 
 	void append(string msg)
 	{
 		import std.conv;
-		textRenderer.text.insert(to!dstring(msg ~ "\n"));
+		auto r = parseLine(msg.to!dstring);
+		messagesBuffer.insert(r.lineText);
+		adjustMessageTypeCounts(r);
+		appendVisible(r);
+	}
+
+	private void adjustMessageTypeCounts(T)(T r)
+	{
+		final switch (r.type) with (MessageType)
+		{
+			case messages: 
+				_messageToggle.text = text(++_messageCount, " messages");
+				break;
+			case warnings: 
+				_warningToggle.text = text(++_warningCount, " warnings");
+				break;
+			case errors: 
+				_errorToggle.text = text(++_errorCount, " errors");
+				break;
+			case all:
+				break;
+		}
+	}
+
+	private void appendVisible(T)(T r)
+	{
+		if (r.type & _shownMessageTypes)
+			textRenderer.text.insert(r.lineText);
 		lines++;
 		if ((textRenderer.text.visibleLineCount - preferredEmptyBottomLines) < lines)
 			textRenderer.text.scrollDown(); 
 	}
 
+	private void rebuildMessages(bool adjustCounts = false)
+	{
+		clearVisible();
+		auto lc = messagesBuffer.lineCount;
+		foreach (lineIdx; 0..lc)
+		{
+			auto txt = messagesBuffer.buffer.lineString(lineIdx);
+			auto r = parseLine(txt.idup);
+			if (adjustCounts)
+				adjustMessageTypeCounts(r);
+			appendVisible(r);
+		}
+	}
+
 	void clear()
+	{
+		messagesBuffer.clear();
+		clearVisible();
+		_messageCount = 0;
+		_messageToggle.text = text(_messageCount, " messages");
+		_warningCount = 0;
+		_warningToggle.text = text(_warningCount, " warnings");
+		_errorCount = 0;
+		_errorToggle.text = text(_errorCount, " errors");
+		import extensions.statuspanel;
+		auto p = cast(StatusPanel)getBasicWidget("statuspanel");
+		if (p is null)
+			return;
+
+		p.mode = StatusPanel.Mode.hidden;
+	}
+
+	private void clearVisible()
 	{
 		textRenderer.text.clear();
 		textRenderer.text.lineOffset = 0;
@@ -48,23 +171,67 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 		//features ~= n;
 
 		auto v = app.bufferViewManager.create();
-
+		messagesBuffer = app.bufferViewManager.create();
+		
 		textRenderer = new TextRenderer!BufferView(v);
-		textRenderer.textStyler = new ErrorListStyler(v);
+		auto styler = new ErrorListStyler(v);
+		textRenderer.textStyler = styler;
 		features ~= textRenderer;
+		
+		auto box = new Widget(this);
+		box.name = "toggles";
+		box.features ~= new GridLayout(GridLayout.Direction.row, 1);
+
+		_progressWidget = new Widget();
+		_progressWidget.name = "progress";
+		_progressWidget.parent = box;
+		_progressWidget.visible = false;
+
+		auto b = new ToggleButton(text(0, " errors"));
+		b.name = "toggleErrors";
+		b.parent = box;
+		b.zOrder = 99;
+		_errorToggle = b;
+		b.onToggled.connect(&toggleErrors);
+		b = new ToggleButton(text(0, " warnings"));
+		b.name = "toggleWarnings";
+		b.parent = box;
+		b.zOrder = 99;
+		_warningToggle = b;
+		b.onToggled.connect(&toggleWarnings);
+		b = new ToggleButton(text(0, " messages"));
+		b.name = "toggleMessages";
+		b.parent = box;
+		b.zOrder = 99;
+		_messageToggle = b;
+		b.onToggled.connect(&toggleMessages);
 
 		// textRenderer = content(this, v);
 		size = Vec2f(-1, 200);
 		// size = Vec2f(10, 200);
-		alignToWindow(this, Anchor.BottomRight, rect.size);
+		// alignToWindow(this, Anchor.BottomRight, rect.size);
 		acceptsKeyboardFocus = true;
 		lines = 0;
 		zOrder = 50;
+		app.scheduleWidgetPlacement(this, "statuspanel", RelativeLocation.inside);
 		// TODO: Remove line below to enable errorlist
 		//visible = false;
 		loadSession();
 		append("Console initialized");
 		v.centerOnLine(v.lineCount-3);
+	}
+
+	private void toggleErrors(ToggleButton b)
+	{
+		set(MessageType.errors, b.isOn);
+	}
+	private void toggleWarnings(ToggleButton b)
+	{
+		set(MessageType.warnings, b.isOn);
+	}
+	private void toggleMessages(ToggleButton b)
+	{
+		set(MessageType.messages, b.isOn);
 	}
 
 	override void fini()
@@ -75,20 +242,45 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 	static class SessionData
 	{
 		string messages;
+		ubyte shownMessageTypes;
 	}
 	
 	private void loadSession()
 	{
 		auto s = loadSessionData!SessionData();
 		if (s !is null)
-			append(s.messages);
+		{
+			_shownMessageTypes = s.shownMessageTypes;
+			if (_shownMessageTypes & MessageType.messages)
+				_messageToggle.isOn = true;
+			if (_shownMessageTypes & MessageType.warnings)
+				_warningToggle.isOn = true;
+			if (_shownMessageTypes & MessageType.errors)
+				_errorToggle.isOn = true;
+
+			messagesBuffer.insert(s.messages.to!dstring);
+			rebuildMessages(true);
+		}
 	}
 
 	private void saveSession()
 	{
 		auto s = new SessionData();
-		s.messages = textRenderer.text.buffer.toArray().to!string;
+		s.messages = messagesBuffer.buffer.toArray().to!string;
+		s.shownMessageTypes = _shownMessageTypes;
 		saveSessionData(s);
+	}
+
+	private void foundIssue(string filePath, string lineNum, string errorMsg, bool isError)
+	{
+		import extensions.statuspanel;
+
+		auto p = cast(StatusPanel)getBasicWidget("statuspanel");
+		if (p is null)
+			return;
+
+		if (isError)
+			p.mode = StatusPanel.Mode.normal;
 	}
 
 	override EventUsed onMouseScroll(Event event)
@@ -146,6 +338,48 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 			writeln(line);
 		}
 		return EventUsed.yes;
+	}
+
+	private auto parseLine(dstring str)
+	{
+		struct ParsedLine
+		{
+			dstring lineText;
+			MessageType type;
+			dstring message;
+			dstring file;
+			int line;
+			int column;
+		}
+
+		ParsedLine result = ParsedLine(str ~ "\n"d, MessageType.messages);
+
+		import std.regex;		
+		auto ctr = regex(ErrorListStyler.errorLineRe, "mg");
+		auto m = match(str, ctr);
+
+		if (!m.captures.empty)
+		{
+			result.message = m.captures[3];
+			result.file = m.captures[1];
+			if (result.message.startsWith("Error:"))
+				result.type = MessageType.errors;
+			else if (result.message.startsWith("Warning:"))
+				result.type = MessageType.warnings;
+
+			auto pos = m.captures[2][1..$-1];
+			auto sp = std.algorithm.findSplit(pos, ",");
+			int errorLine = 0;
+			int errorColumn = 0;
+			if (sp[1].empty)
+				result.line = to!int(pos) - 1; // lines are 0 indexed in buffer but 1 indexed in error message
+			else
+			{
+				result.line = to!int(sp[0]) - 1;
+				result.column = to!int(sp[2]) - 1;
+			}
+		}
+		return result;
 	}
 
 	override void update()
@@ -206,16 +440,17 @@ class ErrorListStyler : TextStyler
 			auto end = begin + filePath.length;
 			if (begin != lastEndIdx)
 				_regionSet.merge(offset + lastEndIdx, offset + begin, DStyle.other);
+			
 			_regionSet.set(offset + begin, offset + end, DStyle.lineNumber);			
 
 			auto lineInFile = m.captures[2];
 			begin = end;
 			end = begin + lineInFile.length;
 			_regionSet.set(offset + begin, offset + end, DStyle.error);			
-
-			auto errorMessage = m.captures[3];
+			
+			auto message = m.captures[3];
 			begin = end + 1;
-			end = begin + errorMessage.length;
+			end = begin + message.length;
 			_regionSet.set(offset + begin, offset + end, DStyle.other);
 			lastEndIdx = end;
 		}

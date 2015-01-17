@@ -364,6 +364,12 @@ class TextSelectionModel : Stylable
 		if (style is null)
 			return;
 
+		RectfOffset padding = style.padding;
+		bool hasVertPadding = padding.vertical != 0f;
+
+		// TODO: support width as well
+		CSSScale height = style.height;
+
 		// A region for each selected parts of the lines. Not that only the beginning and ending lines
 		// can have regions that are a partial line.
 		// TODO: use appender		
@@ -384,6 +390,7 @@ class TextSelectionModel : Stylable
 				break; // line is after selection. No more to model.
 
 			auto chunks = line.region.intersect3(selRegion);
+
 			if (chunks.at.empty)
 				continue; // Nothing at this line is selected.
 
@@ -401,7 +408,12 @@ class TextSelectionModel : Stylable
 		// TODO: move this into the loop above
 		Rectf prevRect;
 
-		const float borderSize = 3;
+		RectfOffset borderSize = style.backgroundSpriteBorder;
+		Sprite sprite = Sprite(style.backgroundSprite);
+		
+		auto solid = Sprite(borderSize.left, borderSize.top, sprite.rect.w - borderSize.horizontal, sprite.rect.h - borderSize.vertical);
+
+		//const float borderSize = 3;
 
 		foreach (i, ref line; lines)
 		{
@@ -417,14 +429,14 @@ class TextSelectionModel : Stylable
 			BoxModel box = models[i];
 			if (box is null)
 			{
-				box = new BoxModel(0, Sprite(0,0,16,16), RectfOffset(borderSize,borderSize,borderSize,borderSize));
+				box = new BoxModel(0, sprite, RectfOffset(borderSize.left,borderSize.top,borderSize.right,borderSize.bottom));
 				//box = new BoxModel(Sprite(Rectf(6,6,4,4)));
 				box.color = style.color; //Vec3f(0.25, 0.25, 0.25);
 				models[i] = box;
 			}
 			else
 			{
-				box.setupDefaultNinePatch(Sprite(0,0,16,16));
+				box.setupDefaultNinePatch(sprite);
 				box.color = style.color;
 			}
 
@@ -433,35 +445,85 @@ class TextSelectionModel : Stylable
 			auto curRect = Rectf(beginGlyphPos.pos, size);
 
 			bool firstLine = i == 0;
-			if (!firstLine)
+			if (!firstLine && !hasVertPadding)
 			{
 				// Check the previous line rect to figure out how this line top corners should look and 
 				// prev lines bottom corners should look
 				if (curRect.x <= prevRect.x && curRect.x2 >= prevRect.x)
 				{
 					// The last should have an open bottom left corner
-					models[i-1].bottomLeft = Sprite(borderSize, borderSize, 4, 4);
+					
+					models[i-1].bottomLeft = solid;
 					if (curRect.x2 > prevRect.x2)
 					{
 											
 					}
 					else
 					{
-						models[i].topRight = Sprite(6, 6, 4, 4);
+						models[i].topRight = solid; // Sprite(6, 6, 4, 4);
 					}
 				}
 				if (curRect.x2 >= prevRect.x2 && curRect.x <= prevRect.x2)
 				{
 					// The last should have an open bottom left corner
-					models[i-1].bottomRight = Sprite(borderSize, borderSize, 4, 4);
+					models[i-1].bottomRight = solid; // Sprite(borderSize, borderSize, 4, 4);
 				}
 				if (curRect.x == prevRect.x)
 				{
-					models[i].topLeft = Sprite(borderSize, borderSize, 4, 4);
+					models[i].topLeft = solid; // Sprite(borderSize, borderSize, 4, 4);
 				}
 			}
 
 			prevRect = curRect;
+			
+			// adjust for padding and size
+			if (padding.top != 0f)
+			{
+				curRect.y += padding.top;
+				if (curRect.y >= prevRect.y2)
+					curRect.y = prevRect.y2;
+
+				if (padding.bottom != 0f)
+					curRect.h -= padding.vertical;
+				else
+					curRect.h -= padding.top;
+
+				if (curRect.y2 < curRect.y)
+					curRect.y2 = curRect.y;
+			} 
+			else if (padding.bottom != 0f)
+			{
+				curRect.h -= padding.bottom;
+				if (curRect.y2 < curRect.y)
+					curRect.y2 = curRect.y;
+			}
+
+			if (padding.left != 0f)
+			{
+				curRect.x += padding.left;
+				if (curRect.x >= prevRect.x2)
+					curRect.x = prevRect.x2;
+
+				if (padding.right != 0f)
+					curRect.w -= padding.horizontal;
+				else
+					curRect.w -= padding.left;
+				if (curRect.x2 < curRect.x)
+					curRect.x2 = curRect.x;
+			} 
+			else if (padding.right != 0f)
+			{
+				curRect.w -= padding.right;
+				if (curRect.x2 < curRect.x)
+					curRect.x2 = curRect.x;
+			}
+
+			if (height.isValid)
+			{
+				assert(height.unit == CSSUnit.pixels); // TODO: support other heights as well
+				curRect.h = height.value;					
+			}
+
 			box.rect = curRect;
 		}
 	}

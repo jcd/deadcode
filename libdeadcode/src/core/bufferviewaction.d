@@ -12,13 +12,13 @@ import std.typecons;
 
 debug import std.stdio;
 
-version(unittest) 
+version(unittest)
 {
 	import test;
 	import core.copybuffer;
 }
 
-// An action is revisible in regards to 
+// An action is revisible in regards to
 // cursor position, preferredColumn and text content.
 // This also means that the reverse of nextWord isn't just prevWord since
 // the cursor may be in the middle of a word to begin with and a nextWord followed
@@ -64,7 +64,7 @@ class ActionGroupAction : Action
 		foreach (a; actions.retro)
 			a.undo(bv);
 	}
-	
+
 	debug override void dump(int indent) const
 	{
 		writeln(repeat(' ', indent), "Group {");
@@ -321,7 +321,13 @@ class RemoveAction : Action
 	int count;
 	immutable(TextBuffer.CharType)[] text; // used to remember what to undo
 	TextBoundary boundary;
-	bool selected;
+	enum SelectState
+	{
+	    nothingSelected,
+            cursorAtStartOfSelection,
+            cursorAtEndOfSelection,
+	}
+        SelectState selectState;
 
 	this(TextBoundary b, int cnt = 1)
 	{
@@ -332,17 +338,19 @@ class RemoveAction : Action
 	private bool update(BufferView bv, TextBoundary b, int cnt)
 	{
 		// Only some boundary moves and direction can be updated
-		if (boundary != b || ((cnt < 0) != (count < 0)) || selected == bv.selection.empty)
+		if (boundary != b || ((cnt < 0) != (count < 0)) ||
+			((selectState == SelectState.nothingSelected && !bv.selection.empty) ||
+                         (selectState != SelectState.nothingSelected && bv.selection.empty)) )
 			return false;
 		count += cnt;
 		perform(bv, b, cnt);
 		return true;
 	}
-	
+
 	private void perform(BufferView bv, TextBoundary b, int cnt)
 	{
 		int start, end;
-		
+
 		if (bv.selection.empty)
 		{
 			start = bv.buffer.offsetBy(bv._cursorPoint, cnt, b);
@@ -354,7 +362,7 @@ class RemoveAction : Action
 		{
 			start = bv.selection.a;
 			end = bv.selection.b;
-			selected = true;
+			selectState = start == bv._cursorPoint ? SelectState.cursorAtStartOfSelection : SelectState.cursorAtEndOfSelection;
 		}
 
 		// record the content for later undoing
@@ -376,6 +384,7 @@ class RemoveAction : Action
 
 		bv.buffer.removeRange(start, end);
 		bv._cursorPoint = start;
+                bv.setSelectRegion(Region(start,start));
 		bv.setPreferredCursorColumnFromIndex();
 		bv.modified = true;
 		bv.onRemove.emit(bv, t, start);
@@ -392,15 +401,25 @@ class RemoveAction : Action
 		bv.buffer.insert(text, bv.cursorPoint);
 		auto origCursorPoint = bv.cursorPoint;
 		auto restoredCursorPoint = origCursorPoint;
-		if (count < 0)
-			restoredCursorPoint += text.length;
-		bv._cursorPoint = restoredCursorPoint; 
+		final switch(selectState) with (SelectState)
+		{
+		    case nothingSelected:
+                        break;
+                    case cursorAtStartOfSelection:
+                        origCursorPoint += text.length;
+			break;
+                    case cursorAtEndOfSelection:
+                        restoredCursorPoint += text.length;
+                        break;
+		}
+
+		bv._cursorPoint = restoredCursorPoint;
 		bv.preferredCursorColumn(preferredColumn);
 		// bv.setIndexFromPreferredCursorColumn();
 		bv.modified = true;
 		bv.onInsert.emit(bv, text, origCursorPoint);
 		text = null;
-		selected = false;
+		selectState = SelectState.nothingSelected;
 		bv.setSelectRegion(Region(origCursorPoint, restoredCursorPoint));
 	}
 
@@ -480,7 +499,7 @@ class RemoveSelectedAction : Action
 		preferredColumn = bv.preferredCursorColumn;
 		import std.math;
 		// record the content for later undoing
-		
+
 		auto l = bv.selection.length;
 		auto sel = bv.selection.normalized;
 		auto o = sel.a;
@@ -491,6 +510,7 @@ class RemoveSelectedAction : Action
 		bv.buffer.removeRange(sel.a, sel.b);
 		bv.clearSelection();
 		bv._cursorPoint = o;
+                bv.setSelectRegion(Region(o,o));
 		bv.setPreferredCursorColumnFromIndex();
 		bv.modified = true;
 		bv.onRemove.emit(bv, text, o);
@@ -502,14 +522,14 @@ class RemoveSelectedAction : Action
 		bv.buffer.insert(text, bv.cursorPoint);
 		bv.modified = true;
 		bv.onInsert.emit(bv, text, origCursorPoint);
-		
+
 		if (cursorAtStartOfSelection)
 		{
 			bv.setSelectRegion(Region(bv._cursorPoint, bv._cursorPoint + text.length));
 		}
 		else
 		{
-			bv._cursorPoint += text.length; 
+			bv._cursorPoint += text.length;
 			bv.setSelectRegion(Region(bv._cursorPoint, bv._cursorPoint - text.length));
 		}
 		bv.preferredCursorColumn(preferredColumn);
@@ -525,7 +545,7 @@ class RemoveSelectedAction : Action
 unittest
 {
 	import math.region;
-	
+
 	// Test reversibility
 	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
 	v.copyBuffer = new CopyBuffer;
@@ -585,7 +605,7 @@ class CopySelectedAction : Action
 	{
 		modifying = false;
 	}
-	
+
 	private bool update(BufferView bv)
 	{
 		return false; // cannot update this
@@ -634,12 +654,12 @@ class PasteAction : Action
 			copyBufferEntryOffset = origOffset;
 			return true;
 		}
-		
+
 		if (insertAction is null)
 		{
 			// Previous pastes were done with invalid entry offsets ie. no-op.
 			// This is the first actual paste
-			redo(bv); 
+			redo(bv);
 			return true;
 		}
 
@@ -657,7 +677,7 @@ class PasteAction : Action
 			auto e = bv.copyBuffer.get(copyBufferEntryOffset);
 			if (e is null)
 				return; // nothing at that entry
-			
+
 			insertAction = new InsertAction(e.txt);
 		}
 		insertAction.redo(bv);
@@ -701,7 +721,7 @@ class CursorAction : Action
 			return false;
 		count += cnt;
 		perform(bv, b, cnt);
-		return true;		
+		return true;
 	}
 
 	private void perform(BufferView bv, TextBoundary b, int c)
@@ -714,7 +734,7 @@ class CursorAction : Action
 			else if (!bv.selection.empty)
 				bv.setSelectRegion(Region(bv.selection.a, bv.selection.a));
 
-			bv._cursorPoint = idx; 
+			bv._cursorPoint = idx;
 			bv.setPreferredCursorColumnFromIndex();
 		}
 	}
@@ -735,7 +755,7 @@ class CursorAction : Action
 		if (selecting)
 			bv.setSelectRegion(Region(origPoint, offset));
 	}
-	
+
 	debug override void dump(int indent) const
 	{
 		writefln("%s%s(%s,%s,%s,%s)", repeat(' ', indent), "Cursor", offset, boundary, count, preferredColumn);
@@ -884,8 +904,8 @@ class ActionStack
 	// Keep track of all cursor actions (e.g. cursorLeft/toEndOfLine) and
 	// insert the on stack before a non-cursor (ie. modifying) action when such one is pushed.
 	// This solves the situation where you undo some steps, then move the cursor and the redo some steps.
-	// When redoing in that situation you simply throw away topCursorActions and redo actions after that. 
-	// If it was not done this way any subsequent cursor actions after an undo would be inserted as 
+	// When redoing in that situation you simply throw away topCursorActions and redo actions after that.
+	// If it was not done this way any subsequent cursor actions after an undo would be inserted as
 	// new actions on the undo array immediately and "overwrite" the real undo stack top.
 	// Array!Action topCursorActions;
 	Action[] topCursorActions;
@@ -896,7 +916,7 @@ class ActionStack
 	this()
 	{
 		last = new Item(null);
-		
+
 		//actions.reserve(10);
 		//actions.length = 0;
 	}
@@ -949,7 +969,7 @@ class ActionStack
 //            return;
 //
 //        //CursorRightAction offsetAction = topCursorActions.empty ? null : cast(CursorRightAction) topCursorActions.back();
-//    
+//
 //        // Merge all offsets into last cursor action if that was a simple move-by-char action. Else create a new cursor action.
 //        CursorAction cursorAction = topCursorActions.empty ? null : cast(CursorAction) topCursorActions[$-1];
 //        if (cursorAction is null || cursorAction.boundary != TextBoundary.chr)
@@ -966,7 +986,7 @@ class ActionStack
 	private Action createAction(T, Args...)(BufferView bv, Args args)
 	{
 		// Aggregate inserts and removes if possible
-		// TODO: Do this for all other actions that supports the update() method as well.		
+		// TODO: Do this for all other actions that supports the update() method as well.
 		T activeTAction = cast(T) activeAction;
 		if (activeTAction is null || !activeTAction.update(bv, args))
 		{
@@ -991,15 +1011,15 @@ class ActionStack
 			dump();
 			return;
 		}
-	
-		// A new action will truncate any redoes above current idx in stack. But only if it is an action that modifies 
+
+		// A new action will truncate any redoes above current idx in stack. But only if it is an action that modifies
 		// the buffer.
 		if (a.modifying)
 		{
 			foreach (ac; topCursorActions)
 			{
 				if (last.next !is null)
-					last.next.prev = null; 
+					last.next.prev = null;
 				last.next = new Item(ac);
 				last.next.prev = last;
 				last = last.next;
@@ -1013,7 +1033,7 @@ class ActionStack
 			// Put on stack after performed because any embedded action will get
 			// push to stack before this actions which is what we want.
 			if (last.next !is null)
-				last.next.prev = null; 
+				last.next.prev = null;
 			last.next = new Item(a);
 			last.next.prev = last;
 			last = last.next;
@@ -1054,10 +1074,10 @@ class ActionStack
 	void redo(BufferView bv)
 	{
 		assert(canRedo());
-		
+
 		undoTopCursorActions(bv);
 
-		// Redo all non-modifying actions until and including the next modifying action 
+		// Redo all non-modifying actions until and including the next modifying action
 		while (last.next !is null)
 		{
 			last.next.action.redo(bv);
@@ -1154,7 +1174,7 @@ unittest
 
 	// Testing insertion redo and undo with offset
 	st.push!CursorAction(v, TextBoundary.chr, -5, false);
-	st.insert(v, "foo"); 
+	st.insert(v, "foo");
 	Assert(v.buffer.toArray(), "tefoosting"d);
 
 	st.undo(v);
@@ -1208,7 +1228,7 @@ unittest
 
 	// Testing insertion redo and undo with offset
 	v.cursorLeft(5);
-	v.insert("foo"); 
+	v.insert("foo");
 	Assert(v.buffer.toArray(), "tefoosting"d);
 
 	v.undo();

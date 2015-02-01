@@ -512,9 +512,13 @@ class TextEditorAnchor : Widget
 		auto lineIdx = textAnchor.number;
 		auto lineStart = buffer.startAtLineNumber(lineIdx);
 		auto lineEnd = buffer.endAtLineNumber(lineIdx);
+
+        if (lineEnd != lineStart)
+        {
 		auto lineEndChar = buffer.findOneNotOfReverse(lineEnd, " \t\r\n");
 		if (lineEndChar != int.max)
 			lineEnd = lineEndChar;
+        }
 
 		Rectf lineRect = editor.textRect(lineStart, lineEnd);
 		inView = ! lineRect.x.isNaN;

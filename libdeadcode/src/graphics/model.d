@@ -1,9 +1,9 @@
 module graphics.model;
 
-import derelict.opengl3.gl3; 
+import derelict.opengl3.gl3;
 import graphics.mesh : Mesh;
 import graphics.material : Mat = Material;
-import math._ : Mat4f;
+import math : Mat4f;
 import std.range : front, empty;
 
 final class SubModel
@@ -12,16 +12,16 @@ final class SubModel
 	Mat material;
 	bool blend;
 	int blendMode = 0;
-	
+
 	@property valid() const
 	{
 		return material.hasTexture;
 	}
-	
+
 	void draw(Mat4f transform)
 	{
 		//material.shader.setUniform("colMap", 0);
-		
+
 		if (blend)
 		{
 			glEnable (GL_BLEND);
@@ -38,7 +38,7 @@ final class SubModel
 			glDisable (GL_BLEND);
 			//glEnable(GL_DEPTH_TEST);
 		}
-		
+
 		material.shader.setUniform("MVP", transform);
 		material.bind();
 		mesh.bind();
@@ -52,7 +52,7 @@ final class SubModel
 final class Model
 {
 	SubModel[] subModels;
-	
+
 	SubModel createSubModel()
 	{
 		auto sm = new SubModel();
@@ -68,33 +68,33 @@ final class Model
 			createSubModel();
 	}
 
-	// Mesh of the first SubModel 
-	@property 
+	// Mesh of the first SubModel
+	@property
 	{
 		Mesh mesh()
 		{
 			ensureSubModelExists();
-			return subModels.front.mesh; 
+			return subModels.front.mesh;
 		}
-		
+
 		void mesh(Mesh m)
 		{
 			ensureSubModelExists();
 			subModels.front.mesh = m;
 		}
-		
+
 		Mat material()
 		{
 			ensureSubModelExists();
-			return subModels.front.material; 
+			return subModels.front.material;
 		}
-		
+
 		void material(Mat m)
 		{
 			ensureSubModelExists();
 			subModels.front.material = m;
 		}
-		
+
 		SubModel subModel()
 		{
 			return subModels.front;
@@ -105,7 +105,7 @@ final class Model
 			return !subModels.empty && subModels.front.valid;
 		}
 	}
-	
+
 	void draw(Mat4f transform)
 	{
 		foreach (m; subModels)

@@ -3,7 +3,7 @@ module graphics.renderqueue;
 import graphics.camera;
 import graphics.model;
 import graphics.rendertarget;
-import math._;
+import math;
 
 class renderqueue
 {
@@ -20,7 +20,7 @@ class renderqueue
 		// Front to back sort
 		// First render all opaque models with depth buffer write enabled
 		// Then render all transparent objects with depth buffer write disabled
-		
+
 	}
 
 	void render(Camera cam, RenderTarget target)
@@ -32,7 +32,7 @@ class renderqueue
 			m.draw(transform);
 		}
 	}
-	
+
 	void clear()
 	{
 		// TODO: use assumeSafe thingy

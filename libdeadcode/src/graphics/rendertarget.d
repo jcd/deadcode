@@ -1,6 +1,6 @@
 module graphics.rendertarget;
 
-import math._;
+import math;
 
 // TODO: make a window render target and an renderbuffer render target
 //
@@ -12,7 +12,7 @@ class RenderTarget
 		OnRender _onRender;
 	}
 
-	@property 
+	@property
 	{
 		void onRender(OnRender callback)
 		{

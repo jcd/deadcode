@@ -6,12 +6,12 @@ import graphics.texture;
 
 //import core.resource;
 
-import math._;
+import math;
 
 import std.exception;
 import std.conv;
 
-import derelict.sdl2.sdl; 
+import derelict.sdl2.sdl;
 import derelict.sdl2.ttf;
 
 class Font //: Resource!Font
@@ -19,7 +19,7 @@ class Font //: Resource!Font
 	private
 	{
 		TTF_Font * ttfFont;
-		
+
 		GlyphInfo[] glyphInfoASCII; // special case ascii from unicode because it is the most common one
 		GlyphInfo[dchar] glyphInfoUnicode;
 		bool updateNeeded;
@@ -33,43 +33,43 @@ class Font //: Resource!Font
 		int minY;
 		int maxY;
 		int advance;
-		
+
 		// Fontmap info
 		Rectf uvRect;
-		
+
 		// rect in world coords that can be used for rendering the font pixel perfect
 		// at the correct centering in the advance width. z offset should be 0.
 		// Use this and the u,v to create two triangles for rendering the glyph
 		Rectf offsetRect;
-	
+
 		@property bool empty() const
 		{
 			return std.math.isNaN(uvRect.size.x);
 		}
 	}
-	
+
 	uint fontHeight;
 	uint fontWidth; // max width (estimated from max advance)
 	int fontAscent;
 	int fontDescent;
 	uint fontLineSkip;
-	
+
 	string path;
 
 	@NonBindable()
 	Texture fontMap;
 	size_t size;
-	
+
 	protected this()
 	{
 		updateNeeded = true;
 	}
-	
+
 	//this(string path, size_t size)
 	//{
 	//	init(path, size);
 	//}
-	
+
 	public void init()
 	{
 		init(path, size);
@@ -89,20 +89,20 @@ class Font //: Resource!Font
 		TTF_SetFontHinting(ttfFont, TTF_HINTING_LIGHT);
 		uint begin = cast(uint) ' ';
 		uint end = cast(uint) '~';
-		glyphInfoASCII.length = end - begin + 1;		
-		
+		glyphInfoASCII.length = end - begin + 1;
+
 		recalculateGlyphInfoASCII(); // Always have ascii char available
 		updateNeeded = true;
 		updateFontMap();
 	}
-	
+
 	GlyphInfo lookupGlyph(dchar ch)
 	{
 		// assert(cast(uint)ch - cast(uint)' ' <= glyphInfoASCII.length, text("ASCII Glyph out of bounds ", ch, " (", cast(uint)ch, ")") );
 		auto i = cast(uint)ch - cast(uint)' ';
 		if (i < glyphInfoASCII.length)
 		{
-			return glyphInfoASCII[i]; 
+			return glyphInfoASCII[i];
 		}
 		else
 		{
@@ -110,24 +110,24 @@ class Font //: Resource!Font
 			if (entry is null)
 			{
 				auto gi = GlyphInfo();
-				glyphInfoUnicode[ch] = gi; 
+				glyphInfoUnicode[ch] = gi;
 				updateNeeded = true;
 				return gi;
 			}
 			return *entry;
 		}
 	}
-	
+
 	void updateFontMap()
 	{
 		if (!updateNeeded)
 			return;
 		recalculateGlyphInfoUnicode();
 		recalculateFontMapSize();
-		populateFontMap();	
+		populateFontMap();
 		updateNeeded = false;
 	}
-	
+
 	private void recalculateGlyphInfoASCII()
 	{
 		fontHeight = TTF_FontHeight(ttfFont);
@@ -135,7 +135,7 @@ class Font //: Resource!Font
 		fontDescent = TTF_FontDescent(ttfFont);
 		fontLineSkip = TTF_FontLineSkip(ttfFont);
 		fontWidth = 0;
-		
+
 		// Ascii map
 		ushort begin = cast(ushort) ' ';
 		ushort end = cast(ushort) '~';
@@ -150,12 +150,12 @@ class Font //: Resource!Font
 			}
 
 			glyphInfoASCII[i-begin] = gi;
-			
+
 			// Estimate max glyph width
 			fontWidth = fontWidth < gi.advance ? gi.advance : fontWidth;
 		}
 	}
-	
+
 	private void recalculateGlyphInfoUnicode()
 	{
 		fontHeight = TTF_FontHeight(ttfFont);
@@ -187,7 +187,7 @@ class Font //: Resource!Font
 		size_t px = fontWidth * fontHeight;
 		uint texWidth = 64;
 		uint texHeight = 128;
-		
+
 		done: while (texHeight <= 4096)
 		{
 			uint glyphsPerHeight = texHeight / fontHeight;
@@ -198,19 +198,19 @@ class Font //: Resource!Font
 					break done;
 				texWidth <<= 1;
 			}
-			texWidth = 64;	
+			texWidth = 64;
 			texHeight <<= 1;
 		}
 
 		enforceEx!Exception(texWidth <= 4096, "Font map texture width > 4096");
 		enforceEx!Exception(texHeight <= 4096, "Font map texture height > 4096");
-	
+
 		if (fontMap !is null && (fontMap.width != texWidth || fontMap.height != texHeight))
 		{
 			fontMap.release();
 			fontMap = null;
 		}
-		
+
 		if (fontMap is null)
 		{
 			fontMap = Texture.create(texWidth, texHeight);
@@ -225,11 +225,11 @@ class Font //: Resource!Font
 		SDL_Color col = SDL_Color(255,255,255);
 
 		float lastU = 0f;
-		float lastV = 1f; 		
+		float lastV = 1f;
 		float uPerPixel = 1f / fontMap.width;
 		float vPerPixel = 1f / fontMap.height;
 		float vHeight = fontHeight * vPerPixel;
-	
+
 		uint lastX = 0;
 		uint lastY = 0;
 
@@ -294,12 +294,12 @@ class Font //: Resource!Font
 		fontMap.blitSDLSurface(rect, pow2surface, true);
 		SDL_FreeSurface(pow2surface);
 	}
-	
+
 	void calcSize(const(char)[] msg, out int w, out int h)
 	{
 		enforceEx!Exception(TTF_SizeUTF8(ttfFont, msg.ptr, &w, &h) > 0,
 						text("Error measuring text size: ", TTF_GetError()));
-	}	
+	}
 }
 
 /*
@@ -312,15 +312,15 @@ Model createWindowFontMapTestQuad(Rectf windowRect)
 
 	Buffer vertexBuf = Buffer.create(vert);
 	Buffer colorBuf = Buffer.create(uv);
-	
+
 	Mesh mesh = Mesh.create();
-	mesh.setBuffer(vertexBuf, 3, 0);	
-	mesh.setBuffer(colorBuf, 2, 1);	
+	mesh.setBuffer(vertexBuf, 3, 0);
+	mesh.setBuffer(colorBuf, 2, 1);
 
 	Model m = new Model();
 	m.mesh = mesh;
 	m.material = mat;
-	
+
 	return m;
 }
 */
@@ -328,6 +328,6 @@ Model createWindowFontMapTestQuad(Rectf windowRect)
 /*
 class FontManager : ResourceManager!Font
 {
-	
+
 }
 */

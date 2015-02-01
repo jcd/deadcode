@@ -1,6 +1,6 @@
 module graphics.color;
 
-import math._;
+import math;
 
 import std.conv;
 import std.exception;
@@ -71,7 +71,7 @@ struct Color
 	{
 		v = val;
 	}
-	
+
 	this(float r, float g, float b, float a = 1.0f) nothrow pure
 	{
 		// TODO: Clamping?
@@ -81,14 +81,14 @@ struct Color
 		uint ua = cast(uint) (a * 255.0f);
 		v = (ur << 24) | (ug << 16) | (ub << 8) | ua;
 	}
-	
+
 	static Color fromUByte(ubyte _r, ubyte _g, ubyte _b, ubyte _a = 0xff) nothrow pure
 	{
 		Color c;
 		c.v = (_r << 24) | (_g << 16) | (_b << 8) | _a;
 		return c;
 	}
-	
+
 	static Color fromRGB(float _r, float _g, float _b) nothrow pure
 	{
 		return Color(_r, _g, _b);
@@ -130,7 +130,7 @@ struct Color
 
 	void toHSLA(ref float h, ref float s, ref float l, ref float _a)
 	{
-		
+
 	}
 
 	// h s l are [0:1]
@@ -184,7 +184,7 @@ struct Color
 		float d = _max - _min;
 		s = _max == 0 ? 0f : d / _max;
 		_v = _max;
-		
+
 		h = 0; // achromatic
 
 		if(_max != _min)
@@ -193,7 +193,7 @@ struct Color
 				h = (g - b) / d + (g < b ? 6 : 0);
 			else if (_max == g)
 				h = (b - r) / d + 2;
-			else 
+			else
 				h = (r - g) / d + 4;
 			h /= 6;
 		}
@@ -371,7 +371,7 @@ unittest
 
 private
 {
-	enum s_NameToColorMap = [ 
+	enum s_NameToColorMap = [
 	"snow" : Color.fromUByte(255, 250, 250),
 	"ghostwhite" : Color.fromUByte(248, 248, 255),
 	"whitesmoke" : Color.fromUByte(245, 245, 245),
@@ -518,11 +518,11 @@ private
 	auto colorNameToColor(string name) pure nothrow
 	{
 		// http://en.wikipedia.org/wiki/X11_color_names
-		try 
+		try
 		{
 			if (name.startsWith("grey"))
 				name = "gray" ~ name[4..$];
-		
+
 			if (name.startsWith("gray"))
 			{
 				if (name == "gray")
@@ -559,13 +559,13 @@ private
 
 			auto col = name in s_NameToColorMap;
 			if (col !is null)
-				return tuple(*col, true);			
+				return tuple(*col, true);
 
 			return tuple(Color.init, false);
 		}
 		catch (Exception e)
 		{
 			return tuple(Color.init, false);
-		}		
+		}
 	}
 }

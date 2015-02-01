@@ -8,9 +8,9 @@ import std.string : format;
 
 struct Rect(T)
 {
-	Vec2!T pos; 
+	Vec2!T pos;
 	Vec2!T size;
-	
+
 	this(Rect!T r)
 	{
 		pos.x = r.pos.x;
@@ -21,25 +21,25 @@ struct Rect(T)
 
 	this(T x, T y, T w, T h)
 	{
-		pos.x = x; 
+		pos.x = x;
 		pos.y = y;
 		size.x = w;
 		size.y = h;
 	}
-	
+
 	this(Vec2!T pos, Vec2!T size)
 	{
 		this.pos = pos;
 		this.size = size;
 	}
-	
+
 	this(Vec2!T pos, T w, T h)
 	{
 		this.pos = pos;
 		size.x = w;
 		size.y = h;
 	}
-	
+
 	this(T x, T y, Vec2!T size)
 	{
 		pos.x = x;
@@ -52,41 +52,41 @@ struct Rect(T)
 		return isNaN(size.x) || isNaN(size.y) || size.x == 0 || size.y == 0 || isNaN(pos.x) || isNaN(pos.y);
 	}
 
-	@property ref T x()  
+	@property ref T x()
 	{
-		return pos.x; 
+		return pos.x;
 	}
 
 	@property const(T) x() const
 	{
-		return pos.x; 
+		return pos.x;
 	}
 
-	@property ref T y()  
+	@property ref T y()
 	{
-		return pos.y; 
+		return pos.y;
 	}
-	
+
 	@property const(T) y() const
 	{
-		return pos.y; 
+		return pos.y;
 	}
 
 	@property  const(T) x2() const
 	{
 		return pos.x + size.x; /* width */
 	}
-	
+
 	@property void x2(T v)
 	{
 		size.x = v - pos.x;
 	}
-	
+
 	@property const(T) y2() const
 	{
 		return pos.y + size.y; /* height */
 	}
-	
+
 	@property void y2(T v)
 	{
 		size.y = v - pos.y;
@@ -103,25 +103,25 @@ struct Rect(T)
 		y2 = v.y;
 	}
 
-	@property ref T w()  
+	@property ref T w()
 	{
-		return size.x; 
-	}
-	
-	@property const(T) w() const
-	{
-		return size.x; 
+		return size.x;
 	}
 
-	
-	@property ref T h()  
+	@property const(T) w() const
 	{
-		return size.y; 
+		return size.x;
 	}
-	
+
+
+	@property ref T h()
+	{
+		return size.y;
+	}
+
 	@property const(T) h() const
 	{
-		return size.y; 
+		return size.y;
 	}
 
 	Rect!T offset(RectOffset!T rectOffset) const pure nothrow
@@ -169,7 +169,7 @@ struct Rect(T)
 		mixin("res " ~ OP ~ "= v;");
 		return res;
 	}
-	
+
 	//	void opOpAssign(string OP)(Vec2!T v) pure nothrow
 	void opOpAssign(string OP)(SmallVector!(2u,T) v) pure nothrow
 	{
@@ -210,7 +210,7 @@ struct Rect(T)
 	Rect!T scale(float s) const pure nothrow
 	{
 		Rect!T r = this;
-		r.pos *= s; 
+		r.pos *= s;
 		r.size *= s;
 		return r;
 	}
@@ -218,13 +218,13 @@ struct Rect(T)
 	Rect!T scale(Vec2!T s) const pure nothrow
 	{
 		Rect!T r = this;
-		r.pos *= s; 
+		r.pos *= s;
 		r.size *= s;
 		return r;
 	}
 
 	bool contains(const(Vec2!T) point) const
-	{	
+	{
 		// Since size can be negative we need two paths
 		bool contained = void;
 		if (size.x < 0)
@@ -247,6 +247,15 @@ struct Rect(T)
 
 		return contained;
 	}
+
+    import std.traits;
+    static if (isFloatingPoint!T)
+    {
+        bool isIdentical(Rect!T v) const pure nothrow @safe
+        {
+            return pos.isIdentical(v.pos) && size.isIdentical(v.size);
+        }
+    }
 
 	string toString() const
 	{
@@ -275,7 +284,7 @@ version(unittest)
 	mixin registerUnittests!(math.rect);
 }
 
-unittest 
+unittest
 {
 	import test;
 	Rectf r = Rectf(1, 2, 3, 4);
@@ -284,7 +293,7 @@ unittest
 	std.stdio.writeln("first");
 }
 
-unittest 
+unittest
 {
 	import test;
 	Rectf r = Rectf(1, 2, 3, 4);
@@ -295,7 +304,7 @@ unittest
 
 struct RectOffset(T)
 {
-	T left; 
+	T left;
 	T top;
 	T right;
 	T bottom;

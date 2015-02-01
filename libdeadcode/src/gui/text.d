@@ -129,6 +129,10 @@ class TextModel
 		assert(!std.math.isNaN(pos.x));
 		assert(!std.math.isNaN(pos.y));
 
+		assumeSafeAppend(mesh.buffers[0].data);
+		assumeSafeAppend(mesh.buffers[1].data);
+		assumeSafeAppend(mesh.buffers[2].data);
+
 		auto verts = &(mesh.buffers[0].data);
 		auto uvs = &mesh.buffers[1].data;
 		auto cols = &mesh.buffers[2].data;

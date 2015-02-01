@@ -49,8 +49,8 @@ class Label : Widget
 		Vec2f isize = _renderer.layoutSize;
 
 		RectfOffset pad = style.padding;
-		isize.x += pad.left + pad.right;
-		isize.y += pad.top + pad.bottom;
+		isize.x += pad.horizontal;
+		isize.y += pad.vertical;
 		return isize;
 	}
 }

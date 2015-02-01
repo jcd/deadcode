@@ -11,7 +11,7 @@
 		"derelict-gl3": "1.0.10",
 		"derelict-sdl2": "1.2.8",
 		"derelict-ft": "1.0.0",
-		"libdparse": ">=0.1.1"
+		"libdparse": "~master"
 	},
 	"buildRequirements": ["allowWarnings"],
 	"configurations": [
@@ -19,7 +19,7 @@
         "name": "debug",
         "targetType": "executable",
 		"targetName" : "ded-debug",
-		"dflags" : ["-vcolumns","-profile"],
+		"dflags" : ["-vcolumns", "-version=NoMain"],
 		"lflags": ["/NOCODEVIEW"],
 		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
@@ -37,7 +37,7 @@
         "targetType": "executable",
 		"targetName" : "ded",
 		"lflags": ["/NOCODEVIEW"],
-		"dflags" : ["-vcolumns" ],
+		"dflags" : ["-vcolumns", "-version=NoMain" ],
 		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : [ "releaseMode" ]
@@ -47,6 +47,16 @@
         "targetType": "executable",
 		"targetName" : "ded-unittest",
 		"lflags": ["/NOCODEVIEW"],
+		"buildOptions" : ["unittests", "debugMode", "debugInfo"]
+		},
+		{
+        "name": "dunittest",
+        "targetType": "executable",
+		"targetName" : "ded-debug",
+		"dflags" : ["-vcolumns","-profile", "-version=NoMain"],
+		"lflags": ["/NOCODEVIEW"],
+		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
+		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : ["unittests", "debugMode", "debugInfo"]
 		}
 	]

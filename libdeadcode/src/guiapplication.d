@@ -540,10 +540,15 @@ version (Windows)
 	}
 }
 
+    Widget getWidget(string name)
+    {
+        return guiRoot.activeWindow.getWidget(name);
+    }
+
 	private void setupMainWindow()
 	{
 		auto existingRect = getExistingWindowRect();
-		auto win = createWindow("Ded");
+		auto win = createWindow("Deadcode");
 		if (!existingRect.empty && false)
 		{
 			win.position = existingRect.pos;
@@ -552,10 +557,11 @@ version (Windows)
 
 		// A main widget
 		_mainWidget = new Widget(win, 100, 100, 20, 32);
-		_mainWidget.features ~= new StackLayout();
+		_mainWidget.layout = new StackLayout();
 
 		// A widget that can be mousedowned and resize the window
 		Widget _resizerWidget = new Widget(win, 0, 0, 24, 24);
+        _resizerWidget.zOrder = 500f;
 		_resizerWidget.features ~= new WindowResizer();
 		
 		// A widget that can be mousedowned and move the window
@@ -653,7 +659,8 @@ version (Windows)
 		//
 		//w.features ~= new DirectionalLayout!false();
 
-		menu = new Menu("Menu", commandManager);
+		menu = new Menu(commandManager);
+        menu.name = "Menu";
 		menu.parent = win;
 		menu.onMissingCommandArguments.connect(&cc.onMissingCommandArguments);
 		
@@ -895,8 +902,8 @@ version (Windows)
 			{
 				case RelativeLocation.bottomOf:
 					bool horz = true;
-					auto feat = getFeatureByType!GridLayout(w);
-					if (feat !is null && feat.direction == GridLayout.Direction.column)
+					auto lo = cast(GridLayout)w.layout;
+					if (lo !is null && lo.direction == GridLayout.Direction.column)
 					{
 						placeThisWidget.parent = w;
 					}
@@ -904,60 +911,60 @@ version (Windows)
 					{
 						auto newLayout = new Widget();
 						//newLayout.features ~= new VerticalLayout(false, VerticalLayout.Mode.scaleChildren);
-						newLayout.features ~= new GridLayout(GridLayout.Direction.column, 1);
+						newLayout.layout = new GridLayout(GridLayout.Direction.column, 1);
 
 						//newLayout.features ~= new VerticalLayout(false);
 						w.parent.replaceChild(w, newLayout);
 						w.parent = newLayout;
-						w.features = w.features.filter!(a => cast(ConstraintLayout)a is null).array;
+						// w.features = w.features.filter!(a => cast(ConstraintLayout)a is null).array;
 						w.manualLayout = false;
 						placeThisWidget.parent = newLayout;
 					}
 					break;
 				case RelativeLocation.topOf:
 					bool horz = true;
-					layoutWidget = getFirstAncestorWithFeature!VerticalLayout(w);
+					layoutWidget = getFirstAncestorWithLayout!VerticalLayout(w);
 					break;
 				case RelativeLocation.leftIn:
 					bool horz = false;
-					layoutWidget = getFirstAncestorWithFeature!HorizontalLayout(w);
+					layoutWidget = getFirstAncestorWithLayout!HorizontalLayout(w);
 					if (layoutWidget !is null)
 						placeThisWidget.parent = layoutWidget;
 					break;
 				case RelativeLocation.rightIn:
 					bool horz = false;
-					layoutWidget = getFirstAncestorWithFeature!HorizontalLayout(w);
+					layoutWidget = getFirstAncestorWithLayout!HorizontalLayout(w);
 					break;
 				case RelativeLocation.above:
 					bool horz = true;
-					layoutWidget = getFirstAncestorWithFeature!VerticalLayout(w);
+					layoutWidget = getFirstAncestorWithLayout!VerticalLayout(w);
 					if (layoutWidget is w)
-						layoutWidget = getFirstAncestorWithFeature!VerticalLayout(w.parent);
+						layoutWidget = getFirstAncestorWithLayout!VerticalLayout(w.parent);
 					if (layoutWidget !is null)
 						placeThisWidget.parent = layoutWidget;
 					break;
 				case RelativeLocation.below:
 					bool horz = true;
-					layoutWidget = getFirstAncestorWithFeature!VerticalLayout(w);
+					layoutWidget = getFirstAncestorWithLayout!VerticalLayout(w);
 					if (layoutWidget is w)
-						layoutWidget = getFirstAncestorWithFeature!VerticalLayout(w.parent);
+						layoutWidget = getFirstAncestorWithLayout!VerticalLayout(w.parent);
 					break;
 				case RelativeLocation.leftOf:
 					bool horz = false;
-					layoutWidget = getFirstAncestorWithFeature!HorizontalLayout(w);
+					layoutWidget = getFirstAncestorWithLayout!HorizontalLayout(w);
 					if (layoutWidget is w)
-						layoutWidget = getFirstAncestorWithFeature!HorizontalLayout(w.parent);
+						layoutWidget = getFirstAncestorWithLayout!HorizontalLayout(w.parent);
 					if (layoutWidget !is null)
 						placeThisWidget.parent = layoutWidget;
 					break;
 				case RelativeLocation.rightOf:
 					bool horz = false;
-					layoutWidget = getFirstAncestorWithFeature!HorizontalLayout(w);
+					layoutWidget = getFirstAncestorWithLayout!HorizontalLayout(w);
 					if (layoutWidget is w)
-						layoutWidget = getFirstAncestorWithFeature!HorizontalLayout(w.parent);
+						layoutWidget = getFirstAncestorWithLayout!HorizontalLayout(w.parent);
 					break;
 				case RelativeLocation.inside:
-					layoutWidget = getFirstAncestorWithFeature!StackLayout(w);
+					layoutWidget = getFirstAncestorWithLayout!StackLayout(w);
 					if (layoutWidget is w)
 						placeThisWidget.parent = w;
 					else
@@ -969,6 +976,17 @@ version (Windows)
 			}
 		}
 		return WidgetPlacementResult.success;
+	}
+
+	private Widget getFirstAncestorWithLayout(LayoutType)(Widget _parent)
+	{
+		while (_parent !is null)
+		{
+			if ( (cast(LayoutType)(_parent.layout)) !is null)
+				return _parent;
+			_parent = _parent.parent;
+		}
+		return null;
 	}
 
 	private Widget getFirstAncestorWithFeature(FeatureType)(Widget _parent)

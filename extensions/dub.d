@@ -1,10 +1,10 @@
 module extensions.dub;
 
-import core.time;	
+import core.time;
 
-import extensions.attr;
-import math._;
-import gui.widgetfeature.constraintlayout;
+import extension;
+import math;
+import gui.layout.constraintlayout;
 
 import std.algorithm;
 import std.concurrency;
@@ -34,10 +34,10 @@ class DubBuildCommand : BasicCommand
 	private Tid tid;
 	private string newExecPath;
 
-	void run() 
+	void run()
 	{
-		clearLog();	
-		showBuildWidget();	
+		clearLog();
+		showBuildWidget();
 		newExecPath = null;
 		tid = spawn(&build, thisTid);
 		app.guiRoot.timeout(dur!"msecs"(200), &buildUpdate);
@@ -47,10 +47,10 @@ class DubBuildCommand : BasicCommand
 	{
 		import extensions.errorlist;
 		auto w = getWidget!ErrorListWidget("errorlist");
-		
+
 		if (w is null)
 			return;
-		
+
 		w.visible = true;
 		w.showProgress(true);
 
@@ -65,7 +65,7 @@ class DubBuildCommand : BasicCommand
 		//{
 		//    we.
 		//}
-		
+
 	}
 
 	void log(string msg)
@@ -81,7 +81,7 @@ class DubBuildCommand : BasicCommand
 		if (!res.empty)
 		{
 			newExecPath = res[1].idup;
-		}		
+		}
 		w.append(msg);
 		writeln(msg);
 	}
@@ -109,7 +109,7 @@ class DubBuildCommand : BasicCommand
 
 		bool result = true;
 		auto pipes = pipeShell(cmd, Redirect.stdout | Redirect.stderr);
-		
+
 		foreach (line; pipes.stderr.byLine)
 		{
 			sendLog(pTid, line.idup);
@@ -133,22 +133,22 @@ class DubBuildCommand : BasicCommand
 		import extensions.errorlist;
 		auto w = getWidget!ErrorListWidget("errorlist");
 		if (w !is null)
-			w.showProgress(f);		
+			w.showProgress(f);
 	}
 
 	bool buildUpdate()
-	{		
+	{
 		if (tid == Tid.init)
 		{
 			showProgress(false);
 			return false;
 		}
-		
+
 		import std.datetime;
-		while (receiveTimeout(dur!"seconds"(0), 
+		while (receiveTimeout(dur!"seconds"(0),
 					   (string s) { log(s); return true; },
 					   (int status) { tid = Tid.init; return true; })) {}
-		
+
 		if (!newExecPath.empty)
 		{
 			showProgress(false);
@@ -166,7 +166,7 @@ class DubBuildCommand : BasicCommand
 	{
 		//auto hwnd = FindWindowA("SDL_app", null);
 		//writeln("existing is ", hwnd);
-		
+
 		//return;
 		import std.file;
 		import std.path;
@@ -208,7 +208,7 @@ class Project : BasicExtension!Project
 	string projectName;
 	Configuration[] configurations;
 	string activeConfiguration;
-	
+
 	string[] knownFiles;
 	string   knownFilesCommonPrefix;
 
@@ -236,7 +236,7 @@ class Project : BasicExtension!Project
 		Configuration conf = r.front;
 		foreach (p; conf.sourceFiles)
 			result ~= scanForFiles(p);
-		
+
 		foreach (p; conf.sourcePaths)
 			result ~= scanForFiles(p);
 
@@ -253,7 +253,7 @@ class Project : BasicExtension!Project
 		if (exists("package.json"))
 			dubConf = readText("package.json");
 		else if (exists("dub.json"))
-			dubConf = readText("package.json");
+			dubConf = readText("dub.json");
 		else
 		{
 			app.addMessage("No dub configuration file found");
@@ -279,7 +279,7 @@ class Project : BasicExtension!Project
 		}
 		else
 		{
-			
+
 			foreach (ref JSONValue conf; configs.array)
 			{
 				auto newConf = createConfiguration(conf);
@@ -296,7 +296,7 @@ class Project : BasicExtension!Project
 		result.isAutoConfiguration = true;
 		result.isAutoSourcePaths = true;
 		result.name = "library";
-		
+
 		foreach (p; [ "source", "src" ])
 		{
 			if (exists(p) && isDir(p))
@@ -324,15 +324,15 @@ class Project : BasicExtension!Project
 
 		return result;
 	}
-	
+
 	private Configuration createConfiguration(ref JSONValue conf)
 	{
 		auto c = new Configuration;
 		c.isAutoConfiguration = false;
 		c.name = conf.object["name"].str;
-		
+
 		JSONValue* srcFiles = "sourceFiles" in conf.object;
-		
+
 		if (srcFiles !is null)
 		{
 			foreach (ref p; srcFiles.array)
@@ -352,7 +352,7 @@ class Project : BasicExtension!Project
 					break;
 				}
 			}
-			
+
 			if (c.sourcePaths.empty)
 				app.addMessage("Warning: No sourcePaths specified in dub config file and not default folders source or src present for configuration " ~ c.name);
 		}
@@ -360,7 +360,7 @@ class Project : BasicExtension!Project
 		{
 			c.isAutoSourcePaths = false;
 			foreach (ref p; srcPaths.array)
-				c.sourcePaths ~= p.str;			
+				c.sourcePaths ~= p.str;
 
 			if (c.sourcePaths.empty)
 		 		app.addMessage("Warning: No paths in sourcePaths field in dub config file for configuration " ~ c.name);
@@ -398,7 +398,7 @@ class DubQuickOpenCommand : BasicCommand
 	// override @property string description() const { return "Quick open file in dub project"; }
 	// override @property string name() const { return "dub.quickopen"; }
 	// override @property string shortcut() const { return "<ctrl> + ,"; }
-	
+
 	void run(string path)
 	{
 		// auto path = v[0].get!string;
@@ -408,11 +408,11 @@ class DubQuickOpenCommand : BasicCommand
 	override CompletionEntry[] getCompletions(CommandParameter[] data)
 	{
 		Project p = getExtension!Project("dub.project");
-		if (p is null) 
+		if (p is null)
 			return null;
 		import std.typecons;
 
-		string prefix = data[0].get!string(); 
+		string prefix = data[0].get!string();
 		auto stripPrefix = p.knownFilesCommonPrefix.length;
 		auto r1 = p.knownFiles.map!(a => tuple(baseName(a),a))().filter!(a => a[0].startsWith(prefix))();
 		auto r2 = r1.map!(a => CompletionEntry(a[1][stripPrefix..$], a[1]))();
@@ -453,7 +453,7 @@ alias moduleSymbolNameToSymbol = mixin(moduleName!Mod ~ "." ~ symName);
 
 
 //enum extensionCommands = staticMap!(getModuleFunctionByName2!(extensions.search), searchCmds);
-//alias X = RegisterCommand!(__traits(getMember, extensions.search, "search2"));	
+//alias X = RegisterCommand!(__traits(getMember, extensions.search, "search2"));
 
 //alias Y(alias Mod, string symName) = RegisterCommand!(__traits(getMember, extensions.search, "search2"));
 //alias Y2 = Y!(extensions.search, "search2");

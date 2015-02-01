@@ -1,11 +1,12 @@
 module extensions.errorlist;
 
 import extension;
+mixin registerCommands;
 
 import controls.button;
 import gui.event;
-import gui.widgetfeature.constraintlayout;
-import gui.widgetfeature.gridlayout;
+import gui.layout.constraintlayout;
+import gui.layout.gridlayout;
 import gui.widgetfeature.ninegridrenderer;
 import gui.widgetfeature.textrenderer;
 import gui.styledtext;
@@ -20,16 +21,16 @@ import std.regex;
 import core.signals;
 import std.typecons;
 
-class ErrorListWidget : BasicWidget!ErrorListWidget
+class ErrorListWidget : BasicWidget
 {
 	static WidgetID widgetID;
-	
+
 	private TextRenderer!BufferView textRenderer;
 	private BufferView messagesBuffer;
 
 	private int lines = 0;
 	private int preferredEmptyBottomLines = 1;
-	
+
 	private enum MessageType : ubyte
 	{
 		messages = 1,
@@ -38,7 +39,7 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 		all = ubyte.max
 	}
 	private ubyte _shownMessageTypes = 6;
-	
+
 	ToggleButton _messageToggle;
 	private int _messageCount = 0;
 	ToggleButton _errorToggle;
@@ -101,13 +102,13 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 	{
 		final switch (r.type) with (MessageType)
 		{
-			case messages: 
+			case messages:
 				_messageToggle.text = text(++_messageCount, " messages");
 				break;
-			case warnings: 
+			case warnings:
 				_warningToggle.text = text(++_warningCount, " warnings");
 				break;
-			case errors: 
+			case errors:
 				_errorToggle.text = text(++_errorCount, " errors");
 				break;
 			case all:
@@ -118,10 +119,12 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 	private void appendVisible(T)(T r)
 	{
 		if (r.type & _shownMessageTypes)
+        {
 			textRenderer.text.insert(r.lineText);
-		lines++;
+		    lines++;
+        }
 		if ((textRenderer.text.visibleLineCount - preferredEmptyBottomLines) < lines)
-			textRenderer.text.scrollDown(); 
+			textRenderer.text.scrollDown();
 	}
 
 	private void rebuildMessages(bool adjustCounts = false)
@@ -158,8 +161,8 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 
 	private void clearVisible()
 	{
-		textRenderer.text.clear();
 		textRenderer.text.lineOffset = 0;
+        textRenderer.text.clear();
 		lines = 0;
 	}
 
@@ -172,15 +175,17 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 
 		auto v = app.bufferViewManager.create();
 		messagesBuffer = app.bufferViewManager.create();
-		
+
 		textRenderer = new TextRenderer!BufferView(v);
 		auto styler = new ErrorListStyler(v);
 		textRenderer.textStyler = styler;
 		features ~= textRenderer;
-		
+
+        layout = null;
+
 		auto box = new Widget(this);
 		box.name = "toggles";
-		box.features ~= new GridLayout(GridLayout.Direction.row, 1);
+		box.layout = new GridLayout(GridLayout.Direction.row, 1);
 
 		_progressWidget = new Widget();
 		_progressWidget.name = "progress";
@@ -238,13 +243,13 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 	{
 		saveSession();
 	}
-	
+
 	static class SessionData
 	{
 		string messages;
 		ubyte shownMessageTypes;
 	}
-	
+
 	private void loadSession()
 	{
 		auto s = loadSessionData!SessionData();
@@ -307,14 +312,13 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 		{
 			auto buf = textRenderer.text.buffer;
 			auto line = buf.lineContaining(info.index);
-			
-			import std.regex;		
+
+			import std.regex;
 			auto ctr = regex(ErrorListStyler.errorLineRe, "mg");
 			auto m = match(line, ctr);
 			import std.stdio;
-			if (!m.captures.empty)
+            if (!m.captures.empty)
 			{
-				writeln(m.captures[2]);
 				BufferView bv = app.openFile(to!string(m.captures[1]));
 				if (bv !is null)
 				{
@@ -354,11 +358,11 @@ class ErrorListWidget : BasicWidget!ErrorListWidget
 
 		ParsedLine result = ParsedLine(str ~ "\n"d, MessageType.messages);
 
-		import std.regex;		
+		import std.regex;
 		auto ctr = regex(ErrorListStyler.errorLineRe, "mg");
-		auto m = match(str, ctr);
+		auto m = matchFirst(result.lineText, ctr);
 
-		if (!m.captures.empty)
+		if (!m.empty)
 		{
 			result.message = m.captures[3];
 			result.file = m.captures[1];
@@ -427,7 +431,7 @@ class ErrorListStyler : TextStyler
 		size_t lastEndIdx = 0;
 		size_t offset = r.a;
 
-		import std.regex;		
+		import std.regex;
 		auto ctr = regex(errorLineRe, "mg");
 
 		foreach (m; match(buf, ctr))
@@ -440,14 +444,14 @@ class ErrorListStyler : TextStyler
 			auto end = begin + filePath.length;
 			if (begin != lastEndIdx)
 				_regionSet.merge(offset + lastEndIdx, offset + begin, DStyle.other);
-			
-			_regionSet.set(offset + begin, offset + end, DStyle.lineNumber);			
+
+			_regionSet.set(offset + begin, offset + end, DStyle.lineNumber);
 
 			auto lineInFile = m.captures[2];
 			begin = end;
 			end = begin + lineInFile.length;
-			_regionSet.set(offset + begin, offset + end, DStyle.error);			
-			
+			_regionSet.set(offset + begin, offset + end, DStyle.error);
+
 			auto message = m.captures[3];
 			begin = end + 1;
 			end = begin + message.length;

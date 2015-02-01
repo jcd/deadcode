@@ -1,8 +1,8 @@
 module extensions.language.d;
 
-import extensions.attr;
+import extension;
 
-import core.language; 
+import core.language;
 
 import std.d.lexer;
 import std.d.parser;
@@ -25,7 +25,7 @@ class DCodeModel : ICodeModel
 		BufferView _bufferView;
 		DCodeIntel _codeIntel;
 		const(Token)[] _tokens;
-		Module _mod;	
+		Module _mod;
 	}
 
 	@property const(Token)[] tokens() const pure nothrow @safe
@@ -133,3 +133,31 @@ class DCodeIntel : ICodeIntel
 	}
 }
 
+import controls.texteditor;
+import extensions.language.d.analysis.base;
+
+class AnalysisAnchor : ManagedTextEditorAnchor!Message
+{
+	import gui.label;
+	Label label;
+
+	override void update()
+	{
+		super.update();
+		if (label is null)
+		{
+			auto m = getAnchorData();
+			if (!m.isNull && m.get.message.length)
+			{
+				label = new Label(m.get.message);
+				label.parent = this;
+			}
+		}
+	}
+}
+
+static TextEditorAnchorManager!(Message, AnalysisAnchor) anchorManager;
+static this()
+{
+    anchorManager = new typeof(anchorManager);
+}

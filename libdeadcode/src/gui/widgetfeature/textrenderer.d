@@ -1,9 +1,9 @@
 module gui.widgetfeature.textrenderer;
 
-import graphics.model; 
+import graphics.model;
 import gui.resources.material : Material;
-import gui._;
-import math._;
+import gui;
+import math;
 import core.time;
 import std.range;
 import std.variant;
@@ -30,10 +30,10 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 	import core.command;
 
 	// Stylable interface
-	@property 
-	{		
+	@property
+	{
 		string name() const pure @safe { return "Text"; }
-		bool matchStylable(string stylableName) const pure nothrow @safe
+		ubyte matchStylable(string stylableName) const pure nothrow @safe
 		{
 			return matchStylableImpl(this, stylableName);
 		}
@@ -54,7 +54,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		Text _text;
 		TextStyler _textStyler;
 		Model _cursorModel = null;
-		
+
 		uint lastStyleID;
 		uint lastStyleVersion;
 
@@ -66,9 +66,9 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 
 		Rectf[] _glyphWindowRectCache;
 		int _bufferOffsetForCurrentCache;
-	
+
 		string[] _curClasses;
-	
+
 		@property int textBufferStartOffset()
 		{
 			static if (_isBasicText)
@@ -89,14 +89,13 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		if (_cursorVisible == v)
 			return;
 		_cursorVisible = v;
-		_textDirty = true;
 	}
 
 	// Tmp solution until proper stylesset and selectors are supported
 	Region selection;
 
 	alias void delegate(TextRenderer!Text) Callback;
-	
+
 	Callback onLayoutChanged;
 	private void layoutChanged()
 	{
@@ -107,13 +106,13 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 	this(Text txt, TextStyler _textStyler = null)
 	{
 		_curClasses = [ "" ];
-		
-		text = txt;	
+
+		text = txt;
 		textStyler = _textStyler;
-		
+
 		 // TODO: maybe model should be owner of styledText_
 		import util.system;
-		_cursorModel = createQuad(Rectf(0,0,1, 1), gui.resources.material.Material.create(getRunningExecutablePath() ~ "white.png"));
+		_cursorModel = createQuad(Rectf(0,0,1, 1), Material.create(getRunningExecutablePath() ~ "white.png"));
 		_cursorModel.subModel.blend = false;
 		cursorVisible = true;
 		// std.stdio.writeln(getRunningExecutablePath() ~ "white.png");
@@ -124,13 +123,13 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		_bufferOffsetForCurrentCache = int.max;
 	}
 
-	override EventUsed send(Event event, Widget widget) 
-	{ 
+	override EventUsed send(Event event, Widget widget)
+	{
 		// onTextDirty();
 		if (event.type == EventType.StyleSheetChanged)
 			_textDirty = true;
 
-		return EventUsed.no; 
+		return EventUsed.no;
 	}
 
 	private void onTextDirty(Text)
@@ -149,7 +148,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		cursorVisible = !cursorVisible;
 	}
 
-	@property 
+	@property
 	{
 		Text text()
 		{
@@ -207,7 +206,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			return _multiLine;
 		}
 
-		Vec2f layoutSize() 
+		Vec2f layoutSize()
 		{
 			if (_layout.lines.empty)
 				return Vec2f(0,0);
@@ -227,7 +226,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			_textDirty = d;
 		}
 	}
-	
+
 
 	/*
 	void runCommand(string commandName, Variant data)
@@ -243,10 +242,10 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			USE CMDMANAGER -> c.execute(data);
 	}
 	*/
-	
+
 	override void update(Widget widget)
 	{
-		widget.acceptsKeyboardFocus = true;		
+		widget.acceptsKeyboardFocus = true;
 	}
 
 	//BoxModel _box;
@@ -261,9 +260,9 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 
 	private void updateLayout(Widget widget, Vec2f layoutSize)
 	{
-		// Issues: 
+		// Issues:
 		//   1, Cannot calc x offset correct when not using monotype because of the simple rendering we are doing.
-		//      This can be fixed by rendering the line of interest only and getting the x coord - but this 
+		//      This can be fixed by rendering the line of interest only and getting the x coord - but this
 		//      enforces using the same font for all markups on the line since spacing etc. is not the same
 		//      for different fonts. This could be solved by altering the layout of the regions so that it
 		//      is easy to iterate text with mixed styled regions.
@@ -275,41 +274,44 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		//  Because of this only monofonts are currently supported since they lent themselves to easy x,y coord
 		//  calculations. The next step should be non-monospace font support but only one type of font for a view.
 		//  Next step multiple font types with same height. Next step multiple font types with arbitraty heights.
-	
+
 		// Now calc the column and row of the cursor in order to find out the x and y coord:
 		// TODO: do
-		Style st = widget.style;
-		bool styleDirty = lastStyleVersion != st.currentVersion || lastStyleID != st.id;
+        int wid = widget.id;
+    		Style style = widget.style;
+        if (style is null)
+        {
+            assert(0);
+            return;
+        }
+
+		bool styleDirty = lastStyleVersion != style.currentVersion || lastStyleID != style.id;
 		if (layoutSize.y == 0f || (!_textDirty && _layout.bounds.size == layoutSize && !styleDirty))
 			return;
 
-		lastStyleID = st.id;
-		lastStyleVersion = st.currentVersion;
+        auto _lsid = lastStyleID;
+        auto _lsv = lastStyleVersion;
+        auto td = _textDirty;
+        auto lo = _layout;
+
+		lastStyleID = style.id;
+		lastStyleVersion = style.currentVersion;
 
 		//if (layoutSize.y == 0f)
 			//return;
-		
+
 		//auto transform = Mat4f.makeTranslate(Vec3f(-1,1,0));
 
 		static if (_isBasicText)
 		{
-			if (_textDirty || styleDirty) 
-			{
-				updateTextModel(layoutSize, widget);	
-			}
+			updateTextModel(layoutSize, widget);
 		}
 		else
 		{
-			if (true  || styleDirty || _textDirty || text.dirty)
-			{
-				Style style = widget.style;
-				if (style is null)
-					return;
-				Font font = style.font;
-				text.visibleLineCount = _multiLine ? cast(int) (layoutSize.y / font.fontLineSkip) : 1;
-				updateTextModel(layoutSize, widget);
-				text.dirty = false;
-			}
+			Font font = style.font;
+			text.visibleLineCount = _multiLine ? cast(int) (layoutSize.y / font.fontLineSkip) : 1;
+			updateTextModel(layoutSize, widget);
+			text.dirty = false;
 		}
 
 		if (_selectionModel is null)
@@ -323,7 +325,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		else
 		{
 			//if (_selectionModel.style is null)
-			
+
 			_selectionModel.textLayout = _layout;
 //			if (_selectionModel.selection != _textStyler.text.selection)
 			//{
@@ -339,7 +341,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			}
 			//}
 		}
-		
+
 		//Mat4f ofstransform;
 		//getOffsetTransform(widget, ofstransform);
 	}
@@ -354,17 +356,17 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		// Rectf wrect = widget.window.windowToWorld(widget.rect);
 		Mat4f transform;
 		widget.getStyledScreenToWorldTransform(transform);
-		Mat4f trx = widget.window.MVP * transform;		
+		Mat4f trx = widget.window.MVP * transform;
 		if (_selectionModel !is null)
 			_selectionModel.draw(trx);
 		if (_model !is null)
 			_model.draw(trx);
-		
+
 
 		//int glyphLineIndex = view.cursorPoint - view.buffer.startOfLine(view.cursorPoint);
 		// float cursorLineOffset = _layout.lines[row].glyphWorldPos(glyphLineIndex).x;
 		//float cursorLineOffset = _model.getGlyphdPos(view.cursorPoint - view.bufferOffset).x;
-	
+
 		static if (!_isBasicText)
 		{
 			if (cursorVisible)
@@ -374,7 +376,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			}
 		}
 	}
-	
+
 	private void updateTextModelForWidth(float width, Widget widget)
 	{
 		updateTextModel(Vec2f(width, 1000000000), widget);
@@ -384,7 +386,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 	{
 		if (_model is null)
 		{
-			_model = new TextModel; 
+			_model = new TextModel;
 			//_box = new BoxModel(Sprite(Rectf(0,0,16,16)), RectfOffset(6,6,6,6));
 			//_box = new BoxModel(Sprite(Rectf(0,0,16,16)));
 			//_box.color = Vec3f(0.7, 0.7, 0.7);
@@ -416,7 +418,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 
 		StyleSheet styleSheet = widget.window.styleSheet;
 		// Make sure any scheduled updates to the style of the text has been done.
-		
+
 		RegionSet rset;
 		if (textStyler is null)
 		{
@@ -441,7 +443,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			{
 				r.a = textOffset;
 			}
-			
+
 			// writefln("render %s..%s max %s", r.a, r.b, text.length);
 
 			string styleName = textStyler is null ? null : _textStyler.styleIDToName(r.id);
@@ -480,7 +482,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			if (_layout.done)
 				break;
 		}
-		
+
 		// Invalidate glyphRect cache
 		_bufferOffsetForCurrentCache = int.max;
 
@@ -545,7 +547,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		rect = getRectForViewIndex(idx);
 		if (!rect.x.isFinite())
 			return Mat4f.IDENTITY;
-		
+
 		return Mat4f.makeTranslate(Vec3f(rect.x, rect.y, 0f));
 	}
 
@@ -572,7 +574,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 
 //		auto scaleTrans = Mat4f.makeScale(Vec3f(widget.window.pixelWidthToWorld(1), rect.h, 0));
 		auto scaleTrans = Mat4f.makeScale(Vec3f(1, rect.h, 0));
-		transform = transform * posTrans * scaleTrans;	
+		transform = transform * posTrans * scaleTrans;
 	}
 
 	private Rectf getGlyphRectRelative(Widget widget, int idx)
@@ -584,13 +586,13 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 
 		Mat4f trx;
 		widget.getScreenToWorldTransform(trx);
-		
+
 		trx = widget.window.MVP * trx; // * posTrans;
-		
+
 		/*
 		Rectf r = getRectForViewIndex(idx);
 		if (r.x == float.nan)
-			return r;		
+			return r;
 		r = widget.window.worldToWindow(r);
 		r.pos = r.pos + widget.rect.pos;
 		*/
@@ -600,7 +602,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		result.pos = (trx * Vec4f(rect.x, rect.y, 0f, 1f)).xy;
 		auto p = rect.posMax;
 		result.posMax = (trx * Vec4f(p.x, p.y, 0f, 1f)).xy;
-		
+
 		auto r2 = widget.window.worldToWindow(result);
 		//r2.pos.y -= r2.size.y;
 		return r2;
@@ -645,15 +647,15 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 	}
 
 	/** Get glyph index into buffer that is a window position
-		
+
 		Params:
 			widget = the widget associated with this renderer
 			pos = the windows position to find glyph for
 
 		Returns:
 			A tuple of bool,uint,Rectf. The is true if the position is directly at a glyph and false otherwise.
-			The uint is the index into the buffer where the glyph is located in case the bool is true. 
-			The uint is the index into the buffer of the end of line for the line where the mouse is located in case 
+			The uint is the index into the buffer where the glyph is located in case the bool is true.
+			The uint is the index into the buffer of the end of line for the line where the mouse is located in case
 			the bool is false. If the cursor is at no buffer line uint.max is returned.
 			The Rectf is the rect that the glyph occupies.
 	*/
@@ -680,37 +682,37 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 				{
 					static if (!_isBasicText)
 					{
-						// TODO: do same prev() stuff in fallback loop below
 						int delta = text.buffer.prev(i) - i;
-						if (idx + delta >= 0)
+						if (idx >= -delta)
 						{
 							i += delta;
 							r = _glyphWindowRectCache[idx+delta];
 						}
-						return GlyphHit(false, !r.x.isFinite() || bufOffset == i ? 
+						return GlyphHit(true, !r.x.isFinite() || bufOffset == i ?
 										int.max : i, r);
 					}
 					else
 					{
-						return GlyphHit(false, !r.x.isFinite() || bufOffset == i ? 
+                        // TODO: fix static text
+						return GlyphHit(true, !r.x.isFinite() || bufOffset == i ?
 									int.max : i - 1, r);
 					}
 				}
 
 				if (r.contains(pos))
-					return GlyphHit(true, i, r);
+					return GlyphHit(false, i, r);
 
 				i++;
 			}
 		}
-		
+
 		// int i = bufferView.bufferOffset;
 
 		// Vec2f mousePos = event.mousePos;
 		Rectf glyphRect = getGlyphRectRelative(widget, i);
 		_glyphWindowRectCache ~= glyphRect;
 
-		// glyphRect.y is bottom 
+		// glyphRect.y is bottom
 		bool found = false;
 		while (glyphRect.x.isFinite() && pos.y > glyphRect.y2)
 		{
@@ -725,19 +727,38 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			_glyphWindowRectCache ~= glyphRect;
 		}
 		if (found)
-			return GlyphHit(true, i, glyphRect);
+			return GlyphHit(false, i, glyphRect);
 		else if (!glyphRect.x.isFinite() || bufOffset == i)
 			return GlyphHit(false, int.max, glyphRect);
 		else
 		{
-			if (i != 0)
-			{
-				i--;
-				if (i != 0 && text[i-1] == '\r')
-							i--;
-			}
-				
-			return GlyphHit(false, i, glyphRect);
+            static if (!_isBasicText)
+            {
+                // TODO: do same prev() stuff in fallback loop below
+                int delta = text.buffer.prev(i) - i;
+                int idx = _glyphWindowRectCache.length;
+                if (idx >= -(delta - 1))
+                {
+                    i += delta;
+                    int i2 = idx+delta-1;
+                    glyphRect = _glyphWindowRectCache[i2];
+                }
+                return GlyphHit(true, !glyphRect.x.isFinite() || bufOffset == i ?
+                                int.max : i, glyphRect);
+            }
+            else
+            {
+                // TODO: fix static text
+                return GlyphHit(true, !glyphRect.x.isFinite() || bufOffset == i || i == 0 ?
+								int.max : i - 1, glyphRect);
+            }
+
+                //i--;
+                //if (i != 0 && text[i-1] == '\r')
+                //            i--;
+//			}
+
+			// return GlyphHit(false, i, glyphRect);
 		}
 
 		//return GlyphHit(false, !glyphRect.x.isFinite()|| bufOffset == i ? int.max : i-1, glyphRect);
@@ -757,7 +778,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		/*
 		// Cull cursor
 		int cursorLine = _multiLine ? text.buffer.lineNumber(text.cursorPoint) : 0;
-		
+
 		//7std.stdio.writeln("FOOOO ", cursorLine, " ", view.cursorPoint, " ", view.bufferOffset, " ", view.lineOffset, " ", _layout.lines.length, " ", view.buffer.length);
 		if (cursorLine < text.lineOffset || cursorLine > (text.lineOffset + _layout.lines.length) || _layout.lines.empty)
 			return;

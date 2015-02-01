@@ -1,6 +1,6 @@
 module extensions.file;
 
-import extensions.attr;
+import extension;
 
 mixin registerCommands;
 

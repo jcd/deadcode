@@ -1,9 +1,8 @@
 module extensions.statuspanel;
-
-import extensions.attr;
+import extension;
 mixin registerCommands;
 
-import gui.widgetfeature.stacklayout;
+import gui.layout.stacklayout;
 
 @Shortcut("<ctrl> + m")
 class StatusTogglePanelCommand : BasicCommand
@@ -16,10 +15,10 @@ class StatusTogglePanelCommand : BasicCommand
 	}
 }
 
-class StatusPanel : BasicWidget!StatusPanel
+class StatusPanel : BasicWidget
 {
 	static WidgetID widgetID;
-	
+
 	enum Mode
 	{
 		hidden,
@@ -39,10 +38,9 @@ class StatusPanel : BasicWidget!StatusPanel
 	{
 		name = "statuspanel";
 
-		features ~= new StackLayout();
+		layout = new StackLayout();
 
 		app.scheduleWidgetPlacement(this, "main", RelativeLocation.bottomOf);
-		
 		mode = Mode.hidden;
 
 		// loadSession();
@@ -52,12 +50,12 @@ class StatusPanel : BasicWidget!StatusPanel
 	{
 		//saveSession();
 	}
-	
+
 	static class SessionData
 	{
 		string messages;
 	}
-	
+
 	private void loadSession()
 	{
 		//auto s = loadSessionData!SessionData();

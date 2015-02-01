@@ -1,6 +1,6 @@
 module extensions.gctracker;
 
-import extensions.attr;
+import extension;
 
 static if (false && HasModule!"extensions.errorlist"):
 
@@ -53,7 +53,7 @@ class GCTracker : BasicExtension!GCTracker, TextEditorAnchorOwner
 		string file;
 		GCAlloc[] allocs;
 	}
-	
+
 	GCFileAllocs[string] allocForFiles;
 	string[int] anchorIdToMessage;
 
@@ -80,7 +80,7 @@ class GCTracker : BasicExtension!GCTracker, TextEditorAnchorOwner
 			addAnchorToBuffer(bv, alloc.line, alloc.message);
 	}
 
-	TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor)
+	TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor, TextEditor editor)
 	{
 		auto r = new GCAllocAnchor();
 		r.tracker = this;
@@ -112,7 +112,7 @@ class GCTracker : BasicExtension!GCTracker, TextEditorAnchorOwner
 			}
 			int line = m[2].to!int - 1;
 			a.allocs ~= GCAlloc(line, m[3].to!int, m[4]);
-		
+
 			BufferView v = app.bufferViewManager[pathName];
 			addAnchorToBuffer(v, line, m[4]);
 		}

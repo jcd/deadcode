@@ -32,7 +32,7 @@ private bool defaultUnittester()
 	}
 
 	printStats(true);
-	
+
 	return true;
 }
 
@@ -46,6 +46,7 @@ shared static this()
 	import core.runtime;
 	import std.stdio;
 //	Runtime.moduleUnitTester(&defaultUnittester);
+	return;
 	Runtime.moduleUnitTester(&noopUnittester);
 
 	foreach (m; ModuleInfo)
@@ -102,7 +103,7 @@ class UnittestAnchor : TextEditorAnchor
 		import test;
 		auto bufferName = textEditor.bufferView.name;
 		TestRecord rec = getTestResult(bufferName, textAnchor.number+1);
-		
+
 		if (rec.file.empty)
 		{
 			writeln("No result");
@@ -130,7 +131,7 @@ class UnittestAnchor : TextEditorAnchor
 			enum testName = __traits(identifier, atest)[11..$];
 			enum line = testName[0.. indexOf(testName, "_")];
 			string tn = testName;
-			
+
 			if (textAnchor.number+1 == line.to!int)
 			{
 				writeln("Running ", line, " ", testName);
@@ -157,8 +158,8 @@ class UnittestAnchor : TextEditorAnchor
 class Unittests : BasicExtension!Unittests, TextEditorAnchorOwner
 {
 	override @property string name() { return "unittests"; }
-		
-	TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor)
+
+	TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor, TextEditor editor)
 	{
 		return new UnittestAnchor(app.guiRoot.timeline);
 	}
@@ -166,7 +167,7 @@ class Unittests : BasicExtension!Unittests, TextEditorAnchorOwner
 	override void init()
 	{
 		import core.runtime;
-	
+
 		app.bufferViewManager.onBufferViewCreated.connect(&onBufferViewCreated);
 		foreach (bv; app.bufferViewManager.buffers)
 			onBufferViewCreated(bv);
@@ -192,7 +193,7 @@ class Unittests : BasicExtension!Unittests, TextEditorAnchorOwner
 	{
 		auto editor = currentTextEditor;
 		auto line = editor.bufferView.buffer.lineString(lineNumber);
-		
+
 		if (line.startsWith("unittest"))
 		{
 			editor.bufferView.buffer.ensureLineAnchor(lineNumber, this);
@@ -202,7 +203,7 @@ class Unittests : BasicExtension!Unittests, TextEditorAnchorOwner
 			editor.bufferView.buffer.removeLineAnchorByLine(lineNumber, this);
 		}
 	}
-		
+
 	void onLinesInserted(int lineNumber, int lineCount)
 	{
 		foreach (i; lineNumber..lineNumber+lineCount)

@@ -1,6 +1,6 @@
 module extensions.search;
 
-import extensions.attr;
+import extension;
 mixin registerCommands;
 
 @MenuItem("Edit/Search")

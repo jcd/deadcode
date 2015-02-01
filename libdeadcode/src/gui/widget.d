@@ -3,22 +3,24 @@ module gui.widget;
 import animation.mutator;
 import animation.timeline;
 
+import core.signals;
 import core.visitor;
 
-import graphics._;
+import graphics;
 import gui.event;
 import gui.style;
-import gui.widgetfeature._;
+import gui.widgetfeature;
+import gui.layout;
 import gui.window;
-import math._; // Rectf;
+import math; // Rectf;
 
-import core.signals;
+import std.algorithm;
 
 // widget
 // control
 
 // Behaviors:
-//   Grab mouse       : 
+//   Grab mouse       :
 //   Drag (drag area) : +windows, -controls
 //   Dock             : +windows, -controls
 //   Focus            : ++
@@ -46,13 +48,13 @@ void _printDirty(lazy const(char)[] name)
 alias Widget[] Widgets;
 
 class Widget : Stylable
-{	
+{
 	private static WidgetID _nextID = 1u;
 
 	// mixin Reflect;
 
 	WidgetID id;
-	
+
 	@Persist
 	string _name;
 
@@ -61,7 +63,7 @@ class Widget : Stylable
 
 	@Persist
 	bool acceptsKeyboardFocus;
-	
+
 	@Persist
 	bool manualLayout;
 
@@ -77,12 +79,17 @@ class Widget : Stylable
 	//
 	//StyleState styleState;
 
-	Style _targetStyle;
 	Timeline.Runner runner;
-	Style _computedStyle;
-	Style _widgetSpecificStyle; // Used to set style programatically and will override any
-	
+	Style _targetStyle;         // Style found by lookup in stylesheet
+	Style _widgetSpecificStyle; // Used to set style programatically and will override anything in _targetStyle
+	Style _computedStyle;       // Used style. May also be influenced by transition animations.
+    // bool _recalcTargetStyle = true;   // True if an event occurred that may result in a change to _targeStyle
+
+    uint lastStyleID;
+    uint lastStyleVersion;
+
 	WidgetFeature[] features;
+    ILayout layout;
 	NineGridRenderer _background;
 /*
 	void accept(Serializer v)
@@ -113,7 +120,7 @@ class Widget : Stylable
 	{
 		return _widgetSpecificStyle !is null;
 	}
-	
+
 	@property Style styleOverride()
 	{
 		if (_widgetSpecificStyle is null)
@@ -129,7 +136,7 @@ class Widget : Stylable
 		{
 			_background = null;
 			return null;
-		} 
+		}
 		else if (_background is null)
 		{
 			_background = new NineGridRenderer();
@@ -163,19 +170,55 @@ class Widget : Stylable
 	//    features = [item] ~ features;
 	//}
 
-	@property Style style()
+
+    /*
+        A widgets style consists of three styles:
+        1, the target style as found by inspecting the stylesheets
+        2, the overridden style properties set directly on a widget instance
+        3, the computed style which is used for rendering
+
+        The computed style is not necessarily a mix between the target and override style since
+        a transition animation may be in progress which alters the computed style to transition towards
+        target+overide style.
+
+        Some stuff can invalidate current widgets target style:
+        * Name or class or pseudo class change of any widget that is used for a css selector for this widget
+        * Add or remove of any widget that is used for a css selector for this widget
+
+        Some stuff can invalidate current widgets override style:
+        * override style changed
+
+        Some stuff can change the final computed style:
+        * All that changes target or override style as desribed above.
+        * Modifications done by the animation system
+
+        The simplest solution to decrease recalc of computed style a bit is to recalc all styles when:
+        * A pseudo condition has changed on any widget
+        * A name or class has changed on any widget
+        * Override style has changed on this widget
+        * A widget is added or deleted
+
+        That means the common case of moving/scaling/animating does not require recalc.
+        TODO: Later the stylesheet.getStyle() could return the set of widgets that were part of a match and
+              only recalc style if they changed (would not work for the widget-added case of course).
+    */
+    @property Style style()
 	{
+        //if (!_recalcTargetStyle)
+        //    return _computedStyle;
+
 		// Get the style that this widget is supposed to have.
 		// In case the widgets current active style is not that style
-		// and the target style has transitions set we need to 
+		// and the target style has transitions set we need to
 		// animate style changes.
-		Style newTargetStyle = window.styleSheet.getStyle(this, classes);
+        bool itn = _targetStyle !is null;
+		Style newTargetStyle = window.styleSheet.getStyle(this);
 
 		if (_computedStyle is null)
 		{
 			// Overlay the override style on top of targetStyle
 			_targetStyle = newTargetStyle;
-			
+
 			Style endTargetStyle = _targetStyle;
 			if (_widgetSpecificStyle !is null)
 			{
@@ -186,7 +229,7 @@ class Widget : Stylable
 
 			_computedStyle = endTargetStyle;
 			//_computedStyle = newTargetStyle.clone();
-			
+
 		}
 		else if (_targetStyle !is newTargetStyle)
 		{
@@ -218,13 +261,13 @@ class Widget : Stylable
 				}
 
 				clip.createCurves(_computedStyle, endTargetStyle);
-				
+
 				// clip.createCubicCurve!"x"(0, x, 1, x+100.0);
 				if (runner !is null)
 					runner.abort();
 				runner = window.timeline.animate(_computedStyle, clip);
 			}
-			else 
+			else
 			{
 				if (runner !is null)
 					runner.abort();
@@ -245,10 +288,18 @@ class Widget : Stylable
 			}
 		}
 
+        if (lastStyleVersion != _computedStyle.currentVersion ||
+            lastStyleID != _computedStyle.id)
+        {
+            forceDirty();
+            lastStyleID = _computedStyle.id;
+            lastStyleVersion = _computedStyle.currentVersion;
+        }
+
 		return _computedStyle;
 	}
-	
-	// Copy current dimensions of this widget to it style in order to use the style as starting point for 
+
+	// Copy current dimensions of this widget to it style in order to use the style as starting point for
 	// an animation.
 	private void snapshotInterpolatedStyle()
 	{
@@ -271,16 +322,16 @@ class Widget : Stylable
 	{
 		// Get the style that this widget is supposed to have.
 		// In case the widgets current active style is not that style
-		// and the target style has transitions set we need to 
+		// and the target style has transitions set we need to
 		// animate style changes.
 		Style newTargetStyle = window.styleSheet.getStyleForWidget(this);
-		
+
 		return newTargetStyle;
 		//if (_computedStyle.matchesStyle(newTargetStyle))
 		//    return _computedStyle;
 
 		// Got a new target. Schedule transitions if necessary. (and abort existing)
-		
+
 	}
 	*/
 
@@ -320,7 +371,7 @@ class Widget : Stylable
 			events[t] = del;
 	}
 
-	@property 
+	@property
 	{
 		Widget closestNamed()
 		{
@@ -339,11 +390,12 @@ class Widget : Stylable
 				auto n = cur.name;
 				if (n !is null)
 					result ~= n;
-			}
+			    cur = parent;
+            }
 			return result;
 		}
 
-		string name() const pure nothrow @safe 
+		string name() const pure nothrow @safe
 		{
 			return _name;
 		}
@@ -355,13 +407,13 @@ class Widget : Stylable
 				window.setWidgetName(this, n);
 		}
 
-		bool matchStylable(string stylableName) const pure nothrow @safe
+		ubyte matchStylable(string stylableName) const pure nothrow @safe
 		{
 			return matchStylableImpl(this, stylableName);
 		}
 
 		/*
-		ref Rectf rect() 
+		ref Rectf rect()
 		{
 			_printDirty("rect");
 			_sizeDirty = true;
@@ -372,12 +424,12 @@ class Widget : Stylable
 		void rect(Rectf r)
 		{
 //			import core.sys.windows.stacktrace;
-			if (r != _rect)
-			{
-				_sizeDirty = true;
+            //if (r != _rect)
+            //{
+            //    _sizeDirty = true;
 				_rect = r;
 				//_printDirty("rect");
-			}
+//			}
 		}
 
 		const(Rectf) rect() const
@@ -390,7 +442,7 @@ class Widget : Stylable
 			_sizeDirty = true;
 		}
 
-		//const(Rectf) rectStyled() 
+		//const(Rectf) rectStyled()
 		//{
 		//    return calcRect(style);
 		//    //auto st = style;
@@ -441,7 +493,7 @@ class Widget : Stylable
 					return _rect;
 					break;
 			}
-			
+
 			Widget p = parent; // lookFirstPositionedParent();
 			if (p is null)
 				res.size = window.size;
@@ -475,8 +527,11 @@ class Widget : Stylable
 		void size(Vec2f sz)
 		{
 			_printDirty("size");
-			_sizeDirty = true;
-			_rect.size = sz;
+            //if (sz != _rect.size)
+            //{
+            //    _sizeDirty = true;
+			    _rect.size = sz;
+//            }
 		}
 
 		const(Vec2f) intrinsicSize() {
@@ -489,78 +544,90 @@ class Widget : Stylable
 			size = Vec2f(sz.x, sz.y);
 		}
 
-		const(Vec2f) preferredSize() 
+		const(Vec2f) preferredSize()
 		{
 			return size;
 		}
 
-		void preferredSize(Vec2f prefSize) 
+		void preferredSize(Vec2f prefSize)
 		{
-						
+
 		}
 
-		const(Vec2f) minSize() 
-		{
-			return preferredSize;
-		}
-
-		void minSize(Vec2f mSize) 
-		{
-		}
-
-		const(Vec2f) maxSize() 
+		const(Vec2f) minSize()
 		{
 			return preferredSize;
 		}
 
-		void maxSize(Vec2f mSize) 
+		void minSize(Vec2f mSize)
 		{
 		}
 
-		ref float x() 
+		const(Vec2f) maxSize()
+		{
+			return preferredSize;
+		}
+
+		void maxSize(Vec2f mSize)
+		{
+		}
+
+		ref float x()
 		{
 			return _rect.x;
 		}
-	
+
 		const(float) x() const
 		{
 			return _rect.x;
 		}
 
-		ref float y() 
+		ref float y()
 		{
 			return _rect.y;
 		}
-		
+
 		const(float) y() const
 		{
 			return _rect.y;
 		}
 
-		ref float w() 
-		{
-			_printDirty("w");
-			_sizeDirty = true;
-			return _rect.w;
-		}
-		
+        ref float w()
+        {
+//            _printDirty("w");
+  //          _sizeDirty = true;
+            return _rect.w;
+        }
+
+        //@Bindable()
+        //void w(float value)
+        //{
+        //    //std.stdio.writeln("h ", name, " ", _rect.h);
+        //    if (_rect.w != value)
+        //    {
+        //        _printDirty("w");
+        //        _sizeDirty = true;
+        //        _rect.w = value;
+        //    }
+        //}
+
 		const(float) w() const
 		{
 			return _rect.w;
 		}
 
 		@Bindable()
-		void h(float value) 
+		void h(float value)
 		{
 			//std.stdio.writeln("h ", name, " ", _rect.h);
-			if (_rect.h != value)
-			{
-				_printDirty("h");
-				_sizeDirty = true;
+            //if (_rect.h != value)
+            //{
+            //    _printDirty("h");
+//				_sizeDirty = true;
 				_rect.h = value;
-			}
+//			}
 		}
-		
+
 		@Bindable()
 		const(float) h() const
 		{
@@ -571,7 +638,7 @@ class Widget : Stylable
 		{
 			return _rect.pos;
 		}
-		
+
 		void pos(Vec2f p)
 		{
 			_rect.pos = p;
@@ -591,7 +658,7 @@ class Widget : Stylable
 		void onTextCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.Text, del); }
 		void onCommandCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.Command, del); }
 
-			
+
 		/// XXX: Doing cursor shapes! But these callbacks need to be signals because several listeners must be possible!.
 		void onKeyboardFocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyboardFocus, del); }
 		void onKeyboardUnfocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyboardUnfocus, del); }
@@ -600,7 +667,7 @@ class Widget : Stylable
 	void moveBy(float x, float y)
 	{
 		_printDirty("moveBy");
-		_sizeDirty = true;
+		//_sizeDirty = true;
 		_rect.x += x;
 		_rect.y += y;
 	}
@@ -608,23 +675,23 @@ class Widget : Stylable
 	void moveTo(float x, float y)
 	{
 		_printDirty("moveTo");
-		_sizeDirty = true;
+		//_sizeDirty = true;
 		_rect.x = x;
 		_rect.y = y;
 	}
-		
+
 	void resizeBy(float x, float y)
 	{
 		_printDirty("resizeBy");
-		_sizeDirty = true;
+		//_sizeDirty = true;
 		_rect.x += x;
 		_rect.y += y;
 	}
-	
+
 	void resizeTo(float x, float y)
 	{
 		_printDirty("resizeTo");
-		_sizeDirty = true;
+		//_sizeDirty = true;
 		_rect.w = x;
 		_rect.h = y;
 	}
@@ -651,7 +718,12 @@ class Widget : Stylable
 	{
 		return _parent;
 	}
-	
+
+	@property const(Widget) parent() const pure nothrow @safe
+	{
+		return _parent;
+	}
+
 	@property void parent(Widget newParent) nothrow
 	{
 		if (newParent is _parent)
@@ -660,15 +732,23 @@ class Widget : Stylable
 		if (newParent is null)
 		{
 			if (window !is null)
-				window.deregister(this);	
+				window.deregister(this);
 			removeFromParent();
 			_parent = null;
 		}
 		else
 		{
-			newParent.addChild(this);		
+			newParent.addChild(this);
 		}
 	}
+
+    void destroyRecurse()
+    {
+        parent = null;
+        foreach (c; children)
+            c.destroyRecurse();
+        destroy(this); // Risky
+    }
 
 	/*
 	 * Returns: true if this widget was removed from a parent ie. it had a parent
@@ -696,11 +776,10 @@ class Widget : Stylable
 	void replaceChild(Widget replaceThisChild, Widget withThisWidget)
 	{
 		import std.array;
-		import std.algorithm;
 		auto idx = _children.countUntil(replaceThisChild);
 		if (idx == -1)
 			return;
-		
+
 		withThisWidget.parent = null;
 
 		auto old = _children[idx];
@@ -708,7 +787,7 @@ class Widget : Stylable
 
 		if (withThisWidget.window is null && window !is null)
 			window.register(withThisWidget);
-	
+
 		withThisWidget._parent = this;
 
 		old.parent = null;
@@ -717,11 +796,11 @@ class Widget : Stylable
 	//void moveChildBefore(Widget moveThisChild, Widget beforeThisChild)
 	//{
 	//    import std.array;
-	//    
+	//
 	//    auto idx = _children.countUntil(beforeThisChild);
 	//    if (idx == -1)
 	//        return;
-	//    
+	//
 	//    _children.insertInPlace(idx, moveThisChild);
 	//
 	//    foreach (ref w; _children)
@@ -749,7 +828,7 @@ class Widget : Stylable
 	{
 		if (childName.empty)
 			return null;
-		
+
 		foreach (w; _children)
 			if (w.name == childName)
 				return w;
@@ -835,7 +914,7 @@ class Widget : Stylable
 		manualLayout = false;
 		visible = true;
 		zOrder = 0f;
-		_sizeDirty = true;
+		//_sizeDirty = true;
 		_rect = Rectf(x, y, width, height);
 		id = _id == NullWidgetID ? _nextID++ : _id;
 		this.acceptsKeyboardFocus = false;
@@ -853,11 +932,11 @@ class Widget : Stylable
 
 	final EventUsed send(Event event)
 	{
-		if (event.type == EventType.KeyboardFocus)		
+		if (event.type == EventType.KeyboardFocus)
 		{
 			onKeyboardFocusSignal.emit(event);
 		}
-		else if (event.type == EventType.KeyboardUnfocus)		
+		else if (event.type == EventType.KeyboardUnfocus)
 		{
 			onKeyboardUnfocusSignal.emit(event);
 		}
@@ -867,7 +946,7 @@ class Widget : Stylable
 		OnEvent * handler = event.type in events;
 
 		EventUsed used = EventUsed.no;
-		
+
 		if (event.type == EventType.MouseClick)
 		{
 		//	std.stdio.writeln("fdsaf");
@@ -878,7 +957,7 @@ class Widget : Stylable
 			used = (*handler)(event, this);
 		}
 		else
-		{ 
+		{
 			handler = EventType.Default in events;
 			if (handler)
 				used = (*handler)(event, this);
@@ -925,28 +1004,42 @@ class Widget : Stylable
 		foreach (f; features)
 		{
 			f.draw(this);
-		}	
+		}
 	}
 
 	protected void drawChildren()
 	{
+        auto win = window;
+        auto r = win.rect;
 		// Draw children
 		foreach (w; children)
 		{
-			w.draw();
+			auto drawRect = r.clip(w.rect);
+            if (!drawRect.empty || this == win)
+                w.draw();
+            else if (w.visible)
+                drawRect = drawRect;
 		}
 	}
 
-	void layoutFeatures(bool fit)
-	{
-		foreach (f; features)
-			f.layout(this, fit);
-	}
+    void layoutChildren(bool fit, Widget positionReference)
+    {
+        if (layout is null)
+        {
+            Vec2f p = positionReference.pos;
+            foreach (w; children)
+                w.pos = p;
+        }
+        else
+        {
+            layout.layout(this, fit);
+        }
+    }
 
-	protected void layoutChildren(bool fit)
+	protected void layoutRecurse(bool fit, Widget positionReference)
 	{
 		foreach (w; children)
-			w.layout(fit);
+			w.updateLayout(fit, positionReference);
 	}
 
 	//private void recalcSize()
@@ -969,41 +1062,79 @@ class Widget : Stylable
 	//    //}
 	//}
 
-	protected void calculateSize()
+	protected void calculateSize(Widget positionReference)
 	{
-		size = calcSize(this);
+		Vec2f newSize = calcSize(this, positionReference);
+        //if (size != newSize)
+        //{
+            size = newSize;
+        //    forceDirty();
+        //}
 	}
 
-	protected void calculatePosition()
+	protected void calculatePosition(Widget positionReference)
 	{
-		pos = calcPosition(this);
+        import std.math;
+        if (!isFinite(size.y))
+        {
+            auto dd = size.y;
+        }
+		Vec2f newPos = calcPosition(this, positionReference);
+        //if (pos != newPos)
+        //{
+            pos = newPos;
+        //    forceDirty();
+        //}
 	}
 
-	protected void calculateChildrenSizes()
+	protected void calculateChildrenSizes(Widget positionReference)
 	{
 		// Get sized ready for the children so that any layouter have them
 		foreach (w; children)
 			if (!w.manualLayout)
-				w.calculateSize();
+				w.calculateSize(positionReference);
 	}
 
-	protected void calculateChildrenPositions()
+	protected void calculateChildrenPositions(Widget positionReference)
 	{
 		// Position goes last so that a base position calculated by e.g. DirectionalLayout feature
 		// can be used as relative pos for the calcPosition (ie. the styled position)
 		foreach (w; children)
 			if (!w.manualLayout)
-				w.calculatePosition();
+				w.calculatePosition(positionReference);
 	}
 
-	void layout(bool fit)
+	void updateLayout(bool fit, Widget positionReference)
 	{
-		calculateChildrenSizes();
-		layoutFeatures(false);
-		calculateChildrenPositions();
+        import std.array;
+
+        Style st = style;
+        if (st.position == CSSPosition.relative || st.position == CSSPosition.absolute || positionReference is null ||
+            (st.position.isMixed && (st.position[1] == CSSPosition.relative || st.position[1] == CSSPosition.absolute)))
+            positionReference = this;
+
+        static Rectf[] origChildrenRects;
+        assumeSafeAppend(origChildrenRects);
+        origChildrenRects.length = children.length;
+
+        children.map!"a.rect".copy(origChildrenRects);
+
+        calculateChildrenSizes(positionReference);
+		layoutChildren(false, positionReference);
+		calculateChildrenPositions(positionReference);
+
+        auto newChildrenRects = children.map!"a.rect";
+        int idx = 0;
+        foreach (ref childRect; newChildrenRects)
+        {
+            Rectf origRect = origChildrenRects[idx];
+            if (!childRect.isIdentical(origRect))
+                children[idx].forceDirty();
+            idx++;
+        }
 
 		// Positions and sizes for children are now set and we can recurse
-		layoutChildren(fit);
+		layoutRecurse(fit, positionReference);
 	}
 
 	void draw()
@@ -1016,22 +1147,22 @@ class Widget : Stylable
 	}
 
 	void update()
-	{		
+	{
 		// TODO: check for convergence
 		// TODO: only re-iterate features that asks for it e.g. constraints
-		for (int i = 0; i < 1; i++) 
+		for (int i = 0; i < 1; i++)
 		{
 			//activeStyle.model.transform = activeStyle.model.transform * Mat4f.makeTranslate(Vec3f(0.0005f,0f,0f));
-			
+
 			//onLayout();
-			//for (int j = 0; j < 10000; j++) 
-			auto bg = background;	
+			//for (int j = 0; j < 10000; j++)
+			auto bg = background;
 			if (bg !is null)
 				bg.update(this);
 			foreach (f; features)
 			{
 				f.update(this);
-			}			
+			}
 		}
 
 		if (_sizeDirty)
@@ -1054,7 +1185,7 @@ class Widget : Stylable
 
 
 //		OnEvent * handler = EventType.Update in events;
-		
+
 //		if (handler)
 //			(*handler)(Event(EventType.Update), this);
 

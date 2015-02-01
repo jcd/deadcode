@@ -305,9 +305,10 @@ class Window : Widget
 				mouseWidgets ~= w.id;
 
 				//std.stdio.writeln("hit ", w.name);
+                // TODO: make proper z-index stack order css property
 				bool isInFront = cur is null || 
 					w.zOrder > cur.zOrder || // Order is prioritized
-					(w.zOrder == cur.zOrder && w.isDecendantOf(cur)); // And if order is equal then test if in same branch
+					(w.zOrder == cur.zOrder && (w.isDecendantOf(cur) || w.style.zIndex > cur.style.zIndex) ); // And if order is equal then test if in same branch
 				if (isInFront)
 				{
 					//std.stdio.writeln(w.name, " desc of ", cur is null ? "null" : cur.name, " rect ", w.rect.pos.v, w.rect.size.v, p.v);

@@ -47,7 +47,7 @@ mixin template styleProperty(string type, string name)
 	mixin(type ~ " _" ~ name ~ ";");
 	mixin("bool _" ~ name ~ "IsSet;");
 	mixin("void clear" ~ toUpper(name[0..1]) ~ name[1..$] ~ "() pure nothrow { _" ~ name ~ "IsSet = false; }");
-	mixin("@property " ~ type ~ " " ~ name ~ "() { " ~ 
+	mixin("@property " ~ type ~ " " ~ name ~ "() { " ~
 		  " if ( _" ~ name ~ "IsSet) return _" ~ name ~ ";" ~
 		  " else { " ~ type ~ " t; style.getProperty(\"" ~ stylePropertyToCSSName(name) ~ "\", t); return t; } }");
 	mixin("@property void " ~ name ~ "(" ~ type ~ " value) { _" ~ name ~ " = value; _" ~ name ~ "IsSet = true; }");
@@ -68,12 +68,12 @@ class Style
 	}
 
 	public
-	// package 
+	// package
 	{
 		Rectf[PropertyID] rects;  // Keys in the map are property names
 		float[][PropertyID] floats;
-		Vec2f[PropertyID]vec2fs;		
-		
+		Vec2f[PropertyID]vec2fs;
+
 		Duration[][PropertyID] durations;
 		CubicCurveParameters[][PropertyID] curveParameters;
 		PropertyID[][PropertyID] propertyIDs;
@@ -81,7 +81,7 @@ class Style
 		Transition[PropertyID] transitionCache; // derived from other properties in the style
 
 		// Curve[] curves;
-		
+
 		// bool hasNewTransistionProperties;
 		// Transition[] transitions;
 		// Transition[PropertyID] transitions; // as opposed to the above maps the key here is the name of the property to be transitioned
@@ -96,7 +96,7 @@ class Style
 			CSSScaleMix _top;
 			CSSScaleMix _bottom;
 		}
-		
+
 		// ref types
 		Font _font;
 		Material _background;
@@ -110,18 +110,20 @@ class Style
 		@Bindable()
 		Color _backgroundColor;    // bit 2
 
+        int _zIndex; // bit 3
+
 		@Bindable()
-		RectfOffset _padding;  
-		
+		RectfOffset _padding;
+
 		@Bindable()
 		RectfOffset _backgroundSpriteBorder;
-		
+
 		@NonBindable()
 		Rectf       _backgroundSprite;
 
 		// float _glyphPadding; etc....
 
-		// bitmask. One bit set unset for each by value property that does not support null values should be null. 
+		// bitmask. One bit set unset for each by value property that does not support null values should be null.
 		// The fields are:
 		// * wordWrap bit 0
 		// * color bit 1
@@ -130,13 +132,13 @@ class Style
 
 //	package StyleFields _fields; // Fields set on this style
 
-	@property 
-	{	
+	@property
+	{
 		bool hasTransitions() const pure nothrow
 		{
 			return transitionCache.length != 0;
 		}
-		
+
 		CSSPositionMix position() const
 		{
 			return _position;
@@ -159,7 +161,7 @@ class Style
 		//    _rectCSSAnimator = a;
 		//}
 
-		//RectCSSOffset edgesOffset() const 
+		//RectCSSOffset edgesOffset() const
 		//{
 		//    return _edgesOffset;
 		//}
@@ -231,7 +233,7 @@ class Style
 		{
 			return _height;
 		}
-		
+
 		void height(T)(T v) pure nothrow @safe if (is (T:CSSScale) || is(T:CSSScaleMix))
 		{
 			_height = v;
@@ -245,7 +247,7 @@ class Style
 			return f;
 		}
 
-		void font(Font f) 
+		void font(Font f)
 		{
 			_font = f;
 		}
@@ -285,6 +287,17 @@ class Style
 			_backgroundColor = c;
 		}
 
+		int zIndex() const
+		{
+			return _zIndex;
+		}
+
+		void zIndex(int i)
+		{
+			_nullFields |= 8;
+			_zIndex = i;
+		}
+
 		bool wordWrap() const
 		{
 			return _wordWrap;
@@ -318,7 +331,7 @@ class Style
 		}
 
 		@Bindable()
-		Rectf backgroundSprite() 
+		Rectf backgroundSprite()
 		{
 			Rectf r = _backgroundSprite;
 			Vec2f sz;
@@ -334,10 +347,10 @@ class Style
 				r.y = 0; // default to 0 offset
 
 			if (r.w.isNaN())
-				r.w = sz.x; 
+				r.w = sz.x;
 
 			if (r.h.isNaN())
-				r.h = sz.y; 
+				r.h = sz.y;
 
 			return r;
 		}
@@ -359,7 +372,7 @@ class Style
 	this(string name) nothrow @safe
 	{
 		id = _nextID++;
-		this._name = name;	
+		this._name = name;
 	}
 
 	this(StyleSheet s) nothrow @safe
@@ -376,7 +389,7 @@ class Style
 		enum emptyTimings = CubicCurveParameters[].init;
 
 		transitionCache = (Transition[PropertyID]).init;
-		
+
 		auto propertyNames = propertyIDs.get("transition-property", emptyPropertyIDs);
 		int aa = 4;
 		if (propertyNames.length)
@@ -386,13 +399,13 @@ class Style
 
 		foreach (p; propertyIDs.get("transition-property", emptyPropertyIDs))
 			transitionCache[p] = Transition(p);
-		
+
 		bool gotAllTransition = false;
 		foreach (i, p; durations.get("transition-duration", emptyDurations))
 		{
 			if (i < propertyNames.length)
 				transitionCache[propertyNames[i]].duration = p;
-			else 
+			else
 			{
 				if (!gotAllTransition)
 					transitionCache["all"] = Transition("all", p);
@@ -406,7 +419,7 @@ class Style
 		{
 			if (i < propertyNames.length)
 				transitionCache[propertyNames[i]].timing = p;
-			else 
+			else
 			{
 				if (!gotAllTransition)
 				{
@@ -426,7 +439,7 @@ class Style
 		{
 			if (i < propertyNames.length)
 				transitionCache[propertyNames[i]].delay = p;
-			else 
+			else
 			{
 				if (!gotAllTransition)
 				{
@@ -497,7 +510,7 @@ class Style
 		value = *v;
 		return true;
 	}
-	
+
 	//bool getProperty(PropertyID id, ref Vec2f[] value) const pure nothrow
 	//{
 	//    auto v = id in vec2fs;
@@ -516,7 +529,7 @@ class Style
 	//    return true;
 	//}
 
-	bool getProperty(PropertyID id, ref Rectf value) 
+	bool getProperty(PropertyID id, ref Rectf value)
 	{
 		auto v = id in rects;
 		if (v is null)
@@ -525,7 +538,7 @@ class Style
 		return true;
 	}
 
-	//bool getProperty(PropertyID id, ref Rectf[] value) 
+	//bool getProperty(PropertyID id, ref Rectf[] value)
 	//{
 	//    auto v = id in rects;
 	//    if (v is null)
@@ -561,9 +574,9 @@ class Style
 			v = Rectf.init;
 
 		foreach (ref v; vec2fs)
-			v = Vec2f.init;	
-	
-		
+			v = Vec2f.init;
+
+
 	}
 */
 
@@ -633,7 +646,7 @@ class Style
 		setInvalid(src.right, dst.right);
 		setInvalid(src.bottom, dst.bottom);
 	}
-	
+
 	private void setInvalid(Vec2f src, ref Vec2f dst)
 	{
 		setInvalid(src.x, dst.x);
@@ -659,7 +672,7 @@ class Style
 		{
 			if (_background is null)
 				_background = sf._background; // TODO: hmmm. could this make _background be modified later because of a second overlay?
-			else 
+			else
 			{
 				if (_background.shader is null)
 					_background.shader = sf._background.shader;
@@ -684,6 +697,12 @@ class Style
 		{
 			_backgroundColor = sf._backgroundColor;
 			_nullFields |= 4;
+		}
+
+        if (! (_nullFields & 8) && (sf._nullFields & 8) )
+		{
+			_zIndex = sf._zIndex;
+			_nullFields |= 8;
 		}
 
 		setInvalid(sf._padding, _padding);
@@ -741,6 +760,7 @@ class Style
 		st._nullFields = _nullFields;
 		st._color = _color;
 		st._backgroundColor = _backgroundColor;
+        st._zIndex = _zIndex;
 		st._padding = _padding;
 		st._backgroundSpriteBorder = _backgroundSpriteBorder;
 		st._backgroundSprite = _backgroundSprite;
@@ -788,7 +808,7 @@ class UsedStyle
 		offset = 0;
 	}
 
-	@property 
+	@property
 	{
 		@Binding
 		void offset(float o)
@@ -809,7 +829,7 @@ class UsedStyle
 		return s is to || s is this;
 	}
 
-	void update() 
+	void update()
 	{
 		onChanged.emit(this);
 	}
@@ -827,7 +847,7 @@ class UsedStyle
 //  color: $color;
 //     background-shader: "default.shaderprogram";
 // }
-// 
+//
 // TextEditor[lars] > [ib] {
 // color: yellow;
 // background: "bgplain.png;

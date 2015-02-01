@@ -576,6 +576,11 @@ class StyleSheetParser
 		r.bottom = requireNextOptionalNumber();
 	}
 
+    void parseZIndex(ref int i)
+    {
+        i = cast(int)requireNextOptionalNumber();
+    }
+
 	void parsePositionProperty(Style style)
 	{
 		requireNextToken(TokenType.identifier);
@@ -716,10 +721,16 @@ class StyleSheetParser
 					break;
 				case "wordWrap":
 					parseWordWrapProperty(style);
+                    style._nullFields |= 1;
 					requireNextToken();
 					break;
 				case "padding":
 					parseRectOffset(style._padding);
+					requireNextToken();
+					break;
+				case "z-index":
+					parseZIndex(style._zIndex);
+                    style._nullFields |= 8;
 					requireNextToken();
 					break;
 				case "background-sprite":

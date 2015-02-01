@@ -36,9 +36,11 @@ template isNotType(ThisType)
 
 /// Compile time check if 'what' has an attibute of type AttrType
 alias hasAttribute(alias what, AttrType) = anySatisfy!(isType!AttrType, __traits(getAttributes, what));
+//alias hasAttribute(What, AttrType) = anySatisfy!(isType!AttrType, __traits(getAttributes, What));
 
 /// Compile time get all attributes on 'what' that have type AttrType
 enum getAttributes(alias what, AttrType) = [ Filter!(isType!AttrType, __traits(getAttributes, what)) ];
+// enum getAttributes(What, AttrType) = [ Filter!(isType!AttrType, __traits(getAttributes, What)) ];
 
 
 struct sillyWalk { int i; }

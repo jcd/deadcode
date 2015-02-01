@@ -42,7 +42,7 @@ class Command
 			import std.uni;
 
 			auto toks = this.classinfo.name.splitter('.').retro;
-			
+
 			string className = null;
 			// class Name is assumed PascalCase ie. FooBarCommand and the Command postfix is stripped
 			// The special case of extension.FunctionCommand!(xxxx).FunctionCommand
@@ -66,11 +66,12 @@ class Command
 
 			return classNameToCommandName(className);
 		}
-		
+
 		static protected string classNameToCommandName(string className)
 		{
 			string cmdName;
-			cmdName ~= className.munch("A-Z").toLower;
+			cmdName ~= className[0].toLower;
+                        className = className[1..$];
 			cmdName ~= className.munch("[a-z0-9_]");
 			if (!className.empty)
 			{
@@ -98,8 +99,8 @@ class Command
 		}
 
 		string shortcut() const
-		{ 
-			return null; 
+		{
+			return null;
 		}
 
 		int hints() const
@@ -112,7 +113,7 @@ class Command
 			return false;
 		}
 	}
-	
+
 	this(CommandParameterDefinitions paramsTemplate = null)
 	{
 		_commandParamtersTemplate = paramsTemplate;
@@ -135,7 +136,7 @@ class Command
 		//CommandParameter[] params;
 		//return defs is null || defs.setValues(params, data);
 	}
-	
+
 	abstract void execute(CommandParameter[] data);
 	void undo(CommandParameter[] data) { }
 
@@ -159,7 +160,7 @@ class DelegateCommand : Command
 {
 	private string _name;
 	private string _description;
-	
+
 	override @property string name() const { return _name; }
 	override @property string description() const { return _description; }
 
@@ -176,7 +177,7 @@ class DelegateCommand : Command
 		this.executeDel = executeDel;
 		this.undoDel = undoDel;
 	}
-	
+
 	final override void execute(CommandParameter[] data)
 	{
 		executeDel(data);
@@ -204,7 +205,7 @@ class CommandHello : Command
 		string name() { return "test.hello"; }
 		string description() { return "Echo \"Hello\" to stdout"; }
 	}
-	
+
 	this()
 	{
 		super(null);
@@ -219,7 +220,7 @@ class CommandHello : Command
 // Second way to do it
 auto helloCommand()
 {
-	return new DelegateCommand("test.hello", "Echo \"Hello\" to stdout", 
+	return new DelegateCommand("test.hello", "Echo \"Hello\" to stdout",
 							   null,
 	                           delegate (CommandParameter[] data) { std.stdio.writeln("Hello"); });
 }
@@ -235,7 +236,7 @@ class CommandManager
 {
 	// Runtime check that only one instance is created ie. not for use in singleton pattern.
 	private static CommandManager _the; // assert only singleton
-			
+
 	this()
 	{
 		assert(_the is null);
@@ -247,8 +248,8 @@ class CommandManager
 
 	// TODO: Rename to create(..) when dmd supports overloading on parameter that is delegates with different params. Currently this method
 	//       conflicts with the method below because of dmd issues.
-	DelegateCommand create(string name, string description, CommandParameterDefinitions paramDefs, 
-						   void delegate(CommandParameter[]) executeDel, 
+	DelegateCommand create(string name, string description, CommandParameterDefinitions paramDefs,
+						   void delegate(CommandParameter[]) executeDel,
 						   void delegate(CommandParameter[]) undoDel = null)
 	{
 		auto c = new DelegateCommand(name, description, paramDefs, executeDel, undoDel);
@@ -258,11 +259,11 @@ class CommandManager
 
 	//DelegateCommand create(T)(string name ,string description, void delegate(Nullable!T) executeDel, void delegate(Nullable!T) undeDel = null) if ( ! is(T == class ))
 	//{
-	//    create(name, description, 
-	//           (Variant v) { 
+	//    create(name, description,
+	//           (Variant v) {
 	//                auto d = v.peek!(Nullable!T);
 	//                if (d is null)
-	//           }, 
+	//           },
 	//           undoDel is null ? null : (Variant) { });
 	//}
 
@@ -278,7 +279,7 @@ class CommandManager
 	}
 */
 	/** Add a command
-	 * 
+	 *
 	 * Params:
 	 * command = Command to add
 	 * name = if not null then set as the name of the command. Else command.name is used.
@@ -343,9 +344,9 @@ class CommandManager
 
 }
 
-// TODO: fix	
+// TODO: fix
 /* API:
-View	 		TextView  
+View	 		TextView
 RegionSet		RegionSet
 Region			Region
 Edit			N/A

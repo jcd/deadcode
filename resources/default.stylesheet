@@ -9,6 +9,36 @@
 	position: static;
 }
 
+Label {
+	font : url(fonts/RobotoCondensed-Light.ttf) 16;
+	color: #ffffff;
+	width: 100px;
+	height: 20px;
+	padding: 1 4 4 1;
+}
+
+Button {
+	color: #d8d8d2;
+	font : url(fonts/RobotoCondensed-Light.ttf) 14;
+	background-color: #0a373d;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	width: 100%;
+	height: 20px;
+	padding: 1 10 0 1;
+}
+
+Button:hover {
+	background-color: #1a474d;	
+}
+
+Button:active {
+	background-color: #3a777d;	
+	color: #e8e8e2;
+}
+
+
 Globals {
 	page-down-speed: 16.0;
 }
@@ -34,9 +64,12 @@ TestWidget:hover {
 
 TextEditor {
 	color: #f8f8f2;
+	font : url(fonts/cour.ttf) 13;
+	padding: 0 4 0 0;
 }
 
 StatusPanel {
+	position: relative;
 	padding : 0 0 0 0;
 	background: url(materials/white-small-nine-patch.png);
 	background-color: #0a272d;
@@ -56,13 +89,14 @@ StatusPanel.discrete {
 }
 
 ErrorListWidget {
+	position: relative;
 	padding : 0 0 0 0;
 	background: url(materials/white-small-nine-patch.png);
 	background-color: #0a272d;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	color: #ff0000;
-	height: 10%;
+	height: 100%;
 	transition: height 0.3s;
 }
 
@@ -77,33 +111,32 @@ ErrorListWidget.compiling {
 	background-color: #0a272d;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
-	padding: 0 3 0 0;
-	right: 210px;
-	width: 210px;
+	padding: 0 0 0 0;
+	right: 260px;
+	width: 260px;
 	height: 22px;
 }
 
 ToggleButton {
 	font : url(fonts/RobotoCondensed-Light.ttf) 14;
 	color: #ffffff;
+	width: 20%;
+	padding: 0 0 4 0;
 }
 
 ToggleButton.on {
-	font : url(fonts/RobotoCondensed-Light.ttf) 14;
-color: #cccccc;}
+	color: #cccccc;
+}
 
 ToggleButton.off {
-	font : url(fonts/RobotoCondensed-Light.ttf) 14;
 	color: #777777;
 }
 
 ToggleButton:hover {
-	font : url(fonts/RobotoCondensed-Light.ttf) 14;
 	color: #93C763;
 }
 
 ToggleButton:active {
-	font : url(fonts/RobotoCondensed-Light.ttf) 14;
 	color: #ffffff;
 }
 
@@ -124,11 +157,32 @@ TextEditorAnchor
 }
 
 AnalysisAnchor > Label {
-	position: absolute;
+	position: relative;
 	font : url(fonts/RobotoCondensed-Light.ttf) 14;
 	color: #ff0000;
 	top: -3px;
 	left: 10px;
+}
+
+EOLAnchor > Label {
+	position: absolute;
+	font : url(fonts/RobotoCondensed-Light.ttf) 13;
+	color: #007777;
+	top: -2px;
+	left: 10px;
+}
+
+.myanchor {
+	background-color: #0a770d;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	width: 14px;
+	height: 14px;
+}
+
+.myanchor:hover {
+	background-color: #fa770d;
 }
 
 UnittestAnchor {
@@ -186,8 +240,6 @@ UnittestAnchor:focus {
 	height: 100%;
 }
 
-#command {
-}
 
 .selection {
 	background: url(materials/white-small-nine-patch.png);
@@ -292,7 +344,7 @@ TextField
 
 CommandControl
 {
-	background-color: #file	;
+	background-color: #1a1a1f;
 	background: url(materials/white-small-nine-patch.png);
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
@@ -438,68 +490,115 @@ TextEditor#commandCompletion {
 }
 
 Tree {
-	background: url(materials/white-small-nine-patch.png);
 	color: #555555;
-	background-color: #0a272d;
-	background-sprite: 0 0 16 16;
-	background-sprite-border: 6 6 6 6;
-	font : url(fonts/cour.ttf) 29;
 	offset: 9 0;
 	height: fit;
 	width: 100%;
-	padding: 1 0 0 0;
+	padding: 0 0 0 0;
 }
 
-Tree#Menu Tree {
-	background-color: #0a272d;
-	transition: background-color 2.5s;
+Tree.hidden {
+	background-color: #000000;
 }
 
-Tree#Menu.hidden Tree {
-	background-color: #0a1a1a;
-	transition: background-color 2.5s;
-}
-
-Tree.leaf:hover {
-	background-color: #001518;
-}
-
-Tree.leaf:active {
-	background-color: #001c22;
-}
 
 Tree#Menu {
 	position: absolute;
-	padding : 10 0 20 10;
+	background: url(materials/white-small-nine-patch.png);
+	background-color: #0a272d;
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	padding : 5 0 20 10;
 	width: 160px;
 	height: 270px;
 	right: 160px;
 	top: 24px;
 	offset: 0 0;
-	transition: width 0.1s, height 0.3s;
+	transition: width 0.1s, height 0.3s, background-color 0.3s;
 }
 
 Tree#Menu.hidden {
-	padding : 0 0 0 0;
-	width: 0%;
-	height: 24px;
-	transition: width 0.1s, height 0.1s;
-}
-
-Tree#Menu > Tree {
-	padding : 1 0 0 10;
-	offset: 0 0;
-}
-
-Tree Label {
-	color: #2a9eb9;	
-	font : url(fonts/RobotoCondensed-Bold.ttf) 24;
 	padding: 0 0 0 0;
+	width: 0px;
+	height: 0px;
+	transition: width 0.1s, height 0.3s, background-color 0.3s;
 }
 
-Tree >  Tree > Tree.leaf > Label {
-	font : url(fonts/RobotoCondensed-Bold.ttf) 14;
-	color: #d8d8d2;	
+Tree#Menu Tree.leaf
+{
+	background: url(materials/white-small-nine-patch.png);
+	background-color: #0a272d;
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+}
+
+Tree > Label {
+	font : url(fonts/RobotoCondensed-Light.ttf) 14;
+	color: #d8d8d2;
+	padding: 0 10 0 0;
+}
+
+Tree#Menu Tree.leaf:hover
+{
+	background-color: #1a474d;	
+	transition: width 0.1s;
+}
+
+Tree#Menu Tree.leaf:active {
+	background-color: #3a777d;	
+	color: #ffffff;
+}
+
+Tree#Menu > Tree > Tree > Label {
+	color: #2a9eb9;	
+	font : url(fonts/RobotoCondensed-Bold.ttf) 18;
+	padding: 0 10 0 0;
+}
+
+Tree#WidgetHierarchyTree
+{
+	background: url(materials/white-small-nine-patch.png);
+	background-color: #0a272d;
+	background-sprite: 4 4 6 6;
+	background-sprite-border: 0 0 0 0;
+	width: 440px;
+}
+
+Tree#WidgetHierarchyTree Tree > Label
+{
+	position: relative;
+	width: 100%;
+}
+
+Tree#WidgetHierarchyTree Tree
+{
+	offset: 10 0;
+}
+
+Tree#WidgetHierarchyTree Tree.leaf
+{
+	background: url(materials/white-small-nine-patch.png);
+	background-color: #0a272d;
+	background-sprite: 4 4 6 6;
+	background-sprite-border: 0 0 0 0;
+	width: 100%;
+	padding: 2 0 0 2;
+}
+
+Tree#WidgetHierarchyTree Tree.leaf:hover 
+{
+	background-color: #1a474d;	
+}
+
+Tree#WidgetHierarchyTree Tree.leaf:active {
+	background-color: #3a777d;	
+	color: #ffffff;
+}	
+
+#WidgetHierarchy Button
+{
+	left: 470px;
+	z-index: 200;
 }
 
 #menuButton {
@@ -509,8 +608,8 @@ Tree >  Tree > Tree.leaf > Label {
 	background-color: #0a373d;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
-	font : url(fonts/RobotoCondensed-Bold.ttf) 24;
-	padding: -5 10 0 12;
+	font : url(fonts/RobotoCondensed-Bold.ttf) 20;
+	padding: -2 10 0 12;
 	height: 16px;
 	width: 100px;
 	right: 100px;
@@ -556,4 +655,12 @@ Tree >  Tree > Tree.leaf > Label {
 	background-sprite-border: 6 6 6 6;
 	width: 550px;
 	height: 200px;
+}
+
+MyWidget {
+	position: relative;
+	left: 200px;
+	height: 42px;
+	width: 200px;
+	z-index: 200;
 }

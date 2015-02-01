@@ -318,7 +318,7 @@ class TextEditor : Widget
 			// left side we exclude it from the selection. This magic is only done when finding the start of the
 			// selection, not when determining the end or when expanding the selection.
 			auto yPosHalfWayGlyphRect = hit.rect.x + hit.rect.w * .5f;
-			index = yPosHalfWayGlyphRect < mousePos.x ? hit.index+1 : hit.index; 
+			index = yPosHalfWayGlyphRect < mousePos.x && !hit.endOfLine ? hit.index+1 : hit.index;
 			if (_mouseStartSelectionIdx == int.max)
 				_mouseStartSelectionIdx = index;
 		}

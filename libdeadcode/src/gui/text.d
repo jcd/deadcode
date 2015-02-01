@@ -334,12 +334,13 @@ class TextSelectionModel : Stylable
 	TextBoxLayout textLayout;
 	Region selection;
 	StyleSheet styleSheet;
+    Style style;
 
 	// Stylable interface
 	@property 
 	{		
 		string name() const pure @safe { return null; }
-		bool matchStylable(string stylableName) const pure nothrow @safe
+		ubyte matchStylable(string stylableName) const pure nothrow @safe
 		{
 			return matchStylableImpl(this, stylableName);
 		}
@@ -351,11 +352,6 @@ class TextSelectionModel : Stylable
 		Stylable parent() pure nothrow @safe  { return null; }
 	}
 
-	private @property Style style() 
-	{
-		return styleSheet.getStyle(this);
-	}
-
 	this(StyleSheet stylesheet, TextBoxLayout layout, Region sel)
 	{
 		styleSheet = stylesheet;
@@ -365,6 +361,7 @@ class TextSelectionModel : Stylable
 	
 	void update(int textOffset)
 	{
+		style = styleSheet.getStyle(this);
 		if (style is null)
 			return;
 

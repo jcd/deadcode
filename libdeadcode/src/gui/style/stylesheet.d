@@ -15,7 +15,7 @@ import gui.style.types;
 import std.algorithm;
 import std.range;
 
-version (unittest) 
+version (unittest)
 {
 	import test;
 
@@ -23,35 +23,36 @@ version (unittest)
 	{
 		string n;
 		Stylable _parent;
-		
-		@property 
-		{		
+
+		@property
+		{
 			string name() const pure @safe { return n; }
 			void name(string nn) { n = nn; }
-			
-			bool matchStylable(string stylableName) const pure nothrow @safe { return matchStylableImpl(this, stylableName); }
+
+			ubyte matchStylable(string stylableName) const pure nothrow @safe { return matchStylableImpl(this, stylableName); }
 			const(string[]) classes() const pure nothrow @safe { return [""]; }
 			bool hasKeyboardFocus() const pure nothrow @safe { return false; }
 			bool isMouseOver() const pure nothrow @safe { return false; }
 			bool isMouseDown() const pure nothrow @safe { return false; }
 			Stylable parent() pure nothrow @safe { return _parent; }
 		}
-	
+
 		this(Stylable p)
-		{	
+		{
 			_parent = p;
 		}
 	}
 }
 
+enum maxStylableNameMatchLevel = cast(ubyte)10;
 
-bool matchStylableImpl(S)(S styleable, string stylableName) pure nothrow @safe
+ubyte matchStylableImpl(S)(S styleable, string stylableName) pure nothrow @safe
 {
 	static bool matchName(string ciname, string stylableName) nothrow
 	{
 		import std.string;
 
-		try 
+		try
 		{
 			auto idx = ciname.lastIndexOf('.');
 			if (idx != -1)
@@ -66,18 +67,23 @@ bool matchStylableImpl(S)(S styleable, string stylableName) pure nothrow @safe
 	}
 
 	auto ci = styleable.classinfo;
+    ubyte level = 1;
 	// Match class with StylableTypeName or descendants
 	while (ci !is null && !matchName(ci.name, stylableName))
+    {
 		ci = ci.base;
-	return ci !is null;			
+        level++;
+    }
+    //assert(level < 11);
+	return ci is null ? 0 : cast(ubyte)(maxStylableNameMatchLevel - level + 1);
 }
 
 interface Stylable
 {
-	@property 
-	{		
+	@property
+	{
 		string name() const pure @safe;
-		bool matchStylable(string stylableName) const pure nothrow @safe;
+		ubyte matchStylable(string stylableName) const pure nothrow @safe;
 		const(string[]) classes() const pure nothrow @safe;
 		bool hasKeyboardFocus() const pure nothrow @safe;
 		bool isMouseOver() const pure nothrow @safe;
@@ -91,7 +97,7 @@ class StylableSelector
 	string stylableTypeName;
 	bool fullyQualifiedType;
 	string stylableName;
-	string className;
+	string[] classNames;
 
 	enum PseudoClass : byte
 	{
@@ -104,12 +110,12 @@ class StylableSelector
 
 	PseudoClass pseudoClass;
 
-	this(string wtype, string wname, string cname = null, string pseudoName = null)
+	this(string wtype, string wname, string[] cnames = null, string pseudoName = null)
 	{
 		stylableTypeName = wtype == "*" ? null : wtype;
 		fullyQualifiedType = false;
 		stylableName = wname;
-		className = cname;
+		classNames = cnames;
 		switch (pseudoName)
 		{
 			case "hover":
@@ -130,23 +136,17 @@ class StylableSelector
 		}
 	}
 
-	Stylable match(Stylable w, const(string[]) classNames_)
+	Tuple!(Stylable, ubyte) match(Stylable w)
 	{
 		auto nameMatch = stylableName.empty ? true : stylableName == w.name;
-		auto typeMatch = stylableTypeName.empty;
-		const(string[]) classNames = w.classes;
-		auto classMatch = className.empty ? true : classNames.canFind(className);
+		ubyte typeMatchLevel = stylableTypeName.empty ? 1 : 0;
+		const(string[]) widgetClassNames = w.classes;
+
+		auto classMatch = true;
+        foreach (cn; classNames)
+            classMatch = classMatch && widgetClassNames.canFind(cn);
+
 		auto pseudoMatch = true;
-
-		if (w.name == "Menu/leaf")
-		{
-			pseudoMatch = true;
-		}
-
-		if (w.name == "toggleErrors" && stylableTypeName == "ToggleButton")
-		{
-			pseudoMatch = true;
-		}
 
 		final switch (pseudoClass)
 		{
@@ -154,15 +154,6 @@ class StylableSelector
 				break;
 			case PseudoClass.hover:
 				pseudoMatch = w.isMouseOver();
-				import controls.button;
-				if (w.name == "toggleErrors")
-				{
-					bool isOver = Button.isover !is null;
-					if (isOver && stylableTypeName == "ToggleButton")
-					{
-						pseudoMatch = pseudoMatch;
-					}
-				}
 				break;
 			case PseudoClass.active:
 				pseudoMatch = w.isMouseDown();
@@ -176,14 +167,13 @@ class StylableSelector
 		}
 
 		if (!(nameMatch && classMatch && pseudoMatch))
-			return null;
+			return tuple(w, cast(ubyte)0);
 
-		if (!typeMatch)
-			typeMatch = w.matchStylable(stylableTypeName);
+		if (typeMatchLevel == 0)
+			typeMatchLevel = w.matchStylable(stylableTypeName);
 
-		return typeMatch ? w : null;
+		return tuple(w, typeMatchLevel);
 	}
-
 }
 
 unittest
@@ -227,18 +217,18 @@ unittest
 
 class ChildSelector : StylableSelector
 {
-	this(string tname, string wname, string cname = null, string pseudoName = null)
+	this(string tname, string wname, string[] cnames = null, string pseudoName = null)
 	{
-		super(tname, wname, cname, pseudoName);
+		super(tname, wname, cnames, pseudoName);
 	}
 
-	override Stylable match(Stylable w, const(string[]) classNames)
+	override Tuple!(Stylable, ubyte) match(Stylable w)
 	{
 		auto p = w.parent;
-		if (p is null || super.match(p, classNames) is null)
-			return null;
+		if (p is null)
+			return tuple(w, cast(ubyte)0);
 
-		return p;
+        return super.match(p);
 	}
 }
 
@@ -260,23 +250,23 @@ unittest
 
 class DescendantSelector : StylableSelector
 {
-	this(string tname, string wname, string cname = null, string pseudoName = null)
+	this(string tname, string wname, string[] cnames = null, string pseudoName = null)
 	{
-		super(tname, wname, cname, pseudoName);
+		super(tname, wname, cnames, pseudoName);
 	}
 
-	override Stylable match(Stylable w, const(string[]) classNames)
+	override Tuple!(Stylable, ubyte) match(Stylable w)
 	{
 		auto p = w.parent;
 		while (p !is null)
 		{
-			Stylable res = super.match(p, classNames);
-			if (res is null)
-				p = p.parent;
-			else
-				return res;
+			auto res = super.match(p);
+			if (res[1])
+                return res;
+            else
+                p = p.parent;
 		}
-		return null;
+		return tuple(w, cast(ubyte)0);
 	}
 }
 
@@ -309,49 +299,70 @@ class Rule
 {
 	//
 	// selector1 operator1 selector2 operator2 selector3
-	// ie. 
+	// ie.
 	// operator.length == selectors.lenght - 1
 	//
-	
+
 	Selectors selectors;
 	Style style;
 
-	// 
+	//
 	// http://www.w3.org/TR/CSS21/cascade.html#specificity
 	// 0xFF_00_00_00 mask is the count of named selectors
 	// 0x00_FF_00_00 mask is the sum of psuedo class selectors, class selectors and attribute selectors
 	// 0x00_00_FF_00 mask is the sum of Stylable and subStylable selectors
 	//
-	uint specificity;
+	//uint specificity;
 
-	bool match(Stylable w, const(string[]) classNames)
+	// Returns the actual specifity for the match taking into consideration
+    // the class hierarchy matchLevel
+    uint match(Stylable w)
 	{
-		if (specificity == 0)
-			calculateSpecificity();
+        uint specificity = 0;
 
 		if (selectors.empty)
-			return true;
+			return 0;
 
-		for (int i = selectors.length - 1; w !is null && i >= 0; i--)
-			w = selectors[i].match(w, classNames);
+        //if (specificity == 0)
+        //    calculateSpecificity();
+		for (int i = selectors.length - 1; i >= 0; i--)
+        {
+            auto s = selectors[i];
+            Tuple!(Stylable, ubyte) matchLevel = s.match(w);
+            if (matchLevel[1] == 0)
+                return 0;
 
-		return w !is null;
-	}
-
-	void calculateSpecificity()
-	{
-		foreach (s;	selectors)
-		{
+            // Change the specificity
 			if (s.stylableName !is null)
 				specificity += 0x01_00_00_00;
-			if (s.className !is null)
-				specificity += 0x00_01_00_00;
+			if (s.classNames.length)
+				specificity += 0x00_01_00_00 * s.classNames.length;
 			if (s.pseudoClass != StylableSelector.PseudoClass.none)
 				specificity += 0x00_01_00_00;
-			if (s.stylableTypeName !is null)
-				specificity += 0x00_00_01_00;
-		}
+			//if (s.stylableTypeName !is null)
+
+            // The greater the ancestor in the inheritance hierarchy the lower the specificity
+            specificity += 0x00_00_01_00 * matchLevel[1];
+            w = matchLevel[0];
+        }
+
+        return specificity;
 	}
+
+    //void calculateSpecificity()
+    //{
+    //    foreach (s;	selectors)
+    //    {
+    //        if (s.stylableName !is null)
+    //            specificity += 0x01_00_00_00;
+    //        if (s.className !is null)
+    //            specificity += 0x00_01_00_00;
+    //        if (s.pseudoClass != StylableSelector.PseudoClass.none)
+    //            specificity += 0x00_01_00_00;
+    //        if (s.stylableTypeName !is null)
+    //            specificity += 0x00_00_01_00;
+    //    }
+    //}
 }
 
 unittest
@@ -374,7 +385,7 @@ unittest
 
 class StyleSheet : Resource!StyleSheet
 {
-	private 
+	private
 	{
 		//FontManager _fontManager;  // TODO: No need for managers I think. Let the ones why create styles know about that
 		//MaterialManager _materialManager;
@@ -383,7 +394,7 @@ class StyleSheet : Resource!StyleSheet
 	Rule[] rules;
 	Animation[] animations;
 
-	alias immutable(size_t)[] RuleSetID;
+	alias size_t[] RuleSetID;
 	Style[RuleSetID] styleCache;
 
 	void clear()
@@ -406,22 +417,28 @@ class StyleSheet : Resource!StyleSheet
 		other.styleCache = sc;
 	}
 
-	Style getStyle(Stylable w, const(string[]) classNames = null)
+	Style getStyle(Stylable w)
 	{
 		// Get matching selectors
 		struct Match
 		{
 			Rule rule;
 			int order; // order in sheet for conflict resolution on selectors with same specificity
+            uint specificity;
 		}
 
-		Match[] matches;
-		RuleSetID matchedRules;
+		static Match[] matches;
+		static RuleSetID matchedRules;
+        matches.length = 0;
+        matchedRules.length = 0;
+        assumeSafeAppend(matches);
+        assumeSafeAppend(matchedRules);
 		foreach (i, s; rules)
 		{
-			if (s.match(w, classNames))
+            uint specificity = s.match(w);
+			if (specificity)
 			{
-				matches ~= Match(s, i);
+				matches ~= Match(s, i, specificity);
 				matchedRules ~= s.toHash();
 			}
 		}
@@ -433,7 +450,7 @@ class StyleSheet : Resource!StyleSheet
 		//    int a = 3;
 		//}
 
-		if (matches.empty) 
+		if (matches.empty)
 			return null;
 
 		if (matches.length == 1)
@@ -448,28 +465,30 @@ class StyleSheet : Resource!StyleSheet
 
 		// Resolve conflicts if any
 		import std.algorithm;
-		auto rng = matches.sort!((a,b) => a.rule.specificity > b.rule.specificity || (a.rule.specificity == b.rule.specificity && a.order >	b.order))();
+		auto rng = matches.sort!((a,b) => a.specificity > b.specificity || (a.specificity == b.specificity && a.order >	b.order))();
 
 		Style st = new Style(this); // createStyle(matching[0].style);
 		// TODO: prime background material to make it unique
 		StyleSheetManager mgr = cast(StyleSheetManager)manager;
 		version(dunittest) {}
-		else 
+		else
 		{
 			if (mgr !is null)
 				st.background = mgr.materialManager.declare(CustomMaterialLoader.singleton);
 		}
 
-		styleCache[matchedRules] = st;
+		styleCache[matchedRules.idup] = st;
+
+        string stName = w.name;
 
 		uint lastSpecificity = uint.max;
 		foreach (m; rng)
 		{
-			if (lastSpecificity != m.rule.specificity)
-			{
+            //if (lastSpecificity != m.specificity)
+            //{
 				st.overlay(m.rule.style);
-				lastSpecificity = m.rule.specificity;
-			}
+				lastSpecificity = m.specificity;
+			// }
 		}
 		st.rebuildTransitionCache();
 		return st;
@@ -501,7 +520,7 @@ unittest
 	sel1.selectors ~= new StylableSelector("TestStylable", null);
 	sel1.style = new Style(sheet);
 	sel1.style.color = Color.red;
-	// sel1.style.compute();		
+	// sel1.style.compute();
 	sheet.rules ~= sel1;
 
 	Assert(sheet.getStyle(w1).color, Color.red, "Selector(Stylable) w1 has color red");
@@ -552,7 +571,7 @@ class StyleSheetSerializer : ResourceSerializer!StyleSheet
 	{
 		_materialManager = materialManager;
 		_fontManager = fontManager;
-	}	
+	}
 
 	override bool canRead() pure const nothrow { return true; }
 

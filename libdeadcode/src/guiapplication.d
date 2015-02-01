@@ -146,7 +146,7 @@ class GlobalStyle : Stylable
 	@property 
 	{		
 		string name() const pure @safe { return null; }
-		bool matchStylable(string stylableName) const pure nothrow @safe { return stylableName == "Globals"; }
+		ubyte matchStylable(string stylableName) const pure nothrow @safe { return stylableName == "Globals" ? 10 : 0; }
 		const(string[]) classes() const pure nothrow @safe { return null; }
 		bool hasKeyboardFocus() const pure nothrow @safe { return false; }
 		bool isMouseOver() const pure nothrow @safe { return false; }

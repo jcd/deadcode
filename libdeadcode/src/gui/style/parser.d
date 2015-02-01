@@ -141,7 +141,7 @@ class StyleSheetParser
 		bool asNumber(ref float result) const pure @trusted
 		{
 			string s = value;
-			return 
+			return
 				numberLike &&
 				std.format.formattedRead(s, "%s", &result) == 1;
 		}
@@ -158,10 +158,10 @@ class StyleSheetParser
 	string tokenChars = "^ \t\n\r{}):;#\"'";
 	string numberTokenChars = "[0-9.]";
 	string txt;
-	
+
 	Token curToken;
 	Token bufferToken;
-	
+
 	StyleSheet sheet;
 	URI baseURI;
 	FontManager fontManager;
@@ -191,7 +191,7 @@ class StyleSheetParser
 	// A bit of a hack to get nice looking unquoted strings in stylesheets
 	//string nextNonWhitespaceString()
 	//{
-	//    return munch(txt, nonSpaceChars);		
+	//    return munch(txt, nonSpaceChars);
 	//}
 
 	Token peekToken() @safe
@@ -210,7 +210,7 @@ class StyleSheetParser
 		curToken.textRange = null;
 		curToken.type = TokenType.invalid;
 	}
-	
+
 	void pushBackToken()
 	{
 		bufferToken = curToken;
@@ -222,7 +222,7 @@ class StyleSheetParser
 			return nextTokenKeepSpace();
 		return curToken;
 	}
-	
+
 	Token nextTokenKeepSpace() @trusted
 	{
 		if (bufferToken.type != TokenType.invalid)
@@ -353,7 +353,7 @@ class StyleSheetParser
 
 	/*
 	string nextOptionalQuotedString()
-	{		
+	{
 	munch(txt, spaceChars);
 	if (txt.empty)
 	{
@@ -413,8 +413,8 @@ class StyleSheetParser
 	}
 
 	void parseFontProperty(Style style)
-	{		
-		while (requireNextToken().type == TokenType.identifier || 
+	{
+		while (requireNextToken().type == TokenType.identifier ||
 			   curToken.type == TokenType.number)
 		{
 			switch (curToken.type)
@@ -430,7 +430,7 @@ class StyleSheetParser
 					requireNextToken(TokenType.parenOpen);
 					auto theStr = munch(txt,"^)");
 					requireNextToken(TokenType.parenClose);
-					setFontFromUrl(style, theStr);			
+					setFontFromUrl(style, theStr);
 					if (theStr.extension == ".font")
 					{
 						skipToEndOfProperty();
@@ -499,18 +499,18 @@ class StyleSheetParser
 					skipToEndOfProperty();
 					return;
 
-				case ".png":	
+				case ".png":
 					// Create a custom material and use a dummy loader for that
 					if (style._background is null)
-						style.background = materialManager.declare(CustomMaterialLoader.singleton);			
+						style.background = materialManager.declare(CustomMaterialLoader.singleton);
 					else if (style._background.hasTexture())
 						addError("overriding existing texture on material", line);
 					style._background.texture = materialManager.textureManager.declare(theURI);
 					break;
-				case ".shaderprogram":				
+				case ".shaderprogram":
 					// Create a custom material and use a dummy loader for that
 					if (style._background is null)
-						style.background = materialManager.declare(CustomMaterialLoader.singleton);			
+						style.background = materialManager.declare(CustomMaterialLoader.singleton);
 					else if (style._background.hasShader())
 						addError("overriding existing shader on material", line);
 
@@ -588,16 +588,16 @@ class StyleSheetParser
 		{
 			case "static":
 				style.position = CSSPosition.static_;
-				break;	
+				break;
 			case "fixed":
 				style.position = CSSPosition.fixed;
-				break;	
+				break;
 			case "relative":
 				style.position = CSSPosition.relative;
-				break;	
+				break;
 			case "absolute":
 				style.position = CSSPosition.absolute;
-				break;	
+				break;
 			default:
 				style.position = CSSPosition.invalid;
 				addError(text("Unknown position value '", curToken, "'"), line);
@@ -805,7 +805,7 @@ class StyleSheetParser
 								break;
 							nextToken();
 						}
-						
+
 						if (!parsedOne)
 						{
 							addError("Could not parse value of " ~ spec.id);
@@ -825,40 +825,40 @@ class StyleSheetParser
 	void parseSelector(ref Selectors selectors)
 	{
 		requireNextToken();
-		
+
 		while (true)
 		{
 			string widgetTypeName = null;
 			string widgetName = null;
-			string className = null;
+			string[] classNames = null;
 			string pseudoClassName = null;
 
 			bool segmentDone = false;
 
 			// A segment can be either #id or .class or widgetname or a combination
-			do 
+			do
 			{
 				switch (curToken.type)
 				{
 					case TokenType.hash:
 						requireNextTokenKeepSpace(TokenType.identifier);
 						widgetName = curToken.value;
-						requireNextToken();
+						requireNextTokenKeepSpace();
 						break;
 					case TokenType.dot:
 						requireNextTokenKeepSpace(TokenType.identifier);
-						className = curToken.value;
-						requireNextToken();
+						classNames ~= curToken.value;
+						requireNextTokenKeepSpace();
 						break;
 					case TokenType.colon:
 						requireNextTokenKeepSpace(TokenType.identifier);
 						pseudoClassName = curToken.value;
-						requireNextToken();
+						requireNextTokenKeepSpace();
 						break;
 					case TokenType.identifier:
 						if (curToken.value != "*")
 							widgetTypeName = curToken.value;
-						requireNextToken();
+						requireNextTokenKeepSpace();
 						break;
 					case TokenType.curlOpen, TokenType.greaterThan:
 						segmentDone = true;
@@ -867,8 +867,7 @@ class StyleSheetParser
 						segmentDone = true;
 						break;
 					case TokenType.star:
-						segmentDone = true;
-						requireNextToken();
+						requireNextTokenKeepSpace();
 						break;
 					default:
 						addError("Unexpected property declaration start token", line);
@@ -889,14 +888,14 @@ class StyleSheetParser
 			switch (curToken.type)
 			{
 				case TokenType.curlOpen:
-					selectors ~= new StylableSelector(widgetTypeName, widgetName, className, pseudoClassName);
+					selectors ~= new StylableSelector(widgetTypeName, widgetName, classNames, pseudoClassName);
 					return;
 				case TokenType.greaterThan:
-					selectors ~= new ChildSelector(widgetTypeName, widgetName, className, pseudoClassName);
+					selectors ~= new ChildSelector(widgetTypeName, widgetName, classNames, pseudoClassName);
 					requireNextToken();
 					break;
 				default:
-					selectors ~= new DescendantSelector(widgetTypeName, widgetName, className, pseudoClassName);
+					selectors ~= new DescendantSelector(widgetTypeName, widgetName, classNames, pseudoClassName);
 					break;
 			}
 		}
@@ -906,7 +905,7 @@ class StyleSheetParser
 	{
 		assertToken(TokenType.number);
 
-		CSSScale scale; 
+		CSSScale scale;
 		parseScale(scale);
 		if (scale.unit != CSSUnit.pct)
 		{
@@ -943,7 +942,7 @@ class StyleSheetParser
 		else // skip unknown rule
 		{
 			while (requireNextToken().type != TokenType.curlOpen)
-			{ 
+			{
 				// no op
 			}
 
@@ -972,7 +971,7 @@ class StyleSheetParser
 
 	bool parse()
 	{
-		try 
+		try
 		{
 			peekToken();
 			while(!curToken.eof)
@@ -1002,30 +1001,30 @@ unittest
 
 	parse = new StyleSheetParser("Widget {}", sheet, new URI(""), null, null);
 	parse.parse();
-	Assert(sheet.rules.length == 1 && 
+	Assert(sheet.rules.length == 1 &&
 		   sheet.rules[0].selectors.length == 1 &&
-		   sheet.rules[0].selectors[0].stylableTypeName == "Widget", 
+		   sheet.rules[0].selectors[0].stylableTypeName == "Widget",
 		   "Simple selector and no style definitions");
 
 	parse = new StyleSheetParser("Widget { color: #FF0000 }", sheet, new URI(""), null, null);
 	parse.parse();
-	Assert(sheet.rules.length == 2 && 
+	Assert(sheet.rules.length == 2 &&
 		   sheet.rules[1].selectors.length == 1 &&
 		   sheet.rules[1].selectors[0].stylableTypeName == "Widget" &&
-		   sheet.rules[1].style.color == Color.red, 
+		   sheet.rules[1].style.color == Color.red,
 		   "Simple selector and red color");
 
 	parse = new StyleSheetParser("Widget { color: #FF0000; }", sheet, new URI(""), null, null);
 	parse.parse();
-	Assert(sheet.rules.length == 3 && 
+	Assert(sheet.rules.length == 3 &&
 		   sheet.rules[2].selectors.length == 1 &&
 		   sheet.rules[2].selectors[0].stylableTypeName == "Widget" &&
-		   sheet.rules[2].style.color == Color.red, 
+		   sheet.rules[2].style.color == Color.red,
 		   "Simple selector and red color semicolor end");
 
 	parse = new StyleSheetParser("Widget { color: #FF0000;\n padding : 1 2 3 4;\n wordWrap: true;\n }", sheet, new URI(""), null, null);
 	parse.parse();
-	Assert(sheet.rules.length == 4 && 
+	Assert(sheet.rules.length == 4 &&
 		   sheet.rules[3].selectors.length == 1 &&
 		   sheet.rules[3].selectors[0].stylableTypeName == "Widget" &&
 		   sheet.rules[3].style.color == Color.red &&

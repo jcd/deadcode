@@ -1,6 +1,6 @@
 module graphics.buffer;
 
-import derelict.opengl3.gl3; 
+import derelict.opengl3.gl3;
 import std.range : empty;
 
 final class Buffer
@@ -9,17 +9,17 @@ final class Buffer
 	float[] data;
 	size_t uploadedSize;
 	bool clear;
-	
+
 	static Buffer create(float[] indata = null)
 	{
 		Buffer b = new Buffer();
 		b.clear = false;
 		glGenBuffers(1, &(b.glBufferID));
 		if (!indata.empty)
-			b.data = indata; 
+			b.data = indata;
 		return b;
 	}
-	
+
 	void upload()
 	{
 		glBindBuffer(GL_ARRAY_BUFFER, glBufferID);
@@ -31,18 +31,19 @@ final class Buffer
 		}
 		else
 		{
-			glBufferData(GL_ARRAY_BUFFER, data.length * GL_FLOAT.sizeof, data.ptr, GL_STATIC_DRAW);       
+			glBufferData(GL_ARRAY_BUFFER, data.length * GL_FLOAT.sizeof, data.ptr, GL_STATIC_DRAW);
 			uploadedSize = data.length;
 		}
 		clear = false;
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		//std.stdio.writeln("uploading ", data);
 	}
-	
+
 	//
 	void clearLocal()
 	{
-		data = null;
+		//data = null;
+        data.length = 0;
 		assumeSafeAppend(data);
 	}
 }

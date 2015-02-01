@@ -7,6 +7,7 @@ import core.command;
 
 import gui.event;
 import gui.widget;
+import gui.widgetfeature.windowdragger;
 
 import core.signals;
 import std.stdio;
@@ -27,18 +28,19 @@ class Menu : Tree
 {
 	Button menuButton;
 	CommandManager commandManager;
-	
+
 	mixin Signal!(Command, CommandParameter[]) onMissingCommandArguments;
-	
-	@property override void parent(Widget newParent) nothrow
+
+	alias parent = Widget.parent;
+    @property override void parent(Widget newParent) nothrow
 	{
 		menuButton.parent = newParent;
 		super.parent = newParent;
 	}
 
-	this(string label, CommandManager cmdMgr)
+	this(CommandManager cmdMgr)
 	{
-		super(label);
+        super();
 		commandManager = cmdMgr;
 		// Menu
 		hidden = true;
@@ -53,6 +55,8 @@ class Menu : Tree
 		//addTreeItem("Lars");
 
 		menuButton = new Button("Menu");
+
+        menuButton.features ~= new WindowDragger();
 		menuButton.name = "menuButton";
 		menuButton.zOrder = 99;
 		menuButton.onMouseOverCallback = (Event, Widget) {
@@ -79,7 +83,7 @@ class Menu : Tree
 		auto cmd = commandManager.lookup(cc.name);
 		if (cmd is null)
 			return;
-		
+
 		auto defs = cmd.getCommandParameterDefinitions();
 		CommandParameter[] params;
 		if (defs is null || defs.setValues(params, cc.arguments))

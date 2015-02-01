@@ -417,7 +417,7 @@ class TextEditor : Widget
 			TextEditorAnchorOwner anchorOwner = cast(TextEditorAnchorOwner) anchor.owner;
 			if (anchorOwner !is null)
 			{
-				auto w = anchorOwner.createAnchorWidget(anchor);
+				auto w = anchorOwner.createAnchorWidget(anchor, this);
 				if (w !is null)
 				{
 					w.parent = this;
@@ -447,6 +447,20 @@ class TextEditor : Widget
 		bufferView.buffer.removeLineAnchorByID(anchorID);
 	}
 
+    GenericTextEditorAnchor setLineAnchor(int lineNumber, string cssClassName)
+    {
+        // TODO: fix coupling on children length and ensureLineAnchor
+		auto origLen = children.length;
+        auto a = bufferView.buffer.ensureLineAnchor(lineNumber, GenericTextEditorAnchor.anchorManager);
+        GenericTextEditorAnchor res = null;
+        if (origLen != children.length)
+        {
+            res = cast(GenericTextEditorAnchor)(children[$-1]);
+            res._classes = [ cssClassName ];
+        }
+        return res;
+    }
+
 	Rectf lineRect(int lineIdx)
 	{
 		auto lineStart = bufferView.buffer.startAtLineNumber(lineIdx);
@@ -469,11 +483,11 @@ class TextEditor : Widget
 	}
 }
 
-import gui.widgetfeature.constraintlayout;
+import gui.layout.constraintlayout;
 
 interface TextEditorAnchorOwner : TextBufferAnchorOwner
 {
-	TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor);
+	TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor, TextEditor editor);
 }
 
 class TextEditorAnchor : Widget
@@ -532,4 +546,87 @@ class TextEditorAnchor : Widget
 		lineRect = editor.lineRect(textAnchor.number);
 		rect = r;
 	}
+}
+
+interface ITextAnchorDataProvider(AnchorData)
+{
+    import std.typecons;
+    Nullable!AnchorData getAnchorData(int anchorID);
+}
+
+class TextEditorAnchorManager(AnchorData, AnchorWidget) : TextEditorAnchorOwner, ITextAnchorDataProvider!AnchorData
+{
+    import std.typecons;
+    // AnchorData[anchorID][buffer.toHash()]
+    private struct AnchorDataInternal
+    {
+        AnchorData data;
+        alias data this;
+        TextEditor editor;
+    }
+
+    AnchorData[int] _anchorData;
+
+    TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor, TextEditor editor)
+    {
+        // TODO: support pooling.
+        auto w = new AnchorWidget();
+        w.anchorID = anchor.id;
+        w.manager = this;
+        return w;
+    }
+
+    void removeLineAnchor(TextEditor ed, int lineNumber)
+    {
+        ed.bufferView.buffer.removeLineAnchorByLine(lineNumber, this);
+    }
+
+    void ensureLineAnchor(TextEditor ed, int lineNumber, AnchorData data)
+    {
+        auto anchor = ed.bufferView.buffer.ensureLineAnchor(lineNumber, this);
+        _anchorData[anchor.id] = AnchorDataInternal(data, ed);
+    }
+
+    Nullable!AnchorData getAnchorData(int anchorID)
+    {
+        Nullable!AnchorData res;
+        if (auto d = anchorID in _anchorData)
+            res = *d;
+        return res;
+    }
+}
+
+class ManagedTextEditorAnchor(AnchorData) : TextEditorAnchor
+{
+	import std.typecons;
+    int anchorID;
+    ITextAnchorDataProvider!AnchorData manager;
+
+    // TextEditorAnchorManager!(AnchorData, typeof(this)) manager;
+
+    final Nullable!AnchorData getAnchorData()
+    {
+        return manager.getAnchorData(anchorID);
+    }
+
+    this()
+	{
+	}
+}
+
+
+class GenericTextEditorAnchor : ManagedTextEditorAnchor!ubyte
+{
+ 	string[] _classes;
+
+	override protected @property const(string[]) classes() const pure nothrow @safe
+	{
+		return _classes;
+	}
+
+    static TextEditorAnchorManager!(ubyte, GenericTextEditorAnchor) anchorManager;
+    static this()
+    {
+        anchorManager = new typeof(anchorManager);
+    }
 }

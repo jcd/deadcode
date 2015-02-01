@@ -240,6 +240,11 @@ class GUIApplication : Application
 		CommandControl commandControl;
 	}
 
+    @property Window activeWindow()
+    {
+        return guiRoot.activeWindow;
+    }
+
 	private this()
 	{
 		// This also sets up tracking keys for analytics

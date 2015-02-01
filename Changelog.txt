@@ -1,3 +1,68 @@
+Release 0.12 - 01 Febrary 2015 
+
+Overview:
+
+    * Extensions: D formatting, EOL display, Deaccode debug
+    * Improve and extend CSS layout and styling algorithms
+    * Performance improvements
+    * Many fixes
+
+Changes:
+
+    d070882 Show eol extension
+    65a9a5d dfmt addition to d integration.
+    a56c0f4 Extension to help debug deadcode itself.
+    cc031c7 Editor config file
+    6b70a4a Updated stylesheet for new features and fixes.
+    79b8389 Disable some unused code.
+    8176a09 Use proper containing element to calculate pct. widths and positions.
+    2d83d61 Reused css rule matching arrays. 
+            D Class match specificity now dependent on depth of match in inheritance hierarchy.
+            Only fetch style once per update in text selection model.
+    5d345cf Updates for new layout style.
+    5ed6bfc _.d to package.d fix.
+    f582511 Make text selection model more GC friendly.
+    d906cba Support for z-index css property.
+    774732a Make getWidget() convenience method on GUIApplication. 
+            Changes to make auto positioning work with new layout handling.
+    704ef03 Expose active window on guiapplication
+    e6058fb Make common timeout tasks into one to reduce wakeups of application.
+    8f6e475 Fix selecting end of line not selecting start of next line in some cases.
+    3d9ffa8 Add generic line anchor to texteditor.
+    3818947 Fix crash in line anchor code.
+    c15992c Make the activation button of the menu able to move the window.
+    0f3d828 Add normal button and derive that and togglebutton from common base.
+    df31cb8 Enable emacs style cut shortcut
+    e09ee16 Use package.d instead of _.d
+    ddd9907 Made graphics package not import math._ but math.
+    c286ff2 IsIdentical() on vectors.
+    cff0a68 Clean up padding calculation a bit.
+    7a55833 Fix and optimize timeout() code.
+    bb3878b Reuse data buffer for buffer objects in order to reduce GC,
+    c7770e7 Fix command auto naming.
+    cba5039 Optimize lineCount() on buffer quite a bit. 
+            Emit onAnchorRemoved when anchor is excplicitly removed. 
+            Add option to specify owner for line anchors when querying a buffer for them.
+    0e11897 IsIdentical() on rect
+    68078ce Changes to make extension work with new extension api. 
+            Migrate to layouts not being a widgetfeature anymore.
+            Set lineoffset to 0 before clearing errorlist.
+            Use lineanchors for D analysis extensions.
+            Fix dirty tracking in textrenderer.
+            Fix offsetting prev from index 0 bug in textrenderer.
+            Better dirty tracking of style in widgets.
+            Layouts now a class of its own and not a widgetfeature.
+            Changing widget size does not automatically dirty it anymore.
+            Make a single regular check for updates instead of one for each type in guiapplication.
+            Make better logic for tree control css classes.
+    ede486b Command to create a new extension widget class.
+    d8c4b8f Refactor extension module. 
+            Add support for only public extension classes being registered.
+    aacc818 Update dub to handle dscanner extension
+    65b2e17 Renamed package.json to dub.jsons
+    6d2c728 Fix selection persisting after deleting selection. 
+            Fix cursor position when undoing a selection delete.
+
 Release 0.11 - 17 January 2015 
 
 Overview:

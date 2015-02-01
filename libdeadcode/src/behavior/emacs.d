@@ -31,9 +31,9 @@ class EmacsBehavior : EditorBehavior
 	void setup()
 	{
 		auto set = keyBindings.keyBindings;
-		
+
 		// Register emacs behavior as an option
-		// set.setKeyBinding("<ctrl> + v", "edit.scrollPageDown"); 
+		// set.setKeyBinding("<ctrl> + v", "edit.scrollPageDown");
 		set.setKeyBinding("<ctrl> + x <ctrl> + c", "core.quit");
 		set.setKeyBinding("<alt> + v", "edit.scrollPageUp");
 		set.setKeyBinding("<pagedown>", "edit.scrollPageDown");
@@ -71,11 +71,11 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<ctrl> + d", "edit.deleteCharAfter");
 		set.setKeyBinding("<delete>", "edit.deleteCharAfter");
 		set.setKeyBinding("<ctrl> + x <ctrl> + p", "edit.clear");
-		
+
 		set.setKeyBinding("<ctrl> + <tab>", "app.cycleBuffers", 1);
 
 		set.setKeyBinding("<ctrl> + <shift> + <tab>", "app.cycleBuffers", -1);
-		
+
 		set.setKeyBinding("<ctrl> + x <ctrl> + f", "file.open");
 		set.setKeyBinding("<ctrl> + x b", "edit.showBuffer");
 		set.setKeyBinding("<ctrl> + x <ctrl> + s", "file.save");
@@ -89,7 +89,7 @@ class EmacsBehavior : EditorBehavior
 		set.setKeyBinding("<ctrl> + c", "edit.copy");
 		set.setKeyBinding("<ctrl> + v", "edit.paste");
 		set.setKeyBinding("<ctrl> + <shift> + v", "edit.pasteCycle");
-		// set.setKeyBinding("<ctrl> + x", "edit.cut");
+		set.setKeyBinding("<ctrl> + w", "edit.cut");
 
 		set.setKeyBinding("<ctrl> + b", "core.rebuildEditor");
 		set.setKeyBinding("<ctrl> + p", "app.toggleCommandArea", "");
@@ -115,16 +115,16 @@ class EmacsBehavior : EditorBehavior
 		keyBindings.push(set);
 		currentKeySequence = new KeySequence("");
 	}
-	
+
 	/*
 	 * Handles emacs behavior such as shortcuts etc. Note the event is passed by ref and
-	 * may be changed. Therefore it this method return EventUsed.no the passed in 
+	 * may be changed. Therefore it this method return EventUsed.no the passed in
 	 * event should be the one that is handled from there on.
-	 * Returns 
+	 * Returns
 	 * 	true if the event has been used
 	 */
 	override EventUsed onEvent(ref Event event)
-	{	
+	{
 		if (!initialized)
 			setup();
 
@@ -167,7 +167,7 @@ class EmacsBehavior : EditorBehavior
 				auto command = commandManager.lookup(kb.command);
 
 				// If the command is null then the command manager doesn't know about the
-				// command and we assume it is valid and handled by the event dispatching to a 
+				// command and we assume it is valid and handled by the event dispatching to a
 				// widgets onEvent(Event e) using EventType.command.
 				if (kb.validate(ruleEnv) && (command is null || command.canExecute(dummy)))
 					matchedBindings ~= kb;
@@ -190,7 +190,7 @@ class EmacsBehavior : EditorBehavior
 						if (command !is null)
 						{
 							// A command is registered for this commandName
-							
+
 							// Make sure we have the needed arguments for the command
 							CommandParameter[] params;
 							auto defs = command.getCommandParameterDefinitions();
@@ -220,10 +220,10 @@ class EmacsBehavior : EditorBehavior
 				// wait for more key downs to get full key binding match
 				return EventUsed.yes;
 			}
-	
+
 			// No key bindings for this key event. Go enter text to editor
 			currentKeySequence.length = 0;
-		} 
+		}
 		/*
 		else if (event.type == EventType.MouseScroll && view !is null)
 		{
@@ -246,7 +246,7 @@ class EmacsBehavior : EditorBehavior
 		{
 
 			// Locate char under mouse pointer and set cursor at that char
-			
+
 		}
 */
 		/*

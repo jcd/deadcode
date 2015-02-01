@@ -3,12 +3,13 @@ module gui.gui;
 import animation.timeline;
 import core.command;
 import core.time;
-import gui._;
+import gui;
 import gui.locations;
 import gui.resources;
 import io.iomanager;
-import math._; // Vec2f
-import derelict.sdl2.sdl; 
+import graphics;
+import math; // Vec2f
+import derelict.sdl2.sdl;
 import std.range;
 import core.signals;
 
@@ -18,12 +19,12 @@ class GUI
 	{
 		bool running;
 		Window[WindowID] _windows;
-		graphics.graphicssystem.GraphicsSystem _graphicsSystem;
+		GraphicsSystem _graphicsSystem;
 		EventQueue _eventQueue;
 		Uint32 _lastTick;
 		Uint32 _lastScrollTick;
 
-		class Timeout 
+		class Timeout
 		{
 			bool done;
 			int msLeft;
@@ -58,7 +59,7 @@ class GUI
 		}
 		Timeout[] _timeouts;
 
-		// not singleton as in global variable, but just here to prevent 
+		// not singleton as in global variable, but just here to prevent
 		// two instances of application because opengl init doesn't
 		// like that.
 		// static GUI _the; // assert only singleton
@@ -91,7 +92,7 @@ class GUI
 	}
 */
 
-	static GUI create(graphics.graphicssystem.GraphicsSystem gs = null)
+	static GUI create(GraphicsSystem gs = null)
 	{
 		import util.system;
 		import gui.resources;
@@ -107,7 +108,7 @@ class GUI
 		g.shaderProgramManager = ShaderProgramManager.create(g.ioManager);
 		g.textureManager = TextureManager.create(g.ioManager);
 		g.materialManager = MaterialManager.create(g.ioManager, g.shaderProgramManager, g.textureManager);
-		
+
 		g.styleSheetManager = StyleSheetManager.create(g.ioManager, g.materialManager, g.fontManager);
 		g.genericResourceManager = GenericResourceManager.create(g.ioManager);
 
@@ -115,7 +116,7 @@ class GUI
 		g.locationsManager.addListener(g.shaderProgramManager);
 		g.locationsManager.addListener(g.textureManager);
 		g.locationsManager.addListener(g.materialManager);
-		g.locationsManager.addListener(g.styleSheetManager); 
+		g.locationsManager.addListener(g.styleSheetManager);
 
 		return g;
 
@@ -130,20 +131,20 @@ class GUI
 
 	}
 
-	this(graphics.graphicssystem.GraphicsSystem gs)
+	this(GraphicsSystem gs)
 	{
 		// _the = this;
 		_graphicsSystem = gs;
 		_eventQueue = new EventQueue();
 		timeline = new Timeline;
 	}
-	
+
 	~this()
 	{
 		running = false;
 		_graphicsSystem.destroy();
 	}
-	
+
 	void init()
 	{
 		assert(!running);
@@ -154,7 +155,7 @@ class GUI
 		SDL_StartTextInput();
 		running = true;
 	}
-	
+
 	void run()
 	{
 		import std.datetime;
@@ -191,9 +192,9 @@ class GUI
 
 	void tick()
 	{
-	
+
 		assert(running);
-		
+
 		// TODO: handle multiple windows
 		auto waitForEvents = !timeline.hasPendingAnimation;
 		handleEvents(waitForEvents);
@@ -211,10 +212,12 @@ class GUI
 			// TODO: fix double drawing of widgets because the are all drawn here and some of them
 			// as children of window as well
 			// if (v.parent is v.window)
-				v.draw();
+             //import std.stdio;
+             //writeln("draw ", _lastTick, " ", k);
+            v.draw();
 		}
 	}
-		
+
 	private void handleEvents(bool waitForEvents)
 	{
 		Uint32 curTick = SDL_GetTicks();
@@ -225,45 +228,57 @@ class GUI
 		if (msPassed == 0)
 			msPassed = 1;
 
-		int smallestTimeout = std.algorithm.max(_timeouts.empty ? int.max : _timeouts[0].msLeft - msPassed, 0);
-		int numTimedOut = 0;
-		bool timedOutThisTick = false;
+		// int smallestTimeout = std.algorithm.max(_timeouts.empty ? int.max : _timeouts[0].msLeft - msPassed, 0);
+		int smallestTimeout = int.max;
+        int numTimedOut = 0;
+		// bool timedOutThisTick = false;
 
-		foreach (ref t; _timeouts)
+        assumeSafeAppend(_timeouts);
+
+		foreach_reverse (ref t; _timeouts)
 		{
 			t.msLeft -= msPassed;
 			if (t.msLeft <= 0)
 			{
-				bool tTimedOutThisTick = !t.done;
-				if (tTimedOutThisTick)
+				//timedOutThisTick = true;
+				if (t.onTimeout())
 				{
-					timedOutThisTick = true;
-					if (t.onTimeout())
-					{
-						if (smallestTimeout > t.msLeft)
-							smallestTimeout = t.msLeft;
-					}
+					// callback asked to repeat timeout
+                    smallestTimeout = std.algorithm.min(smallestTimeout, t.msLeft);
 				}
+                else
+                {
+                    // Task is done. Remove from list.
+                    _timeouts[$-1] = t;
+                    _timeouts.length -= 1;
+                }
 				numTimedOut++;
 			}
-			else if (smallestTimeout > t.msLeft)
-			{
-					smallestTimeout = t.msLeft;
-			}
-		}
-		
-		// Rebuild timeout list when there are too many dead entries
-		if (numTimedOut > 10)
-		{
-			Timeout[] to;
-			foreach (ref t; _timeouts)
-				if (!t.done)
-					to ~= t;
+            else
+            {
+                smallestTimeout = std.algorithm.min(smallestTimeout, t.msLeft);
+            }
+            //else if (smallestTimeout > t.msLeft)
+            //{
+            //        smallestTimeout = t.msLeft;
+            //}
 		}
 
-		SDL_Event e; 
+        //// Rebuild timeout list when there are too many dead entries
+        //if (numTimedOut > 10)
+        //{
+        //    foreach_reverse (ref t; _timeouts)
+        //    {
+        //        if (t.done)
+        //        {
+        //
+        //        }
+        //    }
+        //}
+
+		SDL_Event e;
 		int pollResult = 0;
-		if (waitForEvents && _eventQueue.empty && !timedOutThisTick)
+		if (waitForEvents /* && _eventQueue.empty && !timedOutThisTick */)
 		{
 			if (smallestTimeout != int.max)
 				pollResult = SDL_WaitEventTimeout(&e, smallestTimeout);
@@ -274,7 +289,7 @@ class GUI
 		{
 			pollResult = SDL_PollEvent(&e);
 		}
-		
+
 		int count = 10;
 
 
@@ -285,13 +300,13 @@ class GUI
 				dispatchEvent(queuedEvent);
 				queuedEvent = _eventQueue.dequeue();
 			}
-			
+
 			if (!pollResult)
 				break;
-			
+
 			Event ev;
 			ev.timestamp = e.common.timestamp;
-			switch(e.type) { 
+			switch(e.type) {
 				case SDL_MOUSEMOTION:
 					ev.type = EventType.MouseMove;
 					ev.mousePos.x = e.motion.x;
@@ -300,7 +315,7 @@ class GUI
 					ev.mousePosRel.y = e.motion.yrel;
 					ev.mouseButtonsActive = e.motion.state;
 					ev.windowID = e.motion.windowID;
-					break;				
+					break;
 				case SDL_MOUSEBUTTONDOWN:
 					ev.type = EventType.MouseDown;
 					ev.mousePos.x = e.motion.x;
@@ -396,18 +411,18 @@ class GUI
 				case SDL_QUIT:
 					stop();
 					break;
-				default: 
+				default:
 					std.stdio.writeln("unhandled event ", e.type);
-					break; 
+					break;
 			}
 
 			if (ev.type != EventType.Invalid)
 			{
 				dispatchEvent(ev);
 			}
-			
+
 			pollResult = SDL_PollEvent(&e);
-			
+
 		} while (count-- > 0);
 	}
 

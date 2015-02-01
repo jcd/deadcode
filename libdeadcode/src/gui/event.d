@@ -2,9 +2,9 @@ module gui.event;
 
 import core.commandparameter;
 
-import derelict.sdl2.sdl; 
+import derelict.sdl2.sdl;
 import gui.keycode;
-import math._;
+import math;
 
 import std.traits;
 import std.variant;
@@ -16,7 +16,7 @@ enum EventType
 	Command, // Command possibly with args sent
 	//	Update,
 	//	Draw,
-	MouseOver,  /// Mouse entering a widget 
+	MouseOver,  /// Mouse entering a widget
 	MouseMove,  /// Mouse moving over the widget
 	MouseOut,   /// Mouse exiting a widget
 	MouseDown,  /// Mouse down on a widget
@@ -60,7 +60,7 @@ string ctGenerateEventCallbackSwitch()
 			str ~= "case EventType." ~ member ~ ": return on" ~ member ~ "(event);";
 	}
 	str ~= "}";
-	return str;	
+	return str;
 }
 
 enum EventUsed
@@ -93,7 +93,7 @@ struct Event
 		Middle = SDL_BUTTON_MMASK,
 		Right = SDL_BUTTON_RMASK,
 	}
-	
+
 	EventType type;
 	Uint32 windowID;
 	Uint32 timestamp;
@@ -111,7 +111,7 @@ struct Event
 				//	EventType.Update:
 				//	EventType.Draw:
 				return text("Event(Command, ", timestamp, ", ", name, ", ", argument, ")");
-			case EventType.MouseOver:  /// Mouse entering a widget 
+			case EventType.MouseOver:  /// Mouse entering a widget
 				goto case;
 			case EventType.MouseMove:  /// Mouse moving over the widget
 				goto case;
@@ -157,13 +157,13 @@ struct Event
 		return this;
 	}
 
-	union 
+	union
 	{
 		struct
 		{
 			uint overWidgetID; // Set by the GUI hit test system
 		}
-		struct 
+		struct
 		{
 			Vec2f mousePos;
 			Vec2f mousePosRel;
@@ -171,24 +171,24 @@ struct Event
 			byte mouseButtonsChanged;
 			KeyMod mouseMod;
 		}
-		struct 
+		struct
 		{
 			dchar ch;
 			SDL_Keycode keyCode;
 			KeyMod mod;
 		}
-		struct 
+		struct
 		{
 			int width;
 			int height;
 		}
-		struct 
+		struct
 		{
 			Vec2f scroll;
 			Uint32 msSinceLastScroll;
 			KeyMod scrollMod;
 		}
-		struct 
+		struct
 		{
 			string name;
 			CommandParameter[] argument;
@@ -209,7 +209,7 @@ class EventQueue
 {
 	Event event;
 	EventQueue next;
-	
+
 	void enqueue(Event e)
 	{
 		auto qe = this;
@@ -218,7 +218,7 @@ class EventQueue
 		qe.next = new EventQueue;
 		qe.next.event = e;
 	}
-	
+
 	Event dequeue()
 	{
 		if (next is null)
@@ -227,7 +227,7 @@ class EventQueue
 		next = e.next;
 		return e.event;
 	}
-	
+
 	@property bool empty()
 	{
 		return next is null;

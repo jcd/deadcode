@@ -2,21 +2,22 @@ module controls.tree;
 
 import core.commandparameter;
 
-import math._;
+import math;
 
 import gui.event;
 import gui.widget;
 
 import std.array;
+import std.conv;
 import std.range;
 import core.signals;
 
-import gui.widgetfeature.directionallayout;
+import gui.layout.directionallayout;
 import gui.widgetfeature.textrenderer;
 
 class Tree : Widget
-{	
-	private 
+{
+	private
 	{
 		CommandCall commandCall;
 		@property int treeDepth() const pure nothrow
@@ -51,11 +52,11 @@ class Tree : Widget
 	{
 		return _hidden;
 	}
-	@property void hidden(bool b)  
+	@property void hidden(bool b)
 	{
 		if (_hidden != b)
 			_hidden = b;
-		
+
 		if (!_hidden)
 			setKeyboardFocusWidget();
 	}
@@ -69,19 +70,21 @@ class Tree : Widget
 	enum _rootClasses = [ "root" ];
 	enum _hiddenClasses = [ "hidden" ];
 
-	override const(string[]) classes() const pure nothrow @safe { 
-	    
+	override const(string[]) classes() const pure nothrow @safe {
+
+
 		if (hidden)
 			return _hiddenClasses;
 		else if (root is this)
 	        return _rootClasses;
 	    else if (isLeaf)
 		{
-			bool nodeWithSubtrees = this !is root && parentTree._children.length != 1;
-			if (nodeWithSubtrees) 
-				return _nodeClasses;
-			else
-				return _leafClasses;
+            return _leafClasses;
+            //bool nodeWithSubtrees = this !is root && parentTree._children.length != 1;
+            //if (nodeWithSubtrees)
+            //    return _nodeClasses;
+            //else
+            //    return _leafClasses;
 		}
 	    else
 	        return _treeClasses;
@@ -92,11 +95,11 @@ class Tree : Widget
 		Widget w = root;
 		foreach (segment; path)
 		{
-			w = w.getChildByName(segment);
+			w = w.getChildByName(root.id.to!string ~ "!" ~ segment);
 			if (w is null)
 				break;
 		}
-		
+
 		return cast(Tree) w;
 	}
 
@@ -111,6 +114,8 @@ class Tree : Widget
 	}
 
 
+	alias parent = Widget.parent;
+
 	@property override void parent(Widget newParent) nothrow
 	{
 		super.parent = newParent;
@@ -121,13 +126,12 @@ class Tree : Widget
 			root = p.root;
 	}
 
-	this(string label)
+    this()
 	{
 		super();
 		root = this;
-		name = label;
 		zOrder = 50;
-		features ~= new VerticalLayout(false); 
+		layout = new VerticalLayout(false);
 	}
 
 	Tree addTreeItem(string path, string commandName = null, CommandParameter[] arguments = null)
@@ -143,10 +147,13 @@ class Tree : Widget
 		if (parentTreeForItem is null)
 			parentTreeForItem = addTreeItem(pathSegments[0..$-1], null, null);
 
-		auto item = new Tree(pathSegments[$-1]);
+		string itemName = pathSegments[$-1];
+        auto item = new Tree();
+        item.name = root.id.to!string ~ "!" ~ itemName;
 		item.parent = parentTreeForItem;
 		import gui.label;
-		auto leaf = new Tree(pathSegments[$-1] ~ "/leaf");
+		auto leaf = new Tree();
+        leaf.name = item.name ~ "/leaf";
 		leaf.parent = item;
 		leaf.zOrder = 100;
 		leaf.commandCall = CommandCall(commandName, arguments);
@@ -163,14 +170,15 @@ class Tree : Widget
 			return EventUsed.no;
 		};
 
-		auto l = new Label(item.name);
+		auto l = new Label(itemName);
 		l.parent = leaf;
+        int leafID = leaf.id;
 		return item;
 	}
 
-	override void layoutFeatures(bool fit) 
+	override void layoutChildren(bool fit, Widget positionReference)
 	{
-		super.layoutFeatures(fit);
+		super.layoutChildren(fit, positionReference);
 		if (isLeaf)
 		{
 			gui.style.Style st = style;
@@ -187,9 +195,9 @@ class Tree : Widget
 			}
 		}
 	}
-	
+
 	override void draw()
-	{	
+	{
 		if (!visible)
 			return;
 

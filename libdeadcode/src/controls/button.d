@@ -7,7 +7,7 @@ import gui.widget;
 
 import core.signals;
 
-class Button : Label
+class ButtonBase : Label
 {
 	enum State
 	{
@@ -17,14 +17,12 @@ class Button : Label
 	}
 	private State _state = State.notLoaded;
 
-	//mixin Signal!(Button) onActivated;
-
 	this(string text)
 	{
 		super(text);
 	}
 
-	static Button isover;
+	static ButtonBase isover;
 
 	override EventUsed onEvent(Event event)
 	{
@@ -37,8 +35,8 @@ class Button : Label
 				break;
 			case EventType.MouseUp:
 				if (_state == State.loadedWithMouseOver)
-					activate();	
-				_state = State.notLoaded;					
+					activate();
+				_state = State.notLoaded;
 				used = EventUsed.no;
 				break;
 			case EventType.MouseClick:
@@ -68,7 +66,7 @@ class Button : Label
 				//used = super.onEvent(event);
 				break;
 		}
-		
+
 		//if (!used)
 			used = super.onEvent(event);
 		return used;
@@ -80,11 +78,26 @@ class Button : Label
 	}
 }
 
-class ToggleButton : Button
+class Button : ButtonBase
+{
+	mixin Signal!(Button) onActivated;
+
+	this(string text)
+	{
+		super(text);
+	}
+
+	override protected void activate()
+	{
+		onActivated.emit(this);
+	}
+}
+
+class ToggleButton : ButtonBase
 {
 	bool isOn = false;
 	mixin Signal!(ToggleButton) onToggled;
-	
+
 	enum _classes = [["on"],["off"]];
 
 	override protected @property const(string[]) classes() const pure nothrow @safe

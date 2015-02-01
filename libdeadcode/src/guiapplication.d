@@ -330,7 +330,7 @@ class GUIApplication : Application
 		// guiRoot.locationsManager.baseURI = "resources/";
 
 		resourceDirWatcher = new DirectoryWatcher(resourcesRoot);
-		guiRoot.timeout(dur!"msecs"(200), &checkDirForChanges);
+		guiRoot.timeout(dur!"msecs"(500), &regularCheck);
 		
 		scanResources();
 		
@@ -408,12 +408,12 @@ class GUIApplication : Application
 
 		guiRoot.init();
 		
-		guiRoot.timeout(dur!"msecs"(500), () { this._widgetLocationUpdater.performLocationUpdates(); return true; }); 
+		//guiRoot.timeout(dur!"msecs"(500), );
 
 		setupMainWindow();
 
-		static import extension;
-		extension.init(this);
+		static import extensions.base;
+		extensions.base.init(this);
 
 		// openFile(buildNormalizedPath(resourcesRoot,"iult.stylesheet"));
 
@@ -427,7 +427,7 @@ class GUIApplication : Application
 		if (analytics !is null)
 			analytics.stop();
 
-		extension.fini(this);
+		extensions.base.fini(this);
 		saveSession();
 
 		if (!_restartExecutable.empty)
@@ -793,7 +793,7 @@ version (Windows)
 		{
 			//a create a new widget for this buffer
 			auto editorWidget = new TextEditor(_mainWidget, buf);
-			guiRoot.timeout(dur!"msecs"(500), () { editorWidget.toggleCursorVisibility(); return true; });
+			// guiRoot.timeout(dur!"msecs"(500), () { editorWidget.toggleCursorVisibility(); return true; });
 			//editorWidget.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
 			//editorWidget.alignTo(Anchor.BottomRight);
 			editors.editors[buf.id] = EditorInfo(++editors.focusOrderCounter, editorWidget);
@@ -996,17 +996,30 @@ version (Windows)
 		guiRoot.activeWindow.repaint();
 	}
 
-	private void textureSourceChanged(gui.resources.Texture tex)
+	private void textureSourceChanged(GTexture tex)
 	{
 		analyticEvent("core", "changed", "texture", tex.uri.uriString);
 		tex.load();
 	}
 
-	private bool checkDirForChanges()
+	private bool regularCheck()
+    {
+        checkDirForChanges();
+        updateDelayedWidgetLocations();
+        if (auto ed = getCurrentTextEditor())
+            ed.toggleCursorVisibility();
+        return true;
+    }
+
+    private void updateDelayedWidgetLocations()
+    {
+        _widgetLocationUpdater.performLocationUpdates();
+    }
+
+    private void checkDirForChanges()
 	{
 		if (resourceDirWatcher.wait(dur!"seconds"(0)))
 			scanResources();
-		return true;
 	}
 	
 	static class SessionBuffer

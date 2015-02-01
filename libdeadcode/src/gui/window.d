@@ -723,7 +723,7 @@ TODO:
 				break;
 			case EventType.Resize:
 
-				layout(false);
+				updateLayout(false, this);
 
 				bool cont = false;
 				int maxIter = 5;

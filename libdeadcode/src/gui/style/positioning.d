@@ -2,9 +2,9 @@ module gui.style.positioning;
 
 import gui.widget;
 import gui.style;
-import math._;
+import math;
 
-private const(Vec2f) calcBasePosition(Widget w, CSSPosition cssPos)
+private const(Vec2f) calcBasePosition(Widget w, Widget positionReference, CSSPosition cssPos)
 {
 	Vec2f res = w.rect.pos;
 	final switch (cssPos)
@@ -13,11 +13,12 @@ private const(Vec2f) calcBasePosition(Widget w, CSSPosition cssPos)
 			res = Vec2f(0,0);
 			break;
 		case CSSPosition.absolute:
-			Widget p = w.parent; // lookFirstPositionedParent();
-			if (p !is null)
-				res = p.rect.pos;
-			else
-				res = Vec2f(0,0);
+			return positionReference.pos;
+            //Widget p = w.parent; // lookFirstPositionedParent();
+            //if (p !is null)
+            //    res = p.rect.pos;
+            //else
+            //    res = Vec2f(0,0);
 			break;
 		case CSSPosition.relative:
 			break;
@@ -30,30 +31,32 @@ private const(Vec2f) calcBasePosition(Widget w, CSSPosition cssPos)
 	return res;
 }
 
-public Vec2f calcSize(Widget w)
-{	
-	Vec2f parentSize = void;
-	Widget p = w.parent; // lookFirstPositionedParent();
-	if (p is null)
-		parentSize = w.window.size;
-	else
-		parentSize = p.size;
+public Vec2f calcSize(Widget w, Widget positionReference)
+{
+    //Vec2f parentSize = void;
+    //Widget p = w.parent; // lookFirstPositionedParent();
+    //if (p is null)
+    //    parentSize = w.window.size;
+    //else
+    //    parentSize = p.size;
+
+    Vec2f refSize = positionReference.size;
 
 	Vec2f baseSize = w.intrinsicSize;
 
 	if (baseSize.x.isNaN)
-		baseSize.x = parentSize.x;
+		baseSize.x = refSize.x;
 
 	if (baseSize.y.isNaN)
-		baseSize.y = parentSize.y;
-	
-	return calcSizeFromBaseSize(w, baseSize);
+		baseSize.y = refSize.y;
+
+	return calcSizeFromBaseSize(w, positionReference, baseSize);
 }
 
-private Vec2f getAutoSize(int I)(Widget w, Style st)
+private Vec2f getAutoSize(int I)(Widget w, Style st, Widget positionReference)
 {
 	bool widthIsAutoA = st.width[I].unit == CSSUnit.automatic;
-	bool heightIsAutoA = st.height[I].unit == CSSUnit.automatic;	
+	bool heightIsAutoA = st.height[I].unit == CSSUnit.automatic;
 
 	if (widthIsAutoA || heightIsAutoA)
 	{
@@ -63,12 +66,12 @@ private Vec2f getAutoSize(int I)(Widget w, Style st)
 		{
 			Vec2f intrinsicSize = child.intrinsicSize;
 			if (intrinsicSize.x.isNaN) // TODO: handle partial intrinsic on one axis
-				child.size = calcSizeFromBaseSize(child, zero);
+				child.size = calcSizeFromBaseSize(child, positionReference, zero);
 			else
 				child.size = intrinsicSize;
 		}
 
-		w.layoutFeatures(true);
+		w.layoutChildren(true, positionReference);
 		Rectf unionRect = void;
 		bool first = true;
 		foreach (child; w.children)
@@ -92,12 +95,12 @@ private Vec2f getAutoSize(int I)(Widget w, Style st)
 }
 
 
-public Vec2f calcSizeFromBaseSize(Widget w, Vec2f baseSize)
+public Vec2f calcSizeFromBaseSize(Widget w, Widget positionReference, Vec2f baseSize)
 {
 	Style st = w.style;
 	RectfOffset pad = st.padding;
 
-	Vec2f autoSizeA = getAutoSize!0(w, st);
+	Vec2f autoSizeA = getAutoSize!0(w, st, positionReference);
 	Vec2f autoSizeB = void;
 	bool autoSizeBCalculated = false;
 
@@ -115,7 +118,7 @@ public Vec2f calcSizeFromBaseSize(Widget w, Vec2f baseSize)
 
 	if (st.width.isMixed || st.left.isMixed || st.right.isMixed)
 	{
-		autoSizeB = getAutoSize!1(w, st);
+		autoSizeB = getAutoSize!1(w, st, positionReference);
 		autoSizeBCalculated = true;
 
 		float mixHorzB = baseSize.x;
@@ -144,7 +147,7 @@ public Vec2f calcSizeFromBaseSize(Widget w, Vec2f baseSize)
 	if (st.height.isMixed || st.top.isMixed || st.bottom.isMixed)
 	{
 		if (!autoSizeBCalculated)
-			autoSizeB = getAutoSize!1(w, st);
+			autoSizeB = getAutoSize!1(w, st, positionReference);
 
 		float mixVertB = baseSize.y;
 
@@ -162,16 +165,21 @@ public Vec2f calcSizeFromBaseSize(Widget w, Vec2f baseSize)
 		r.y = mixVertA;
 	}
 
+    import std.math;
+    if (!isFinite(r.y))
+    {
+        r.y = r.y;
+    }
 	return r;
 }
 
 
-public Vec2f calcPosition(Widget w)
+public Vec2f calcPosition(Widget w, Widget positionReference)
 {
 	Style st = w.style;
 	CSSPositionMix posMix = st.position;
-	Vec2f baseA = calcBasePosition(w, posMix.cssPositionA);
-	Vec2f baseB = calcBasePosition(w, posMix.cssPositionB);
+	Vec2f baseA = calcBasePosition(w, positionReference, posMix.cssPositionA);
+	Vec2f baseB = calcBasePosition(w, positionReference, posMix.cssPositionB);
 
 	//if (parent !is null && id == 8 && (baseA.x != 200 || baseB.x != 200))
 	//    std.stdio.writeln("cp ", baseA.v, " ", baseB.v);
@@ -182,7 +190,7 @@ public Vec2f calcPosition(Widget w)
 	Vec2f r = void;
 
 	float mixHorzA = baseA.x;
-	
+
 	float baseWidth = getBaseValue!("w")(w);
 	calcX!0(baseWidth, mixHorzA, st);
 	if (st.width.isMixed || st.left.isMixed || st.right.isMixed || posMix.isMixed)
@@ -195,7 +203,7 @@ public Vec2f calcPosition(Widget w)
 
 		r.x = mixHorzA * (1 - xoffset) + mixHorzB * xoffset;
 		//if (id == 20)
-		//    std.stdio.writeln(r.x, " ", mixHorzA, " ", mixHorzB, " ", xoffset);		
+		//    std.stdio.writeln(r.x, " ", mixHorzA, " ", mixHorzB, " ", xoffset);
 	}
 	else
 	{
@@ -256,12 +264,12 @@ private float cssScaleToPixel(float baseValue, CSSScale s)
 	}
 }
 
-private float getBaseValue(string attr)(Widget w)
+private float getBaseValue(string attr)(const(Widget) w)
 {
-	Widget p = w.parent;
-	if (p is null)
-		p = w;
-	return mixin("p." ~ attr);
+	if (const(Widget) p = w.parent)
+        return mixin("p." ~ attr);
+    else
+       	return mixin("w." ~ attr);
 }
 
 private void calcX(int i)(float baseWidth, ref float res, Style st)

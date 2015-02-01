@@ -43,8 +43,8 @@ class TextEditor : Widget
 	{
 		super(parent);
 		acceptsKeyboardFocus = true;
-		// background = "edit-background"; 
-		
+		// background = "edit-background";
+
 		// features ~= new NineGridRenderer("edit-background");
 		// this.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
 		// this.alignTo(Anchor.BottomRight);
@@ -52,9 +52,9 @@ class TextEditor : Widget
 		bufferView = buf;
 		bufferView.onInsert.connect(&this.onTextInserted);
 		bufferView.onRemove.connect(&this.onTextRemoved);
-		
+
 		// bufferView.onDirty.connect(&this.onBufferViewDirty);
-		
+
 		bufferView.onAnchorVisibilityChanged.connect(&onAnchorVisibilityChanged);
 
 		_mouseStartSelectionIdx = int.max;
@@ -89,7 +89,7 @@ class TextEditor : Widget
 	{
 		if (event.type == EventType.Resize)
 			renderer.textDirty = true;
-		
+
 		if (!hasKeyboardFocus())
 		{
 			return super.onEvent(event);
@@ -130,54 +130,54 @@ class TextEditor : Widget
 		}
 
 		// TODO: isn't behavior just a event -> edit mapping e.g. command
-		// TODO: have several kinds of behaviours for app, window, textview. 
+		// TODO: have several kinds of behaviours for app, window, textview.
 		//       App and window should have the chance to grab events before textview
 		//EditorBehavior.current.onEvent(event, bufferView);
 		return super.onEvent(event);
 		//return EventUsed.no;
 	}
 
-	override void layout(bool fit)
-	{
-		// Get sized ready for the children so that any layouter have them
-		foreach (w; children)
-			w.size = calcSize(w);
-
-		layoutFeatures(fit);
-
-		// Position goes last so that a base position calculated by e.g. DirectionalLayout feature
-		// can be used as relative pos for the calcPosition (ie. the styled position)
-		foreach (w; children)
-			w.pos = calcPosition(w);
-		//		w.recalcPosition();
-
-		// Positions and sizes for children are now set and we can recurse
-		layoutChildren(fit);
-	}
+    //override void updateLayout(bool fit, Widget positionReference)
+    //{
+    //    // Get sized ready for the children so that any layouter have them
+    //    foreach (w; children)
+    //        w.size = calcSize(w);
+    //
+    //    layoutChildren(fit, positionReference);
+    //
+    //    // Position goes last so that a base position calculated by e.g. DirectionalLayout feature
+    //    // can be used as relative pos for the calcPosition (ie. the styled position)
+    //    foreach (w; children)
+    //        w.pos = calcPosition(w);
+    //    //		w.recalcPosition();
+    //
+    //    // Positions and sizes for children are now set and we can recurse
+    //    layoutRecurse(fit, positionReference);
+    //}
 
 	override void draw()
-	{	
+	{
 		if (!visible)
 			return;
-		
+
 		renderer.selection = bufferView.selection.normalized();
 
 		import derelict.opengl3.gl3;
-		
+
 		Rectf r = rect;
 		r.y = window.size.y - (r.h + r.y);
 
 		glScissor( cast(int)r.x, cast(int)r.y, cast(int)r.w, cast(int)r.h);
-		
+
 		glEnable(GL_SCISSOR_TEST);
 
 		// Hack to get correct positions for anchors. recalc part should really be in the layout method
 		{
 			drawFeatures();
-	
+
 			foreach (w; visibleAnchorsChildWidgets)
 				w.recalcPosition();
-	
+
 			drawChildren();
 		}
 
@@ -326,7 +326,7 @@ class TextEditor : Widget
 		{
 			index = hit.index;
 		}
-		
+
 		// Region r = _mouseStartSelectionIdx < index ? Region(_mouseStartSelectionIdx, index, 0) : Region(index, _mouseStartSelectionIdx, 0);
 		bufferView.selection = Region(_mouseStartSelectionIdx, index, 0);
 
@@ -359,7 +359,7 @@ class TextEditor : Widget
 
 	private void onAnchorAdded(TextBuffer buf, TextBufferAnchor anchor)
 	{
-		// Dirty will rescan for anchor visibility and include this newly 
+		// Dirty will rescan for anchor visibility and include this newly
 		// added anchor if visible
 		bufferView.dirty = true;
 	}
@@ -376,7 +376,7 @@ class TextEditor : Widget
 			}
 		}
 	}
-	
+
 	private void onAnchorVisibilityChanged(BufferView bufferView, TextBufferAnchor[] newAnchors)
 	{
 		import std.algorithm;
@@ -411,7 +411,7 @@ class TextEditor : Widget
 			if (c.name == candidateName)
 				return cast(TextEditorAnchor) c;
 		}
-		
+
 		if (anchor.owner !is null)
 		{
 			TextEditorAnchorOwner anchorOwner = cast(TextEditorAnchorOwner) anchor.owner;
@@ -494,20 +494,20 @@ class TextEditorAnchor : Widget
 {
 	TextBufferAnchor textAnchor;
 	Anchor widgetAnchor;
-	
+
 	bool inView;
 
 	this()
 	{
 		super();
 		widgetAnchor = Anchor.TopLeft;
-		w = 16; 
+		w = 16;
 		h = 16;
 		inView = false;
 	}
 
 	override void draw()
-	{		
+	{
 		if (visible && inView)
 			super.draw();
 	}
@@ -529,9 +529,9 @@ class TextEditorAnchor : Widget
 
         if (lineEnd != lineStart)
         {
-		auto lineEndChar = buffer.findOneNotOfReverse(lineEnd, " \t\r\n");
-		if (lineEndChar != int.max)
-			lineEnd = lineEndChar;
+            auto lineEndChar = buffer.findOneNotOfReverse(lineEnd, " \t\r\n");
+		    if (lineEndChar != int.max)
+			    lineEnd = lineEndChar;
         }
 
 		Rectf lineRect = editor.textRect(lineStart, lineEnd);

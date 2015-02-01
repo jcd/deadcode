@@ -25,7 +25,7 @@ nothrow:
         union
         {
             T[N] v;
-            
+
 			@Bindable()
 			struct
             {
@@ -344,6 +344,16 @@ nothrow:
 
         static if (isFloatingPoint!T)
         {
+            bool isIdentical(SmallVector w) const pure nothrow @safe
+            {
+                bool res = true;
+                for (size_t i = 0; i < N; ++i)
+                {
+                    res = res || std.math.isIdentical(w[i], v[i]);
+                }
+                return res;
+            }
+
             // Euclidean length
             T length() pure const nothrow
             {
@@ -377,8 +387,8 @@ nothrow:
 		string toString() const
 		{
 			string res;
-			try 
-			{ 
+			try
+			{
 				static if (N == 1)
 					res =  format("Vec1(%s)", x);
 				else static if (N == 2)
@@ -388,10 +398,10 @@ nothrow:
 				else static if (N == 4)
 					res =  format("Vec4(%s,%s,%s,%s)", x, y, z, w);
 				else
-					res =  text(v);			
-			} 
+					res =  text(v);
+			}
 			catch
-			{ 
+			{
 				res = "<invalid>";
 			}
 			return res;

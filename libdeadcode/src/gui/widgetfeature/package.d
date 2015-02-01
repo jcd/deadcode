@@ -1,4 +1,4 @@
-module gui.widgetfeature._;
+module gui.widgetfeature;
 
 import gui.event;
 import gui.widget;
@@ -8,16 +8,11 @@ class WidgetFeature
 {
 	EventUsed send(Event event, Widget widget) { return EventUsed.no; }
 	void update(Widget widget) {}
-	void layout(Widget widget, bool fit) {}
 	void draw(Widget widget) {}
 }
 
 public import gui.widgetfeature.boxrenderer;
-public import gui.widgetfeature.constraintlayout;
-public import gui.widgetfeature.directionallayout;
 public import gui.widgetfeature.dragger;
-public import gui.widgetfeature.gridlayout;
-public import gui.widgetfeature.stacklayout;
 public import gui.widgetfeature.textrenderer;
 public import gui.widgetfeature.windowdragger;
 public import gui.widgetfeature.windowresizer;

@@ -4,7 +4,7 @@ import core.commandparameter;
 
 import gui.keycode;
 import gui.ruleset;
-import graphics._;
+import graphics;
 
 import std.conv;
 import std.exception;

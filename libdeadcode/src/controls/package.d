@@ -1,3 +1,3 @@
-module controls._;
+module controls;
 
 public import controls.command;

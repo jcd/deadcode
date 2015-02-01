@@ -9,14 +9,16 @@ import core.future;
 import core.container;
 import core.uri;
 import editorcommands;
-import graphics._;
-import gui._;
+import graphics;
+import gui;
+import gui.resources.texture : GTexture = Texture;
 import controls.button;
 import controls.command;
 import controls.menu;
 import controls.texteditor;
 import gui.resources.generic;
-import math._; // Vec2f
+import gui.layout;
+import math; // Vec2f
 
 import std.algorithm;
 import std.array;

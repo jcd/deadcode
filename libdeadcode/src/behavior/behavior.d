@@ -5,7 +5,7 @@ import core.bufferview;
 import core.commandparameter;
 import core.command;
 import application;
-public import graphics._;
+public import graphics;
 import gui.event;
 import gui.keybinding;
 import gui.ruleset;
@@ -16,10 +16,10 @@ import core.signals;
 class EditorBehavior // : KeyBindingValidator
 {
 	KeyBindingStack keyBindings;
-	
-	// (commandName, arguments provided)	
+
+	// (commandName, arguments provided)
 	mixin Signal!(Command, CommandParameter[]) onMissingCommandArguments;
-	
+
 	/*
 	bool validate(Window window)
 	{
@@ -32,7 +32,7 @@ class EditorBehavior // : KeyBindingValidator
 }
 
 class NullBehavior : EditorBehavior
-{	
+{
 	override EventUsed onEvent(ref Event event)
 	{
 		std.stdio.writeln("NullBehavior got event ", event, " Window ID: ", event.windowID);

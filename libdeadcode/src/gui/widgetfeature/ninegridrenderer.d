@@ -4,8 +4,8 @@ import graphics.model;
 import gui.models;
 import gui.style;
 import gui.widget;
-import gui.widgetfeature._;
-import math._;
+import gui.widgetfeature;
+import math;
 
 
 /** A 9 grid model for rendering boxes with expandables borders
@@ -26,18 +26,18 @@ import math._;
 
 	All these settings are stored in the style.
 */
-class NineGridRenderer : WidgetFeature 
+class NineGridRenderer : WidgetFeature
 {
 	string styleName;
 	BoxModel model;
 	private RectfOffset _spriteBorder;
 	private Rectf _spriteRect;
 
-	@property void color(Color col) 
+	@property void color(Color col)
 	{
 		model.color = col;
 	}
-	
+
 	this(string styleName = DefaultStyleName)
 	{
 		this.styleName = styleName;
@@ -64,9 +64,9 @@ class NineGridRenderer : WidgetFeature
 		Buffer vertCols = Buffer.create(cols);
 
 		Mesh mesh = Mesh.create();
-		mesh.setBuffer(vertexBuf, 3, 0);	
-		mesh.setBuffer(colorBuf, 2, 1);	
-		mesh.setBuffer(vertCols, 3, 2);	
+		mesh.setBuffer(vertexBuf, 3, 0);
+		mesh.setBuffer(colorBuf, 2, 1);
+		mesh.setBuffer(vertCols, 3, 2);
 
 		m.mesh = mesh;
 		m.material = mat;
@@ -76,14 +76,14 @@ class NineGridRenderer : WidgetFeature
 */
 	override void draw(Widget widget)
 	{
-		Style style = widget.style; 
+		Style style = widget.style;
 		auto mat = style.background;
-		if (mat is null || mat.texture is null) 
+		if (mat is null || mat.texture is null)
 			return;
 
 		Mat4f transform;
 		widget.getStyledScreenToWorldTransform(transform);
-		
+
 		RectfOffset spriteBorder = style.backgroundSpriteBorder;
 		Rectf spriteRect = style.backgroundSprite;
 		//
@@ -95,7 +95,7 @@ class NineGridRenderer : WidgetFeature
 			model = new BoxModel(widget.id, Sprite(spriteRect),  spriteBorder);
 			_spriteBorder = spriteBorder;
 			_spriteRect = spriteRect;
-		} 
+		}
 		else if (_spriteRect != spriteRect || _spriteBorder != spriteBorder)
 		{
 		    model.borders = spriteBorder;
@@ -109,9 +109,9 @@ class NineGridRenderer : WidgetFeature
 		model.rect =  Rectf(0, 0, wr);
 		model.material = mat;
 		color = style.backgroundColor;
-		
+
 		model.draw(widget.window.MVP * transform);
-		
+
 		//Style style = widget.window.styleddSet.getStyle(styleName);
 		//model.material = style.background;
 		//const Rectf r = Rectf(widget.rect);

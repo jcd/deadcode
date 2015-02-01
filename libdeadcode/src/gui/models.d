@@ -8,59 +8,59 @@ import graphics.rendertarget;
 import graphics.texture;
 //import gui.style; // : Style;
 import gui.window;
-import math._;
+import math;
 import std.range;
 import std.container;
 
 Model createTriangle()
 {
-	float[] v = [   -0.75f, -0.75f, 0.0f, 
-                  0.75f, 0.75f, 0.0f, 
-                  -0.75f, 0.75f, 0.0f]; 
-	float[] c = [   0.0f, 0.0f, 
-                  1.0f, 1.0f, 
-                  0.0f, 1.0f]; 
+	float[] v = [   -0.75f, -0.75f, 0.0f,
+                  0.75f, 0.75f, 0.0f,
+                  -0.75f, 0.75f, 0.0f];
+	float[] c = [   0.0f, 0.0f,
+                  1.0f, 1.0f,
+                  0.0f, 1.0f];
 	float[] cols = new float[v.length];
 	std.algorithm.fill(cols, 1.0f);
-	
+
 	Buffer vertexBuf = Buffer.create(v);
 	Buffer colorBuf = Buffer.create(c);
-	Buffer vertCols = Buffer.create(cols);	
-	
+	Buffer vertCols = Buffer.create(cols);
+
 	Mesh mesh = Mesh.create();
 	mesh.setBuffer(vertexBuf, 3, 0);
 	mesh.setBuffer(colorBuf, 2, 1);
 	mesh.setBuffer(colorBuf, 3, 2);
- 
+
 	auto m = new Model();
 	m.mesh = mesh;
 	m.material = Material.builtIn;
-	
+
 	return m;
 }
 
 
 float[] quadVertices(Rectf worldRect)
 {
-	float[] verts = [ 
-		worldRect.x,  worldRect.y,  0f, // lower 
+	float[] verts = [
+		worldRect.x,  worldRect.y,  0f, // lower
 		worldRect.x,  worldRect.y2, 0f,
-		worldRect.x2, worldRect.y2, 0f, 
+		worldRect.x2, worldRect.y2, 0f,
 		worldRect.x,  worldRect.y,  0f,
 		worldRect.x2, worldRect.y2, 0f,
-		worldRect.x2, worldRect.y,  0f ];			
-	return verts;	
+		worldRect.x2, worldRect.y,  0f ];
+	return verts;
 }
 
 void appendQuadVertices(Rectf worldRect, ref float[] verts)
 {
-	verts ~= [ 
+	verts ~= [
 		worldRect.x,  worldRect.y,  0f,
 		worldRect.x,  worldRect.y2, 0f,
-		worldRect.x2, worldRect.y2, 0f, 
+		worldRect.x2, worldRect.y2, 0f,
 		worldRect.x,  worldRect.y,  0f,
 		worldRect.x2, worldRect.y2, 0f,
-		worldRect.x2, worldRect.y,  0f ];			
+		worldRect.x2, worldRect.y,  0f ];
 }
 
 float[] quadUVForTextureMatchingRenderTargetPixels(Rectf worldRect, Texture tex, Vec2f renderTargetPixelSize)
@@ -88,7 +88,7 @@ float[] quadUVForTextureMatchingRenderTargetPixels(Rectf worldRect, Vec2f winTex
 		0f, 1f,
 		uv.x,  uv.y + 1f,
 		uv.x,  1f];
-	
+
 	/*float[] c = [
 		0f, v,
 		0f, 0f,
@@ -124,15 +124,15 @@ Model createQuad(Rectf worldRect, Material mat = null)
 	Buffer vertexBuf = Buffer.create(vert);
 	Buffer colorBuf = Buffer.create(uv);
 	Buffer vertCols = Buffer.create(cols);
-	
+
 	Mesh mesh = Mesh.create();
-	mesh.setBuffer(vertexBuf, 3, 0);	
-	mesh.setBuffer(colorBuf, 2, 1);	
-	mesh.setBuffer(vertCols, 3, 2);	
+	mesh.setBuffer(vertexBuf, 3, 0);
+	mesh.setBuffer(colorBuf, 2, 1);
+	mesh.setBuffer(vertCols, 3, 2);
 
 	m.mesh = mesh;
 	m.material = mat;
-	
+
 	return m;
 }
 
@@ -172,9 +172,9 @@ Model createEmptyModel(Material mat = null)
 	Buffer vertCols = Buffer.create();
 
 	Mesh mesh = Mesh.create();
-	mesh.setBuffer(vertexBuf, 3, 0);	
-	mesh.setBuffer(colorBuf, 2, 1);	
-	mesh.setBuffer(vertCols, 3, 2);	
+	mesh.setBuffer(vertexBuf, 3, 0);
+	mesh.setBuffer(colorBuf, 2, 1);
+	mesh.setBuffer(vertCols, 3, 2);
 
 	m.mesh = mesh;
 	m.material = mat;
@@ -245,11 +245,11 @@ class SpriteGrid : SpriteSet
 }
 
 /**
-	
+
 */
 class BoxModel
 {
-	@property 
+	@property
 	{
 		mixin(dirtyProp("Rectf", "rect", "_dirtyRect"));  // window pos/size rect
 		mixin(dirtyProp("RectfOffset", "borders", "_dirtyBorders"));  // window size borders
@@ -290,23 +290,23 @@ class BoxModel
 	}
 
 
-	private 
-	{		
+	private
+	{
 		Color _color;
 		Model _model;
 		bool _dirtyRect;
 		bool _dirtyBorders;
 		uint widgetID;
 	}
-	
+
 	this(Sprite center, Material mat = null)
-	{	
+	{
 		this.center = center;
 		_init(mat);
 	}
 
 	this(uint id, Sprite nineSprite, RectfOffset borders, Material mat = null)
-	{	
+	{
 		widgetID = id;
 		// Split up sprite into nine sub sprites based on the borders
 		_borders = borders;
@@ -343,7 +343,7 @@ class BoxModel
 	{
 		color = Color(1,1,1);
 		_dirtyRect = true;
-		
+
 		_borderFills[0] = ImageFill.fill;
 		_borderFills[1] = ImageFill.fill;
 		_borderFills[2] = ImageFill.fill;
@@ -356,9 +356,9 @@ class BoxModel
 		Buffer vertCols = Buffer.create();
 
 		Mesh mesh = Mesh.create();
-		mesh.setBuffer(vertexBuf, 3, 0);	
-		mesh.setBuffer(colorBuf, 2, 1);	
-		mesh.setBuffer(vertCols, 3, 2);	
+		mesh.setBuffer(vertexBuf, 3, 0);
+		mesh.setBuffer(colorBuf, 2, 1);
+		mesh.setBuffer(vertCols, 3, 2);
 
 		_model.mesh = mesh;
 		_model.material = mat;
@@ -375,13 +375,13 @@ class BoxModel
 		// TODO: take into consideration that a resize of window will scale the rect but should recalc the
 		// uvs. Just a performance optimization.
 		bool recalcUVs = _dirtyRect || _dirtyBorders || (_dirtyRect && _centerFill != ImageFill.fill);
-		
+
 		Rectf worldRect = _rect;  //  renderTarget.windowToWorld(_rect);
-		
+
 		// world is negative downwards, win is positive
 		worldRect.y = -worldRect.y;
 		worldRect.h = -worldRect.h;
-		
+
 		if (widgetID == 8)
 			std.stdio.writeln("m8 ", worldRect.y, " ", worldRect.h);
 
@@ -392,13 +392,13 @@ class BoxModel
 		void fillUVs(Sprite s)
 		{
 			auto tex = material.texture;
-			Rectf inRect = s.rect; 
+			Rectf inRect = s.rect;
 			inRect.y = -inRect.y;
 			inRect.h = -inRect.h;
 			// Vec2f screenPixScale = (renderTarget.size / Vec2f(tex.width, tex.height)) * 0.5;
 			// inRect = inRect.scale(screenPixScale);
 			Rectf r = tex.pixelRectToUVRect(inRect);
-			
+
 			//Vec2f uv = (worldRect.size * 0.5) * winTexRatio;
 
 			////float[] c = [
@@ -410,7 +410,7 @@ class BoxModel
 			////    uv.x,  1f];
 
 			//r = r.scale();
-			
+
 			//uvs ~= [r.x, r.y2, r.x, r.y, r.x2, r.y,
 			//        r.x, r.y2, r.x2, r.y, r.x2, r.y2];
 
@@ -430,7 +430,7 @@ class BoxModel
 		void fillUVs2(Sprite s)
 		{
 			auto tex = material.texture;
-			Rectf inRect = s.rect; 
+			Rectf inRect = s.rect;
 			inRect.y = -inRect.y;
 			inRect.h = -inRect.h;
 			Rectf r = tex.pixelRectToUVRect(inRect);
@@ -438,12 +438,12 @@ class BoxModel
 			// Scale uvs according to window dims
 			Vec2f screenPixScale = (renderTarget.size / Vec2f(inRect.w, -inRect.h));
 			auto uv = worldRect.scale(screenPixScale).size;
-			
-			uvs ~= [r.x, r.y, 
-					r.x, uv.y + r.y2, 
+
+			uvs ~= [r.x, r.y,
+					r.x, uv.y + r.y2,
 					r.x2, uv.y + r.y2,
-					r.x, r.y, 
-					r.x2, uv.y + r.y2, 
+					r.x, r.y,
+					r.x2, uv.y + r.y2,
 					r.x2, r.y];
 
 			//Vec2f uv = (worldRect.size * 0.5) * winTexRatio;
@@ -461,14 +461,14 @@ class BoxModel
 			//uvs ~= [r.x, r.y2, r.x, r.y, r.x2, r.y,
 			//        r.x, r.y2, r.x2, r.y, r.x2, r.y2];
 
-			
+
 		}
 
 		//void tileUVs(Sprite s)
 		//{
 		//    auto tex = material.texture;
 		//    uvs ~= quadUVForTextureMatchingRenderTargetPixels(wrect, renderTarget.size / Vec2f(tex.width, tex.height));
-		//    
+		//
 		//}
 
 		if (_borders.empty)
@@ -504,33 +504,33 @@ class BoxModel
 
 			appendQuadVertices(r, verts); // top left
 
-			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y2 - top, 
+			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y2 - top,
 			                         worldRect.w - right - left, top), verts); // top
 
 			r.x = worldRect.x2 - right;
 			appendQuadVertices(r, verts); // top right
 
-			appendQuadVertices(Rectf(worldRect.x2 - right, worldRect.y + bottom, 
+			appendQuadVertices(Rectf(worldRect.x2 - right, worldRect.y + bottom,
 			                         right, worldRect.h - top - bottom), verts); // right
 
 			r.y = worldRect.y;
 			appendQuadVertices(r, verts); // bottom right
-			
-			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y, 
+
+			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y,
 									 worldRect.w - right - left, bottom), verts); // bottom
 
 			r.x = worldRect.x;
 			appendQuadVertices(r, verts); // bottom left
 
-			//appendQuadVertices(Rectf(worldRect.x, worldRect.y + bottom, 
+			//appendQuadVertices(Rectf(worldRect.x, worldRect.y + bottom,
 			//                         left, worldRect.h - top - bottom), verts); // left
 
-			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y + bottom, 
+			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y + bottom,
 									 worldRect.w - left - right, worldRect.h - top - bottom), verts); // center
 			}
 			else
 			{
-			
+
 			float left = _borders.left;
 			float right = _borders.right;
 			float top = _borders.top;
@@ -545,28 +545,28 @@ class BoxModel
 
 			appendQuadVertices(r, verts); // top left
 
-			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y, 
+			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y,
 									 worldRect.w - right - left, -top), verts); // top
 
 			r.x = worldRect.x2 - right;
 			appendQuadVertices(r, verts); // top right
 
-			appendQuadVertices(Rectf(worldRect.x2 - right, worldRect.y - top, 
+			appendQuadVertices(Rectf(worldRect.x2 - right, worldRect.y - top,
 									 right, worldRect.h + top + bottom), verts); // right
 
 			r.y = worldRect.y2 + bottom;
 			appendQuadVertices(r, verts); // bottom right
 
-			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y2 + bottom, 
+			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y2 + bottom,
 									 worldRect.w - right - left, -bottom), verts); // bottom
 
 			r.x = worldRect.x;
 			appendQuadVertices(r, verts); // bottom left
 
-			appendQuadVertices(Rectf(worldRect.x, worldRect.y - top, 
+			appendQuadVertices(Rectf(worldRect.x, worldRect.y - top,
 									 left, worldRect.h + top + bottom), verts); // left
 
-			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y - top, 
+			appendQuadVertices(Rectf(worldRect.x + left, worldRect.y - top,
 									 worldRect.w - left - right, worldRect.h + top + bottom), verts); // center
 			}
 			if (recalcUVs)
@@ -584,7 +584,7 @@ class BoxModel
 			}
 
 		}
-		
+
 		_model.mesh.buffers[0].data = verts;
 
 		//float[] uv = quadUVForTextureRenderTargetPixels(worldRect, mat, Window.active.size);
@@ -605,14 +605,14 @@ class BoxModel
 	}
 
 	void draw(Mat4f transform)
-	{	
+	{
 		// Vec2f pixelWorldSize = Window.active.renderTarget.pixelSizeToWorld(Vec2f(1,1))
 
 		if (_dirtyRect || _dirtyBorders) // || pixelWorldSize != _lastPixelWorldSize)
 			update(Window.active.renderTarget);
-		
+
 		assert(_model.material !is null);
-	
+
 		_model.draw(transform);
 	}
 

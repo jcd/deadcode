@@ -2,8 +2,8 @@ module gui.widgetfeature.windowdragger;
 
 import gui.event;
 import gui.widget;
-import gui.widgetfeature._;
-import math._;
+import gui.widgetfeature;
+import math;
 
 import std.c.windows.windows;
 
@@ -25,12 +25,12 @@ extern (Windows) nothrow
 class WindowDragger : WidgetFeature
 {
 	Vec2f startDragPos;
-	
+
 	this()
 	{
 		this.startDragPos = Vec2f(-1000000, -1000000);
 	}
-	
+
 	override EventUsed send(Event event, Widget widget)
 	{
 		// Dragging support
@@ -41,18 +41,18 @@ class WindowDragger : WidgetFeature
 			startDragPos = event.mousePos;
 		//	widget.window.waitForEvents = false;
 			return EventUsed.yes;
-		} 
+		}
 		if (event.type == EventType.MouseUp)
 		{
 			startDragPos = Vec2f(-1000000, -1000000);
 			widget.releaseMouse();
-		//	widget.window.waitForEvents = true;			
+		//	widget.window.waitForEvents = true;
 			return EventUsed.yes;
 		}
 		return EventUsed.no;
 	}
-	
-	override void update(Widget widget) 
+
+	override void update(Widget widget)
 	{
 		if (widget.isGrabbingMouse())
 		{
@@ -60,9 +60,9 @@ class WindowDragger : WidgetFeature
 			desktopPos.cbSize = CURSORINFO.sizeof;
 			if (! GetCursorInfo(&desktopPos))
 			{
-				std.stdio.writeln("errocode ", GetLastError());	
+				std.stdio.writeln("errocode ", GetLastError());
 			}
-			
+
 			Vec2f winPos = Vec2f(desktopPos.ptScreenPos.x, desktopPos.ptScreenPos.y);
 			widget.window.position = winPos - startDragPos;
 		}

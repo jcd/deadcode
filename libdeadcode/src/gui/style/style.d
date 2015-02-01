@@ -2,7 +2,7 @@ module gui.style.style;
 
 import animation.interpolate;
 import animation.mutator;
-import math._;
+import math;
 
 import graphics.color : Color;
 

@@ -4,11 +4,11 @@ import controls.texteditor;
 
 import core.bufferview;
 import gui.widget;
-import math._;
+import math;
 
 class TextField : TextEditor
 {
-	override const(Vec2f) preferredSize()  
+	override const(Vec2f) preferredSize()
 	{
 		auto ps = renderer.layoutSize;
 		if (ps.x != 0 && ps.y != 0)

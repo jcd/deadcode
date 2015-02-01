@@ -7,7 +7,7 @@ import gui.style.style;
 import gui.style.stylesheet;
 import gui.style.types;
 
-import math._;
+import math;
 
 import std.range;
 
@@ -17,14 +17,14 @@ alias string PropertyID;
 */
 interface IPropertySpecification
 {
-	@property 
+	@property
 	{
 		PropertyID id() const pure nothrow @safe;
 		bool inherited() const pure nothrow @safe;
 		bool multi() const pure nothrow @safe;
 	}
 
-	// Return true if property value is parsed and 
+	// Return true if property value is parsed and
 	// set in style
 	abstract bool parse(StyleSheetParser parser, Style style) const @safe;
 	abstract void setDefault(Style style) const pure nothrow @trusted;
@@ -41,7 +41,7 @@ abstract class PropertySpecificationBase(T) : IPropertySpecification
 		bool _multi;
 	}
 
-	@property 
+	@property
 	{
 		PropertyID id() const pure nothrow @safe
 		{
@@ -214,9 +214,9 @@ class PropertySpecification(T : CubicCurveParameters) : PropertySpecificationBas
 	bool parse(StyleSheetParser parser, Style style) const @safe
 	{
 		import animation.interpolate;
-		
+
 		auto tok = parser.nextToken();
-		
+
 		CubicCurveParameters params;
 		switch (tok.value)
 		{
@@ -418,7 +418,7 @@ class PropertySpecification(T : Vec2f) : PropertySpecificationBase!T
 			style.vec2fs[id] = r;
 			return true;
 		}
-		
+
 		parser.resetToToken(tok1);
 		return false;
 	}
@@ -475,7 +475,7 @@ class PropertySpecification(T : Rectf) : PropertySpecificationBase!T
 		auto tok3 = parser.nextToken();
 		auto tok4 = parser.nextToken();
 
-		if (tok1.asNumber(num1) && 
+		if (tok1.asNumber(num1) &&
 			tok2.asNumber(num2) &&
 			tok3.asNumber(num3) &&
 			tok4.asNumber(num4))
@@ -544,14 +544,14 @@ class PropertySpecification(T : Rectf) : PropertySpecificationBase!T
 class PropertyShorthand : IPropertySpecification
 {
 	private
-	{		
+	{
 		PropertyID _id;
 		bool _inherited;
 		bool _multi;
 		IPropertySpecification[] subProperties;
 	}
 
-	@property 
+	@property
 	{
 		PropertyID id() const pure nothrow @safe
 		{
@@ -581,23 +581,23 @@ class PropertyShorthand : IPropertySpecification
 
 	bool parse(StyleSheetParser parser, Style style) const @safe
 	{
-		// Parsed subproperties in order and in a cycle. 
+		// Parsed subproperties in order and in a cycle.
 		// When either a no subproperty has been parsed through an
 		// entire cycle but something is left (an parse error) or the } token
 		// is reached we stop.
-		const(IPropertySpecification)[] cycleProps; 
+		const(IPropertySpecification)[] cycleProps;
 		foreach (i, v; subProperties)
 			cycleProps ~= v;
 		size_t lastLen = 0;
 
 		auto multiDelim = multi ? parser.TokenType.comma : parser.TokenType.semicolon;
-		
+
 		while (lastLen != cycleProps.length)
 		{
 			lastLen = cycleProps.length;
-			
+
 			import std.algorithm;
-			
+
 			// BUG WORKAROUND FOR:	cycleProps = cycleProps.remove!( p => p.parse(parser,style) );
 			const(IPropertySpecification)[] newCycleProps;
 			foreach (i, v; cycleProps)
@@ -606,8 +606,8 @@ class PropertyShorthand : IPropertySpecification
 					newCycleProps ~= v;
 			}
 			cycleProps = newCycleProps;
-			
-			if (parser.peekToken().oneOf(parser.TokenType.curlClose, 
+
+			if (parser.peekToken().oneOf(parser.TokenType.curlClose,
 										 parser.TokenType.semicolon,
 										 multiDelim))
 				break;
@@ -635,7 +635,7 @@ class PropertyShorthand : IPropertySpecification
 		foreach (p; subProperties)
 		{
 			p.clear(style);
-		}	
+		}
 	}
 
 	void setDefault(Style style) const pure nothrow @safe

@@ -1,11 +1,11 @@
 module gui.widgetfeature.windowresizer;
 
-import gui.widgetfeature._;
+import gui.widgetfeature;
 
 import gui.event;
 import gui.widget;
 import std.c.windows.windows;
-import math._;
+import math;
 
 struct CURSORINFO {
 	DWORD   cbSize;
@@ -27,13 +27,13 @@ class WindowResizer : WidgetFeature
 	Vec2f startDragPos;
 	Vec2f startSize;
 	enum dragTriggerDistance = 10f; // pixels to drag before drag is started
-	
+
 	this()
 	{
-		
+
 		this.startDragPos = Vec2f(-1000000, -1000000);
 	}
-	
+
 	override EventUsed send(Event event, Widget widget)
 	{
 		// Dragging support
@@ -45,18 +45,18 @@ class WindowResizer : WidgetFeature
 			startDragPos = getCursorScreenPos();
 			//widget.window.waitForEvents = false;
 			return EventUsed.yes;
-		} 
+		}
 		if (event.type == EventType.MouseUp)
 		{
 			startDragPos = Vec2f(-1000000, -1000000);
 			widget.releaseMouse();
-			//widget.window.waitForEvents = true;			
+			//widget.window.waitForEvents = true;
 			return EventUsed.yes;
 		}
 		return EventUsed.no;
 	}
-	
-	override void update(Widget widget) 
+
+	override void update(Widget widget)
 	{
 		if (widget.isGrabbingMouse() && startDragPos.x > -1000)
 		{
@@ -64,14 +64,14 @@ class WindowResizer : WidgetFeature
 			widget.window.size = startSize + (screenPos - startDragPos);
 		}
 	}
-	
+
 	static Vec2f getCursorScreenPos()
 	{
 		CURSORINFO desktopPos;
 		desktopPos.cbSize = CURSORINFO.sizeof;
 		if (! GetCursorInfo(&desktopPos))
 		{
-			std.stdio.writeln("errocode ", GetLastError());	
+			std.stdio.writeln("errocode ", GetLastError());
 		}
 		Vec2f pos = Vec2f(desktopPos.ptScreenPos.x, desktopPos.ptScreenPos.y);
 		return pos;

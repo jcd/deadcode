@@ -4,7 +4,7 @@ import application;
 import core.bufferview;
 import core.command;
 import core.commandparameter;
-import graphics._;
+import graphics;
 import gui.event;
 import gui.keybinding;
 import gui.keycode;

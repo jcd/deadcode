@@ -3,13 +3,13 @@ module gui.label;
 import gui.widget;
 import gui.widgetfeature.textrenderer;
 
-import math._;
+import math;
 
 class Label : Widget
 {
 	private TextRenderer!string _renderer;
 
-	//override const(Vec2f) preferredSize()  
+	//override const(Vec2f) preferredSize()
 	//{
 	//    auto ps = renderer.layoutSize;
 	//    if (ps.x != 0 && ps.y != 0)
@@ -25,7 +25,7 @@ class Label : Widget
 		_renderer = content(this, text);
 	}
 
-	@property 
+	@property
 	{
 		void text(string text)
 		{

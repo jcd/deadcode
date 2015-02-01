@@ -4,14 +4,14 @@ import graphics.model;
 import gui.models;
 import gui.style;
 import gui.widget;
-import gui.widgetfeature._;
-import math._;
+import gui.widgetfeature;
+import math;
 
-class BoxRenderer : WidgetFeature 
+class BoxRenderer : WidgetFeature
 {
 	string styleName;
 	Model model;
-		
+
 	this(string styleName = DefaultStyleName)
 	{
 		//model = new BoxModel(Sprite(0,0,256,256), RectfOffset(1,1,1,1));
@@ -20,7 +20,7 @@ class BoxRenderer : WidgetFeature
 		this.styleName = styleName;
 		model = createQuad(Rectf(0,0,1,1));
 	}
-	
+
 	override void draw(Widget widget)
 	{
 		Style style = widget.style;
@@ -29,15 +29,15 @@ class BoxRenderer : WidgetFeature
 		model.material = style.background;
 		//Rectf r2 = widget.rect;
 		//r.y = (-r.y) - r.h;
-		
+
 	//	Rectf r = Rectf(0,24,1000,1000);
 		//model.rect = r2;
 
 	//	Mat4f transform;
 	//	widget.getScreenToWorldTransform(transform);
 	//	model.draw(widget.window.MVP * transform);
-		
-	
+
+
 
 
 ///		const Rectf r = Rectf(widget.rectStyled);

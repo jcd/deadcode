@@ -3,14 +3,14 @@ module controls.texteditor;
 import core.buffer;
 import core.bufferview;
 import core.command : CommandManager;
-import graphics._;
+import graphics;
 import gui.event;
 import gui.style;
 import gui.widget;
-import gui.widgetfeature._;
+import gui.widgetfeature;
 import gui.window;
-import guiapplication;
-import math._;
+//import guiapplication;
+import math;
 
 import std.conv;
 import std.string;

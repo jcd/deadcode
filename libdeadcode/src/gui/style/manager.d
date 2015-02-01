@@ -2,7 +2,7 @@ module gui.style.manager;
 
 import animation.interpolate;
 
-import math._;
+import math;
 
 import gui.resource;
 import gui.resources.material;
@@ -17,7 +17,7 @@ import io.iomanager;
 
 class StyleSheetManager : ResourceManager!StyleSheet
 {
-	private 
+	private
 	{
 		FontManager _fontManager;  // TODO: No need for managers I think. Let the ones why create styles know about that
 		MaterialManager _materialManager;
@@ -25,7 +25,7 @@ class StyleSheetManager : ResourceManager!StyleSheet
 		Handle builtinStyleSheetHandle;
 	}
 
-	@property 
+	@property
 	{
 
 		FontManager fontManager()
@@ -110,7 +110,7 @@ class StyleSheetManager : ResourceManager!StyleSheet
 		// rename to id-subprop
 		// e.g. id == "background" and subprop is "color" becomes
 		// "background-color"
-		
+
 		IPropertySpecification[] subProperties;
 
 		foreach (p; propNames)

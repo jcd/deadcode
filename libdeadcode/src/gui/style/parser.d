@@ -11,7 +11,7 @@ import gui.style.style;
 import gui.style.stylesheet;
 import gui.style.types;
 
-import math._;
+import math;
 
 import std.conv;
 import std.path;

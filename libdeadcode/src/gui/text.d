@@ -13,7 +13,7 @@ import gui.resources.texture;
 import gui.style;
 import gui.textlayout;
 import gui.window;
-import math._;
+import math;
 
 import std.array;
 import std.typecons;

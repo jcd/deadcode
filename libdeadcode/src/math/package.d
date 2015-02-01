@@ -1,4 +1,4 @@
-module math._;
+module math;
 
 public import math.rect;
 public import math.region;
@@ -11,12 +11,12 @@ struct Vec2(T)
 {
 	union
 	{
-		struct 
+		struct
 		{
 			T x;
 			T y;
 		}
-		struct 
+		struct
 		{
 			T w;
 			T h;
@@ -31,36 +31,36 @@ struct Vec2(T)
 	}
 
 	 */
-	
+
 	@property T lengthSquared()
 	{
 		return x*x + y*y;
 	}
 
 	import std.stdio;
-	
+
 	Vec2!T opBinary(string OP)(Vec2!T v) const pure nothrow
 	{
 		return Vec2!T(mixin("x " ~ OP ~ " v.x"), mixin("y " ~ OP ~ " v.y"));
 	}
-	
+
 	void opOpAssign(string OP)(Vec2!(T) v) pure nothrow
 	{
-		mixin("this.x" ~ OP ~ "= v.x;"); 
+		mixin("this.x" ~ OP ~ "= v.x;");
 		mixin("this.y" ~ OP ~ "= v.y;");
-	} 
+	}
 
 	void opOpAssign(string OP)(T v) pure nothrow
 	{
-		mixin("this.x" ~ OP ~ "= v;"); 
+		mixin("this.x" ~ OP ~ "= v;");
 		mixin("this.y" ~ OP ~ "= v;");
-	} 
-	
+	}
+
 	Vec2!T opUnary(string OP)() pure nothrow
 	{
 		Vec2 r;
-		mixin("r.x = " ~ OP ~ "x;"); 
-		mixin("r.y = " ~ OP ~ "y;"); 
+		mixin("r.x = " ~ OP ~ "x;");
+		mixin("r.y = " ~ OP ~ "y;");
 		return r;
 	}
 }
@@ -71,19 +71,19 @@ struct Vec3(T)
 {
 	union
 	{
-		struct 
+		struct
 		{
 			T x;
 			T y;
 			T z;
 		}
-		struct 
+		struct
 		{
 			T w;
 			T h;
 			T d;
 		}
-		struct 
+		struct
 		{
 			T r;
 			T g;
@@ -91,7 +91,7 @@ struct Vec3(T)
 		}
 		T[3] data;
 	}
-		
+
 /*
 	T opIndex(uint i) const
 	{

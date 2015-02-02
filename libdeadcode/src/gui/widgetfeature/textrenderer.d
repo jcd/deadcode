@@ -113,7 +113,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		 // TODO: maybe model should be owner of styledText_
 		import util.system;
         import std.path;
-		_cursorModel = createQuad(Rectf(0,0,1, 1), Material.create(buildPath(getRunningExecutablePath(), "resources/materials/white.png")));
+		_cursorModel = createQuad(Rectf(0,0,1, 1), Material.create(buildPath(getRunningExecutablePath(), "resources", "materials", "white.png")));
 		_cursorModel.subModel.blend = false;
 		cursorVisible = true;
 		// std.stdio.writeln(getRunningExecutablePath() ~ "white.png");

@@ -162,7 +162,9 @@ class Texture
 		assert(exists(path), path);
 		SDL_Surface * s = IMG_Load(toStringz(path));
 
-		assert(s);
+        if (s is null)
+		    throw new Exception("Cannot load Texture '" ~ path.idup ~ "'");
+
 		auto texture = createFromSDLSurface(s, intoThis);
 		SDL_FreeSurface(s);
 		return texture;

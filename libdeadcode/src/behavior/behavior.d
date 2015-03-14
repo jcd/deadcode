@@ -17,6 +17,11 @@ class EditorBehavior // : KeyBindingValidator
 {
 	KeyBindingStack keyBindings;
 
+    @property KeyBindingsSet currentKeyBindingsSet()
+    {
+        return keyBindings.keyBindings();
+    }
+
 	// (commandName, arguments provided)
 	mixin Signal!(Command, CommandParameter[]) onMissingCommandArguments;
 
@@ -80,8 +85,49 @@ class KeyBindingRuleEnv : RuleEnv
 		if (app.currentBuffer is null)
 			return null;
 
-		if (key == "currentBufferName")
-			return app.currentBuffer.name;
+        switch (key)
+        {
+            case "currentBufferName":
+			    return app.currentBuffer.name;
+            case "focusWidgetName":
+            {
+                import guiapplication;
+                auto a = cast(GUIApplication) app; // TODO: get rid of cast
+                if (auto w = a.activeWindow.getKeyboardFocusWidget())
+                    return w.name;
+                break;
+            }
+            case "focusWidgetBranchNames":
+            {
+                import guiapplication;
+                auto a = cast(GUIApplication) app; // TODO: get rid of cast
+                if (auto w = a.activeWindow.getKeyboardFocusWidget())
+                {
+                    string names = w.name;
+                    w = w.parent;
+                    while (w !is null)
+                    {
+                        names ~= "," ~ w.name;
+                        w = w.parent;
+                    }
+                    return names;
+                }
+                return ""; // no focus widget
+                // break;
+            }
+            case "languageName":
+			    if (auto m = app.currentBuffer.codeModel)
+                {
+                    return m.name;
+                }
+                else
+                {
+                    return "";
+                }
+            default:
+                break;
+        }
+
 		/*
 		if (key == "followingText")
 			return app.currentBuffer.followingText;

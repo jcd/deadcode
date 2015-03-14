@@ -76,10 +76,10 @@ class IfElseSameCheck : BaseAnalyzer
 		orOrExpression.accept(this);
 	}
 }
-
+/*
 unittest
 {
-	import analysis.config;
+	import language.d.analysis.config;
 	StaticAnalysisConfig sac;
 	sac.if_else_same_check = true;
 	assertAnalyzerWarnings(q{
@@ -100,3 +100,4 @@ unittest
 	stderr.writeln("Unittest for IfElseSameCheck passed.");
 }
 
+*/

@@ -289,7 +289,7 @@ unittest
 	import test;
 	Rectf r = Rectf(1, 2, 3, 4);
 	Assert(!std.math.isNaN(r.pos.x));
-	Assert!(math.rect)(stringToRectf("1 2 3 4.5"), Rectf(1,2,3,4.5));
+	Assert(stringToRectf("1 2 3 4.5"), Rectf(1,2,3,4.5));
 	std.stdio.writeln("first");
 }
 

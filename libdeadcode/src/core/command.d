@@ -138,9 +138,15 @@ class Command
 	}
 
 	abstract void execute(CommandParameter[] data);
+    bool executeWithMissingArguments(ref CommandParameter[] data) { return false; /* false => not handled by method */ }
+
 	void undo(CommandParameter[] data) { }
 
-	CompletionEntry[] getCompletions(string input)
+    int getCompletionSessionID() { return -1; /* no session support */ }
+    bool beginCompletionSession(int sessionID) { return false; }
+    void endCompletionSession() {}
+
+    CompletionEntry[] getCompletions(string input)
 	{
 		CommandParameter[] ps;
 		auto defs = getCommandParameterDefinitions();
@@ -236,8 +242,10 @@ class CommandManager
 {
 	// Runtime check that only one instance is created ie. not for use in singleton pattern.
 	private static CommandManager _the; // assert only singleton
+    private int _nextCompletionSessionID = 1;
+    private Command[int] _completionSessions;
 
-	this()
+    this()
 	{
 		assert(_the is null);
 		_the = this;
@@ -323,6 +331,37 @@ class CommandManager
 		}
 	}
 
+    void parseArgumentsAndExecute(string cmdName, string argsString)
+    {
+        auto cmd = lookup(cmdName);
+        if (cmd is null)
+            return; // TODO: error handling
+
+        CommandParameter[] args;
+        auto defs = cmd.getCommandParameterDefinitions();
+        if (defs !is null)
+            defs.parseValues(args, argsString);
+        execute(cmd, args);
+    }
+
+    bool executeWithMissingArguments(Command cmd, ref CommandParameter[] args)
+    {
+		// TODO: handle fibers
+		if (cmd !is null)
+		{
+			import core.thread;
+			if (cmd.mustRunInFiber)
+            {
+				new Fiber( () { cmd.executeWithMissingArguments(args); } ).call(); // TODO: handle return value
+            }
+			else
+            {
+				return cmd.executeWithMissingArguments(args);
+            }
+		}
+        return false;
+    }
+
 	Command lookup(string commandName)
 	{
 		auto c = commandName in commands;
@@ -342,6 +381,30 @@ class CommandManager
 		return result;
 	}
 
+    int beginCompletionSession(string cmdName)
+    {
+        auto cmd = lookup(cmdName);
+        if (cmd is null)
+            return -1;
+
+        if (cmd.beginCompletionSession(_nextCompletionSessionID++))
+        {
+            _completionSessions[_nextCompletionSessionID-1] = cmd;
+            return _nextCompletionSessionID-1;
+        }
+        return -1; // cmd disallowed the session
+    }
+
+    bool endCompletionSession(int sessionID)
+    {
+        if (auto s = sessionID in _completionSessions)
+        {
+            s.endCompletionSession();
+            _completionSessions.remove(sessionID);
+            return true;
+        }
+        return false;
+    }
 }
 
 // TODO: fix

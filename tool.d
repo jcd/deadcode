@@ -20,7 +20,8 @@ Commands
   dist    : Create and/or upload installer e.g. tool dist 1.3
   help    : Takes one of the other commands as sole argument
   changes : Git git changeset comments since provided tag
-  listPublished : list published zips on server 
+  ddox    : Build ddox
+  listPublished : list published zips on server
 """;
  write(usageTmpl);
 }
@@ -46,6 +47,9 @@ void commandUsage(string cmd)
 		case "changes":
 			changes([], true);
 			break;
+		case "ddox":
+			ddox([], true);
+			break;
 		default:
 			writeln("Cannot display help for unknown command " ~ cmd);
 			break;
@@ -59,7 +63,7 @@ void main(string[] args)
 		usage();
 		return;
 	}
-	else if (["-h", "/h", "/?", "--help", "/help"].count(args[1].toLower()))	
+	else if (["-h", "/h", "/?", "--help", "/help"].count(args[1].toLower()))
 	{
 		usage();
 		return;
@@ -84,6 +88,9 @@ void main(string[] args)
 			return;
 		case "changes":
 			changes(args);
+			return;
+		case "ddox":
+			ddox(args);
 			return;
 		case "help":
 			if (args.length == 2)
@@ -139,7 +146,7 @@ void test(string[] args, bool showUsage = false)
 		writeln("Run all unittest. Takes an optional argument used for filtering output.");
 		return;
 	}
-	
+
 	string filt = args.length > 2 ? args[2] : "";
 	auto cmd = "dub run --config=unittest";
 	writeln(cmd);
@@ -201,7 +208,7 @@ void dist(string[] args, bool showUsage = false)
 	auto osStr = to!string(std.system.os);
 	auto outputPath = buildPath("dist", format("ded-%s_%s.zip", outputVersion, osStr));
 	auto packRoot = buildPath("dist", "files-" ~ osStr);
-	
+
 	writeln("Packroot is ", packRoot);
 
 	// clean up
@@ -219,7 +226,7 @@ void dist(string[] args, bool showUsage = false)
 		writeln("On server:");
 		listPublished();
 	}
-}	
+}
 
 void collect(string packRoot)
 {
@@ -254,7 +261,7 @@ void collect(string packRoot)
 		string srcDir = isDir(name) ? name : dirName(name);
 		string dest = buildPath(packRoot, name);
 		string destDir = buildPath(packRoot, srcDir);
-		
+
 		writeln(src, " => ", dest);
 
 		if (!exists(destDir))
@@ -273,7 +280,7 @@ void archive(string packRoot, string outputPath)
 {
 	string zipcmd = buildPath("external", "7zip", "7za.exe");
 	string srcDir = buildPath(".", packRoot, "*"); // need . prefix for 7zip to not include dir part
-	
+
 	if (exists(outputPath))
 	{
 		writeln("Removing existing ", outputPath);
@@ -296,18 +303,19 @@ void archive(string packRoot, string outputPath)
 }
 
 
-void upload(string from, string to)
+void upload(string from, string to, bool recursive = false)
 {
-	if (!upload(from, to, null))
+    static string pw = null;
+	if (!upload(from, to, pw, recursive))
 	{
 		writeln("Cannot upload without password.");
 		write("password: ");
-		string pw = strip(readln());
-		upload(from, to, pw);
+		pw = strip(readln());
+		upload(from, to, pw, recursive);
 	}
 }
 
-bool upload(string from, string to, string pw)
+bool upload(string from, string to, string pw, bool recursive = false)
 {
 	auto scpCmd = buildPath("external", "putty", "pscp.exe");
 	writeln("Uploading to jcd@", to);
@@ -315,9 +323,12 @@ bool upload(string from, string to, string pw)
 	auto cmd = format("%s -batch -q -v -pw %s %s %s", scpCmd, "xxxx", from, to);
 	writeln(cmd);
 
-	auto args = [scpCmd, "-batch", "-q", "-v"];
+	auto args = [scpCmd, "-batch", "-q", "-v", "-C"];
+    if (recursive)
+        args ~= "-r";
+
 	if (pw !is null)
-	{ 
+	{
 		args ~= "-pw";
 		args ~= pw;
 	}
@@ -328,19 +339,19 @@ bool upload(string from, string to, string pw)
 //	auto args = [scpCmd, "-batch", "-q", "-v", from, to];
 
 	bool result = true;
-	auto pipes = pipeProcess(args, Redirect.stdout | Redirect.stderr);
+	auto pipes = pipeProcess(args, Redirect.stdout | Redirect.stderrToStdout);
 	foreach (line; pipes.stdout.byLine)
 	{
 		if (strip(line).endsWith("Unable to authenticate"))
 			result = false;
 		writeln(line);
 	}
-	foreach (line; pipes.stderr.byLine)
-	{
-		if (strip(line).endsWith("Unable to authenticate"))
-			result = false;
-		writeln(line);
-	}
+    //foreach (line; pipes.stderr.byLine)
+    //{
+    //    if (strip(line).endsWith("Unable to authenticate"))
+    //        result = false;
+    //    writeln(line);
+    //}
 
 	int res = wait(pipes.pid);
 	if (res != 0)
@@ -395,4 +406,91 @@ void changes(string[] args, bool showUsage = false)
 	{
 		writeln(res.output);
 	}
+}
+
+void ddox(string[] args, bool showUsage = false)
+{
+	if (showUsage)
+	{
+		writeln("tool ddox");
+		writeln("Build documenation in ddox format to ...");
+		return;
+	}
+
+    //if (args.length < 3)
+    //{
+    //    writeln("Missing tag name argument");
+    //    return;
+    //}
+
+    bool reuseJSON = false;
+    bool uploadToSite = false;
+    bool uploadHelpersToSite = false;
+    bool skipHTMLGeneration = false;
+
+    getopt(args,
+           "reuse-json|r", &reuseJSON,
+           "upload|u", &uploadToSite,
+           "upload-helpers|h", &uploadHelpersToSite,
+           "skip-html-generation|s", &skipHTMLGeneration
+           );
+
+    auto cmd = "dub build --config=ddox";
+	if (!reuseJSON)
+    {
+        writeln(cmd);
+	    auto res = executeShell(cmd);
+	    if (res.status)
+	    {
+		    writeln(format("Error code %s:", res.status));
+            return;
+	    }
+	    else
+	    {
+		    writeln(res.output);
+	    }
+
+        cmd = r"..\ddox\ddox.exe filter .\docs.json --min-protection=Protected";
+        writeln(cmd);
+        res = executeShell(cmd);
+        if (res.status)
+        {
+            writeln(format("Error code %s:", res.status));
+        }
+        else
+        {
+            writeln(res.output);
+        }
+    }
+
+	if (!skipHTMLGeneration)
+    {
+        cmd = r"..\ddox\ddox.exe generate-html --navigation-type=ModuleTree .\docs.json ddox";
+	    writeln(cmd);
+	    auto res = executeShell(cmd);
+	    if (res.status)
+	    {
+		    writeln(format("Error code %s:", res.status));
+	    }
+	    else
+	    {
+		    writeln(res.output);
+	    }
+    }
+
+    if (uploadToSite)
+    {
+        auto uploadPath = "jcd@freeze.steamwinter.com:webdownloads/";
+        upload("ddox", uploadPath, true);
+    }
+
+    if (uploadHelpersToSite)
+    {
+        auto uploadPath = "jcd@freeze.steamwinter.com:webdownloads/ddox/";
+        upload("ddox/scripts", uploadPath, true);
+        upload("ddox/styles", uploadPath, true);
+        upload("ddox/images", uploadPath, true);
+        upload("ddox/prettify", uploadPath, true);
+        upload("ddox/page", uploadPath, true);
+    }
 }

@@ -1,3 +1,119 @@
+Release 0.13 - 14 March 2015 
+
+Overview:
+
+    * Incremental search
+    * Jump to definition/symbol dlang
+    * Auto complete dlang
+    * Jump to next compile issue
+    * Auto indent
+    * Undo stack replace with VIM like undo tree
+    * Support for undo groups
+    * Expose text highligting to extension
+    * Sprite animation
+    * Key binding file with support for rule when a binding is active
+    * General polish and improvements
+    * Lots of fixes
+
+Changes:
+
+    3b38db9 Support for undo groups. 
+            Support for extensions to add fields of objects to be bound to gui controls. 
+            No more magic int.min used for invalid index but a InvalidIndex instead. 
+            Support for isVisible on stylable to disable animation etc. when not visible. 
+            New generic text highlighted. 
+            Moved selection highligthing to generic text highlighter. 
+            Fix glyphAt method. 
+            Support for sprite animations through css.
+            Tons of attribute tightening. 
+            Convenient overridePos on widget to override css computed position. 
+            Fix bunch outdated unit tests. 
+            Updated default stylesheet. 
+            Added selection stack action to explicitly remember selection which can be convenient for extension commands. 
+            Explicitly remember selection region on commands that can modify the selection. 
+            Made RegionView detachable from BufferViews. 
+            A BufferView now knows about all RegionViews associated with it. 
+            Added a fileName to bufferview for convenience. 
+            Fix selection setting logic in bufferview. 
+            Exposed push and pop selection on bufferview. 
+            Added a couple of method on bufferview to center on char/line either paged or not. 
+            The undo system is now based on a undo tree and not an undo stack just like vim. 
+            Added a bunch of text manipulation function to bufferview. 
+            Added regex search to bufferview. 
+            Improved navigation and searching by making it easier to specify what text boundary to get. 
+            Support for classifying an index. 
+            Support for expanding selection by class. 
+            TextBuffer much more resilient to invalid indexes. 
+            Add id to a textbuffer. 
+            TextEditor support for onChanged and onGlyphMouseUp signals. 
+            TextEditor add easy support for named highlighting regions. 
+            Add support for completion session in command buffer. 
+            Add support for incremental search with highlighting. 
+            Add support for reading keybindings from file including rules for when a binding is active. 
+            Add support for jump to next compile issue when compiling D. 
+            Show shortest possible unique name when showing buffer toggle list.
+    75f54f1 Fix double/triple mouse click timing. Fix finding mouse click widget of overlapping widgets.
+    3783fc1 Spelling error in comment
+    bc1cb61 Auto indent for D. Update dfmt integration to updated dfmt.
+    8522d81 Make D check work with new dparser
+    d14d90f Fix signalling end of compile
+    501c4ac Update dfmt.d from upstream.
+    dec1da9 Disable unneeded unittest
+    65332c9 Make textfield constructor consistent. Get rid of custom preferredSize calculation.
+    d31198f Add hasDerivedMember template
+    719571a Comment animators
+    9220997 Fix compile verbosity
+    4dc71bd Comment animation package
+    803e93e Remember previous active buffer
+    48f413d Fix constructor for consistency
+    70b8005 Add support for focusWidget, languageName, focusWidgetBranchNames in EnvRule
+    1718cc5 Support stepped animation
+    008404d Remove dead file
+    f281f3c Border png file to highlight compile errors in errorlist
+    9880060 Add support to automatically bind object fields to widget controls.
+    6757990 Config extension to reload bindings
+    64be022 Basic extension for root editor commands
+    ec0b568 Autocomplete support for D using DCD
+    e29c796 New proc extension to filter text/selection through external shell script
+    1fd2d0d Add new string utils with initial support for uniquePostfixPath for a range of names
+    f0ed107 Add new popup control
+    fff8298 Move extensions common import out of libdeadcode and into extensions package
+    247f9a0 Add callback support in css manager to let other add custom css properties when manager is initialized.
+    348782d opEqual support for keybinding rulesets
+    d9a5337 Support unload for a generic resource
+    4347261 Make unload not final on a resource so that derivatives can do correct  unloading.
+    7924ab9 Fix crash when no texture was set on ninepatch sprite.
+    62f07a6 Fix gridlayout to handle min/max/preferred sizing.
+    3533618 Add concept of completion session to a command
+    66e202c Default expose textfield and dragger to extensions.
+    254e7b5 Less verbose compile output when compiling extensions
+    a007ae0 Fix extension attribute accessibility check
+    b12e51e Support for replacing and removing keybindings. Add signal to keybindingset to know when it gets cleared.
+    aa83623 Fix handling of empty command arguments.
+    f2b1077 Fix unittest
+    8c9e67c Add dragger bool property but currently not doing anything. Fix dragging.
+    884ae71 Add support for bool css property.
+    dd3607e Add Region begin and end properties. Fix attributes on some Region methods. Fix tests on Region. Add opSlice to RegionSet.
+    c5908f3 Fix test
+    97c2360 Add AssertRanges support
+    af5d289 Initial but unused support for jobobjects to automatically kill child processes on exit
+    b31adb3 Make tool generate and upload docs
+    ce33a24 Add name for a CodeModel
+    a0e32ac Fix leak in renderqueue
+    ddac892 Move jsonx to utils
+    f149c3f Support for min/max/preferred sizes
+    d1a5e81 Dub ddox target and new msgpack dependency
+    33b0112 Update gitignore
+    f12ec03 Clean up
+    8a85429 Add needed dlls for windows
+    b79c83c Proper path handling
+    fe8f5d2 Proper path handling
+    7484b5e Throw on data error
+    b3a203b Moved image file to resource folder
+    b2c0361 Missing image file
+    6d05619 Missing file
+
+
 Release 0.12 - 01 Febrary 2015 
 
 Overview:

@@ -12,7 +12,7 @@ struct UnitTestInfo
 	int testScopeStartsAtLine;
 }
 
-static 
+static
 {
 	int g_Total = 0;
 	struct TestRecord
@@ -21,7 +21,7 @@ static
 		string assertion;
 		string msg;
 		string file;
-		int line; 
+		int line;
 		UnitTestInfo testInfo;
 	}
 	alias TestRecord[] TestRecords;
@@ -45,7 +45,7 @@ UnitTestInfo parseUnitTestName(string func)
 	int agAtLine = func[offsBegin..offsEnd].to!int;
 
 	// In case of Asserts in member functions of classes defined in a unittest scope
-	// we need to check of . after the __unittestLxx_xx 
+	// we need to check of . after the __unittestLxx_xx
 	int offsStop = func.indexOf(".", offsEnd);
 
 	int testNumber = func[offsEnd+1.. offsStop == -1 ? func.length : offsStop].to!int;
@@ -120,11 +120,11 @@ mixin template registerUnittests(alias mod)
 	}
 }
 
-void Assert(alias MOD, T, V)(lazy T thisExp, lazy V isEqualToThisExp, string msg = "", string file = __FILE__, int line = __LINE__, string func = __FUNCTION__)
-{
-
-
-}
+//void Assert(alias MOD, T, V)(lazy T thisExp, lazy V isEqualToThisExp, string msg = "", string file = __FILE__, int line = __LINE__, string func = __FUNCTION__)
+//{
+//
+//
+//}
 
 void Assert(T, V)(lazy T thisExp, lazy V isEqualToThisExp, string msg = "", string file = __FILE__, int line = __LINE__, string func = __FUNCTION__)
 {
@@ -134,7 +134,35 @@ void Assert(T, V)(lazy T thisExp, lazy V isEqualToThisExp, string msg = "", stri
 
 	recordTestResult(res, text(a, " == ", b), msg ~ " " ~ func, file, line, func);
 	// writeln("Test ", file, "@", line, " ", msg, ": ", a, " == ", b, " ", res ? "OK" : "FAILED");
-} 
+}
+
+void AssertRangesEqual(T, V)(lazy T thisExp, lazy V isEqualToThisExp, string msg = "", string file = __FILE__, int line = __LINE__, string func = __FUNCTION__)
+{
+	auto r1 = thisExp();
+	auto r2 = isEqualToThisExp();
+
+    int count = 0;
+    while (!r1.empty && !r2.empty)
+    {
+        count++;
+        recordTestResult(r1.front == r2.front, text(r1.front, " == ", r2.front), msg ~ " " ~ func, file, line, func);
+        r1.popFront();
+        r2.popFront();
+    }
+
+    if (r1.empty != r2.empty)
+    {
+        static if (__traits(compiles, r1.length == r2.length))
+            recordTestResult(false, text("length of ", r1, " == length of ", r2), msg ~ " " ~ func, file, line, func);
+        else
+        {
+            if (r1.empty)
+                recordTestResult(false, text("length of not equal. Got ", count, " prefix length in first"), msg ~ " " ~ func, file, line, func);
+            else
+                recordTestResult(false, text("length of not equal. Got ", count, " prefix length in latter"), msg ~ " " ~ func, file, line, func);
+        }
+    }
+}
 
 immutable string ANSI_RED = "\x1b[31m";
 immutable string ANSI_GREEN = "\x1b[32m";

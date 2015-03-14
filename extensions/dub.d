@@ -107,7 +107,6 @@ class DubBuildCommand : BasicCommand
 		string configuration = "debug";
 		string cmd = "dub build -v --config=" ~ configuration;
 
-		bool result = true;
 		auto pipes = pipeShell(cmd, Redirect.stdout | Redirect.stderr);
 
 		foreach (line; pipes.stderr.byLine)
@@ -126,6 +125,8 @@ class DubBuildCommand : BasicCommand
 		{
 			sendLog(pTid, format("status %s:", res));
 		}
+
+		send(pTid, res);
 	}
 
 	final private void showProgress(bool f)
@@ -392,6 +393,11 @@ class Project : BasicExtension!Project
 		return null;
 	}
 }
+
+//class DubProjectHierarchy : BasicWidget
+//{
+//
+//}
 
 class DubQuickOpenCommand : BasicCommand
 {

@@ -12,7 +12,7 @@ import std.path;
 import std.variant;
 
 /** Persisting of objects
-	
+
 	Different fields needs to be persisted in different situations.
 	A class implementing the IPersister interface is used to persist
 	in one of these situations. A class or struct implementing the persist()
@@ -57,7 +57,7 @@ persister.get("bar", barGet);
 assert(bar.persistMe ==  barGet.persistMe);
 ---
 */
-//interface IPersister 
+//interface IPersister
 //{
 //    void set(T)(string name, T value);
 //    void get(T)(string name, T value);
@@ -76,7 +76,7 @@ assert(bar.persistMe ==  barGet.persistMe);
 //    {
 //        data[name] = v;
 //    }
-//    
+//
 //    void get(T)(string name, T value)
 //    {
 //    }
@@ -98,14 +98,14 @@ class GenericResource : Resource!GenericResource
 	}
 
 	static class Helper(T) : IHelper
-	{		
+	{
 		static this()
 		{
 			string name = T.classinfo.name;
 			ClassInfo ci = (Helper!T).classinfo;
 			typeNameToHelperMap[name] = ci;
 		}
-		
+
 		T data;
 
 		this ()
@@ -126,12 +126,12 @@ class GenericResource : Resource!GenericResource
 		{
 			return data.classinfo.name;
 		}
-		
+
 		void serialize(Appender!string output)
 		{
 			output ~= jsonEncode(data);
 		}
-		
+
 		void deserialize(string str)
 		{
 			data = jsonDecode!T(str);
@@ -152,7 +152,7 @@ class GenericResource : Resource!GenericResource
 		auto idx = key in index;
 		if (idx is null)
 			return null;
-		
+
 		return get!T(*idx);
 	}
 
@@ -203,7 +203,7 @@ class GenericResource : Resource!GenericResource
 	{
 		import std.conv;
 		import std.string;
-		
+
 		output ~= "Deadcode 1\n";
 		output ~= "json 1\n";
 
@@ -230,7 +230,7 @@ class GenericResource : Resource!GenericResource
 					dataOutput ~= "\n";
 
 				helper.serialize(dataOutput);
-				
+
 				headerOutput ~= ",";
 				headerOutput ~= text(dataOutput.data().length - offset);
 				headerOutput ~= "\n";
@@ -244,28 +244,28 @@ class GenericResource : Resource!GenericResource
 		}
 		else
 		{
-			assert(0); // not supported right now
-			foreach (helper; helpers)
-			{
-				helper.serialize(output);
-				output ~= "\n";
-			}
+			throw new Exception("Not supported yet");
+            //foreach (helper; helpers)
+            //{
+            //    helper.serialize(output);
+            //    output ~= "\n";
+            //}
 		}
 	}
 
 	void deserialize(string str)
 	{
-		
+
 		if (includeHeader)
 		{
 			// First read headers to get a map of the file.
-			
+
 		}
-		
+
 		// First line describes the type to deserialize
 		// This can be used to lookup type deserializer helper
 		import std.algorithm;
-		
+
 		auto result = str.splitter("\r\n");
 		if (result.empty)
 		{
@@ -288,8 +288,8 @@ class GenericResource : Resource!GenericResource
 		import std.format;
 		int objectCount;
 		int indexCount;
-	
-		string data = result.front; 
+
+		string data = result.front;
 		if (std.format.formattedRead(data, "%s,%s", &objectCount, &indexCount) != 2)
 			throw new Exception("Cannot read index entry " ~ data);
 		result.popFront();
@@ -320,11 +320,19 @@ class GenericResource : Resource!GenericResource
 			typeNames ~= typeName;
 		}
 
+        // TODO: Fix or change
+        //int j = 0;
+        //while (objectCount--)
+        //{
+        //    readObject(typeNames[j++], result.front);
+        //    result.popFront();
+        //}
 		int j = 0;
 		while (objectCount--)
 		{
-			readObject(typeNames[j++], result.front);
-			result.popFront();
+            import std.array;
+			readObject(typeNames[j++], join(result));
+            break;
 		}
 	}
 
@@ -361,19 +369,30 @@ class GenericResourceManager : ResourceManager!GenericResource
 		return fm;
 	}
 
-	GenericResource create(T)(string name) 
+	GenericResource create(T)(string name)
 	{
 		auto f = declare(name);
 		return f;
 	}
-	
-	GenericResource create(T)(string name, T value) 
+
+	GenericResource create(T)(string name, T value)
 	{
-		import jsonx;
+		import util.jsonx;
 		auto f = declare(name);
 		f.data = value;
 		return f;
 	}
+
+    override bool unload(Handle h)
+    {
+        ResourceState* rs = h in _resourcesByHandle;
+        if (rs !is null)
+        {
+            rs.resource.helpers = null;
+            rs.resource.index = null;
+        }
+        return super.unload(h);
+    }
 }
 
 class GenericResourceJsonSerializer : ResourceSerializer!GenericResource

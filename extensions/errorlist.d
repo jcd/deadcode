@@ -1,9 +1,10 @@
 module extensions.errorlist;
 
-import extension;
+import extensions;
 mixin registerCommands;
 
 import controls.button;
+import core.buffer : InvalidIndex;
 import gui.event;
 import gui.layout.constraintlayout;
 import gui.layout.gridlayout;

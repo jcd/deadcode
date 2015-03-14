@@ -1,6 +1,6 @@
 module extensions.language.d.commands;
 
-import extension;
+import extensions;
 import extensions.language.d;
 mixin registerCommands;
 

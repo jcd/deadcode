@@ -1,16 +1,16 @@
 module extensions.file;
 
-import extension;
+import extensions;
 
 mixin registerCommands;
 
 import std.algorithm;
 
- auto filesystemCompletions(string path) 
-{	
+ auto filesystemCompletions(string path)
+{
 	import std.array;
 	import std.file;
-	import std.path; 
+	import std.path;
 	import std.string;
 
 	string relDirPath = path;
@@ -29,17 +29,17 @@ import std.algorithm;
 	}
 
 	//auto dirPath = dirName(absolutePath(path));
-	//	auto filenamePrefix = baseName(path);	
+	//	auto filenamePrefix = baseName(path);
 
 	debug std.stdio.writeln(path, " ", relDirPath, " : ", filenamePrefix, " ", dirEntries(relDirPath, SpanMode.shallow));
 
 	auto paths = dirEntries(relDirPath, SpanMode.shallow)
 		.filter!(a => a.name.baseName.startsWith(filenamePrefix))
 		.map!(a => a.isDir ? tr(a.name, r"\", "/") ~ '/' : tr(a.name, r"\", "/"));
-	
+
 	return paths.map!(a => CompletionEntry(a,a)).array;
 
-	
+
 	//.filter!(a => a.name.baseName.startsWith(filenamePrefix))
 	//.map!(a => a.isDir ? buildNormalizedPath(relDirPath, a.name.baseName, "") : a.name);
 }
@@ -52,7 +52,7 @@ void fileSave(BufferView buf, GUIApplication app)
 	import std.file;
 	import std.path;
 	if (buf.isPersistant)
-	{	
+	{
 		fileSaveAs(buf, app, buf.name);
 	}
 	else
@@ -68,7 +68,7 @@ void fileSave(BufferView buf, GUIApplication app)
 		}
 		else if (auto h = buf.codeModel) // probably a d file so lets guess on that
 		{
-			import core.language; 
+			import core.language;
 			h.updateAST();
 			auto spath = h.getSuggestedPath();
 			if (spath.length)
@@ -82,7 +82,7 @@ void fileSave(BufferView buf, GUIApplication app)
 
 
 		auto p = app.yieldPrompt("Save as", defaultPath,
-								 (string prefix) { 
+								 (string prefix) {
 									 return filesystemCompletions(prefix);
 									//CompletionEntry[] result;
 									// result ~= CompletionEntry("foo1", "bar1");
@@ -111,7 +111,7 @@ void fileSaveAs(BufferView buf, GUIApplication app, string filename)
 void fileOpen(GUIApplication app)
 {
 	auto p = app.yieldPrompt("Open", app.resourceURI("./", ResourceBaseLocation.currentDir).uriString,
-							 (string prefix) { 
+							 (string prefix) {
 								 return filesystemCompletions(prefix);
 								 //CompletionEntry[] result;
 								 // result ~= CompletionEntry("foo1", "bar1");

@@ -1,6 +1,6 @@
 module extensions.language.d;
 
-import extension;
+import extensions;
 
 import core.language;
 

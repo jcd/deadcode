@@ -1,6 +1,6 @@
 module extensions.find;
 
-import extension;
+import extensions;
 mixin registerCommands;
 
 @Shortcut("<ctrl> + <shift> + f")
@@ -27,7 +27,7 @@ void findInFiles(string needle)
 		try
 		{
 			haystack = readText(d.name);
-		} 
+		}
 		catch (UTFException)
 		{
 			// TODO: Remember these files and skip on next find
@@ -35,7 +35,7 @@ void findInFiles(string needle)
 			continue;
 		}
 		ptrdiff_t idx = haystack.indexOf(needle);
-		
+
 		while (idx >= 0)
 		{
 			foundItems ~= FoundItem(d.name, idx);

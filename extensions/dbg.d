@@ -1,6 +1,6 @@
 module extensions.dbg;
 
-import extension;
+import extensions;
 mixin registerCommands;
 
 import controls.tree;

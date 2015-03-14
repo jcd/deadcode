@@ -1,6 +1,6 @@
 module extensions.gctracker;
 
-import extension;
+import extensions;
 
 static if (false && HasModule!"extensions.errorlist"):
 

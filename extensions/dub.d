@@ -2,7 +2,7 @@ module extensions.dub;
 
 import core.time;
 
-import extension;
+import extensions;
 import math;
 import gui.layout.constraintlayout;
 

@@ -1,6 +1,6 @@
 module extensions.show;
 
-import extension;
+import extensions;
 mixin registerCommands;
 
 private enum EOLType : ubyte

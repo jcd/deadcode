@@ -1,9 +1,9 @@
 module extensions.createfile;
 
-import extension;
+import extensions;
 mixin registerCommands;
 
-@MenuItem("New/Buffer") 
+@MenuItem("New/Buffer")
 @Shortcut("<ctrl> + n")
 void newBuffer(GUIApplication app)
 {
@@ -15,15 +15,15 @@ void newExtension(GUIApplication app)
 {
 	import core.language;
 	auto b = app.createBuffer();
-	
+
 	import std.path;
-	
+
 	//auto base = buildNormalizedPath(app.resourceURI("./", ResourceBaseLocation.currentDir).uriString, "extensions/myext.d");
 	//b.name = base;
 	// b.name = "New extension";
 	b.insert(q"{module extensions.myext;
 
-import extension;
+import extensions;
 mixin registerCommands;
 
 void myextHello(BufferView v)
@@ -31,7 +31,7 @@ void myextHello(BufferView v)
 	v.insert("Hello");
 }
 }");
-	
+
 	ICodeIntel i = manager().lookup("D");
 	ICodeModel m = i.createModel(b);
 	b.codeModel = m;
@@ -43,15 +43,15 @@ void newWidget(GUIApplication app)
 {
 	import core.language;
 	auto b = app.createBuffer();
-	
+
 	import std.path;
-	
+
 	//auto base = buildNormalizedPath(app.resourceURI("./", ResourceBaseLocation.currentDir).uriString, "extensions/myext.d");
 	//b.name = base;
 	// b.name = "New extension";
 	b.insert(q"{module extensions.mywidget;
 
-import extension;
+import extensions;
 mixin registerCommands;
 
 class MyWidget : BasicWidget
@@ -68,7 +68,7 @@ class MyWidget : BasicWidget
 }
 
 }");
-	
+
 	ICodeIntel i = manager().lookup("D");
 	ICodeModel m = i.createModel(b);
 	b.codeModel = m;

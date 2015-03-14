@@ -4,7 +4,7 @@ import animation.timeline;
 import animation.interpolate;
 
 import core.buffer;
-import extension;
+import extensions;
 import guiapplication;
 import controls.texteditor;
 import gui.event;

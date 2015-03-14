@@ -32,7 +32,7 @@ template isWritableProperty(C, Funcs...)
 	static if (Funcs.length == 0)
 		enum isWritableProperty = false;
 	else
-		enum isWritableProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && 
+		enum isWritableProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) &&
 		                           (ParameterIdentifierTuple!(Funcs[0]).length == 1) || (functionAttributes!(Funcs[0]) & FunctionAttribute.ref_))
 			|| isWritableProperty!(C, Funcs[1..$]);
 }
@@ -43,31 +43,31 @@ template isWritableProperty(C, Funcs...)
 	static if (Funcs.length == 0)
 		enum isWritableProperty = false;
 	else static if (Funcs.length == 1)
-		enum isWritableProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && 
+		enum isWritableProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) &&
 		                           (ParameterIdentifierTuple!(Funcs[0]).length == 1) || (functionAttributes!(Funcs[0]) & FunctionAttribute.ref_));
 	else static if (Funcs.length == 2)
-		enum isWritableProperty = 
-			(isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && 
+		enum isWritableProperty =
+			(isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) &&
 				(ParameterIdentifierTuple!(Funcs[0]).length == 1) || (functionAttributes!(Funcs[0]) & FunctionAttribute.ref_)) ||
-			(isCallable!(Funcs[1]) && (functionAttributes!(Funcs[1]) & FunctionAttribute.property) && 
+			(isCallable!(Funcs[1]) && (functionAttributes!(Funcs[1]) & FunctionAttribute.property) &&
 				(ParameterIdentifierTuple!(Funcs[1]).length == 1) || (functionAttributes!(Funcs[1]) & FunctionAttribute.ref_));
 	else static if (Funcs.length == 3)
-		enum isWritableProperty = 
-			(isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && 
+		enum isWritableProperty =
+			(isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) &&
 			 (ParameterIdentifierTuple!(Funcs[0]).length == 1) || (functionAttributes!(Funcs[0]) & FunctionAttribute.ref_)) ||
-			(isCallable!(Funcs[1]) && (functionAttributes!(Funcs[1]) & FunctionAttribute.property) && 
+			(isCallable!(Funcs[1]) && (functionAttributes!(Funcs[1]) & FunctionAttribute.property) &&
 			 (ParameterIdentifierTuple!(Funcs[1]).length == 1) || (functionAttributes!(Funcs[1]) & FunctionAttribute.ref_)) ||
-			(isCallable!(Funcs[2]) && (functionAttributes!(Funcs[2]) & FunctionAttribute.property) && 
+			(isCallable!(Funcs[2]) && (functionAttributes!(Funcs[2]) & FunctionAttribute.property) &&
 			 (ParameterIdentifierTuple!(Funcs[2]).length == 1) || (functionAttributes!(Funcs[2]) & FunctionAttribute.ref_));
 	else static if (Funcs.length == 4)
-		enum isWritableProperty = 
-			(isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && 
+		enum isWritableProperty =
+			(isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) &&
 			 (ParameterIdentifierTuple!(Funcs[0]).length == 1) || (functionAttributes!(Funcs[0]) & FunctionAttribute.ref_)) ||
-			(isCallable!(Funcs[1]) && (functionAttributes!(Funcs[1]) & FunctionAttribute.property) && 
+			(isCallable!(Funcs[1]) && (functionAttributes!(Funcs[1]) & FunctionAttribute.property) &&
 			 (ParameterIdentifierTuple!(Funcs[1]).length == 1) || (functionAttributes!(Funcs[1]) & FunctionAttribute.ref_)) ||
-			(isCallable!(Funcs[2]) && (functionAttributes!(Funcs[2]) & FunctionAttribute.property) && 
+			(isCallable!(Funcs[2]) && (functionAttributes!(Funcs[2]) & FunctionAttribute.property) &&
 			 (ParameterIdentifierTuple!(Funcs[2]).length == 1) || (functionAttributes!(Funcs[2]) & FunctionAttribute.ref_)) ||
-			(isCallable!(Funcs[3]) && (functionAttributes!(Funcs[3]) & FunctionAttribute.property) && 
+			(isCallable!(Funcs[3]) && (functionAttributes!(Funcs[3]) & FunctionAttribute.property) &&
 			 (ParameterIdentifierTuple!(Funcs[3]).length == 1) || (functionAttributes!(Funcs[3]) & FunctionAttribute.ref_));
 }
 
@@ -81,7 +81,7 @@ template isLValueProperty(C, Funcs...)
 	static if (Funcs.length == 0)
 		enum isLValueProperty = false;
 	else
-		enum isLValueProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && 
+		enum isLValueProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) &&
 		                           ParameterIdentifierTuple!(Funcs[0]).length == 0 && functionAttributes!(Funcs[0]) & FunctionAttribute.ref_)
 			|| isLValueProperty!(C, Funcs[1..$]);
 }
@@ -99,9 +99,9 @@ template isWritableNonProperty(C, string name)
 		enum isWritableNonProperty = false;
 }
 /*
-template isReadableProperty(C, Funcs...) 
+template isReadableProperty(C, Funcs...)
 {
-	// TODO: fix when type tuple slicing works again in dmd	
+	// TODO: fix when type tuple slicing works again in dmd
 	static if (Funcs.length == 0)
 		enum isReadableProperty = false;
 	else
@@ -109,30 +109,30 @@ template isReadableProperty(C, Funcs...)
 }
 */
 
-// TODO: fix when type tuple slicing works again in dmd	
+// TODO: fix when type tuple slicing works again in dmd
 /*
-enum isReadableProperty(C, Funcs...) = 
-	(isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[0]).length == 0) || 
+enum isReadableProperty(C, Funcs...) =
+	(isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[0]).length == 0) ||
 	(Funcs.length >= 2 ? (isCallable!(Funcs[1]) && (functionAttributes!(Funcs[1]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[1]).length == 0) : false) ||
 	(Funcs.length >= 3 ? (isCallable!(Funcs[2]) && (functionAttributes!(Funcs[2]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[2]).length == 0) : false) ||
 	(Funcs.length >= 4 ? (isCallable!(Funcs[3]) && (functionAttributes!(Funcs[3]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[3]).length == 0) : false);
 */
 
-template isReadableProperty(C, Funcs...) 
+template isReadableProperty(C, Funcs...)
 {
 	static if (Funcs.length == 0)
 		enum isReadableProperty = false;
 	else static if (Funcs.length == 1)
 		enum isReadableProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[0]).length == 0);
 	else static if (Funcs.length == 2)
-		enum isReadableProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[0]).length == 0) || 
+		enum isReadableProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[0]).length == 0) ||
 			(isCallable!(Funcs[1]) && (functionAttributes!(Funcs[1]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[1]).length == 0);
 	else static if (Funcs.length == 3)
-		enum isReadableProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[0]).length == 0) || 
+		enum isReadableProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[0]).length == 0) ||
 			(isCallable!(Funcs[1]) && (functionAttributes!(Funcs[1]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[1]).length == 0) ||
 			(isCallable!(Funcs[2]) && (functionAttributes!(Funcs[2]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[2]).length == 0);
 	else static if (Funcs.length == 3)
-		enum isReadableProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[0]).length == 0) || 
+		enum isReadableProperty = (isCallable!(Funcs[0]) && (functionAttributes!(Funcs[0]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[0]).length == 0) ||
 			(isCallable!(Funcs[1]) && (functionAttributes!(Funcs[1]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[1]).length == 0) ||
 			(isCallable!(Funcs[2]) && (functionAttributes!(Funcs[2]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[2]).length == 0) ||
 			(isCallable!(Funcs[3]) && (functionAttributes!(Funcs[3]) & FunctionAttribute.property) && ParameterIdentifierTuple!(Funcs[3]).length == 0);
@@ -142,7 +142,7 @@ template isReadableProperty(C, string name)
 {
 	static if (hasMember!(C, name))
 		enum isReadableProperty = isReadableProperty!(C, __traits(getOverloads, C, name));
-	else	
+	else
 		enum isReadableProperty = false;
 }
 
@@ -188,7 +188,7 @@ template isMemberWritable(C, string path)
 		enum isMemberWritable = isMemberLValueHelper!(C, fields[0]) && isMemberWritable!(typeof(mixin("C."~fields[0])), std.array.join(fields[1..$], "."));
 }
 /*
-unittest 
+unittest
 {
 	return;
 	class A {
@@ -199,14 +199,14 @@ unittest
 	class D {
 		A food;
 		void foo(float) {}
-		@property void foo(int) {} 
+		@property void foo(int) {}
 		@property void foo() {}
 		@property A foo1() { return food;}
 		@property void foo1(A a) { }
 	}
 
-	enum doHaveOne1 = isWritableProperty!(D, "foo");	
-	enum doHaveOne2 = isReadableProperty!(D, "foo");	
+	enum doHaveOne1 = isWritableProperty!(D, "foo");
+	enum doHaveOne2 = isReadableProperty!(D, "foo");
 	std.stdio.writeln(isMemberReadable!(D, "foo1.bar"), " ", isMemberWritable!(D, "foo1.bar"));
 }
 */
@@ -307,7 +307,7 @@ bool hasUDA(UDA, T, string _field)()
 		{
 			return true;
 		}
-	}	
+	}
 	return false;
 }
 
@@ -321,7 +321,7 @@ bool hasFuncAttrib(string hasAtt, T, string _field)()
 			{
 				return true;
 			}
-		}	
+		}
 	}
 	return false;
 }
@@ -349,7 +349,7 @@ private string getProxyFields(T, alias prefix = "")()
 		}
 		else static if ( (__traits(compiles, isTypeTuple!(mixin("T." ~ _field) )) && isTypeTuple!(mixin("T." ~ _field) )) ||
 						!__traits(compiles, __traits(parent, mixin("T." ~ _field))) ||
-						 __traits(getProtection, mixin("T." ~ _field)) == "private" || 
+						 __traits(getProtection, mixin("T." ~ _field)) == "private" ||
 						__traits(getProtection, mixin("T." ~ _field)) == "protected" ||
 						// __traits(isVirtualMethod, mixin("T." ~ _field)) ||
 							//canFind([__traits(getFunctionAttributes, mixin("T." ~ _field))], "@property") ||
@@ -364,17 +364,17 @@ private string getProxyFields(T, alias prefix = "")()
 		}
 		else static if ( isAggregateType!( typeof(mixin("T." ~ _field))) && !__traits(isVirtualMethod, mixin("T." ~ _field)) && !hasFuncAttrib!("@property", T, _field))
 		{
-			
+
 			static if (!hasUDA!(NonBindable, T, _field)() )
 			{
-				
+
 				static if (hasUDA!(Bindable, T, _field)() )
 				{
 					if (result.length)
 						result ~= ",";
 					enum fp = "FieldProxy!(\"" ~ field ~ "\", T)";
 
-					pragma(msg, "Binding Aggregate " ~ fp);
+					// pragma(msg, "Binding Aggregate " ~ fp);
 
 					result ~= fp;
 				}
@@ -399,7 +399,7 @@ private string getProxyFields(T, alias prefix = "")()
 				enum fp = "FieldProxy!(\"" ~ field ~ "\", T)";
 
 				// pragma(msg, fp);
-				pragma(msg, "Binding " ~ fp);
+				// pragma(msg, "Binding " ~ fp);
 				result ~= fp;
 			}
 			//foreach (attr;  __traits(getAttributes, mixin("T." ~ _field)))
@@ -410,7 +410,7 @@ private string getProxyFields(T, alias prefix = "")()
 			//        if (result.length)
 			//            result ~= ",";
 			//        enum fp = "FieldProxy!(\"" ~ field ~ "\", T)";
-			//        
+			//
 			//        // pragma(msg, fp);
 			//
 			//        result ~= fp;
@@ -506,13 +506,13 @@ void setField(T, R)(T obj, int idx, R value)
 version (foo) static this()
 {
 
-	class Bar 
+	class Bar
 	{
 		@Bindable()
 		int field1;
 	}
 
-	class Foo 
+	class Foo
 	{
 		@Bindable()
 		float field1;
@@ -623,9 +623,9 @@ unittest
 		writeln(leftJustify(desc, 25), ": ", result, " == ", expected, " ", result == expected ? "OK" : "FAILED");
 	}
 
-	struct MyStruct 
-	{ 
-		int field1; 
+	struct MyStruct
+	{
+		int field1;
 
 		@property int theField1()
 		{
@@ -720,9 +720,9 @@ class DirectObjectMutator(ObjType ) : Mutator
 	{
 		// Since the type "Type" is mutated and possibly at runtime we
 		// need to record reflection info for it here.
-		
+
 	}
-	
+
 	this(ref Type object)
 	{
 		this.object = object;

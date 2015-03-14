@@ -10,6 +10,11 @@ import std.typecons;
 
 version(unittest) import test;
 
+template Iota(size_t i, size_t n)
+{
+	static if (n == 0) { alias TypeTuple!() Iota; }
+	else { alias TypeTuple!(i, Iota!(i + 1, n - 1)) Iota; }
+}
 
 /** A range of sequential characters in a text
  */
@@ -19,15 +24,31 @@ struct Region
 	int a; /// first end of region. A is included.
 	int b; /// last end of region. B is not included.
 	int id; // ID that can be used by the user to associate this region with something
-	
+
 	static immutable Region zero = Region(0,0);
-		
+    static immutable Region invalid = Region(int.min, int.min);
+
+    @property int begin() const pure nothrow @safe
+    {
+        return a < b ? a : b;
+    }
+
+    @property int end() const pure nothrow @safe
+    {
+        return a < b ? b : a;
+    }
+
 	@property bool empty() const pure nothrow @safe
-	{ 
-		return a == b; 
+	{
+		return a == b;
 	}
 
-	unittest 
+    @property bool valid() const pure nothrow @safe
+    {
+        return this != invalid;
+    }
+
+	unittest
 	{
 		Assert(Region.zero.empty);
 		Assert(Region(5,5).empty);
@@ -72,8 +93,8 @@ struct Region
 		a = b;
 	}
 
-	/** Return a region that contains this region and the given region. 
-	 * 
+	/** Return a region that contains this region and the given region.
+	 *
 	 * Note that this is not a union of the regions because there may be
 	 * space between the two regions and that space will be included by this
 	 * cover method but not by a normal union. The .id of the result is that of this region.
@@ -81,7 +102,7 @@ struct Region
 	Region cover(Region r) const
 	{
 		if (r.empty) return cast(Region)this; // Bug: need to cast since it tries to return this which is const! even though it is a value type.
-		if (empty) 
+		if (empty)
 		{
 			Region res = r;
 			res.id = id;
@@ -89,7 +110,7 @@ struct Region
 		}
 		return Region(alg.min(a,r.a), alg.max(b,r.b), id);
 	}
-	
+
 	unittest {
 		// Test touching regions
 		Assert(Region(0,10).cover(Region(10,20)), Region(0,20));
@@ -99,7 +120,7 @@ struct Region
 		// Test regions with space between
 		Assert(Region(0,10).cover(Region(15,100)), Region(0,100));
 	}
-	
+
 	/** Return return this region offset
 	*/
 	Region offset(int o)
@@ -109,9 +130,9 @@ struct Region
 
 	/** Return the intersection of the two regions
 	 */
-	Region intersect(Region r) const
-	{ 
-		if (r.b <= a || r.a >= b || r.empty || empty) 
+	Region intersect(Region r) const pure nothrow @safe
+	{
+		if (r.b <= a || r.a >= b || r.empty || empty)
 			return Region(a, a, id); // an empty region with start at this.a
 		return Region(r.a > a ? r.a : a, r.b < b ? r.b : b, r.id);
 	}
@@ -121,7 +142,7 @@ struct Region
 		The before and after part can only be part of this region and not r ie. the sum of before,at,after will
 		always be the same as this.
 	*/
-	auto intersect3(Region r) const
+	auto intersect3(Region r) const pure nothrow @safe
 	{
 		struct IntersectResult
 		{
@@ -136,14 +157,14 @@ struct Region
 
 			@property size_t length() const pure nothrow
 			{
-				return (before.empty ? 0 : 1) + (at.empty ? 0 : 1) + (after.empty ? 0 : 1); 
+				return (before.empty ? 0 : 1) + (at.empty ? 0 : 1) + (after.empty ? 0 : 1);
 			}
-			
+
 			@property bool empty() const pure nothrow
 			{
 				return before.empty && at.empty && after.empty;
 			}
-			
+
 			@property Region front() const
 			{
 				return before.empty ? (at.empty ? after : at) : before;
@@ -167,8 +188,9 @@ struct Region
 		Region r2 = Region(r1.b, b, id);
 		return IntersectResult(r0, r1, r2);
 	}
-	
-	unittest {
+
+	unittest
+    {
 		// Test touching regions
 		Assert(Region(0,10).intersect(Region(10,20)).empty);
 		Assert(Region(10,20).intersect(Region(0,10)).empty);
@@ -177,21 +199,21 @@ struct Region
 		// Test regions with space between
 		Assert(Region(0,10).intersect(Region(15,100)).empty);
 	}
-		
+
 	/** Returns true if the given region intersects with this region
 	 */
 	bool intersects(Region r) const
-	{ 
+	{
 		return !intersect(r).empty;
 	}
-	
+
 	/** Returns true if the given region is contained within this region
 	 */
 	bool contains(Region r) const
-	{ 
+	{
 		return r.a >= a && r.b <= b && !r.empty && !empty;
 	}
-	
+
 	unittest {
 		// Test touching regions
 		Assert(!Region(0,10).contains(Region(10,20)));
@@ -202,14 +224,14 @@ struct Region
 		// Test regions with space between
 		Assert(!Region(0,10).contains(Region(15,100)));
 	}
-	
+
 	/** Returns true if the given index is contained within this region
 	 */
 	bool contains(int p) const
-	{ 
+	{
 		return p >= a && p < b && !empty;
 	}
-	
+
 	unittest
 	{
 		Assert(!Region.zero.contains(0));
@@ -218,7 +240,7 @@ struct Region
 		Assert(!Region(0,1).contains(2));
 	}
 
-	/** Update all affected regions by shifting their endpoints or expanding because of new 
+	/** Update all affected regions by shifting their endpoints or expanding because of new
 	    entries are inserted on what the regions describe
 
 		Params:
@@ -231,7 +253,7 @@ struct Region
 	{
 		// To simplify logic we swap a and b if a > b
 		bool swapIt = a > b;
-		
+
 		bool modified = false;
 		if (a >= pos)
 		{
@@ -246,7 +268,7 @@ struct Region
 			a += len;
 			b += len;
 			modified = true;
-		} 
+		}
 		else if (b >= pos)
 		{
 			// Text is inserted in the middle of this region
@@ -259,31 +281,31 @@ struct Region
 			b += len;
 			modified = true;
 		}
-		
+
 		if (modified && swapIt)
 		{
 			auto tmp = a;
 			a = b;
 			b = tmp;
 		}
-		
+
 		return modified;
 	}
-	
-	/** Update all affected regions by shifting their endpoints or expanding because of  
+
+	/** Update all affected regions by shifting their endpoints or expanding because of
 	    entries are removed on what the regions describe
 
 		Params:
 			pos = position to remove from
 			len = number of entries to remove forward from pos
-	
+
 		Returns: True if this regions was modified
 	*/
 	bool entriesRemoved(int pos, int len)
 	{
 		// To simplify logic we swap a and b if a > b
 		bool swapIt = a > b;
-		
+
 		bool modified = false;
 		if (a >= (pos+len))
 		{
@@ -298,7 +320,7 @@ struct Region
 			a -= len;
 			b -= len;
 			modified = true;
-		} 
+		}
 		else if (b >= (pos+len))
 		{
 			// Text is deleted in the middle of this region with b outside
@@ -337,16 +359,16 @@ struct Region
 	string toString() const pure nothrow
 	{
 		import std.conv;
-		try 
+		try
 			return text("Region(", a, ",", b, ",", id, ")");
 		catch (Exception e)
 			return "Region(invalid)";
 	}
-	
-	
+
+
 	/** Returns two regions in a struct called before, after where zero, one or both may be empty.
 	    returns this - r;
-		If regions are not overlapping 
+		If regions are not overlapping
 	*/
 	auto subtract(Region r)
 	{
@@ -356,10 +378,10 @@ struct Region
 		// + overlap of this and r regions
 
 
-		// case 1: -----||||| or |||||-----
-		if (this.b <= r.a || this.a >= r.b)
+		// case 1: -----||||| or |||||----- or r.empty
+		if (this.b <= r.a || this.a >= r.b || r.empty)
 			return tuple(this, Region(0,0)); // not overlapping
-		
+
 		if (this.b <= r.b)
 		{
 			if (this.a <= r.a)
@@ -369,7 +391,7 @@ struct Region
 			}
 			else
 			{
-				// case 3: ||||+++++|||||	
+				// case 3: ||||+++++|||||
 				return tuple(Region(this.a, this.a), Region(0,0));
 			}
 		}
@@ -448,7 +470,7 @@ struct Region
 			if (i.after.empty)
 				result.before = Region(0,0); // All intersects
 			else
-				result.after = i.after; 
+				result.after = i.after;
 		}
 
 		if (i.empty)
@@ -488,7 +510,7 @@ struct Region
 			}
 			else
 			{
-				
+
 			}
 		}
 	}
@@ -496,38 +518,78 @@ struct Region
 }
 
 /** A set of regions
- * 
+ *
  * The regions are not overlapping and adding a region that
  * overlaps existing regions in the set will merge them into one.
- * 
+ *
  * TODO: Make merge an optional feature
  * TODO: Make operations lazy by returning a Range instead of a new RegionSet
  */
 class RegionSet
-{	
+{
 	alias Array!Region Container;
 	alias Container.Range Range;
 	Container regions;
-	alias regions this;
+	// alias regions this;
 
 	bool _mergeIntersectingRegions = true;
 
-	@property 
+	@property
 	{
-		int a() 
+		int a()
 		{
 			if (regions.empty)
 				return 0;
 			return regions.front.a;
 		}
 
-		int b() 
+		int b()
 		{
 			if (regions.empty)
 				return 0;
 			return regions.back.b;
 		}
+
+        bool empty() const pure nothrow @safe
+        {
+            return regions.empty;
+        }
+
+        size_t length() const pure nothrow @safe
+        {
+            return regions.length;
+        }
+
+        int lastIndex()
+        {
+            return b;
+        }
+
+        ref Region front() pure @safe
+        {
+            return regions.front;
+        }
 	}
+
+    void opOpAssign(string op = "~")(Region r)
+    {
+        regions ~= r;
+    }
+
+    void clear()
+    {
+        regions.clear();
+    }
+
+    ref Region opIndex(size_t n) pure @safe
+    {
+        return regions.opIndex(n);
+    }
+
+    size_t insertBack(Region r)
+    {
+        return regions.insertBack(r);
+    }
 
 	this(bool mergeIntersectingRegions = true)
 	{
@@ -536,15 +598,18 @@ class RegionSet
 	}
 
 	// this(Args...)(Args args) if (is(args[0] : int) && (args.length % 2 == 0) )
-	this(Args...)(Args args) if ( (args.length % 2 == 0) )
+    import std.traits;
+
+    this(Args...)(Args args) if (args.length != 0 && isImplicitlyConvertible!(typeof(args[0]), int) && (args.length % 2 == 0) )
 	{
-		auto rs = new RegionSet();
-		auto len = args.length;
-		for (size_t i = 0; i < len; i += 2)
-			rs.set(args[0], args[1]);
+		enum len = args.length;
+        foreach (i; Iota!(0, len/2))
+        {
+            set(Region(args[i*2], args[i*2+1]));
+        }
 	}
 
-	// Update all affected regions by shifting their endpoints or expanding because of new 
+	// Update all affected regions by shifting their endpoints or expanding because of new
 	// entries are inserted on what the regions describe
 	void entriesInserted(int pos, int len)
 	{
@@ -561,7 +626,7 @@ class RegionSet
 				cur.a += len;
 				cur.b += len;
 				regions[i] = cur;
-			} 
+			}
 			else if (cur.b >= pos)
 			{
 				// Text is inserted in the middle of this region
@@ -572,7 +637,7 @@ class RegionSet
 		}
 	}
 
-	// Update all affected regions by shifting their endpoints or contracting because of  
+	// Update all affected regions by shifting their endpoints or contracting because of
 	// entries are removed on what the regions describe
 	void entriesRemoved(int pos, int len)
 	{
@@ -585,7 +650,7 @@ class RegionSet
 	}
 
 	/*
-	// Update all affected regions by shifting their endpoints or contracting because of  
+	// Update all affected regions by shifting their endpoints or contracting because of
 	// entries are removed on what the regions describe
 	void entriesRemoved(int pos, int len)
 	{
@@ -599,7 +664,7 @@ class RegionSet
 				cur.a -= len;
 				cur.b -= len;
 				regions[i] = cur;
-			} 
+			}
 			else if (cur.b >= pos)
 			{
 				// Text is inserted in the middle of this region
@@ -607,7 +672,7 @@ class RegionSet
 				cur.b -= posToEndDif < len ? posToEndDiff : len;
 				regions[i] = cur;
 			}
-		}		
+		}
 	}
 */
 	void merge(int a, int b, int id = 0)
@@ -634,7 +699,7 @@ class RegionSet
 		}
 		regions.insertBack(r); // no elements already or incoming region is to be the last element
 	}
-	
+
 	void set(int a, int b, int id = 0)
 	{
 		set(Region(a, b, id));
@@ -660,25 +725,25 @@ class RegionSet
 					regions.insertBefore(regions[i..i+1], r);
 				return; // done
 			}
-			
+
 			// Maybe part of r is not intersecting and before the cur region
 			if (r.a < cur.a)
 			{
 				regions.insertBefore(regions[i..i+1], Region(r.a, cur.a, r.id));
 				++i;
 			}
-				
+
 			auto isect = cur.intersect3(r);
 			if (isect.at.empty)
 			{
 				++i;
 				continue;
 			}
-			
+
 
 			size_t incr = isect.length;
 
-			// TODO: shouldn't need to call foreach since replace accepts a range but 
+			// TODO: shouldn't need to call foreach since replace accepts a range but
 			//       must have bug since it does not compile
 			regions.replace(regions[i..i+1], isect);
 
@@ -706,11 +771,11 @@ class RegionSet
 	}
 
 	void merge(Region r, bool adjecentIdMismatchIsSeparate = true)
-	{ 
+	{
 		if (r.empty) return;
-		
+
 		int mergeStartIdx = -1;
-		
+
 		// Unify this region with all the regions that it
 		// intersects
 		foreach (i; 0..regions.length)
@@ -721,7 +786,7 @@ class RegionSet
 			bool doMerge = intersects || ( (!adjecentIdMismatchIsSeparate || cur.id == r.id) && (cur.a == r.b || cur.b == r.a) );
 
 			if (doMerge)
-			{									
+			{
 				// Merge current region and r
 				r = cur.cover(r); // ok to use covert because regions intersects or are touching
 				if (mergeStartIdx == -1)
@@ -736,23 +801,23 @@ class RegionSet
 				regions.replace(regions[mergeStartIdx..i], r);
 				return;
 			}
-			else if (r.b < cur.a) 
+			else if (r.b < cur.a)
 			{
 				// No intersection and nothing merged so far but the current region is after
 				// r ie. we need to insert r before current region.
 				regions.insertBefore(regions[i..regions.length], r);
 				return;
-			} 
+			}
 			// keep looking for a spot to insert r.
-					
+
 		}
-		
-		// We've reached the last element in region	
+
+		// We've reached the last element in region
 		if (mergeStartIdx == -1)
 		{
 			// Nothing merged so just push back
 			regions.insertBack(r);
-		}		
+		}
 		else
 		{
 			// Something to merge until the very end
@@ -815,8 +880,8 @@ class RegionSet
 			auto intersection = cur.intersect(r);
 
 			if (!intersection.empty)
-			{									
-				// 
+			{
+				//
 				r = cur.cover(r);
 				if (mergeStartIdx == -1)
 					mergeStartIdx = i; // remember the first merged index into regions
@@ -831,37 +896,37 @@ class RegionSet
 				regions.replace(regions[mergeStartIdx..i], r);
 				return;
 			}
-			else if (r.b < cur.a) 
+			else if (r.b < cur.a)
 			{
 				// No intersection and nothing merged so far but the current region is after
 				// r ie. we need to insert r before current region.
 				regions.insertBefore(regions[i..regions.length], r);
 				return;
-			} 
+			}
 			// keep looking for a spot to insert r.
 
 		}
 
-		// We've reached the last element in region	
+		// We've reached the last element in region
 		if (mergeStartIdx == -1)
 		{
 			// Nothing merged so just push back
 			regions.insertBack(r);
-		}		
+		}
 		else
 		{
 			// Something to merge until the very end
 			regions.replace(regions[mergeStartIdx..regions.length], r); // replace merged
-		}	
+		}
 	}
 */
 	void addx(Region r)
-	{ 
+	{
 		int mergeStartIdx = -1;
-		
+
 		// TODO: Make this into a alias pred as template param
 		bool mergeAllowCmp(Region ra, Region rb) { return true; }
-		
+
 		// Unify this region with all the regions that it
 		// intersects
 		foreach (i; 0..regions.length)
@@ -874,7 +939,7 @@ class RegionSet
 			if (mergeCandidate)
 			{
 				enforceEx!Exception(mergeAllowed, "Cannot add overlapping and unmergable regions");
-									
+
 				// Merge current region and r
 				r = r.cover(regions[i]);
 				if (mergeStartIdx == -1)
@@ -905,7 +970,7 @@ class RegionSet
 			if (mergeStartIdx == -1)
 			{
 				regions.insertBack(r);
-			}		
+			}
 			else
 			{
 				regions.replace(regions[mergeStartIdx..regions.length], r); // replace merged
@@ -916,10 +981,10 @@ class RegionSet
 			if (intersects)
 			{
 				enforceEx!Exception(mergeAllowCmp(cur, r), "Cannot add overlapping and unmergable regions");
-				
+
 				if (startIdx == -1)
 					startIdx = i;
-	
+
 				r = r.cover(regions[i]);
 			}
  			// Next to each other and merging possible
@@ -927,14 +992,14 @@ class RegionSet
 			{
 				if (startIdx == -1)
 					startIdx = i;
-				
+
 				r = r.cover(regions[i]);
-			}		
+			}
 			else if (startIdx != -1)
 			{
 				regions.replace(regions[startIdx..i], r);
 				return;
-			} 
+			}
 			else if (cur.b < r.a)
 			{
 				// TODO: regions.insertAfter is broken
@@ -949,31 +1014,31 @@ class RegionSet
 				}
 				else
 				{
-					// At this point the incoming region r is intersecting with the 
-					// next region. 					
+					// At this point the incoming region r is intersecting with the
+					// next region.
 				}
 				return;
-				continue;		
+				continue;
 			} else if (cur.a > r.b)
 			{
 				regions.insertBefore(regions[0..1], r);
 				return;
 			}
 		}
-		
+
 		enforceEx!Exception(startIdx == -1 && regions.empty, "Trying to add first element to a non empty region");
-		
-		regions.insertBack(r);	
-	
+
+		regions.insertBack(r);
+
 			 */
 	}
-	
-	void merge(RegionSet s) 
-	{ 
+
+	void merge(RegionSet s)
+	{
 		foreach (r; s)
 			merge(r);
 	}
-	
+
 	unittest
 	{
 		auto s1 = new RegionSet;
@@ -987,9 +1052,9 @@ class RegionSet
 		Assert(s2[1], Region(20,30));
 		Assert(s2[2], Region(40,50));
 	}
-	
-	void subtract(Region r) 
-	{ 
+
+	void subtract(Region r)
+	{
 		int startIdx = -1;
 		int endIdx = -1;
 		for (int i = 0; i < regions.length; ++i)
@@ -1000,7 +1065,7 @@ class RegionSet
 
 			if (cur.a >= r.b)
 				break; // done
-			
+
 			auto subr = cur.subtract(r);
 
 			if (subr[0].empty)
@@ -1024,7 +1089,7 @@ class RegionSet
 			regions.linearRemove(regions[startIdx..endIdx+1]);
 	}
 
-	void subtract(int ra, int rb) 
+	void subtract(int ra, int rb)
 	{
 		subtract(Region(ra, rb));
 	}
@@ -1069,21 +1134,29 @@ class RegionSet
 		Assert(rs, new RegionSet(5, 7, 20, 30, 40, 50), "Subtract: Last part of first region in set");
 
 		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
-		rs.subtract(25, 45);
+		rs.subtract(30, 45);
 		Assert(rs, new RegionSet(5, 10, 20, 30, 45, 50), "Subtract: First part of last region in set");
+
+		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(25, 45);
+		Assert(rs, new RegionSet(5, 10, 20, 25, 45, 50), "Subtract: First part of last region and last part of center region in set");
 
 		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
 		rs.subtract(45, 55);
 		Assert(rs, new RegionSet(5, 10, 20, 30, 40, 45), "Subtract: Last part of last region in set");
 
-		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs = new RegionSet(5, 10, 20, 30, 40, 50);
 		rs.subtract(22, 25);
-		Assert(rs, new RegionSet(5, 10, 20, 22, 25, 30, 40, 45), "Subtract: Center part of center region in set");
+		Assert(rs, new RegionSet(5, 10, 20, 22, 25, 30, 40, 50), "Subtract: Center part of center region in set");
 
 		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
 		rs.subtract(22, 22);
-		Assert(rs, new RegionSet(5, 10, 20, 30, 40, 45), "Subtract: Empty part of center region in set");
-	
+		Assert(rs, new RegionSet(5, 10, 20, 30, 40, 50), "Subtract: Empty part of center region in set");
+
+		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+		rs.subtract(12, 17);
+		Assert(rs, new RegionSet(5, 10, 20, 30, 40, 50), "Subtract: Part between first and center region in set");
+
 		rs = new RegionSet(5, 10, 20, 30, 40 ,50);
 		rs.subtract(0, 50);
 		Assert(rs, new RegionSet(), "Subtract: All regions in set");
@@ -1095,8 +1168,8 @@ class RegionSet
 		return regions == other.regions;
 	}
 
-	bool contains(Region r) 
-	{ 
+	bool contains(Region r)
+	{
 		for (int i = 0; i < regions.length; ++i)
 		{
 			auto re = regions[i];
@@ -1105,59 +1178,228 @@ class RegionSet
 		}
 		return false;
 	}
-	
+
 	// TODO fix
 	RegionSet getInverse()
-	{ 
+	{
 		RegionSet rs = new RegionSet();
 		int lastEnd = 0;
 		foreach (r; regions[])
 		{
 			if (lastEnd == r.a)
 				continue;
-			
+
 			// TODO fix
 			//rs.insertBack(lastEnd, r.a);
 			lastEnd = r.b;
 		}
-		
+
 		auto last = regions.back;
 		if (last.b != 0xffffffff)
 			rs.insertBack(Region(last.b, 0xffffffff));
 		return rs;
 	}
-	
+
 	// TODO fix
-	RegionSet intersect(Region r) 
-	{ 
-		auto rs = new RegionSet();
+    //RegionSet intersect(Region r)
+    //{
+    //    auto rs = new RegionSet();
+    //
+    //    int first = -1;
+    //    foreach (i; 0..regions.length)
+    //    {
+    //        auto cur = regions[i];
+    //        if (r.b <= cur.a) break;
+    //        bool ins = r.intersects(cur);
+    //        if (ins)
+    //        {
+    //            first = i;
+    //            rs.merge(cur);
+    //        } else if (first != -1)
+    //        {
+    //            break;
+    //        }
+    //    }
+    //    return rs;
+    //}
 
-		int first = -1;
-		foreach (i; 0..regions.length)
-		{
-			auto cur = regions[i];
-			if (r.b <= cur.a) break;
-			bool ins = r.intersects(cur);
-			if (ins)
-			{
-				first = i;
-				rs.merge(cur);
-			} else if (first != -1)
-			{
-				break;
-			}
-		}
-		return rs; 
-	}
 
-	override string toString() 
+    auto opSlice()
+    {
+        static struct Slice
+        {
+            private int curIndex;
+            private RegionSet rs;
+
+            // The intersect() method of this slice need to be able the mutate the front so we store it here
+            private Region curFront;
+
+            this(RegionSet rs)
+            {
+                this.rs = rs;
+                curIndex = 0;
+
+                if (rs.regions.length)
+                {
+                    curFront = rs.regions[0];
+                    curIndex++;
+                }
+                else
+                {
+                    curFront = Region.invalid;
+                }
+            }
+
+            @property Region front() @safe const pure nothrow
+            {
+                return curFront;
+            }
+
+            @property bool empty() @safe const pure nothrow
+            {
+                return !curFront.valid;
+            }
+
+            void popFront() @safe /*pure*/ nothrow
+            {
+                if (rs.regions.length <= curIndex)
+                {
+                    curFront = Region.invalid;
+                }
+                else
+                {
+                    curFront = rs.regions[curIndex];
+
+                    curIndex++;
+                }
+            }
+
+            auto intersect(Region r)
+            {
+                static struct Intersections
+                {
+                    private
+                    {
+                        Slice* slice;
+                        Region reg;
+                        Region currentFront;
+                    }
+
+                    this(Slice* sl, Region r)
+                    {
+                        slice = sl;
+                        reg = r;
+                        currentFront = Region.invalid;
+
+                        // Skip anything before intersection region
+                        while (!slice.empty && slice.front.b <= reg.a)
+                        {
+                            slice.popFront();
+                        }
+
+                        if (!slice.empty)
+                            popFront();
+                    }
+
+                    @property Region front()
+                    {
+                        return currentFront;
+                    }
+
+                    @property bool empty()
+                    {
+                        return !currentFront.valid;
+                    }
+
+                    void popFront() nothrow @safe
+                    {
+                        auto i = slice.front.intersect3(reg);
+                        if (i.at.empty)
+                        {
+                            currentFront = Region.invalid;
+                            // end of intersections and this.empty should return true now
+                        }
+                        else
+                        {
+                            currentFront = i.at;
+                            if (i.after.empty)
+                                slice.popFront();
+                            else
+                                slice.curFront = i.after;
+                        }
+                    }
+                }
+                return Intersections(&this, r);
+            }
+        }
+        return Slice(this);
+    }
+
+    unittest
+    {
+		auto rs = new RegionSet(5, 10, 20, 30, 40 ,50);
+
+        // Do not use AssertRangesEqual when testing range construction but do it manually
+        int    idx = 0;
+        foreach (r; rs)
+        {
+            Assert(r, rs[idx++], "RegionSet.opSlice");
+        }
+
+        // Ok Slicing works if the above is ok, so now we can use that for the rest of the tests.
+
+        // TODO: I think a bug in dmd makes this not work and we need the first on the stack
+        //AssertRangesEqual(rs[].intersect(Region(0,50)), rq2, "RegionSet.opSlice.intersect with full overlap");
+        auto rr = rs[].intersect(Region(0,50));
+        AssertRangesEqual(rr, rs[], "RegionSet.opSlice.intersect with full overlap");
+
+        import std.range;
+
+        rr = rs[].intersect(Region(0,35));
+        AssertRangesEqual(rr, rs[].take(2), "RegionSet.opSlice.intersect with non-clipping prefix");
+
+        rr = rs[].intersect(Region(0,25));
+        AssertRangesEqual(rr, new RegionSet(5, 10, 20, 25)[], "RegionSet.opSlice.intersect with clipping prefix");
+
+        rr = rs[].intersect(Region(15,100));
+        AssertRangesEqual(rr, rs[].dropOne(), "RegionSet.opSlice.intersect with non-clipping postfix");
+
+        rr = rs[].intersect(Region(22,100));
+        AssertRangesEqual(rr, new RegionSet(22, 30, 40, 50)[], "RegionSet.opSlice.intersect with clipping postfix");
+
+        rr = rs[].intersect(Region(15,33));
+        AssertRangesEqual(rr, rs[].dropOne().take(1), "RegionSet.opSlice.intersect with non-clipping center");
+
+        rr = rs[].intersect(Region(23,27));
+        AssertRangesEqual(rr, new RegionSet(23, 27)[], "RegionSet.opSlice.intersect with clipping center");
+
+        rr = rs[].intersect(Region(12,12));
+        AssertRangesEqual(rr, new RegionSet()[], "RegionSet.opSlice.intersect with empty region");
+
+        auto sl1 = rs[];
+        rr = sl1.intersect(Region(7,22));
+        AssertRangesEqual(rr, new RegionSet(7, 10, 20, 22)[], "RegionSet.opSlice.intersect first intersection with slice");
+        rr = sl1.intersect(Region(23,42));
+        AssertRangesEqual(rr, new RegionSet(23, 30, 40, 42)[], "RegionSet.opSlice.intersect second intersection with slice");
+
+        //AssertRangesEqual(rr, new RegionSet(5, 10, 20, 25)[], "RegionSet.opSlice.intersect with no-clipping postfix");
+
+        //Assert(rs, new RegionSet(5, 10, 20, 30, 40, 50), "Subtract: Region before set");
+
+    }
+
+	override string toString()
 	{
 		string res;
-		foreach (r; regions[])
+		res ~= "RegionSet[";
+        foreach (r; regions[])
 		{
 			res ~= r.toString();
 		}
-		return res;
+		return res ~ "]";
 	}
 }
 
+//unittest {
+//    printStats(true);
+//}

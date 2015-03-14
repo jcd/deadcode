@@ -158,7 +158,13 @@ class FunctionCommand(alias Func) : BasicCommand
 
 		enum missingArgCount = ParameterTypeTuple!Func.length - count;
 		// pragma(msg, "CommandFunction args: ", fullyQualifiedName!Func, ParameterTypeTuple!Func, missingArgCount);
-		static if (missingArgCount == 0)
+
+        // Save current active buffer since current buffer may be changed by the command
+        auto bv = currentBuffer;
+        bv.beginUndoGroup();
+        scope (exit) bv.endUndoGroup();
+
+        static if (missingArgCount == 0)
 		{
 			Func(preparedArgs);
 		}
@@ -231,6 +237,20 @@ void init(GUIApplication app)
 	}
 }
 
+void registerCommandKeyBindings(GUIApplication app)
+{
+	foreach (c; g_Commands)
+	{
+		foreach (sc; c.shortcuts)
+		{
+			if (sc.argument is null)
+				app.editorBehavior.keyBindings.setKeyBinding(sc.keySequence, c.name);
+			else
+				app.editorBehavior.keyBindings.setKeyBinding(sc.keySequence, c.name, sc.argument);
+		}
+	}
+}
+
 void fini(GUIApplication app)
 {
 	foreach (e; g_Extensions)
@@ -286,6 +306,8 @@ class IBasicWidget : Widget
 */
 class BasicWidget : IBasicWidget
 {
+    private IBinder[] _fieldBindings;
+
 	IBasicWidget getBasicWidget(string name)
 	{
 		auto w = app.guiRoot.activeWindow.getWidget(name);
@@ -331,9 +353,65 @@ class BasicWidget : IBasicWidget
         return cast(WT)children[idx];
     }
 
-    WT lookupWidget(WT = Widget)(string name)
+    WT get(WT = Widget)(string name)
     {
         return cast(WT)app.getWidget(name);
+    }
+
+    void addFields(W, Model)(W parent, Model model)
+    {
+        import std.string;
+        import extensions.binding : FieldContainer, AutoControls;
+        auto container = new FieldContainer(parent);
+
+        foreach (ctrlFactory; AutoControls!Model)
+        {
+
+            string fullName = ctrlFactory.field;
+            string delim = "";
+            string labelStr = "";
+            while (fullName.length)
+            {
+                labelStr ~= delim;
+
+                string n = fullName.munch("^[a-z0-9_]");
+                if (n.length > 1)
+                {
+                    labelStr ~= n; // This is an Achronym
+                }
+                else if (n.length == 1)
+                {
+                    labelStr ~= n;
+                    labelStr ~= fullName.munch("[a-z0-9_]");
+                }
+                else // n.length == 0
+                {
+                    labelStr ~= fullName.munch("[a-z0-9_]").capitalize();
+                }
+                delim = " ";
+            }
+            new Label(labelStr).parent = container;
+            auto ctrl = ctrlFactory.fp(app, model);
+            ctrl.parent = container;
+        }
+    }
+
+    void addFields(W)(W parentAndModel)
+    {
+        addFields(parentAndModel, parentAndModel);
+    }
+
+    auto bind(string fieldName, Cls, Ctrl)(Cls cls, Ctrl ctrl)
+    {
+        auto b = new Binder!(fieldName, Cls, Ctrl)(cls, ctrl);
+        assumeSafeAppend(_fieldBindings);
+        _fieldBindings ~= b; // TODO: make unbinding as well
+    }
+
+    void updateField(string fieldName)
+    {
+        foreach (f; _fieldBindings)
+            f.updateFromModel();
     }
 
 	Data loadSessionData(Data)()
@@ -364,12 +442,19 @@ class BasicWidget : IBasicWidget
 
 class BasicWidgetWrap(T) : T
 {
-	static this()
+	import core.attr;
+    static this()
 	{
 		//auto w = new T;
 		//T.widgetID = w.id;
 		g_Widgets ~= BasicWidgetWrap!T.classinfo;
 	}
+
+    static if (!hasDerivedMember!(T, "init"))
+    override void init()
+    {
+        addFields(cast(T)this);
+    }
 }
 
 class BasicCommand : Command
@@ -389,6 +474,14 @@ class BasicCommand : Command
 	@property BufferView currentBuffer()
 	{
 		return app.currentBuffer;
+	}
+
+    @property BufferView buffer()
+	{
+		auto b = app.currentBuffer;
+        if (b.name == "*CommandInput*")
+            return app.previousBuffer;
+        return b;
 	}
 
 	@property TextEditor currentTextEditor()
@@ -618,6 +711,14 @@ class IBasicExtension
 		return app.currentBuffer;
 	}
 
+    @property BufferView buffer()
+	{
+		auto b = app.currentBuffer;
+        if (b.name == "*CommandInput*")
+            return app.previousBuffer;
+        return b;
+	}
+
 	@property TextEditor currentTextEditor()
 	{
 		return app.getCurrentTextEditor();
@@ -661,6 +762,46 @@ class BasicExtension(T) : IBasicExtension
 	{
 		// no-op
 	}
+}
+
+
+interface IBinder
+{
+    void updateFromModel();
+}
+
+class Binder(string fieldName, Cls, Ctrl) : IBinder
+{
+    import animation.mutator;
+    import std.conv;
+    private Cls  _model;
+    private Ctrl _ctrl;
+    alias FieldProxy!(fieldName, Cls) FP;
+    alias FP.FieldType FieldType;
+
+    // std.signals does not support delegates so we create a special class for the purpose
+    this(Cls m, Ctrl c)
+    {
+        _model = m;
+        _ctrl = c;
+        updateFromModel();
+        _ctrl.onChanged.connect(&fieldChanged);
+    }
+
+    void fieldChanged()
+    {
+        FP.set(_model, _ctrl.value.to!(FP.FieldType));
+    }
+
+    void updateFromModel()
+    {
+        _ctrl.value = FP.get(_model).to!(typeof(_ctrl.value));
+    }
+
+    private ref FieldType value()
+    {
+        return mixin("_model." ~ fieldName);
+    }
 }
 
 version (NO)

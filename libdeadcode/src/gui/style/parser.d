@@ -464,6 +464,47 @@ class StyleSheetParser
 		pushBackToken();
 	}
 
+    void parseAnimationProperty(ref SpriteFrames animFrames)
+    {
+		while (requireNextToken().type == TokenType.identifier)
+		{
+			switch (curToken.type)
+			{
+				case TokenType.identifier:
+
+                    // e.g. offset(16,20,8,2,0.3) meaning offset each frame width 16, height 18.
+                    //      The animsheet having 8 columns and 2 rows. Each from should last 0.3 seconds.
+                    if (curToken.value != "grid")
+					{
+						addError("Cannot parse animation type", line);
+						skipToEndOfProperty();
+						return;
+					}
+
+                    if (animFrames is null)
+                        animFrames = new SpriteFrames();
+
+                    animFrames.type = SpriteFramesType.grid;
+
+					requireNextToken(TokenType.parenOpen);
+					animFrames.columns = requireNextToken(TokenType.number).to!int;
+                    requireNextToken(TokenType.comma);
+					animFrames.rows = requireNextToken(TokenType.number).to!int;
+                    requireNextToken(TokenType.comma);
+					animFrames.count = requireNextToken(TokenType.number).to!int;
+                    requireNextToken(TokenType.comma);
+					animFrames.frameTime = requireNextToken(TokenType.number).to!float;
+					requireNextToken(TokenType.parenClose);
+                    skipToEndOfProperty();
+				    return; // skip everything else for the property
+				default:
+					assert(0); // cannot happen
+					// break;
+			}
+		}
+		pushBackToken();
+    }
+
 	void parseBackgroundProperty(Style style)
 	{
 		if (materialManager is null)
@@ -754,6 +795,10 @@ class StyleSheetParser
 					parseRectOffset(style._backgroundSpriteBorder);
 					requireNextToken();
 					break;
+				case "background-sprite-animation":
+					parseAnimationProperty(style._backgroundSpriteAnimation);
+					requireNextToken();
+					break;
 				case "position":
 					parsePositionProperty(style);
 					requireNextToken();
@@ -780,7 +825,7 @@ class StyleSheetParser
 					break;
 				case "width":
 					requireNextToken();
-						parseScale(style._width);
+					parseScale(style._width);
 					requireNextToken();
 					break;
 				case "min-width":
@@ -795,7 +840,7 @@ class StyleSheetParser
 					break;
 				case "height":
 					requireNextToken();
-						parseScale(style._height);
+					parseScale(style._height);
 					requireNextToken();
 					break;
 				case "min-height":

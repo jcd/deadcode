@@ -34,72 +34,74 @@ class EmacsBehavior : EditorBehavior
 
 		// Register emacs behavior as an option
 		// set.setKeyBinding("<ctrl> + v", "edit.scrollPageDown");
-		set.setKeyBinding("<ctrl> + x <ctrl> + c", "core.quit");
-		set.setKeyBinding("<alt> + v", "edit.scrollPageUp");
-		set.setKeyBinding("<pagedown>", "edit.scrollPageDown");
-		set.setKeyBinding("<pageup>", "edit.scrollPageUp");
-		set.setKeyBinding("<ctrl> + a", "edit.cursorToBeginningOfLine");
-		set.setKeyBinding("<ctrl> + e", "edit.cursorToEndOfLine");
-		set.setKeyBinding("<ctrl> + <shift> + a", "edit.selectToBeginningOfLine");
-		set.setKeyBinding("<ctrl> + <shift> + e", "edit.selectToEndOfLine");
-		set.setKeyBinding("<ctrl> + <shift> + <left>", "edit.selectToWordBefore");
-		set.setKeyBinding("<ctrl> + <shift> + <right>", "edit.selectToWordAfter");
-		set.setKeyBinding("<ctrl> + <backspace>", "edit.deleteToWordBefore");
-		set.setKeyBinding("<ctrl> + <delete>", "edit.deleteToWordAfter");
-		set.setKeyBinding("<ctrl> + <left>", "edit.cursorToWordBefore");
-		set.setKeyBinding("<ctrl> + <right>", "edit.cursorToWordAfter");
-		set.setKeyBinding("<left>", "navigate.left");
-		set.setKeyBinding("<right>", "navigate.right");
-		set.setKeyBinding("<up>", "navigate.up");
-		set.setKeyBinding("<down>", "navigate.down");
-		set.setKeyBinding("<shift> + <left>", "edit.selectToCharBefore");
-		set.setKeyBinding("<shift> + <right>", "edit.selectToCharAfter");
-		set.setKeyBinding("<shift> + <up>", "edit.selectToCharAbove");
-		set.setKeyBinding("<shift> + <down>", "edit.selectToCharBelow");
-		set.setKeyBinding("<shift> + <pagedown>", "edit.selectPageDown");
-		set.setKeyBinding("<shift> + <pageup>", "edit.selectPageUp");
-		set.setKeyBinding("<ctrl> + k", "edit.deleteToEndOfLine");
-		set.setKeyBinding("<backspace>", "edit.deleteCharBefore");
-		auto rs = new RuleSet();
-		rs.addEquals("currentBufferName", "*CommandInput*");
-		set.setKeyBinding("<return>", "edit.commitCompletion", rs);
-		set.setKeyBinding("<tab>", "edit.complete", rs);
-		set.setKeyBinding("<ctrl> + p", "app.toggleCommandArea", "", rs);
+		// set.setKeyBinding("<ctrl> + x <ctrl> + c", "core.quit");
 
-		set.setKeyBinding("<return>", "edit.insert", "\n");
-		set.setKeyBinding("<tab>", "edit.insert", "\t");
-		set.setKeyBinding("<ctrl> + d", "edit.deleteCharAfter");
-		set.setKeyBinding("<delete>", "edit.deleteCharAfter");
-		set.setKeyBinding("<ctrl> + x <ctrl> + p", "edit.clear");
 
-		set.setKeyBinding("<ctrl> + <tab>", "app.cycleBuffers", 1);
-
-		set.setKeyBinding("<ctrl> + <shift> + <tab>", "app.cycleBuffers", -1);
-
-		set.setKeyBinding("<ctrl> + x <ctrl> + f", "file.open");
-		set.setKeyBinding("<ctrl> + x b", "edit.showBuffer");
-		set.setKeyBinding("<ctrl> + x <ctrl> + s", "file.save");
-		set.setKeyBinding("<ctrl> + x <ctrl> + w", "file.saveAs");
-
-		set.setKeyBinding("<ctrl> + /", "edit.undo");
-		set.setKeyBinding("<ctrl> + _", "edit.undo");
-		set.setKeyBinding("<ctrl> + x u", "edit.undo");
-		set.setKeyBinding("<ctrl> + <shift> + z", "edit.redo");
-		set.setKeyBinding("<ctrl> + z", "edit.undo");
-		set.setKeyBinding("<ctrl> + c", "edit.copy");
-		set.setKeyBinding("<ctrl> + v", "edit.paste");
-		set.setKeyBinding("<ctrl> + <shift> + v", "edit.pasteCycle");
-		set.setKeyBinding("<ctrl> + w", "edit.cut");
-
-		set.setKeyBinding("<ctrl> + b", "core.rebuildEditor");
-		set.setKeyBinding("<ctrl> + p", "app.toggleCommandArea", "");
-
-		set.setKeyBinding("<f7>", "dub.build");
-		set.setKeyBinding("<ctrl> + ,", "dub.quickOpen");
-		set.setKeyBinding("<ctrl> + i", "edit.incrFind");
-
-		set.setKeyBinding("<alt> + /", "edit.undo");
-		set.setKeyBinding("<ctrl> + g", "edit.cursorToLine");
+        //set.setKeyBinding("<alt> + v", "edit.scrollPageUp");
+        //set.setKeyBinding("<pagedown>", "edit.scrollPageDown");
+        //set.setKeyBinding("<pageup>", "edit.scrollPageUp");
+        //set.setKeyBinding("<ctrl> + a", "edit.cursorToBeginningOfLine");
+        //set.setKeyBinding("<ctrl> + e", "edit.cursorToEndOfLine");
+        //set.setKeyBinding("<ctrl> + <shift> + a", "edit.selectToBeginningOfLine");
+        //set.setKeyBinding("<ctrl> + <shift> + e", "edit.selectToEndOfLine");
+        //set.setKeyBinding("<ctrl> + <shift> + <left>", "edit.selectToWordBefore");
+        //set.setKeyBinding("<ctrl> + <shift> + <right>", "edit.selectToWordAfter");
+        //set.setKeyBinding("<ctrl> + <backspace>", "edit.deleteToWordBefore");
+        //set.setKeyBinding("<ctrl> + <delete>", "edit.deleteToWordAfter");
+        //set.setKeyBinding("<ctrl> + <left>", "edit.cursorToWordBefore");
+        //set.setKeyBinding("<ctrl> + <right>", "edit.cursorToWordAfter");
+        //set.setKeyBinding("<left>", "navigate.left");
+        //set.setKeyBinding("<right>", "navigate.right");
+        //set.setKeyBinding("<up>", "navigate.up");
+        //set.setKeyBinding("<down>", "navigate.down");
+        //set.setKeyBinding("<shift> + <left>", "edit.selectToCharBefore");
+        //set.setKeyBinding("<shift> + <right>", "edit.selectToCharAfter");
+        //set.setKeyBinding("<shift> + <up>", "edit.selectToCharAbove");
+        //set.setKeyBinding("<shift> + <down>", "edit.selectToCharBelow");
+        //set.setKeyBinding("<shift> + <pagedown>", "edit.selectPageDown");
+        //set.setKeyBinding("<shift> + <pageup>", "edit.selectPageUp");
+        //set.setKeyBinding("<ctrl> + k", "edit.deleteToEndOfLine");
+        //set.setKeyBinding("<backspace>", "edit.deleteCharBefore");
+        //auto rs = new RuleSet();
+        //rs.addEquals("currentBufferName", "*CommandInput*");
+        //set.setKeyBinding("<return>", "edit.commitCompletion", rs);
+        //set.setKeyBinding("<tab>", "edit.complete", rs);
+        //set.setKeyBinding("<ctrl> + p", "app.toggleCommandArea", "", rs);
+        //
+        //set.setKeyBinding("<return>", "edit.insert", "\n");
+        //set.setKeyBinding("<tab>", "edit.insert", "\t");
+        //set.setKeyBinding("<ctrl> + d", "edit.deleteCharAfter");
+        //set.setKeyBinding("<delete>", "edit.deleteCharAfter");
+        //set.setKeyBinding("<ctrl> + x <ctrl> + p", "edit.clear");
+        //
+        //set.setKeyBinding("<ctrl> + <tab>", "app.cycleBuffers", 1);
+        //
+        //set.setKeyBinding("<ctrl> + <shift> + <tab>", "app.cycleBuffers", -1);
+        //
+        //set.setKeyBinding("<ctrl> + x <ctrl> + f", "file.open");
+        //set.setKeyBinding("<ctrl> + x b", "edit.showBuffer");
+        //set.setKeyBinding("<ctrl> + x <ctrl> + s", "file.save");
+        //set.setKeyBinding("<ctrl> + x <ctrl> + w", "file.saveAs");
+        //
+        //set.setKeyBinding("<ctrl> + /", "edit.undo");
+        //set.setKeyBinding("<ctrl> + _", "edit.undo");
+        //set.setKeyBinding("<ctrl> + x u", "edit.undo");
+        //set.setKeyBinding("<ctrl> + <shift> + z", "edit.redo");
+        //set.setKeyBinding("<ctrl> + z", "edit.undo");
+        //set.setKeyBinding("<ctrl> + c", "edit.copy");
+        //set.setKeyBinding("<ctrl> + v", "edit.paste");
+        //set.setKeyBinding("<ctrl> + <shift> + v", "edit.pasteCycle");
+        //set.setKeyBinding("<ctrl> + w", "edit.cut");
+        //
+        //set.setKeyBinding("<ctrl> + b", "core.rebuildEditor");
+        //set.setKeyBinding("<ctrl> + p", "app.toggleCommandArea", "");
+        //
+        //set.setKeyBinding("<f7>", "dub.build");
+        //set.setKeyBinding("<ctrl> + ,", "dub.quickOpen");
+        //set.setKeyBinding("<ctrl> + i", "edit.incrFind");
+        //
+        //set.setKeyBinding("<alt> + /", "edit.undo");
+        //set.setKeyBinding("<ctrl> + g", "edit.cursorToLine");
 
 		//set.setKeyBinding("<tab>", "edit.
 	}
@@ -181,7 +183,7 @@ class EmacsBehavior : EditorBehavior
 					{
 						// We got a match but since the last entered character may be without modifies this can result in a EventType.Text
 						// being sent just right after the current event. We want to eat that text event.
-						_skipNextTextEvent = !(event.mod & (KeyMod.CTRL | KeyMod.ALT | KeyMod.GUI));
+						_skipNextTextEvent = true; // !(event.mod & (KeyMod.CTRL | KeyMod.ALT | KeyMod.GUI));
 
 						// First match is served so make sure the define the bindings by priority and/or use rules.
 						currentKeySequence.length = 0;
@@ -198,7 +200,7 @@ class EmacsBehavior : EditorBehavior
 							{
 								commandManager.execute(command, params);
 							}
-							else
+							else if (!commandManager.executeWithMissingArguments(command, params))
 							{
 								// Need more arguments. Signal this.
 								onMissingCommandArguments.emit(command, params);

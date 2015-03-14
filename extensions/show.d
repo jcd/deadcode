@@ -23,7 +23,7 @@ void showEndOfLIne(GUIApplication a, TextEditor e, BufferView b)
 	auto bufLen = buf.length;
 
 	int idx = buf.findOneOf(0, "\r\n");
-	while (idx != -1 && idx != int.max) // TODO: fix int.max
+	while (idx != -1 && idx != InvalidIndex)
 	{
 		assert(idx >= 0);
 		dchar curChar = buf[idx];

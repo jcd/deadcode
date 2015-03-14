@@ -2,8 +2,10 @@ module gui.widgetfeature.textrenderer;
 
 import graphics.model;
 import gui.resources.material : Material;
+import gui.text;
 import gui;
 import math;
+import core.buffer : InvalidIndex;
 import core.time;
 import std.range;
 import std.variant;
@@ -18,7 +20,7 @@ struct GlyphHit
 	int index;     /// Index of the char that was hit. In case endOfLine is true, index of the last char on line
 	Rectf rect;     /// The rect that the glyph occupies.
 
-	@property isValid() { return index != int.max; }
+	@property isValid() { return index != InvalidIndex; }
 }
 
 /** The Text feature of a widget can be used to displays the contents of a TextView
@@ -41,13 +43,16 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		bool hasKeyboardFocus() const pure nothrow @safe { return false; }
 		bool isMouseOver() const pure nothrow @safe { return false; }
 		bool isMouseDown() const pure nothrow @safe { return false; }
+        bool isVisible() const pure nothrow @safe { return true; }
 		Stylable parent() pure nothrow @safe { return null; } // TODO: return widget
 	}
 
 	private
 	{
 		TextModel _model;
-		TextSelectionModel _selectionModel;
+//		TextSelectionModel _selectionModel;
+
+        TextHighlighter[string] _selectionModels;
 		//Style _selectionStyle;
 
 		//TextSelectionModel _selectionModel;
@@ -92,7 +97,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 	}
 
 	// Tmp solution until proper stylesset and selectors are supported
-	Region selection;
+	// Region selection;
 
 	alias void delegate(TextRenderer!Text) Callback;
 
@@ -121,7 +126,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		//_textStyler.text.onInsert.connect(&onTextDirty);
 		//_textStyler.text.onRemove.connect(&onTextDirty);
 
-		_bufferOffsetForCurrentCache = int.max;
+		_bufferOffsetForCurrentCache = InvalidIndex;
 	}
 
 	override EventUsed send(Event event, Widget widget)
@@ -229,6 +234,25 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 	}
 
 
+    final TextHighlighter getOrCreateHighlighter(string name)
+    {
+        if (auto h = name in _selectionModels)
+        {
+            return *h;
+        }
+        else
+        {
+            auto nh = new TextHighlighter(name);
+            _selectionModels[name] = nh;
+            return nh;
+        }
+    }
+
+    final void removeHighlighter(string name)
+    {
+        _selectionModels.remove(name);
+    }
+
 	/*
 	void runCommand(string commandName, Variant data)
 	{
@@ -244,10 +268,10 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 	}
 	*/
 
-	override void update(Widget widget)
-	{
-		widget.acceptsKeyboardFocus = true;
-	}
+    //override void update(Widget widget)
+    //{
+    //    widget.acceptsKeyboardFocus = true;
+    //}
 
 	//BoxModel _box;
 
@@ -279,11 +303,10 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		// Now calc the column and row of the cursor in order to find out the x and y coord:
 		// TODO: do
         int wid = widget.id;
-    		Style style = widget.style;
+        Style style = widget.style;
         if (style is null)
         {
-            assert(0);
-            return;
+            throw new Exception("Null style on widget");
         }
 
 		bool styleDirty = lastStyleVersion != style.currentVersion || lastStyleID != style.id;
@@ -315,36 +338,27 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			text.dirty = false;
 		}
 
-		if (_selectionModel is null)
+		TextHighlighter selectionsModel = getOrCreateHighlighter("selection");
+		selectionsModel.mergeBorders = true;
+
+		static if (!_isBasicText)
 		{
-			static if (_isBasicText)
-				Region selection = Region(0,0);
-			else
-				Region selection = text.selection.normalized();
-			_selectionModel = new TextSelectionModel(widget.window.styleSheet, _layout, selection);
-		}
-		else
-		{
-			//if (_selectionModel.style is null)
+            selectionsModel.regions.clear();
+            selectionsModel.regions ~= text.selection.normalized();
+            import core.bufferview;
+            BufferView mybv = text;
+            int a = 42;
+        }
 
-			_selectionModel.textLayout = _layout;
-//			if (_selectionModel.selection != _textStyler.text.selection)
-			//{
-
-			static if (_isBasicText)
-			{
-				// no-op
-			}
-			else
-			{
-				_selectionModel.selection = text.selection.normalized();
-				_selectionModel.update(text.bufferStartOffset);
-			}
-			//}
-		}
-
-		//Mat4f ofstransform;
-		//getOffsetTransform(widget, ofstransform);
+        foreach (sm; _selectionModels)
+        {
+            sm.styleSheet = widget.window.styleSheet;
+            sm.textLayout = _layout;
+            static if (_isBasicText)
+                sm.update(0, widget.size);
+            else
+                sm.update(text.bufferStartOffset, widget.size);
+        }
 	}
 
 	override void draw(Widget widget)
@@ -358,8 +372,9 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		Mat4f transform;
 		widget.getStyledScreenToWorldTransform(transform);
 		Mat4f trx = widget.window.MVP * transform;
-		if (_selectionModel !is null)
-			_selectionModel.draw(trx);
+
+        foreach (sm; _selectionModels)
+   			sm.draw(trx);
 		if (_model !is null)
 			_model.draw(trx);
 
@@ -434,6 +449,8 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 
 		import std.stdio;
 
+        int lastEndIdx = textOffset;
+
 		foreach (r; rset)
 		{
 			if (_layout.lineCount > visibleLineCount)
@@ -448,36 +465,47 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			// writefln("render %s..%s max %s", r.a, r.b, text.length);
 
 			string styleName = textStyler is null ? null : _textStyler.styleIDToName(r.id);
+
+            // Use default style for unstyled text
+            if (r.a > lastEndIdx)
+            {
+                _curClasses[0] = "";
+                Style style = styleSheet.getStyle(this);
+                _layout.add(text[lastEndIdx .. r.a], style);
+            }
+
 			_curClasses[0] = styleName;
 			Style style = styleName is null ? widget.style : styleSheet.getStyle(this);
+            _layout.add(text[r.a .. r.b], style);
+            lastEndIdx = r.b;
 
-			//style.font.updateFontMap();
-			auto intersectParts = r.intersect3(selection);
-			if (!intersectParts.before.empty)
-			{
-				// unselected
-				auto r2 = intersectParts.before;
-				_layout.add(text[r2.a .. r2.b], style);
-			}
-
-			if (!intersectParts.at.empty)
-			{
-				// selected
-				//import graphics.color;
-//				selectionStyle.parent = style;
-				// selectionStyle.color = Color(0,0,1);
-				//selectionStyle.font.updateFontMap();
-				auto r2 = intersectParts.at;
-				_layout.add(text[r2.a .. r2.b], style); // selectionStyle
-			}
-
-			if (!intersectParts.after.empty)
-			{
-				// unselected
-				auto r2 = intersectParts.after;
-				_layout.add(text[r2.a .. r2.b], style);
-			}
-
+//            //style.font.updateFontMap();
+//            auto intersectParts = r.intersect3(selection);
+//            if (!intersectParts.before.empty)
+//            {
+//                // unselected
+//                auto r2 = intersectParts.before;
+//                _layout.add(text[r2.a .. r2.b], style);
+//            }
+//
+//            if (!intersectParts.at.empty)
+//            {
+//                // selected
+//                //import graphics.color;
+////				selectionStyle.parent = style;
+//                // selectionStyle.color = Color(0,0,1);
+//                //selectionStyle.font.updateFontMap();
+//                auto r2 = intersectParts.at;
+//                _layout.add(text[r2.a .. r2.b], style); // selectionStyle
+//            }
+//
+//            if (!intersectParts.after.empty)
+//            {
+//                // unselected
+//                auto r2 = intersectParts.after;
+//                _layout.add(text[r2.a .. r2.b], style);
+//            }
+//
 			//if (!r.empty)
 				//_layout.add(text[r.a .. r.b], style);
 			if (_layout.done)
@@ -485,7 +513,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		}
 
 		// Invalidate glyphRect cache
-		_bufferOffsetForCurrentCache = int.max;
+		_bufferOffsetForCurrentCache = InvalidIndex;
 
 		_textDirty = false;
 
@@ -635,7 +663,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		{
 			int nextIdx = _glyphWindowRectCache.length;
 
-			Rectf glyphRect = void;
+			Rectf glyphRect;
 
 			while (nextIdx <= i)
 			{
@@ -657,7 +685,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			A tuple of bool,uint,Rectf. The is true if the position is directly at a glyph and false otherwise.
 			The uint is the index into the buffer where the glyph is located in case the bool is true.
 			The uint is the index into the buffer of the end of line for the line where the mouse is located in case
-			the bool is false. If the cursor is at no buffer line uint.max is returned.
+			the bool is false. If the cursor is at no buffer line InvalidIndex is returned.
 			The Rectf is the rect that the glyph occupies.
 	*/
 	GlyphHit getGlyphAt(Widget widget, Vec2f pos)
@@ -690,13 +718,13 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 							r = _glyphWindowRectCache[idx+delta];
 						}
 						return GlyphHit(true, !r.x.isFinite() || bufOffset == i ?
-										int.max : i, r);
+										InvalidIndex : i, r);
 					}
 					else
 					{
                         // TODO: fix static text
 						return GlyphHit(true, !r.x.isFinite() || bufOffset == i ?
-									int.max : i - 1, r);
+									InvalidIndex : i - 1, r);
 					}
 				}
 
@@ -729,8 +757,15 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		}
 		if (found)
 			return GlyphHit(false, i, glyphRect);
-		else if (!glyphRect.x.isFinite() || bufOffset == i)
-			return GlyphHit(false, int.max, glyphRect);
+		else if (bufOffset == i)
+            return GlyphHit(false, InvalidIndex, glyphRect);
+        else if (!glyphRect.x.isFinite())
+        {
+            if (text.length <= i)
+			    return GlyphHit(true, text.length, glyphRect); // end of last line
+            else
+                return GlyphHit(false, InvalidIndex, glyphRect);
+        }
 		else
 		{
             static if (!_isBasicText)
@@ -745,13 +780,13 @@ class TextRenderer(Text) : WidgetFeature, Stylable
                     glyphRect = _glyphWindowRectCache[i2];
                 }
                 return GlyphHit(true, !glyphRect.x.isFinite() || bufOffset == i ?
-                                int.max : i, glyphRect);
+                                InvalidIndex : i, glyphRect);
             }
             else
             {
                 // TODO: fix static text
                 return GlyphHit(true, !glyphRect.x.isFinite() || bufOffset == i || i == 0 ?
-								int.max : i - 1, glyphRect);
+								InvalidIndex : i - 1, glyphRect);
             }
 
                 //i--;
@@ -762,7 +797,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			// return GlyphHit(false, i, glyphRect);
 		}
 
-		//return GlyphHit(false, !glyphRect.x.isFinite()|| bufOffset == i ? int.max : i-1, glyphRect);
+		//return GlyphHit(false, !glyphRect.x.isFinite()|| bufOffset == i ? InvalidIndex : i-1, glyphRect);
 	}
 
 	void drawCursor(Widget widget, ref Mat4f transform, float fontLineSkip)
@@ -778,7 +813,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 
 		/*
 		// Cull cursor
-		int cursorLine = _multiLine ? text.buffer.lineNumber(text.cursorPoint) : 0;
+		int cursorLine = _multiLine ? text.buffer.lineNumberAt(text.cursorPoint) : 0;
 
 		//7std.stdio.writeln("FOOOO ", cursorLine, " ", view.cursorPoint, " ", view.bufferOffset, " ", view.lineOffset, " ", _layout.lines.length, " ", view.buffer.length);
 		if (cursorLine < text.lineOffset || cursorLine > (text.lineOffset + _layout.lines.length) || _layout.lines.empty)
@@ -789,7 +824,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		//		cursorOffset.x = cursorLineOffset;
 		//std.stdio.writeln(row);
 		int row = cursorLine - text.lineOffset;
-		//std.stdio.writeln("row ", row, " ", view.buffer.lineNumber(view.cursorPoint), " " , view.lineOffset);
+		//std.stdio.writeln("row ", row, " ", view.buffer.lineNumberAt(view.cursorPoint), " " , view.lineOffset);
 		auto lineRect = _layout.lines[row].rect;
 */
 

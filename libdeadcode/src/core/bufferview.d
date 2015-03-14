@@ -28,10 +28,11 @@ enum RegionQuery
 	line,
 	buffer,
 }
-/*
+
 class RegionView
 {
-	BufferView bufferView;
+	string name;
+    BufferView bufferView;
 	Region region;
 	alias toString this;
 
@@ -48,28 +49,37 @@ class RegionView
 		}
 	}
 
-	private this(BufferView bv, Region r)
+	private this(string name, BufferView bv, Region r)
 	{
-		bufferView = bv;
+		this.name = name;
+        bufferView = bv;
 		region = r;
 		bufferView.onInsert.connect(&this.textInserted);
 		bufferView.onRemove.connect(&this.textRemoved);
 	}
 
-	dstring toString() const
-	{
-		return bufferView.getText(region);
-	}
+    bool detach()
+    {
+        if (bufferView is null)
+            return false;
+        return bufferView.removeRegionView(name); // TODO: It should really remove not only by name but by specific instance
+    }
+
+    //dstring toString() const
+    //{
+    //    return bufferView.getText(region);
+    //}
 
 	private void textInserted(BufferView v, BufferView.BufferString text, int pos)
 	{
-		r.entriesInserted(pos, text.length);
+		region.entriesInserted(pos, text.length);
 	}
 
 	private void textRemoved(BufferView v, BufferView.BufferString text, int pos)
 	{
-		r.entriesRemoved(pos, text.length);
+		region.entriesRemoved(pos, text.length);
 	}
+    /*
 
 	RegionView opAssign(dstring s)
 	{
@@ -120,13 +130,14 @@ class RegionView
 	{
 		bufferView.replace(dtext(v), region);
 	}
+    */
 }
-*/
+
 
 // TODO:
 //  * Cannot page down until out after buffer length. Think buffer.startOfLine/endOfLine are guilty
 
-/** A BufferView is used as a view to he contents of a buffer. 
+/** A BufferView is used as a view to he contents of a buffer.
  * A BufferView is non GUI related but only used for representing and controlling a buffer.
  * Several BufferViews may display the same buffer.
  * The selection, cursor position etc. is distinct for each BufferView.
@@ -134,20 +145,35 @@ class RegionView
  * To render a specific BufferView on screen use a TextRenderer.
  */
 class BufferView
-{	
-	int id;
+{
+	private int _id;
 	string name;
 	TextBuffer buffer;     // This should be changeable to something else if wanted
 	// private GapBuffer!int lineStarts; // Indexes into buffer for all line starts. Purely a optimization.
-	
-	package CopyBuffer copyBuffer;
+
+	package
+    {
+        CopyBuffer copyBuffer;
+    }
+
+	private
+	{
+		int _preferredCursorColumn;
+		int _lineOffset;   // line offset into the buffer from where to draw.
+		int _bufferStartOffset; // Cached value of index of first char on line specified by lineOffset
+		int _visibleLineCount;    // Number of lines to visible in view
+		bool _modified;
+		ActionTree _undoStack; // TODO: rename field to match type
+	}
 
 	bool autoCursorInView = true;
 
-	int selectionStartIndex;
 	private Region _selection;
+
+    private RegionView[string] _regionViews;
+
 	// RegionSet selections;
-	
+
 	alias immutable(TextBuffer.CharType)[] BufferString;
 	alias TextBuffer.CharType CharType;
 
@@ -156,14 +182,14 @@ class BufferView
 
 	TextBufferAnchor[] visibleAnchors;
 
-	// 
+	//
 	private bool _dirty;
-	
+
 	// TODO: hese signals should really be forwarde from the underlaying buffer in order to
 	// get signal when other bufferviews alters the underlaying buffer!
 	// emit(this, text, insertedTextAfterThisIndex)
 	mixin Signal!(BufferView, BufferString, int) onInsert;
-	
+
 	// emit(this, text, removedTextAfterThisIndex)
 	mixin Signal!(BufferView, BufferString, int) onRemove;
 
@@ -182,13 +208,30 @@ class BufferView
 	// emit(this, TextBufferAnchor[])
 	mixin Signal!(BufferView, TextBufferAnchor[]) onAnchorVisibilityChanged;
 
-	@property 
+	@property
 	{
+        int id() const pure nothrow @safe
+        {
+            return _id;
+        }
+
+        int bufferID() const pure nothrow @safe
+        {
+            return buffer.id;
+        }
+
+        string fileName() const pure nothrow @safe
+        {
+            if (isPersistant)
+                return name;
+            return null;
+        }
+
 		bool isPersistant() const pure nothrow @safe
 		{
 			return buffer.isPersistant;
 		}
-		
+
 		void isPersistant(bool p) pure nothrow @safe
 		{
 			buffer.isPersistant = p;
@@ -198,20 +241,12 @@ class BufferView
 		{
 			if (_selection == r)
 				return;
-			
-			selectionStartIndex = r.a;
-			cursorPoint = r.a;
 
-			if (_cursorPoint == r.b)
-			{
-				_selection = r;
-			}
-			else
-			{
-				_undoStack.push!CursorAction(this, TextBoundary.unit, r.b - _cursorPoint, true);
-			}
-			// _selection = r;
-			//dirty = true;
+			if (r.a != _selection.a)
+                cursorPoint = r.a; // will also put this action on undo stack
+
+			bool selecting = !r.empty;
+            _undoStack.push!CursorAction(this, TextBoundary.unit, r.b - _selection.b, selecting);
 		}
 
 		const(Region) selection() const pure nothrow
@@ -227,12 +262,72 @@ class BufferView
 			}
 			_dirty = d;
 		}
-		
+
 		bool dirty() const pure nothrow
 		{
 			return _dirty;
 		}
 	}
+
+    RegionView getOrCreateRegionView(string name, Region r = Region(0,0))
+    {
+        if (auto rv = name in _regionViews)
+            return *rv;
+
+        auto res = new RegionView(name, this, r);
+        _regionViews[name] = res;
+        return res;
+    }
+
+    bool removeRegionView(string name)
+    {
+        if (auto v = name in _regionViews)
+            v.bufferView = null;
+        return _regionViews.remove(name);
+    }
+
+    void pushSelection()
+    {
+        _undoStack.push!SelectionStackAction(this, true);
+    }
+
+    package void _pushSelection()
+    {
+        foreach (i; 0..10)
+        {
+            string name = text("_selectStack_", i);
+            if (name in _regionViews)
+            {
+            }
+            else
+            {
+                auto v = getOrCreateRegionView(name, selection);
+                return;
+            }
+
+        }
+        assert(0, "Selection stack overflow"); // TODO: proper error instead
+    }
+
+    void popSelection()
+    {
+        _undoStack.push!SelectionStackAction(this, false);
+    }
+
+    package void _popSelection()
+    {
+        foreach (i; 0..10)
+        {
+            string name = text("_selectStack_", 9 - i);
+            if (auto rv = name in _regionViews)
+            {
+                setSelectRegion(rv.region);
+                removeRegionView(name);
+                return;
+            }
+        }
+        assert(0, "Selection stack underflow"); // TODO: proper error instead
+    }
 
 	void clearSelection()
 	{
@@ -243,10 +338,10 @@ class BufferView
 	}
 
 	package void navigated()
-	{	
-		dirty = true;		
+	{
+		dirty = true;
 		auto lastLine = lineOffset + visibleLineCount - 1;
-		
+
 		// Make sure the cursor in inside the visible area by changing the lineOffset
 		if (autoCursorInView && (lineNumber < lineOffset || lineNumber > lastLine))
 		{
@@ -255,9 +350,14 @@ class BufferView
 		}
 	}
 
+    /** Scroll view so that line is in view
+
+        Behaves line viewOnLinePaged() except when scrolling is needed only the minimum scroll is performed to
+        get the line into view.
+    */
 	void viewOnLine(int line)
 	{
-		auto lastLine = lineOffset + visibleLineCount - 1; 
+		auto lastLine = lineOffset + visibleLineCount - 1;
 		if (line < lineOffset)
 			lineOffset = line;
 		else if (line > lastLine)
@@ -277,15 +377,44 @@ class BufferView
 			lineOffset = line - visibleLineCount + 1;
 	}
 
-	void centerOnLine(int line)
+	void centerOnLine(int line, bool onlyWhenNotInView = false)
 	{
-		auto offset = visibleLineCount / 2;
-		auto lastLine = lineOffset + visibleLineCount - 1; 
+		auto endLine = lineOffset + visibleLineCount;
+
+		if (onlyWhenNotInView && lineOffset <= line && line < endLine)
+        {
+            return;
+        }
+
+        auto offset = visibleLineCount / 2;
 		if (offset > line)
 			lineOffset = 0;
-		else 
+		else
 			lineOffset = line - offset;
 	}
+
+	void centerOnChar(int index, bool onlyWhenNotInView = false)
+    {
+        int line = buffer.lineNumberAt(index);
+        centerOnLine(line, onlyWhenNotInView);
+    }
+
+    /** Scroll view so that line is in view
+
+        Behaves line viewOnLine() except when scrolling is needed the line will be centered in view.
+    */
+    void viewOnLinePaged(int line)
+    {
+        if (!isLineInView(line))
+            centerOnLine(line);
+    }
+
+    void viewOnCharPaged(int index)
+    {
+        int line = buffer.lineNumberAt(index);
+        viewOnLinePaged(line);
+    }
+
 
 	@property bool modified() const pure nothrow @safe
 	{
@@ -304,7 +433,8 @@ class BufferView
 
 	auto opSlice(size_t from, size_t to) const
 	{
-		assert((to >= 0 && to <= length) || (from >= 0 && from <= length), format("Slice overflow %s: 0 <= %s .. %s <= %s", name, from, to, length));
+        import std.string;
+        assert((to >= 0 && to <= length) || (from >= 0 && from <= length), format("Slice overflow %s: 0 <= %s .. %s <= %s", name, from, to, length));
 		return buffer.opSlice(from, to);
 	}
 
@@ -335,20 +465,8 @@ class BufferView
 		buffer.gbuffer.ensureGapCapacity(s - buffer.length);
 	}
 
-	package int _cursorPoint;
-	
-	private 
-	{
-		int _preferredCursorColumn;	
-		int _lineOffset;   // line offset into the buffer from where to draw.
-		int _bufferStartOffset; // Cached value of index of first char on line specified by lineOffset
-		int _visibleLineCount;    // Number of lines to visible in view
-		bool _modified;
-		ActionStack _undoStack;
-	}
-	
 	debug void enableUndoStackDumps() { _undoStack.dumpEnabled = true; }
-	
+
 	package this(string txt)
 	{
 		import std.conv;
@@ -361,17 +479,17 @@ class BufferView
 		_dirty = true;
 		_modified = false;
 		//selections = new RegionSet(true); // should be false
-		_undoStack = new ActionStack;
+		_undoStack = new ActionTree;
 		// copyBuffer = new CopyBuffer;
 		buffer.onAnchorAdded.connect(&onAnchorAdded);
 		buffer.onAnchorRemoved.connect(&onAnchorRemoved);
 	}
-	
-	@property 
+
+	@property
 	{
 		int lineNumber() const
 		{
-			return buffer.lineNumber(_cursorPoint);
+			return buffer.lineNumberAt(cursorPoint);
 		}
 
 		int lineNumberRelativeToView() const
@@ -393,13 +511,13 @@ class BufferView
 		//{
 		//    return _lineOffset;
 		//}
-		
+
 		int bufferStartOffset() const pure nothrow
 		{
 			return _bufferStartOffset;
 		}
 
-		int bufferEndOffset() const 
+		int bufferEndOffset() const
 		{
 			return buffer.endAtLineNumber(lineNumber + visibleLineCount);
 		}
@@ -414,7 +532,7 @@ class BufferView
 		{
 			if (_lineOffset == o || o >= (buffer.lineCount - 1))
 				return;
-			
+
 			_lineOffset = o;
 			_bufferStartOffset = buffer.startAtLineNumber(o);
 			dirty = true;
@@ -428,7 +546,7 @@ class BufferView
 		//void lineOffsetKeepCursorLine(int o)
 		//{
 		//    int old = lineOffset;
-		//    lineOffset = o;	
+		//    lineOffset = o;
 		//    cursorDown(old < lineOffset ? lineOffset - old : old - lineOffset);
 		//}
 
@@ -450,7 +568,7 @@ class BufferView
 		int length() const nothrow
 		{
 			return buffer.length;
-		}	
+		}
 
 		const(TextBuffer.CharType)[] lastLine() const
 		{
@@ -463,7 +581,7 @@ class BufferView
 			return buffer.toArray(sel.a, sel.b);
 		}
 	}
-	
+
 	Region getRegion(RegionQuery query)
 	{
 		final switch (query)
@@ -487,7 +605,7 @@ class BufferView
 		case RegionQuery.word:
 			auto a = buffer.offsetToBeginningOfWord(cursorPoint);
 			auto b = buffer.offsetToEndOfWord(cursorPoint);
-			if (a == int.max || b == int.max)
+			if (a == InvalidIndex || b == InvalidIndex)
 				return Region(cursorPoint, cursorPoint);
 			else
 				return Region(a, b);
@@ -510,21 +628,40 @@ class BufferView
 		return buffer.toArray(rn.a, rn.b);
 	}
 
+    TextBuffer.CharType[] getLineAtCursor() const
+    {
+        auto ends = buffer.lineEndsAt(selection.b);
+        return getText(ends[0], ends[1]);
+    }
+
+    TextBuffer.CharType[] getLineAtSelection() const
+    {
+        auto ends = buffer.lineEndsAt(selection.a);
+        return getText(ends[0], ends[1]);
+    }
+
+	bool isCursorFollowing(string s) const
+    {
+        if (cursorPoint >= s.length)
+	        return getText(cursorPoint - s.length, cursorPoint) == s.to!dstring;
+        return false;
+    }
+
 	void replace(dstring txt, Region r)
 	{
 		int restoreCursorPoint = cursorPoint;
 		int begin = r.a;
 		int end = r.b;
-		
+
 		//Region oldSelection = selection;
 		//oldSelection.entriesRemoved(begin, (end == int.max ? buffer.length : end) - begin);
 		//oldSelection.entriesInserted(begin, txt.length);
-		
+
 		// cursorPoint = r.a;
 
 		//writeln("replaceA");
-		auto offsetToStart = r.a - _cursorPoint;
-		_undoStack.push!ActionGroupAction(this, 
+		auto offsetToStart = r.a - cursorPoint;
+		_undoStack.push!ActionGroupAction(this,
 										  new CursorAction(TextBoundary.unit, offsetToStart),
 										  new RemoveAction(TextBoundary.unit, r.length),
 										  new InsertAction(txt));
@@ -550,10 +687,12 @@ class BufferView
 
 	Region wordAtCursor() const
 	{
-		auto startOfWord = buffer.offsetToWordBoundary(_cursorPoint, true);
-		auto endOfWord = buffer.offsetToWordBoundary(_cursorPoint, false);
-		if (startOfWord == int.max || endOfWord == int.max)
-			return Region(_cursorPoint, _cursorPoint);
+        //auto startOfWord = buffer.offsetToWordBoundary(cursorPoint, true);
+        //auto endOfWord = buffer.offsetToWordBoundary(cursorPoint, false);
+		auto startOfWord = buffer.offsetByBoundary(cursorPoint, -1, TextBoundary.wordBegin, TextBoundaryStrength.hard);
+		auto endOfWord = buffer.offsetByBoundary(cursorPoint, 1, TextBoundary.wordEnd, TextBoundaryStrength.hard);
+		if (startOfWord == InvalidIndex || endOfWord == InvalidIndex)
+			return Region(cursorPoint, cursorPoint);
 		else
 			return Region(startOfWord, endOfWord);
 	}
@@ -562,10 +701,10 @@ class BufferView
 	//{
 	//    replace(txt, r.a, r.b);
 	//}
-	
+
 	int lineCount() const
 	{
-		return buffer.lineNumber(buffer.length == 0 ? 0 : buffer.length - 1);
+		return buffer.lineNumberAt(buffer.length == 0 ? 0 : buffer.length - 1);
 	}
 
 	// Note that using this may mess with the modified state reset in undo()!
@@ -579,7 +718,7 @@ class BufferView
 	{
 		if (_undoStack.canUndo())
 			_undoStack.undo(this);
-		
+
 		if (modified && _undoStack.empty)
 			modified = false;
 	}
@@ -594,7 +733,7 @@ class BufferView
 	{
 		_undoStack.push!CopySelectedAction(this);
 	}
-	
+
 	void paste(int copyBufferEntryOffset = 0)
 	{
 		_undoStack.push!PasteAction(this, copyBufferEntryOffset);
@@ -607,14 +746,19 @@ class BufferView
 
 	void cut()
 	{
-		_undoStack.push!ActionGroupAction(this, 
+		_undoStack.push!ActionGroupAction(this,
 										  new CopySelectedAction(),
 										  new RemoveAction(TextBoundary.unit, 0)); // remove 0 to remove selection
 	}
 
-	void clear(immutable(TextBuffer.CharType)[] dl)
+	void clear(string dl)
 	{
-		_undoStack.push!ActionGroupAction(this, 
+	    clear(dl.to!BufferString);
+    }
+
+    void clear(immutable(TextBuffer.CharType)[] dl)
+	{
+		_undoStack.push!ActionGroupAction(this,
 											new CursorAction(TextBoundary.buffer, -1),
 											new RemoveAction(TextBoundary.buffer, 1),
 											new InsertAction(dl));
@@ -628,14 +772,14 @@ class BufferView
 		isPersistant = true;
 	}
 
-	void cursorToStart() 
+	void cursorToStart()
 	{
 		clearSelection();
 		_undoStack.push!CursorAction(this, TextBoundary.buffer, -1, false);
 		navigated();
 	}
 
-	void cursorToEnd() 
+	void cursorToEnd()
 	{
 		clearSelection();
 		_undoStack.push!CursorAction(this, TextBoundary.buffer, 1, false);
@@ -645,13 +789,13 @@ class BufferView
 	void cursorToLine(int l)
 	{
 		clearSelection();
-		int origLineNumber = lineNumber; 
+		int origLineNumber = lineNumber;
 		int origLineOffset = lineOffset;
 
 		int lineCursorOffset = l - origLineNumber;
 		_undoStack.push!CursorDownAction(this, lineCursorOffset);
-		
-		// In case we jump out of view from last active line number 
+
+		// In case we jump out of view from last active line number
 		// we center the line
 		bool inOldView = l >= origLineOffset && l < origLineOffset + visibleLineCount;
 		if (!inOldView)
@@ -660,7 +804,7 @@ class BufferView
 
 	@property int cursorPoint() const pure nothrow
 	{
-		return _cursorPoint;
+		return _selection.b;
 	}
 
 	@property void cursorPoint(int v)
@@ -669,31 +813,76 @@ class BufferView
 		{
 			v = v;
 		}
+
 		assert(isValidCursorPoint(v), "Cursor out of range");
 		if (cursorPoint == v)
 			return;
 
-		_undoStack.push!CursorAction(this, TextBoundary.unit, v - _cursorPoint, false);
+		_undoStack.push!CursorAction(this, TextBoundary.unit, v - _selection.b, false);
+
+        assert(_selection.empty);
+        assert(_selection.b == v, text(selection.b, " ", v));
 
 		navigated();
 	}
 
 	bool isValidCursorPoint(int v)
 	{
-		return  buffer !is null && v >= 0 && v <= buffer.length;
+		return buffer !is null && v >= 0 && v <= buffer.length;
 	}
 
-	bool isCursorAtEndOfline()
-	{
-		return cursorPoint == buffer.offsetToEndOfLine(_cursorPoint);
-	}
+    TextBoundary classify(int idx = int.min)
+    {
+        return buffer.classify(idx == int.min ? cursorPoint : idx);
+    }
 
-	@property int preferredCursorColumn() const pure nothrow
+    int findByClass(bool forward, TextBoundary bound, int index = int.min)
+    {
+        return buffer.findByClass(index == int.min ? cursorPoint : index, forward, bound, false);
+    }
+
+    Region expandByClass(TextBoundary bound, int index = int.min)
+    {
+        int idx = index == int.min ? cursorPoint : index;
+        int a = buffer.findByClass(idx, false, bound, false);
+        int b = buffer.findByClass(idx, true, bound, false);
+        return Region(a == InvalidIndex ? idx : a,
+                      b == InvalidIndex ? idx : b);
+    }
+
+    Region expandByClass(TextBoundary bound, Region r)
+    {
+        bool swap = r.a > r.b;
+
+        int a = buffer.findByClass(swap ? r.b : r.a, false, bound, false);
+        int b = buffer.findByClass(swap ? r.a : r.b, true, bound, false);
+
+        if (swap)
+        {
+            int tmp = a;
+            a = b;
+            b = tmp;
+        }
+        return Region(a == InvalidIndex ? r.a : a, b == InvalidIndex ? r.b : b);
+    }
+
+    // TODO: support flags
+    auto find(const(char)[] regex, const(char)[] flags, int index = int.min)
+    {
+        return buffer.findRegex(index == int.min ? cursorPoint : index, regex, flags);
+    }
+
+    auto find(string regex, int index = int.min)
+    {
+        return find(regex, "", index);
+    }
+
+    @property int preferredCursorColumn() const pure nothrow
 	{
 		return _preferredCursorColumn;
 	}
 
-	@property void preferredCursorColumn(int col) 
+	@property void preferredCursorColumn(int col)
 	{
 		if (_preferredCursorColumn == col)
 			return;
@@ -701,11 +890,11 @@ class BufferView
 		navigated();
 	}
 
-	void setPreferredCursorColumnFromIndex(int index = int.max) 
+	void setPreferredCursorColumnFromIndex(int index = InvalidIndex)
 	{
-		if (index == int.max)
-			index = _cursorPoint;
-	
+		if (index == InvalidIndex)
+			index = cursorPoint;
+
 		//assert(buffer !is null && index >= 0 && index < buffer.length, text("Index out of bounds 0 <= ", index , " < ", buffer.length));
 		int startOfLine = buffer.offsetToBeginningOfLine(index);
 		auto old = _preferredCursorColumn;
@@ -713,27 +902,29 @@ class BufferView
 		if (old != _preferredCursorColumn)
 			navigated();
 	}
-	
-	void setIndexFromPreferredCursorColumn(int col = int.max) 
+
+	void setIndexFromPreferredCursorColumn(int col = InvalidIndex)
 	{
-		if (col == int.max)
+		if (col == InvalidIndex)
 			col = _preferredCursorColumn;
-		
+
 		auto old = cursorPoint;
 
 		//assert(buffer !is null && index >= 0 && index < buffer.length, text("Index out of bounds 0 <= ", index , " < ", buffer.length));
-		int startOfLine = buffer.offsetToBeginningOfLine(_cursorPoint);
-		int endOfLine = buffer.offsetToEndOfLine(_cursorPoint);
+		int startOfLine = buffer.offsetToBeginningOfLine(cursorPoint);
+		int endOfLine = buffer.offsetToEndOfLine(cursorPoint);
 		int diff = endOfLine - startOfLine;
 		if (diff > col)
 			cursorPoint = startOfLine + col;
 		else
 			cursorPoint = endOfLine;
-	
+
 		if (old == cursorPoint)
 			navigated();
 	}
-		
+
+
+
 	void insert(dchar item)
 	{
 		dchar[1] buf;
@@ -745,6 +936,23 @@ class BufferView
 	{
 		_undoStack.push!InsertAction(this, txt);
 	}
+
+	void insert(char item)
+	{
+		dchar[1] buf;
+		buf[0] = item;
+		insert(buf.idup);
+	}
+
+	void insert(const(char)[] txt)
+	{
+		insert(dtext(txt));
+	}
+
+    void storeState()
+    {
+		_undoStack.push!StoreState(this);
+    }
 
 	//void insert(string txt)
 	//{
@@ -760,7 +968,7 @@ class BufferView
 	void append(const(char)[] items)
 	{
 		cursorToEnd();
-		insert(dtext(items));
+		insert(items);
 	}
 
 	void remove(int count)
@@ -768,18 +976,25 @@ class BufferView
 		//writeln("removeA");
 		_undoStack.push!RemoveAction(this, TextBoundary.chr, count);
 	}
-	
+
+    void beginUndoGroup()
+    {
+        _undoStack.beginGroup();
+    }
+
+    void endUndoGroup()
+    {
+        _undoStack.endGroup(this);
+    }
+
 	void clear()
 	{
-		//writeln("clearB");
-		_undoStack.push!ActionGroupAction(this, 
+		_undoStack.push!ActionGroupAction(this,
 										  new CursorAction(TextBoundary.buffer, -1),
 										  new RemoveAction(TextBoundary.buffer, 1));
-		//writeln("clearB");
-
 	}
-	
-	void cursorLeft(int c = 1) 
+
+	void cursorLeft(int c = 1)
 	{
 		_undoStack.push!CursorAction(this, TextBoundary.chr, -c, false);
 	}
@@ -790,7 +1005,7 @@ class BufferView
 	}
 
 	// Move cursor up and scroll when hitting top of view so that cursor sticks to the op
-	void cursorUp(int c = 1) 
+	void cursorUp(int c = 1)
 	{
 		_undoStack.push!CursorDownAction(this, -c);
 	}
@@ -801,7 +1016,7 @@ class BufferView
 		_undoStack.push!CursorDownAction(this, c);
 	}
 
-	void selectLeft(int c = 1) 
+	void selectLeft(int c = 1)
 	{
 		_undoStack.push!CursorAction(this, TextBoundary.chr, -c, true);
 	}
@@ -811,7 +1026,7 @@ class BufferView
 		_undoStack.push!CursorAction(this, TextBoundary.chr, c, true);
 	}
 
-	void selectUp(int c = 1) 
+	void selectUp(int c = 1)
 	{
 		_undoStack.push!CursorDownAction(this, -c, true);
 	}
@@ -824,27 +1039,37 @@ class BufferView
 	// Should only be called from an Action (see bufferviewaction.d)
 	package void selectTo(int c)
 	{
-		if (_selection.empty)
-			selectionStartIndex = cursorPoint;
-		
-		import std.algorithm;
-
-		if (selectionStartIndex < c)
-			_selection = Region(selectionStartIndex, min(c, buffer.length));
-		else
-			_selection = Region(max(c,0), selectionStartIndex);
+		_selection.b = c;
+        //if (_selection.empty)
+        //    selectionStartIndex = cursorPoint;
+        //
+        //import std.algorithm;
+        //
+        //if (selectionStartIndex < c)
+        //    _selection = Region(selectionStartIndex, min(c, buffer.length));
+        //else
+        //    _selection = Region(max(c,0), selectionStartIndex);
 	}
-	
+
 	// Should only be called from an Action (see bufferviewaction.d)
+    // Just using "selection = Region(a,b)" does not work since assigning that
+    // property will itself create a new action.
 	package void setSelectRegion(Region r)
 	{
 		_selection = r;
-		selectionStartIndex = r.a;
+		//selectionStartIndex = r.a;
+        //cursorPoint = r.b;
 	}
+
+	package void setSelectRegion(int cursor)
+    {
+        _selection.a = cursor;
+        _selection.b = cursor;
+    }
 
 
 	void scrollUp()
-	{	
+	{
 		lineOffset = lineOffset - 1;
 	}
 
@@ -855,22 +1080,22 @@ class BufferView
 
 	void cursorToBeginningOfLine()
 	{
-		_undoStack.push!CursorAction(this, TextBoundary.lineEnd, -1, false);
+		_undoStack.push!CursorAction(this, TextBoundary.lineBegin, -1, false, TextBoundaryStrength.hard);
 	}
 
 	void cursorToEndOfLine()
 	{
-		_undoStack.push!CursorAction(this, TextBoundary.lineEnd, 1, false);
+		_undoStack.push!CursorAction(this, TextBoundary.lineEnd, 1, false, TextBoundaryStrength.hard);
 	}
 
 	void cursorToLineBefore()
 	{
-		_undoStack.push!CursorAction(this, TextBoundary.line, -1, false);
+		_undoStack.push!CursorAction(this, TextBoundary.lineBegin, -1, false);
 	}
 
 	void cursorToLineAfter()
 	{
-		_undoStack.push!CursorAction(this, TextBoundary.line, 1, false);
+		_undoStack.push!CursorAction(this, TextBoundary.lineEnd, 1, false);
 	}
 
 	void selectToBeginningOfLine()
@@ -882,10 +1107,10 @@ class BufferView
 	{
 		_undoStack.push!CursorAction(this, TextBoundary.lineEnd, 1, true);
 	}
-	
+
 	void cursorToBeginningOfWord()
 	{
-		_undoStack.push!CursorAction(this, TextBoundary.wordEnd, -1, false);
+		_undoStack.push!CursorAction(this, TextBoundary.wordBegin, -1, false);
 	}
 
 	void cursorToEndOfWord()
@@ -895,12 +1120,12 @@ class BufferView
 
 	void cursorToWordBefore()
 	{
-		_undoStack.push!CursorAction(this, TextBoundary.word, -1, false);
+		_undoStack.push!CursorAction(this, TextBoundary.wordBegin | TextBoundary.punctuationBegin | TextBoundary.lineBegin, -1, false);
 	}
 
 	void selectToWordBefore()
-	{		
-		_undoStack.push!CursorAction(this, TextBoundary.word, -1, true);
+	{
+		_undoStack.push!CursorAction(this, TextBoundary.wordBegin | TextBoundary.punctuationBegin | TextBoundary.lineBegin, -1, true);
 	}
 
 	void selectToBeginningOfWord()
@@ -914,32 +1139,31 @@ class BufferView
 	}
 
 	void deleteToWordBefore()
-	{ 
+	{
 		//writeln("dtwb");
-		_undoStack.push!RemoveAction(this, TextBoundary.word, -1);
+		_undoStack.push!RemoveAction(this, TextBoundary.wordBegin | TextBoundary.punctuationBegin | TextBoundary.lineBegin, -1);
 	}
 
 	void cursorToWordAfter()
 	{
-		_undoStack.push!CursorAction(this, TextBoundary.word, 1, false);
+		_undoStack.push!CursorAction(this, TextBoundary.wordEnd | TextBoundary.punctuationEnd |TextBoundary.lineEnd, 1, false);
 	}
-	
+
 	void selectToWordAfter()
 	{
-		_undoStack.push!CursorAction(this, TextBoundary.word, 1, true);
+		_undoStack.push!CursorAction(this, TextBoundary.wordEnd | TextBoundary.punctuationEnd | TextBoundary.lineEnd, 1, true);
 	}
 
 	void deleteToWordAfter()
-	{	
-		//writeln("dtwa");
-		_undoStack.push!RemoveAction(this, TextBoundary.word, 1);
+	{
+		_undoStack.push!RemoveAction(this, TextBoundary.wordEnd | TextBoundary.punctuationEnd | TextBoundary.lineEnd, 1);
 	}
 
 	void deleteToEndOfLine()
 	{
 		//writeln("dtweol");
 
-		_undoStack.push!RemoveAction(this, TextBoundary.line, 1);
+		_undoStack.push!RemoveAction(this, TextBoundary.lineBegin | TextBoundary.lineEnd, 1);
 	}
 
 	int incrementalFind(int index, string str)
@@ -976,11 +1200,11 @@ class BufferView
 
 	private void signalVisibleAnchors()
 	{
-		import std.algorithm;		
+		import std.algorithm;
 		// Find visible anchor in view and emit signal if changed since last time
 		auto as = buffer.getAnchorsForLines(lineOffset, visibleLineCount);
 		auto sortedAs = as.sort!("a.number < b.number");
-		
+
 		if (as.length != visibleAnchors.length)
 		{
 			visibleAnchors = array(sortedAs);
@@ -989,7 +1213,7 @@ class BufferView
 		}
 
 		TextBufferAnchor[] existing = visibleAnchors[];
-		
+
 		foreach (a; sortedAs)
 		{
 			if (existing.empty || existing.front != a)
@@ -1006,8 +1230,8 @@ class BufferView
 
 class BufferViewManager
 {
-	private 
-	{	
+	private
+	{
 		int _nextBufferViewID = 1;
 	}
 
@@ -1040,7 +1264,7 @@ class BufferViewManager
 
 	auto create(string content = "", string name = null)
 	{
-		sanitizeName(name);		
+		sanitizeName(name);
 		auto b = new BufferView(content);
 		setup(b, name);
 		return b;
@@ -1048,7 +1272,7 @@ class BufferViewManager
 
 	auto create(TextBuffer buf, string name = null)
 	{
-		sanitizeName(name);		
+		sanitizeName(name);
 		auto b = new BufferView(buf);
 		setup(b, name);
 		return b;
@@ -1070,7 +1294,7 @@ class BufferViewManager
 		b.bufferModified.connect(&onBufferModified);
 		b.copyBuffer = copyBuffer;
 		b.name = name;
-		b.id = _nextBufferViewID++;
+		b._id = _nextBufferViewID++;
 		buffers[b.id] = b;
 		onBufferViewCreated.emit(b);
 	}
@@ -1093,7 +1317,7 @@ class BufferViewManager
 		}
 		return b;
 	}
-	
+
 	BufferView opIndex(string name)
 	{
 		foreach (b; buffers)
@@ -1103,7 +1327,14 @@ class BufferViewManager
 		}
 		return null;
 	}
-	
+
+    BufferView opIndex(int idx)
+    {
+        if (auto b = idx in buffers)
+            return *b;
+        return null;
+    }
+
 	BufferView getOrCreate(string name)
 	{
 		auto b = this[name];
@@ -1130,7 +1361,7 @@ class BufferViewManager
 			onBufferViewDestroyed.emit(b);
 		}
 	}
-	
+
 	void destroy(BufferView b)
 	{
 		foreach (key, value; buffers)

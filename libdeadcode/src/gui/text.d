@@ -19,32 +19,32 @@ import std.array;
 import std.typecons;
 
 /** A TextRenderer that can draw some text that may be decorated
- * 
+ *
  * It can also be queried for render position of specific text regions or characters
  */
 class TextModel
 {
 	/** LineBox constrains layout of a line of text
-	 * 
+	 *
 	 * It is can be provided when adding text to the model in order to specify
 	 * space available until a new line must enforced ie. because of wrapping or newline chars.
 	 */
 
 	Model styleTextModel;
-	package Rectf[] glyphPositions; // TODO: This is already stored in the Model!Style ... reuse somehow? 
+	package Rectf[] glyphPositions; // TODO: This is already stored in the Model!Style ... reuse somehow?
 
 	private
 	{
 		MaterialManager materialManager;
 		SubModel[uint] styleSubModelMap;
 	}
-	
+
 	this()
 	{
-		styleTextModel = new Model();	
+		styleTextModel = new Model();
 	}
 
-	// Get the world glyph pos. Glyphs are rendered from 0,0 and downwards ie. 
+	// Get the world glyph pos. Glyphs are rendered from 0,0 and downwards ie.
 	// y-coord of the first glyph is -lineHeight and height is lineHeight for that line.
 	Rectf getGlyphPos(int index)
 	{
@@ -54,13 +54,13 @@ class TextModel
 		}
 		return glyphPositions[index];
 	}
-	
+
 	void resetGlyphPositions()
 	{
 		glyphPositions.length = 0;
 		assumeSafeAppend(glyphPositions);
 	}
-	
+
 	void clear()
 	{
 		foreach (subModel; styleTextModel.subModels)
@@ -68,16 +68,16 @@ class TextModel
 			subModel.mesh.clear();
 		}
 	}
-	
+
 	private SubModel GetTextSubModel(Material mat, graphics.texture.Texture fontMap)
 	{
 		auto key = mat.shader.glProgramID * 1024 + fontMap.glTextureID;
 		SubModel * m = key in styleSubModelMap;
 		if (m)
 			return *m;
-		
+
 		// Create a new text model for this style
-		
+
 		// Text model ie. a mesh with a quad for each letter.
 		// A text model is created for each different styles where the material differs
 		// because a model can only be drawn with a single material.
@@ -90,8 +90,8 @@ class TextModel
 		styleSubModelMap[key] = textModel;
 		textModel.mesh = Mesh.create();
 		textModel.mesh.setBuffer(vertexBuf, 3, 0);
-		textModel.mesh.setBuffer(colorBuf, 2, 1);	
-		textModel.mesh.setBuffer(vertColBuf, 3, 2);	
+		textModel.mesh.setBuffer(colorBuf, 2, 1);
+		textModel.mesh.setBuffer(vertColBuf, 3, 2);
 		textModel.blend = true;
 		textModel.blendMode = 0;
 
@@ -104,7 +104,7 @@ class TextModel
 	void draw(Mat4f transform)
 	{
 		styleTextModel.draw(Window.active.MVP * transform);
-	}		
+	}
 
 	/** Render a text range into mesh within the bounds of the lineBox using a specific style
 	Params:
@@ -114,8 +114,8 @@ class TextModel
 		font = The font to use
 		color = The foreground color of the font
 		wordWrap = If true the method will return when the inWorldRect overflows horizontally.
-		
-		Returns: 
+
+		Returns:
 			A struct of (usedChars, lineIsFull, maxX)
 	*/
 	auto addTextVertices(R)(Material material, ref R str, Rectf inWorldRect, Font font, Color color, bool wordWrap)
@@ -133,7 +133,7 @@ class TextModel
 		assumeSafeAppend(mesh.buffers[1].data);
 		assumeSafeAppend(mesh.buffers[2].data);
 
-		auto verts = &(mesh.buffers[0].data);
+        auto verts = &(mesh.buffers[0].data);
 		auto uvs = &mesh.buffers[1].data;
 		auto cols = &mesh.buffers[2].data;
 
@@ -164,7 +164,7 @@ class TextModel
 				str.popFront();
 				auto g = font.lookupGlyph(' ');
 				float eolWidth = g.advance;
-				glyphPositions[$-1].w = eolWidth; 
+				glyphPositions[$-1].w = eolWidth;
 				break;
 			}
 
@@ -176,13 +176,13 @@ class TextModel
 				auto g = font.lookupGlyph(' ');
 				float tabWidth = g.advance * 4;
 				pos.x += tabWidth;
-				glyphPositions[$-1].w = tabWidth; 
+				glyphPositions[$-1].w = tabWidth;
 				continue;
 			}
 
 			if (ch == ' ')
 			{
-				float spaceWidth = font.fontWidth; 
+				float spaceWidth = font.fontWidth;
 				auto g = font.lookupGlyph(ch);
 				float advance = g.advance;
 				pos.x += advance;
@@ -207,14 +207,14 @@ class TextModel
 			//if (pos.y > rect.y2)
 			//	{
 			//		skip = true; // signal that cursor might be out of visible area
-			//		break; 
+			//		break;
 			//	}
 
 			// Lookup glyph in font
 			auto g = font.lookupGlyph(ch);
 			if (g.empty)
 			{
-				// Glyph currently not in fontmap and we need to regenerate 
+				// Glyph currently not in fontmap and we need to regenerate
 				// the fontmap at some point to get it. It not done automatically
 				// because we want to bundle fontmap regenerations for many chars at once.
 				missingGlyphInfo = true;
@@ -226,7 +226,7 @@ class TextModel
 			assert(!std.math.isNaN(g.offsetRect.x2));
 			assert(!std.math.isNaN(g.offsetRect.y2));
 
-			auto offsetRect = Rectf(Vec2f(0,0), 
+			auto offsetRect = Rectf(Vec2f(0,0),
 			                        g.offsetRect.size);
 			Rectf o = offsetRect + pos;
 
@@ -328,6 +328,8 @@ class TextModel
 	}
 }
 
+version (TextSelectionModelLives)
+{
 class TextSelectionModel : Stylable
 {
 	BoxModel[] models; // Model representing the selected area
@@ -337,8 +339,8 @@ class TextSelectionModel : Stylable
     Style style;
 
 	// Stylable interface
-	@property 
-	{		
+	@property
+	{
 		string name() const pure @safe { return null; }
 		ubyte matchStylable(string stylableName) const pure nothrow @safe
 		{
@@ -358,11 +360,11 @@ class TextSelectionModel : Stylable
 		textLayout = layout;
 		selection = sel;
 	}
-	
+
 	void update(int textOffset)
 	{
 		style = styleSheet.getStyle(this);
-		if (style is null)
+        if (style is null)
 			return;
 
 		RectfOffset padding = style.padding;
@@ -373,13 +375,13 @@ class TextSelectionModel : Stylable
 
 		// A region for each selected parts of the lines. Not that only the beginning and ending lines
 		// can have regions that are a partial line.
-		// TODO: use appender		
+		// TODO: use appender
 		struct Line
 		{
 			Region region;
 			float lineHeight;
 		}
-		Line[] lines; 
+		Line[] lines;
 
 		// A region may span several lines and the linebox info must be probed to find out
 		// what part belongs where. Additionally the linebox knows about the layed out line height.
@@ -411,7 +413,7 @@ class TextSelectionModel : Stylable
 
 		RectfOffset borderSize = style.backgroundSpriteBorder;
 		Sprite sprite = Sprite(style.backgroundSprite);
-		
+
 		auto solid = Sprite(borderSize.left, borderSize.top, sprite.rect.w - borderSize.horizontal, sprite.rect.h - borderSize.vertical);
 
 		//const float borderSize = 3;
@@ -419,7 +421,7 @@ class TextSelectionModel : Stylable
 		foreach (i, ref line; lines)
 		{
 			// Begin and end glyph pos will tell us the horizontal ends of the selection box for
-			// The 
+			// The
 			Rectf beginGlyphPos = textLayout.model.getGlyphPos(line.region.a);
 			Rectf endGlyphPos =  textLayout.model.getGlyphPos(line.region.b-1);
 
@@ -448,16 +450,16 @@ class TextSelectionModel : Stylable
 			bool firstLine = i == 0;
 			if (!firstLine && !hasVertPadding)
 			{
-				// Check the previous line rect to figure out how this line top corners should look and 
+				// Check the previous line rect to figure out how this line top corners should look and
 				// prev lines bottom corners should look
 				if (curRect.x <= prevRect.x && curRect.x2 >= prevRect.x)
 				{
 					// The last should have an open bottom left corner
-					
+
 					models[i-1].bottomLeft = solid;
 					if (curRect.x2 > prevRect.x2)
 					{
-											
+
 					}
 					else
 					{
@@ -476,7 +478,7 @@ class TextSelectionModel : Stylable
 			}
 
 			prevRect = curRect;
-			
+
 			// adjust for padding and size
 			if (padding.top != 0f)
 			{
@@ -491,7 +493,7 @@ class TextSelectionModel : Stylable
 
 				if (curRect.y2 < curRect.y)
 					curRect.y2 = curRect.y;
-			} 
+			}
 			else if (padding.bottom != 0f)
 			{
 				curRect.h -= padding.bottom;
@@ -511,7 +513,7 @@ class TextSelectionModel : Stylable
 					curRect.w -= padding.left;
 				if (curRect.x2 < curRect.x)
 					curRect.x2 = curRect.x;
-			} 
+			}
 			else if (padding.right != 0f)
 			{
 				curRect.w -= padding.right;
@@ -522,7 +524,251 @@ class TextSelectionModel : Stylable
 			if (height.isValid)
 			{
 				assert(height.unit == CSSUnit.pixels); // TODO: support other heights as well
-				curRect.h = height.value;					
+				curRect.h = height.value;
+			}
+
+			box.rect = curRect;
+		}
+	}
+
+	void draw(Mat4f transform)
+	{
+		if (style is null)
+			return;
+
+		auto mat = style.background;
+		foreach (m; models)
+		{
+			m.material = mat;
+			m.draw(transform);
+		}
+	}
+}
+}
+
+
+class TextHighlighter : Stylable
+{
+	string[] classNames;
+    BoxModel[] models; // Model representing the selected area
+	TextBoxLayout textLayout;
+	RegionSet regions;
+	StyleSheet styleSheet;
+    Style style;
+	bool mergeBorders;
+
+	// Stylable interface
+	@property
+	{
+		string name() const pure @safe { return null; }
+		ubyte matchStylable(string stylableName) const pure nothrow @safe
+		{
+			return matchStylableImpl(this, stylableName);
+		}
+
+		const(string[]) classes() const pure nothrow @safe { return classNames; }
+		bool hasKeyboardFocus() const pure nothrow @safe { return false; }
+		bool isMouseOver() const pure nothrow @safe { return false; }
+		bool isMouseDown() const pure nothrow @safe { return false; }
+        bool isVisible() const pure nothrow @safe { return true; }
+		Stylable parent() pure nothrow @safe  { return null; }
+	}
+
+	this(string className)
+	{
+		mergeBorders = false;
+		regions = new RegionSet();
+        classNames ~= className;
+	}
+
+	void update(int textOffset, Vec2f containingBoxSize)
+	{
+		// Construct the mesh that represents the background of the selection.
+		assumeSafeAppend(models);
+		models.length = 0;
+
+		if (styleSheet is null)
+            return;
+
+        style = styleSheet.getStyle(this);
+        if (style is null)
+			return;
+
+        if (textLayout.lines.empty)
+            return;
+
+		RectfOffset padding = style.padding;
+		bool hasVertPadding = padding.vertical != 0f;
+        float width = style.width.isValid && style.width.unit == CSSUnit.pct ? style.width.value * containingBoxSize.x : -1;
+
+		// TODO: support width as well
+		CSSScale height = style.height;
+
+		// A region for each selected parts of the lines. Not that only the beginning and ending lines
+		// can have regions that are a partial line.
+		// TODO: use appender
+		struct Line
+		{
+			Region region;
+			float lineHeight;
+		}
+		Line[] lines;
+
+		// A region may span several lines and the linebox info must be probed to find out
+		// what part belongs where. Additionally the linebox knows about the layed out line height.
+
+        auto regionSetRange = regions[];
+        // skip over all initial regions not even in view
+        while (!regionSetRange.empty)
+        {
+            if (regionSetRange.front.b > textOffset)
+                break;
+            regionSetRange.popFront();
+        }
+
+        if (regionSetRange.empty)
+            return; // no regions in view
+
+		foreach (i, ref line; textLayout.lines)
+		{
+            auto lineRegion = line.region;
+            lineRegion.entriesInserted(0, textOffset);
+			if (regions.lastIndex <= lineRegion.a)
+				break; // line is after selection. No more to model.
+
+            auto intersectRange = regionSetRange.intersect(lineRegion);
+			foreach (irRegion; intersectRange)
+            {
+                irRegion.entriesRemoved(0, textOffset);
+                lines ~= Line(irRegion, line.largestFontHeight);
+            }
+		}
+
+		models.length = lines.length;
+
+		// TODO: move this into the loop above
+		Rectf prevRect;
+
+		RectfOffset borderSize = style.backgroundSpriteBorder;
+		Sprite sprite = Sprite(style.backgroundSprite);
+
+		auto solid = Sprite(borderSize.left, borderSize.top, sprite.rect.w - borderSize.horizontal, sprite.rect.h - borderSize.vertical);
+
+		//const float borderSize = 3;
+
+		foreach (i, ref line; lines)
+		{
+			// Begin and end glyph pos will tell us the horizontal ends of the selection box for
+			// The
+			Rectf beginGlyphPos = textLayout.model.getGlyphPos(line.region.a);
+			Rectf endGlyphPos =  textLayout.model.getGlyphPos(line.region.b-1);
+
+			// Swap y-coords to match coor system
+			beginGlyphPos.y = (-beginGlyphPos.y) - beginGlyphPos.h;
+			endGlyphPos.y = (-endGlyphPos.y) - endGlyphPos.h;
+
+			BoxModel box = models[i];
+			if (box is null)
+			{
+				box = new BoxModel(0, sprite, RectfOffset(borderSize.left,borderSize.top,borderSize.right,borderSize.bottom));
+				//box = new BoxModel(Sprite(Rectf(6,6,4,4)));
+				box.color = style.color; //Vec3f(0.25, 0.25, 0.25);
+				models[i] = box;
+			}
+			else
+			{
+				box.setupDefaultNinePatch(sprite);
+				box.color = style.color;
+			}
+
+			Vec2f size = Vec2f((endGlyphPos.pos.x + endGlyphPos.size.x) - beginGlyphPos.pos.x, line.lineHeight);
+
+            auto curRect = Rectf(beginGlyphPos.pos, size);
+
+            if (width > 0)
+            {
+                curRect.w = width;
+                curRect.x = 0f;
+            }
+
+			bool firstLine = i == 0;
+			if (!firstLine && !hasVertPadding && mergeBorders)
+			{
+				// Check the previous line rect to figure out how this line top corners should look and
+				// prev lines bottom corners should look
+				if (curRect.x <= prevRect.x && curRect.x2 >= prevRect.x)
+				{
+					// The last should have an open bottom left corner
+
+					models[i-1].bottomLeft = solid;
+					if (curRect.x2 > prevRect.x2)
+					{
+
+					}
+					else
+					{
+						models[i].topRight = solid; // Sprite(6, 6, 4, 4);
+					}
+				}
+				if (curRect.x2 >= prevRect.x2 && curRect.x <= prevRect.x2)
+				{
+					// The last should have an open bottom left corner
+					models[i-1].bottomRight = solid; // Sprite(borderSize, borderSize, 4, 4);
+				}
+				if (curRect.x == prevRect.x)
+				{
+					models[i].topLeft = solid; // Sprite(borderSize, borderSize, 4, 4);
+				}
+			}
+
+			prevRect = curRect;
+
+			// adjust for padding and size
+			if (padding.top != 0f)
+			{
+				curRect.y += padding.top;
+				if (curRect.y >= prevRect.y2)
+					curRect.y = prevRect.y2;
+
+				if (padding.bottom != 0f)
+					curRect.h -= padding.vertical;
+				else
+					curRect.h -= padding.top;
+
+				if (curRect.y2 < curRect.y)
+					curRect.y2 = curRect.y;
+			}
+			else if (padding.bottom != 0f)
+			{
+				curRect.h -= padding.bottom;
+				if (curRect.y2 < curRect.y)
+					curRect.y2 = curRect.y;
+			}
+
+			if (padding.left != 0f)
+			{
+				curRect.x += padding.left;
+				if (curRect.x >= prevRect.x2)
+					curRect.x = prevRect.x2;
+
+				if (padding.right != 0f)
+					curRect.w -= padding.horizontal;
+				else
+					curRect.w -= padding.left;
+				if (curRect.x2 < curRect.x)
+					curRect.x2 = curRect.x;
+			}
+			else if (padding.right != 0f)
+			{
+				curRect.w -= padding.right;
+				if (curRect.x2 < curRect.x)
+					curRect.x2 = curRect.x;
+			}
+
+			if (height.isValid)
+			{
+				assert(height.unit == CSSUnit.pixels); // TODO: support other heights as well
+				curRect.h = height.value;
 			}
 
 			box.rect = curRect;

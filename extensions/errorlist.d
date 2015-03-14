@@ -29,6 +29,7 @@ class ErrorListWidget : BasicWidget
 	private TextRenderer!BufferView textRenderer;
 	private BufferView messagesBuffer;
 
+    private int currentIssueLine = int.min;
 	private int lines = 0;
 	private int preferredEmptyBottomLines = 1;
 
@@ -162,6 +163,7 @@ class ErrorListWidget : BasicWidget
 
 	private void clearVisible()
 	{
+        currentIssueLine = int.min;
 		textRenderer.text.lineOffset = 0;
         textRenderer.text.clear();
 		lines = 0;
@@ -178,7 +180,7 @@ class ErrorListWidget : BasicWidget
 		messagesBuffer = app.bufferViewManager.create();
 
 		textRenderer = new TextRenderer!BufferView(v);
-		auto styler = new ErrorListStyler(v);
+		auto styler = new ErrorListStyler(v, this);
 		textRenderer.textStyler = styler;
 		features ~= textRenderer;
 
@@ -308,44 +310,103 @@ class ErrorListWidget : BasicWidget
 
 	override EventUsed onMouseDoubleClick(Event event)
 	{
-		auto info = textRenderer.getGlyphAt(this, event.mousePos);
-		if (info.isValid)
+		auto posInfo = textRenderer.getGlyphAt(this, event.mousePos);
+		if (posInfo.isValid)
 		{
 			auto buf = textRenderer.text.buffer;
-			auto line = buf.lineContaining(info.index);
+			auto line = buf.lineContaining(posInfo.index);
+            auto info = parseLine(line);
 
-			import std.regex;
-			auto ctr = regex(ErrorListStyler.errorLineRe, "mg");
-			auto m = match(line, ctr);
-			import std.stdio;
-            if (!m.captures.empty)
+            if (info.message !is null)
 			{
-				BufferView bv = app.openFile(to!string(m.captures[1]));
+                textRenderer.getOrCreateHighlighter("error-highlight").regions.clear();
+				BufferView bv = app.openFile(to!string(info.file));
 				if (bv !is null)
 				{
-					auto pos = m.captures[2][1..$-1];
-					auto sp = std.algorithm.findSplit(pos, ",");
-					int errorLine = 0;
-					int errorColumn = 0;
-					if (sp[1].empty)
-						errorLine = to!int(pos) - 1; // lines are 0 indexed in buffer but 1 indexed in error message
-					else
-					{
-						errorLine = to!int(sp[0]) - 1;
-						errorColumn = to!int(sp[2]) - 1;
-					}
-					int errorStartOfLineIndex = bv.buffer.startAtLineNumber(errorLine);
-					bv.cursorPoint = errorStartOfLineIndex + errorColumn;
-					bv.centerOnLine(errorLine);
-				}
+					int errorStartOfLineIndex = bv.buffer.startAtLineNumber(info.line);
+					bv.cursorPoint = errorStartOfLineIndex + info.column;
+					bv.centerOnLine(info.line);
+                }
+                auto issueListBufferView = textRenderer.text;
+                issueListBufferView.dirty = true;
+                currentIssueLine = buf.lineNumberAt(posInfo.index);
+                auto ends = buf.lineEndsAt(posInfo.index);
+                if (ends[0] != InvalidIndex)
+                    textRenderer.getOrCreateHighlighter("error-highlight").regions.set(ends[0], ends[1]);
 			}
-
-			writeln(line);
 		}
 		return EventUsed.yes;
 	}
 
-	private auto parseLine(dstring str)
+    void selectNextIssue()
+    {
+        int checkIssueLine = currentIssueLine == int.min ? 0 : currentIssueLine;
+        foreach (idx; 0 .. textRenderer.text.lineCount)
+        {
+            checkIssueLine = (checkIssueLine + 1) % textRenderer.text.lineCount;
+            if (selectIssueHelper(checkIssueLine))
+            {
+                currentIssueLine = checkIssueLine;
+                auto ends = textRenderer.text.buffer.lineEndsForLineNumber(currentIssueLine);
+                textRenderer.getOrCreateHighlighter("error-highlight").regions.clear();
+                if (ends[0] != InvalidIndex)
+                    textRenderer.getOrCreateHighlighter("error-highlight").regions.set(ends[0], ends[1]);
+                textRenderer.text.viewOnLinePaged(currentIssueLine);
+                textRenderer.text.dirty = true;
+                break;
+            }
+        }
+
+    }
+
+    void selectPreviousIssue()
+    {
+        if (textRenderer.text.lineCount == 0)
+            return;
+
+        int checkIssueLine = currentIssueLine == int.min ? 0 : currentIssueLine;
+
+        foreach (idx; 0 .. textRenderer.text.lineCount )
+        {
+            checkIssueLine = (textRenderer.text.lineCount + checkIssueLine - 1) % textRenderer.text.lineCount;
+            if (selectIssueHelper(checkIssueLine))
+            {
+                currentIssueLine = checkIssueLine;
+                auto ends = textRenderer.text.buffer.lineEndsForLineNumber(currentIssueLine);
+                textRenderer.getOrCreateHighlighter("error-highlight").regions.clear();
+                if (ends[0] != InvalidIndex)
+                    textRenderer.getOrCreateHighlighter("error-highlight").regions.set(ends[0], ends[1]);
+                textRenderer.text.viewOnLinePaged(currentIssueLine);
+                textRenderer.text.dirty = true;
+                break;
+            }
+        }
+    }
+
+    private bool selectIssueHelper(int lineNum)
+    {
+        auto buf = textRenderer.text.buffer;
+        auto line = buf.lineString(lineNum);
+        auto info = parseLine(line);
+
+        if (info.message !is null)
+        {
+            BufferView bv = app.openFile(to!string(info.file));
+            if (bv !is null)
+            {
+                int errorStartOfLineIndex = bv.buffer.startAtLineNumber(info.line);
+                bv.cursorPoint = errorStartOfLineIndex + info.column;
+                bv.centerOnLine(info.line);
+            }
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+	private auto parseLine(const(dchar)[] str)
 	{
 		struct ParsedLine
 		{
@@ -357,7 +418,7 @@ class ErrorListWidget : BasicWidget
 			int column;
 		}
 
-		ParsedLine result = ParsedLine(str ~ "\n"d, MessageType.messages);
+		ParsedLine result = ParsedLine((str ~ "\n"d).idup, MessageType.messages);
 
 		import std.regex;
 		auto ctr = regex(ErrorListStyler.errorLineRe, "mg");
@@ -374,8 +435,6 @@ class ErrorListWidget : BasicWidget
 
 			auto pos = m.captures[2][1..$-1];
 			auto sp = std.algorithm.findSplit(pos, ",");
-			int errorLine = 0;
-			int errorColumn = 0;
 			if (sp[1].empty)
 				result.line = to!int(pos) - 1; // lines are 0 indexed in buffer but 1 indexed in error message
 			else
@@ -400,24 +459,46 @@ class ErrorListWidget : BasicWidget
 		import std.stdio;
 		//writeln("draw");
 	}
+
 }
 
+@Shortcut("<f8>")
+void issueNext(GUIApplication app)
+{
+    ErrorListWidget w = cast(ErrorListWidget)app.getWidget("errorlist");
+    if (w is null)
+        return;
+    w.selectNextIssue();
+}
+
+@Shortcut("<shift> + <f8>")
+void issuePrevious(GUIApplication app)
+{
+    ErrorListWidget w = cast(ErrorListWidget)app.getWidget("errorlist");
+    if (w is null)
+        return;
+    w.selectPreviousIssue();
+}
 
 class ErrorListStyler : TextStyler
 {
 	enum DStyle
 	{
 		other = 0,
-		lineNumber = 1,
-		error = 2,
-		warning = 3,
+		otherHighlighted = 1,
+		lineNumber = 2,
+		error = 3,
+		warning = 4,
 	};
 
 	enum errorLineRe = r"(\S*?)(\([\d,]+\)): ((?:Error|Warning).*)"d;
 
-	this(BufferView text)
+    private ErrorListWidget _errorListWidget;
+
+	this(BufferView text, ErrorListWidget w)
 	{
 		super();
+        _errorListWidget = w;
 		text.onInsert.connect(&textInsertedCallback);
 		text.onRemove.connect(&textRemovedCallback);
 	}
@@ -435,6 +516,9 @@ class ErrorListStyler : TextStyler
 		import std.regex;
 		auto ctr = regex(errorLineRe, "mg");
 
+        import core.buffer;
+        TextBuffer textBuf = text.buffer;
+
 		foreach (m; match(buf, ctr))
 		{
 			if (m.empty)
@@ -448,6 +532,8 @@ class ErrorListStyler : TextStyler
 
 			_regionSet.set(offset + begin, offset + end, DStyle.lineNumber);
 
+            int issueLineNumber = textBuf.lineNumberAt(offset + begin);
+
 			auto lineInFile = m.captures[2];
 			begin = end;
 			end = begin + lineInFile.length;
@@ -456,7 +542,12 @@ class ErrorListStyler : TextStyler
 			auto message = m.captures[3];
 			begin = end + 1;
 			end = begin + message.length;
-			_regionSet.set(offset + begin, offset + end, DStyle.other);
+
+            DStyle otherStyle = DStyle.other;
+            if (issueLineNumber == _errorListWidget.currentIssueLine)
+                otherStyle = DStyle.otherHighlighted;
+
+            _regionSet.set(offset + begin, offset + end, otherStyle);
 			lastEndIdx = end;
 		}
 
@@ -473,6 +564,8 @@ class ErrorListStyler : TextStyler
 		{
 			case DStyle.other:
 				return "errorlist-other";
+			case DStyle.otherHighlighted:
+				return "errorlist-other-highlighted";
 			case DStyle.lineNumber:
 				return "errorlist-line-number";
 			case DStyle.error:

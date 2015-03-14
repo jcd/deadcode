@@ -1,3 +1,4 @@
+
 * {
 	color: #ff0000;
 	background-color: #ffffff;
@@ -12,21 +13,24 @@
 Label {
 	font : url(fonts/RobotoCondensed-Light.ttf) 16;
 	color: #ffffff;
-	width: 100px;
 	height: 20px;
+	min-height: 20px;
 	padding: 1 4 4 1;
+	width: 100%;
+	min-width: 100%;
 }
 
 Button {
 	color: #d8d8d2;
 	font : url(fonts/RobotoCondensed-Light.ttf) 14;
-	background-color: #0a373d;
+	background-color: #27626b;
 	background: url(materials/white-small-nine-patch.png);
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	width: 100%;
 	height: 20px;
-	padding: 1 10 0 1;
+	min-height: 20px;
+	padding: 1 10 10 1;
 }
 
 Button:hover {
@@ -38,6 +42,29 @@ Button:active {
 	color: #e8e8e2;
 }
 
+PopupList {
+	color: #d8d8d2;
+	font : url(fonts/RobotoCondensed-Light.ttf) 14;
+	background-color: #0a373d;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	width: 300px;
+	left: -2px;
+	height: 20%;
+	min-height: 20px;
+	padding: 3 0 0 0;
+}
+
+PopupList > Button {
+	max-height: 20px;
+	font : url(fonts/cour.ttf) 13;
+	padding: 1 8 10 1;
+}
+
+PopupList > Button:focus {
+	background-color: #ff0000;
+}
 
 Globals {
 	page-down-speed: 16.0;
@@ -77,6 +104,7 @@ StatusPanel {
 	background-sprite-border: 6 6 6 6;
 	color: #ff0000;
 	height: 50%;
+	left: 0px;
 	transition: height 0.3s;
 }
 
@@ -92,11 +120,12 @@ ErrorListWidget {
 	position: relative;
 	padding : 0 0 0 0;
 	background: url(materials/white-small-nine-patch.png);
-	background-color: #0a272d;
+	background-color: #101617;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	color: #ff0000;
 	height: 100%;
+	left: 0px;
 	transition: height 0.3s;
 }
 
@@ -108,7 +137,7 @@ ErrorListWidget.compiling {
 #toggles {
 	position: absolute;
 	background: url(materials/white-small-nine-patch.png);
-	background-color: #0a272d;
+	background-color: #101617;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	padding: 0 0 0 0;
@@ -140,11 +169,15 @@ ToggleButton:active {
 	color: #ffffff;
 }
 
-#progress {
+#progress:visible {
+	position: absolute;
 	background: url(materials/progress_16x16.png);
 	background-color: #ffffff;
 	background-sprite: 0 0 16 16;
+	background-sprite-animation: grid(12,1,12,0.03);
 	padding: 10 0 0 0;
+	left: -5px;
+	top: -2px;
 	width: 16px;
 	height: 16px;
 }
@@ -236,20 +269,66 @@ UnittestAnchor:focus {
 }
 
 #main {
-	background: url(materials/bgplain.png);
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 4 4 10 10;
+	background-color: #182224;
 	height: 100%;
 }
 
 
 .selection {
 	background: url(materials/white-small-nine-patch.png);
-	color: #0a272d;
+	color: #2e4042;
+	padding: 0 0 0 0;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 }
 
+.error-highfight {
+	background: url(materials/white-small-nine-patch.png);
+	color: #111111;
+	padding: 0 0 0 0;
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+}
+
+TextHighlighter {
+	background: url(materials/white-small-nine-border-patch.png);
+	color: #ffff00;
+	padding: 0 0 0 0;
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+}
+
+.error-highflight {
+	background: url(materials/white-small-nine-border-patch.png);
+	color: #ffff00;
+	padding: 0 0 0 0;
+	background-sprite: 6 6 8 10;
+	background-sprite-border: 0 0 6 6;
+}
+
+.lineHighlight {
+	color: #212e30;
+	background: url(materials/white-small-nine-patch.png);
+	width: 100%;
+}
+
+.search {
+	color: #545f5f;
+	background: url(materials/white-small-nine-patch.png);
+}
+
+Text {
+	color: #ff0000;	
+}
+
 .errorlist-other {
 	color: #f8f8f2;
+}
+
+.errorlist-other-highlighted {
+	color: #ff0000;
 }
 
 .errorlist-line-number {
@@ -340,6 +419,8 @@ TextField
 	background: url(materials/white-small-nine-patch.png);
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 0 0 0 0;
+	height: 24px;
+	max-height: 24px;
 }
 
 CommandControl
@@ -429,6 +510,7 @@ CommandControl.oneline > TextEditor#commandCompletion
 {
 	font : url(fonts/RobotoCondensed-Light.ttf) 19;
 	height: 0px;
+	min-height: 0px;
 	transition: height 0.05s;
 }	
 
@@ -448,6 +530,7 @@ CommandControl.multiline > TextEditor
 CommandControl.hidden > TextEditor#commandCompletion
 {
 	height: 0px;
+	min-height: 0px;
 	padding: 0 2 0 0;
 }
 
@@ -487,6 +570,8 @@ TextEditor#commandCompletion {
 	background-color: #0a272d;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
+	font : url(fonts/RobotoCondensed-Light.ttf) 19;
+	min-height: 300px;
 }
 
 Tree {
@@ -505,7 +590,7 @@ Tree.hidden {
 Tree#Menu {
 	position: absolute;
 	background: url(materials/white-small-nine-patch.png);
-	background-color: #0a272d;
+	background-color: #314447;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	padding : 5 0 20 10;
@@ -527,7 +612,7 @@ Tree#Menu.hidden {
 Tree#Menu Tree.leaf
 {
 	background: url(materials/white-small-nine-patch.png);
-	background-color: #0a272d;
+	background-color: #314447;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 }
@@ -540,7 +625,7 @@ Tree > Label {
 
 Tree#Menu Tree.leaf:hover
 {
-	background-color: #1a474d;	
+	background-color: #425c61;	
 	transition: width 0.1s;
 }
 
@@ -604,19 +689,19 @@ Tree#WidgetHierarchyTree Tree.leaf:active {
 #menuButton {
 	position: absolute;
 	background: url(materials/white-small-nine-patch.png);
-	color: #d8d8d2;
-	background-color: #0a373d;
+	color: #bfbfba;
+	background-color: #314447;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	font : url(fonts/RobotoCondensed-Bold.ttf) 20;
 	padding: -2 10 0 12;
-	height: 16px;
 	width: 100px;
 	right: 100px;
+	height: 24px;
 }
 
 #menuButton:hover {
-	background-color: #2a575d;	
+	background-color: #425c61;	
 }
 
 #menuButton:active {
@@ -658,9 +743,46 @@ Tree#WidgetHierarchyTree Tree.leaf:active {
 }
 
 MyWidget {
-	position: relative;
+	position: absolute;
 	left: 200px;
-	height: 42px;
-	width: 200px;
+	width: 150px;
+	height: fit;
 	z-index: 200;
+}
+
+BasicWidget {
+	position: absolute;
+	width: 200px;
+	height: 150px;
+	right: 370px;
+	z-index: 100;
+}
+
+FieldContainer 
+{
+	background-color: #314447;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	padding: 6 2 6 6;
+}
+
+FieldContainer > TextField {
+	padding: 2 4 4 2;
+	font : url(fonts/RobotoCondensed-Light.ttf) 16;
+	background-color: #011017;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+}
+
+FooWidget > Button {
+
+}
+
+
+FooWidget > Button:hover {
+	left: -10px;
+	background-color: #555555;
+	transition: left 0.5s, background-color 0.5s;
 }

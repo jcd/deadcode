@@ -79,7 +79,10 @@ class Widget : Stylable
 	//
 	//StyleState styleState;
 
-	Timeline.Runner runner;
+	Timeline.Runner transitionRunner;
+	Timeline.Runner backgroundSpriteAnimationRunner;
+    Rectf backgroundSpriteRect;
+
 	Style _targetStyle;         // Style found by lookup in stylesheet
 	Style _widgetSpecificStyle; // Used to set style programatically and will override anything in _targetStyle
 	Style _computedStyle;       // Used style. May also be influenced by transition animations.
@@ -121,7 +124,7 @@ class Widget : Stylable
 		return _widgetSpecificStyle !is null;
 	}
 
-	@property Style styleOverride()
+	@property const(Style) styleOverride()
 	{
 		if (_widgetSpecificStyle is null)
 			_widgetSpecificStyle = new Style("");
@@ -204,7 +207,7 @@ class Widget : Stylable
     */
     @property Style style()
 	{
-        //if (!_recalcTargetStyle)
+        //if (!_recalcTarget
         //    return _computedStyle;
 
 		// Get the style that this widget is supposed to have.
@@ -231,7 +234,7 @@ class Widget : Stylable
 			//_computedStyle = newTargetStyle.clone();
 
 		}
-		else if (_targetStyle !is newTargetStyle)
+		else if (_targetStyle !is newTargetStyle || lastStyleVersion == uint.max)
 		{
 			_targetStyle = newTargetStyle;
 
@@ -255,22 +258,22 @@ class Widget : Stylable
 				Style endTargetStyle = _targetStyle;
 				if (_widgetSpecificStyle !is null)
 				{
-					endTargetStyle = _targetStyle.clone();
+					endTargetStyle = _widgetSpecificStyle.clone();
 					endTargetStyle.styleSheet = null;
-					endTargetStyle.overlay(_widgetSpecificStyle);
+					endTargetStyle.overlay(_targetStyle);
 				}
 
 				clip.createCurves(_computedStyle, endTargetStyle);
 
 				// clip.createCubicCurve!"x"(0, x, 1, x+100.0);
-				if (runner !is null)
-					runner.abort();
-				runner = window.timeline.animate(_computedStyle, clip);
+				if (transitionRunner !is null)
+					transitionRunner.abort();
+				transitionRunner = window.timeline.animate(_computedStyle, clip);
 			}
 			else
 			{
-				if (runner !is null)
-					runner.abort();
+				if (transitionRunner !is null)
+					transitionRunner.abort();
 
 				if (_computedStyle.styleSheet is null)
 					destroy(_computedStyle);
@@ -279,25 +282,51 @@ class Widget : Stylable
 				Style endTargetStyle = _targetStyle;
 				if (_widgetSpecificStyle !is null)
 				{
-					endTargetStyle = _targetStyle.clone();
+					endTargetStyle = _widgetSpecificStyle.clone();
 					endTargetStyle.styleSheet = null;
-					endTargetStyle.overlay(_widgetSpecificStyle);
+					endTargetStyle.overlay(_targetStyle);
 				}
 
 				_computedStyle = endTargetStyle;
 			}
 		}
 
-        if (lastStyleVersion != _computedStyle.currentVersion ||
-            lastStyleID != _computedStyle.id)
+        if (_computedStyleChanged())
         {
             forceDirty();
+
+            if (_computedStyle.backgroundSpriteAnimation !is null)
+            {
+                if (backgroundSpriteAnimationRunner !is null)
+                    backgroundSpriteAnimationRunner.abort();
+
+                backgroundSpriteRect = _computedStyle.backgroundSprite;
+                // TODO: get rid of closure
+               backgroundSpriteAnimationRunner =
+                   window.timeline.animate(_computedStyle.backgroundSpriteAnimation.frameTime,
+                                                    (double timestamp, int count) {
+                                                            backgroundSpriteRect = _computedStyle.getBackgroundSpriteRectForFrame(count);
+                                                    });
+            }
+            else
+            {
+                if (backgroundSpriteAnimationRunner !is null)
+                    backgroundSpriteAnimationRunner.abort();
+                backgroundSpriteRect = _computedStyle.backgroundSprite;
+            }
             lastStyleID = _computedStyle.id;
             lastStyleVersion = _computedStyle.currentVersion;
         }
 
 		return _computedStyle;
 	}
+
+    private bool _computedStyleChanged()
+    {
+        return _computedStyle !is null &&
+            (lastStyleVersion != _computedStyle.currentVersion ||
+            lastStyleID != _computedStyle.id);
+    }
 
 	// Copy current dimensions of this widget to it style in order to use the style as starting point for
 	// an animation.
@@ -385,10 +414,10 @@ class Widget : Stylable
 		Vec2f _minSize;
 		Vec2f _maxSize;
 
-		bool _sizeDirty;
+        bool _sizeDirty;
 		Widget _parent;
 		Widgets _children;
-	}
+    }
 
     protected bool _visible;
 
@@ -574,12 +603,12 @@ class Widget : Stylable
 		}
 
         void minSize(Vec2f sz)
-		{
+        {
             _minSize = sz;
-		}
+        }
 
         void maxSize(Vec2f sz)
-		{
+        {
             _maxSize = sz;
         }
 
@@ -633,9 +662,9 @@ class Widget : Stylable
 		}
 
         ref float w()
-		{
+        {
             return _rect.w;
-		}
+        }
 
         const(float) w() const
 		{
@@ -643,9 +672,9 @@ class Widget : Stylable
 		}
 
         ref float minWidth()
-		{
+        {
             return _minSize.x;
-		}
+        }
 
         const(float) minWidth() const
 		{
@@ -653,14 +682,14 @@ class Widget : Stylable
 		}
 
         ref float maxWidth()
-		{
-            return _maxSize.x;
-		}
-
-        const(float) maxWidth() const
         {
             return _maxSize.x;
         }
+
+        const(float) maxWidth() const
+		{
+            return _maxSize.x;
+		}
 
         //@Bindable()
         //void w(float value)
@@ -713,7 +742,19 @@ class Widget : Stylable
 		void pos(Vec2f p)
 		{
 			_rect.pos = p;
-		}
+        }
+
+        void overridePos(Vec2f p)
+        {
+			_rect.pos = p;
+            styleOverride(); // ensure override style
+            _widgetSpecificStyle.position = CSSPosition.fixed;
+            _widgetSpecificStyle.right = CSSScale(window.w - p.x, CSSUnit.pixels); // Set right instead in order to handle resizing (need support for setting style prop back to auto on override)
+            _widgetSpecificStyle.left = CSSScale(1, CSSUnit.automatic);
+            _widgetSpecificStyle.top = CSSScale(p.y, CSSUnit.pixels);  // ditto for top
+            _widgetSpecificStyle.increaseVersion();
+            lastStyleVersion = uint.max; // force style recalc
+        }
 
 		bool sizeChanged()
 		{
@@ -967,6 +1008,11 @@ class Widget : Stylable
 		assert(window !is null);
 		return window.isMouseDownWidget(this);
 	}
+
+    bool isVisible() const pure nothrow @safe
+    {
+        return visible;
+    }
 
 	void grabMouse()
 	{

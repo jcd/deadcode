@@ -1,6 +1,7 @@
 module gui.styledtext;
 
 import core.bufferview;
+import core.buffer : InvalidIndex;
 import gui.style;
 import math.region;
 import std.container;
@@ -15,13 +16,13 @@ T instantiate(T)(T o)
 	return result;
 }
 
-static 
+static
 {
 	TextStyler[] s_Stylers;
 
 	void register(TextStyler styling)
 	{
-		s_Stylers ~= styling;	
+		s_Stylers ~= styling;
 	}
 
 	TextStyler createTextStyler(BufferView text)
@@ -32,7 +33,7 @@ static
 	TextStyler createTextStyler(Text)(Text text, string name)
 	{
 		TextStyler styler;
-		
+
 		foreach (s; s_Stylers)
 		{
 			if (s.canStyle(name))
@@ -72,7 +73,7 @@ class TextStyler
 	//{
 	//    return _text;
 	//}
-	
+
 	@property RegionSet regionSet()
 	{
 		//if (!_dirtyRegion.empty)
@@ -91,7 +92,7 @@ class TextStyler
 	}
 
 	/** Returns true if the name can be styled
-	
+
 		The name should be either a filename or a full file path.
 
 		Returns: true if this styler can handle the file type
@@ -108,7 +109,7 @@ class TextStyler
 //
 ////		this.text = text;
 //        this._regionSet = new RegionSet();
-//        
+//
 //        //static if ( is(Text : BufferView) )
 //        //{
 //        //    text.onInsert.connect(&textInsertedCallback);
@@ -131,7 +132,7 @@ class TextStyler
 	{
 		// Update region set
 		_regionSet.entriesRemoved(from, str.length);
-		
+
 		import std.stdio;
 		// writefln("Removed styler %s from %s", str.length, from);
 
@@ -197,16 +198,16 @@ class TextStyler
 	{
 		// Sanitize the region
 		r = r.clip(0, text.length);
-		
-		// Look for the preceeding and succeeding whitespace and form a region using that 
+
+		// Look for the preceeding and succeeding whitespace and form a region using that
 		// to use for restyling.
 		// Restyle entire lines
 		static if ( is(Text : BufferView) )
-		{		
+		{
 			int a = text.buffer.findOneOfReverse(r.a, "\r\n");
 			int b = text.buffer.findOneOf(r.b, "\r\n");
-			a = a == int.max ? 0 : a;
-			b = b == int.max ? text.length : b;
+			a = a == InvalidIndex ? 0 : a;
+			b = b == InvalidIndex ? text.length : b;
 			styleRegion(Region(a, b), text);
 			//styleRegion(Region(0, text.length));
 		}
@@ -240,30 +241,30 @@ class TextStyler
 
 unittest
 {
-//t	std.stdio.writeln("Styles white %x, black %x, yellow %x", &white, &black, &yellow); 
-/*t	
+//t	std.stdio.writeln("Styles white %x, black %x, yellow %x", &white, &black, &yellow);
+/*t
 	auto text = new StyledText!dchar("yellow white      black yellow"d);
 	auto rs = new RegionSet();
-	
+
 	uint yellow = 1;
 	uint white = 2;
-	uint black = 3;	
-	
-	rs.add(0, 6, yellow); 
+	uint black = 3;
+
+	rs.add(0, 6, yellow);
 	rs.add(7, 12, white);
 	rs.add(18, 23, black);
-	rs.add(24, 100, yellow); 
+	rs.add(24, 100, yellow);
 
 	auto r = text[1..text.text.length];
-	
+
 	// Print out the styles
 	foreach (sr; r)
 	{
 		std.stdio.writeln("Range %i %i: %s", sr.a, sr.b, sr.styleFields);
-	}			
+	}
 */
 }
-	
+
 class StyleSheetStyler : TextStyler
 {
 	enum StyleSheetStyle
@@ -300,7 +301,7 @@ class StyleSheetStyler : TextStyler
 		}
 		re ~= ")\\b";
 
-		import std.regex;		
+		import std.regex;
 		auto ctr = regex(re, "mg");
 
 		int[dstring] templates;
@@ -314,7 +315,7 @@ class StyleSheetStyler : TextStyler
 		assert(r.a >= 0 && r.a <= text.length);
 		assert(r.b >= 0 && r.b <= text.length);
 		auto buf = array(text[r.a .. r.b]);
-		
+
 		size_t lastEndIdx = 0;
 		size_t offset = r.a;
 
@@ -326,7 +327,7 @@ class StyleSheetStyler : TextStyler
 			if (m.hit == "#")
 			{
 				auto kk = buf[end..$].indexOf('{');
-				end += kk == -1 ? 0 : kk; 
+				end += kk == -1 ? 0 : kk;
 			}
 
 			if (begin != lastEndIdx)
@@ -367,16 +368,16 @@ class ChangeLogStyler : TextStyler
 		bullet
 	};
 
-	override bool canStyle(string name) const pure 
+	override bool canStyle(string name) const pure
 	{
 		return name.toLower.startsWith("changelog");
 	}
 
 	private void setStyleByRegex(Text)(Region r, dstring re, Styling styling, Text text)
 	{
-		import std.regex;		
-		//auto ctr = regex(r"\s+([a-f0-9]+)\*?\s+ ", "mg");		
-		auto ctr = regex(re, "mg");		
+		import std.regex;
+		//auto ctr = regex(r"\s+([a-f0-9]+)\*?\s+ ", "mg");
+		auto ctr = regex(re, "mg");
 
 		import std.array;
 		assert(r.a >= 0 && r.a <= text.length);
@@ -397,7 +398,7 @@ class ChangeLogStyler : TextStyler
 		import std.stdio;
 		_regionSet.set(r.a, r.b, Styling.other);
 		setStyleByRegex(r, r"^()(Changes:|Overview:)\s*$"d, Styling.subTitle, text);
-		setStyleByRegex(r, r"^()(Release.*?\s+[\.0-9]+\s.*)$"d, Styling.releaseTitle, text);	
+		setStyleByRegex(r, r"^()(Release.*?\s+[\.0-9]+\s.*)$"d, Styling.releaseTitle, text);
 		setStyleByRegex(r, r"^(\s+)([0-9a-f]+)\s"d, Styling.changeset, text);
 		setStyleByRegex(r, r"(\s)(\*)\s"d, Styling.bullet, text);
 		onChanged.emit();

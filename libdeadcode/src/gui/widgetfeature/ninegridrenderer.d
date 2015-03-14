@@ -85,7 +85,8 @@ class NineGridRenderer : WidgetFeature
 		widget.getStyledScreenToWorldTransform(transform);
 
 		RectfOffset spriteBorder = style.backgroundSpriteBorder;
-		Rectf spriteRect = style.backgroundSprite;
+		//Rectf spriteRect = style.backgroundSprite;
+        Rectf spriteRect = widget.backgroundSpriteRect;
 		//
 		//if (widget.id == 8)
 		//    std.stdio.writeln("w8 dpos ", widget.rect.h);

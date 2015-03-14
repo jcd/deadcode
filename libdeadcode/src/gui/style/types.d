@@ -12,7 +12,7 @@ enum AnimationLoopMode
 	loop
 }
 
-/** Style Animation 
+/** Style Animation
 For animating styles
 */
 class Animation
@@ -22,11 +22,11 @@ class Animation
 
 	struct KeyFrame
 	{
-		float offset; // 0..1 
+		float offset; // 0..1
 		Style style;  // Style to overlay base style at this keyframe
 	}
 
-	KeyFrame[] keyFrames; 
+	KeyFrame[] keyFrames;
 
 	this(StyleSheet _sheet)
 	{
@@ -159,10 +159,10 @@ import core.time;
 struct Transition
 {
 	import animation.interpolate;
-	
-	this(string propName, 
-		 Duration dura = dur!"seconds"(0), 
-		 CubicCurveParameters cubicBezier = CubicBezierCurve!float.ease[0..4], 
+
+	this(string propName,
+		 Duration dura = dur!"seconds"(0),
+		 CubicCurveParameters cubicBezier = CubicBezierCurve!float.ease[0..4],
 		 Duration delay = dur!"seconds"(0))
 	{
 		propertyName = propName;
@@ -184,7 +184,7 @@ class StyleTransitionAnimator : Animator
 
 	override void update(double time)
 	{
-		
+
 	}
 }
 */
@@ -222,7 +222,7 @@ struct CSSScale
 
 	@property CSSScale clamped() const pure nothrow
 	{
-		return CSSScale(valueOrZero, unit);	
+		return CSSScale(valueOrZero, unit);
 	}
 
 	CSSScale opBinary(string OP)(CSSScale v) const pure nothrow
@@ -261,7 +261,7 @@ struct CSSScaleMix
 
 	CSSScale cssScaleB;
 
-	float mixOffset; 
+	float mixOffset;
 
 	CSSScale opIndex(int i) const pure nothrow
 	{
@@ -287,7 +287,7 @@ enum CSSPosition : byte
 	absolute
 }
 
-struct CSSPositionMix 
+struct CSSPositionMix
 {
 	CSSPosition cssPositionA;
 	alias cssPositionA this;
@@ -310,7 +310,7 @@ struct CSSPositionMix
 
 struct RectCSSOffset
 {
-	CSSScale left; 
+	CSSScale left;
 	CSSScale top;
 	CSSScale right;
 	CSSScale bottom;
@@ -347,7 +347,7 @@ struct RectCSSOffset
 		mixin("this.right" ~ OP ~ "= v.right;");
 		mixin("this.bottom" ~ OP ~ "= v.bottom;");
 	}
-	
+
 	RectCSSOffset opBinary(string OP)(float v) const pure nothrow if (OP == "*" || OP == "/")
 	{
 		RectCSSOffset res = this;
@@ -371,4 +371,19 @@ struct RectCSSOffset
 		import std.math;
 		return isNaN(top.value) || isNaN(left.value) || isNaN(bottom.value) || isNaN(right.value) || (top.value == 0f && left.value == 0f && bottom.value == 0f && right.value == 0f);
 	}
+}
+
+enum SpriteFramesType : ubyte
+{
+    none,
+    grid
+}
+
+class SpriteFrames
+{
+    SpriteFramesType type;
+    int count;
+    int columns;
+    int rows;
+    float frameTime;
 }

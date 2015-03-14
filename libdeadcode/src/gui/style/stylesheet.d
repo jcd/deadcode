@@ -34,6 +34,7 @@ version (unittest)
 			bool hasKeyboardFocus() const pure nothrow @safe { return false; }
 			bool isMouseOver() const pure nothrow @safe { return false; }
 			bool isMouseDown() const pure nothrow @safe { return false; }
+            bool isVisible() const pure nothrow @safe { return true; }
 			Stylable parent() pure nothrow @safe { return _parent; }
 		}
 
@@ -88,6 +89,7 @@ interface Stylable
 		bool hasKeyboardFocus() const pure nothrow @safe;
 		bool isMouseOver() const pure nothrow @safe;
 		bool isMouseDown() const pure nothrow @safe;
+        bool isVisible() const pure nothrow @safe;
 		Stylable parent() pure nothrow @safe;
 	}
 }
@@ -105,7 +107,8 @@ class StylableSelector
 		hover,
 		active,
 		disabled,
-		focus
+		focus,
+        visible
 	}
 
 	PseudoClass pseudoClass;
@@ -129,6 +132,9 @@ class StylableSelector
 				break;
 			case "focus":
 				pseudoClass = PseudoClass.focus;
+				break;
+			case "visible":
+				pseudoClass = PseudoClass.visible;
 				break;
 			default:
 				pseudoClass = PseudoClass.none;
@@ -164,6 +170,9 @@ class StylableSelector
 			case PseudoClass.focus:
 				pseudoMatch = w.hasKeyboardFocus();
 				break;
+			case PseudoClass.visible:
+				pseudoMatch = w.isVisible();
+				break;
 		}
 
 		if (!(nameMatch && classMatch && pseudoMatch))
@@ -183,36 +192,36 @@ unittest
 	// Wildcard match
 	auto w1 = new TestStylable(testWin);
 	auto sel1 = new StylableSelector(null, null);
-	AssertIs(sel1.match(w1, null), w1, "Wildcard StylableSelector matches unnamed");
+	AssertIs(sel1.match(w1)[0], w1, "Wildcard StylableSelector matches unnamed");
 	w1.name = "testStylable";
-	AssertIs(sel1.match(w1, null), w1, "Wildcard StylableSelector matches named");
+	AssertIs(sel1.match(w1)[0], w1, "Wildcard StylableSelector matches named");
 
 	// Name match
 	auto w2 = new TestStylable(testWin);
 	auto sel2 = new StylableSelector(null, "testStylable");
-	AssertIsNot(sel2.match(w2, null), w2, "TypeWildcard StylableSelector does not match unnamed");
+	AssertIsNot(sel2.match(w2)[0], w2, "TypeWildcard StylableSelector does not match unnamed");
 	w2.name = "testStylablexx";
-	AssertIsNot(sel2.match(w2, null), w2, "TypeWildcard StylableSelector does not match mismatching name");
+	AssertIsNot(sel2.match(w2)[0], w2, "TypeWildcard StylableSelector does not match mismatching name");
 	w2.name = "testStylable";
-	AssertIs(sel2.match(w2, null), w2, "TypeWildcard StylableSelector matches name");
+	AssertIs(sel2.match(w2)[0], w2, "TypeWildcard StylableSelector matches name");
 
 	// Type match
 	auto w3 = new TestStylable(testWin);
 	auto sel3 = new StylableSelector("TestStylable",null);
-	AssertIs(sel3.match(w3, null), w3, "NameWildcard StylableSelector matches direct Stylable");
+	AssertIs(sel3.match(w3)[0], w3, "NameWildcard StylableSelector matches direct Stylable");
 	auto sel4 = new StylableSelector("StylableX",null);
-	AssertIsNot(sel4.match(w3, null), w3, "NameWildcard StylableSelector does not match direct StylableX");
+	AssertIsNot(sel4.match(w3)[0], w3, "NameWildcard StylableSelector does not match direct StylableX");
 
 	class TestStylable1 : TestStylable { this(Stylable w) { super(w); } }
 	class TestStylable2 : TestStylable1 { this(Stylable w) { super(w); } }
 
 	auto w4 = new TestStylable2(testWin);
 	auto sel5 = new StylableSelector("TestStylable",null);
-	AssertIs(sel5.match(w4, null), w4, "NameWildcard StylableSelector matches decendant of Stylable");
+	AssertIs(sel5.match(w4)[0], w4, "NameWildcard StylableSelector matches decendant of Stylable");
 	auto sel6 = new StylableSelector("TestStylable1",null);
-	AssertIs(sel6.match(w4, null), w4, "NameWildcard StylableSelector matches decendant of TestStylable1");
+	AssertIs(sel6.match(w4)[0], w4, "NameWildcard StylableSelector matches decendant of TestStylable1");
 	auto sel7 = new StylableSelector("TestStylable2",null);
-	AssertIs(sel7.match(w4, null), w4, "NameWildcard StylableSelector matches direct TestStylable2");
+	AssertIs(sel7.match(w4)[0], w4, "NameWildcard StylableSelector matches direct TestStylable2");
 }
 
 class ChildSelector : StylableSelector
@@ -243,9 +252,9 @@ unittest
 	w3.name = "testGrandChild";
 
 	auto sel = new ChildSelector(null,"testParent");
-	AssertIsNot(sel.match(w1, null), win, "Root Stylable does not match ChildSelector");
-	AssertIs(sel.match(w2, null), w1, "Child of root Stylable matches ChildSelector");
-	AssertIsNot(sel.match(w3, null), w2, "Grandchild of root Stylable does not match ChildSelector");
+	AssertIsNot(sel.match(w1)[0], win, "Root Stylable does not match ChildSelector");
+	AssertIs(sel.match(w2)[0], w1, "Child of root Stylable matches ChildSelector");
+	AssertIsNot(sel.match(w3)[0], w2, "Grandchild of root Stylable does not match ChildSelector");
 }
 
 class DescendantSelector : StylableSelector
@@ -281,9 +290,9 @@ unittest
 	w3.name = "testGrandChild";
 
 	auto sel = new DescendantSelector(null,"testParent");
-	AssertIsNot(sel.match(w1, null), win, "Root Stylable does not match DescendantSelector");
-	AssertIs(sel.match(w2, null), w1, "Child of root Stylable matches DescendantSelector");
-	AssertIs(sel.match(w3, null), w1, "Grandchild of root Stylable matches DescendantSelector");
+	AssertIsNot(sel.match(w1)[0], win, "Root Stylable does not match DescendantSelector");
+	AssertIs(sel.match(w2)[0], w1, "Child of root Stylable matches DescendantSelector");
+	AssertIs(sel.match(w3)[0], w1, "Grandchild of root Stylable matches DescendantSelector");
 }
 
 /*
@@ -375,12 +384,12 @@ unittest
 	auto w2 = new TestStylable(w1);
 	w2.name = "testChild";
 
-	Assert(sel1.match(w1, null), "Wildcard selector matches single");
+	Assert(sel1.match(w1), 2560, "Wildcard selector matches single");
 
 	Selectors ws = [new ChildSelector(null, "testParent")];
 	sel1.selectors =  ws ~ sel1.selectors;
-	Assert(!sel1.match(w1, null), "Child selector on parent does not match");
-	Assert(sel1.match(w2, null), "Child selector on child does not match");
+	Assert(sel1.match(w1), 0, "Child selector on parent does not match");
+	Assert(sel1.match(w2), 16780032, "Child selector on child does not match");
 }
 
 class StyleSheet : Resource!StyleSheet

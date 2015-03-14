@@ -126,6 +126,9 @@ class Style
 		@NonBindable()
 		Rectf       _backgroundSprite;
 
+        @NonBindable()
+        SpriteFrames _backgroundSpriteAnimation;
+
 		// float _glyphPadding; etc....
 
 		// bitmask. One bit set unset for each by value property that does not support null values should be null.
@@ -401,6 +404,16 @@ class Style
 			_backgroundSprite = w;
 		}
 
+        const(SpriteFrames) backgroundSpriteAnimation() const pure nothrow @safe
+        {
+            return _backgroundSpriteAnimation;
+        }
+
+        void backgroundSpriteAnimation(SpriteFrames f)
+        {
+            _backgroundSpriteAnimation = f;
+        }
+
 		string name() const
 		{
 			return _name;
@@ -420,6 +433,24 @@ class Style
 		id = _nextID++;
 		styleSheet = s;
 	}
+
+    final Rectf getBackgroundSpriteRectForFrame(int n)
+    {
+        if (background is null || backgroundSpriteAnimation is null)
+            return backgroundSprite;
+
+        Rectf r = backgroundSprite;
+        n = n % backgroundSpriteAnimation.count;
+        int row = n / backgroundSpriteAnimation.columns;
+        int col = n % backgroundSpriteAnimation.columns;
+        r.x += backgroundSprite.w * col;
+        r.y += backgroundSprite.h * row;
+        return r;
+    }
+
+    final void setBackgroundSpriteForFrame(int n)
+    {
+    }
 
 	void rebuildTransitionCache()
 	{
@@ -748,8 +779,14 @@ class Style
 		setInvalid(sf._padding, _padding);
 		setInvalid(sf._backgroundSpriteBorder, _backgroundSpriteBorder);
 		setInvalid(sf._backgroundSprite, _backgroundSprite);
+        if (_backgroundSpriteAnimation is null)
+            _backgroundSpriteAnimation = sf._backgroundSpriteAnimation;
 		setInvalid(sf._width, _width);
+		setInvalid(sf._minWidth, _minWidth);
+		setInvalid(sf._maxWidth, _maxWidth);
 		setInvalid(sf._height, _height);
+		setInvalid(sf._minHeight, _minHeight);
+		setInvalid(sf._maxHeight, _maxHeight);
 		setInvalid(sf._left, _left);
 		setInvalid(sf._top, _top);
 		setInvalid(sf._right, _right);
@@ -808,6 +845,7 @@ class Style
 		st._padding = _padding;
 		st._backgroundSpriteBorder = _backgroundSpriteBorder;
 		st._backgroundSprite = _backgroundSprite;
+		st._backgroundSpriteAnimation = _backgroundSpriteAnimation;
 
 		foreach (k, v; propertyIDs)
 			st.propertyIDs[k] = v.dup;

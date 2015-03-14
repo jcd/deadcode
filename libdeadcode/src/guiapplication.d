@@ -5,10 +5,10 @@ import core.analytics;
 import core.bufferview;
 import core.copybuffer;
 import core.commandparameter;
+import core.command : CompletionEntry;
 import core.future;
 import core.container;
 import core.uri;
-import editorcommands;
 import graphics;
 import gui;
 import gui.resources.texture : GTexture = Texture;
@@ -31,7 +31,7 @@ import std.string;
 enum appName = "DeadCode";
 
 import std.c.windows.windows;
-extern (Windows) 
+extern (Windows)
 {
 	nothrow export HWND FindWindowA(LPCTSTR className, LPCTSTR windowName);
 	nothrow export HANDLE FindFirstChangeNotificationA(LPCTSTR lpPathName, BOOL bWatchSubtree, DWORD dwNotifyFilter);
@@ -75,12 +75,12 @@ class DirectoryWatcher
 	this(string path)
 	{
 		this.path = buildNormalizedPath(path);
-		dwChangeHandles[0] = FindFirstChangeNotificationA( 
-														 path.toStringz(),                         // directory to watch 
-														 true,                         // do not watch subtree 
-														 FILE_NOTIFY_CHANGE_LAST_WRITE); // watch file name changes 
+		dwChangeHandles[0] = FindFirstChangeNotificationA(
+														 path.toStringz(),                         // directory to watch
+														 true,                         // do not watch subtree
+														 FILE_NOTIFY_CHANGE_LAST_WRITE); // watch file name changes
 		import std.stdio;
-		if (dwChangeHandles[0] == INVALID_HANDLE_VALUE) 
+		if (dwChangeHandles[0] == INVALID_HANDLE_VALUE)
 		{
 			writeln("\n ERROR: FindFirstChangeNotification function failed.\n", GetLastError());
 		}
@@ -88,39 +88,39 @@ class DirectoryWatcher
 
 	bool wait(Duration d)
 	{
-		// Watch the directory 
+		// Watch the directory
 		bool result = false;
-		
+
 		if (dwChangeHandles[0] == INVALID_HANDLE_VALUE)
 			return result;
 
-		// Change notification is set. Now wait on both notification 
-		// handles and refresh accordingly. 
+		// Change notification is set. Now wait on both notification
+		// handles and refresh accordingly.
 
 		// Wait for notification.
 		DWORD dwWaitMs = cast(uint)d.total!"msecs"();
-		DWORD dwWaitStatus = WaitForMultipleObjects(1, &dwChangeHandles[0], 
-												FALSE, dwWaitMs); 
-		
-		switch (dwWaitStatus) 
-		{ 
-			case WAIT_OBJECT_0: 
+		DWORD dwWaitStatus = WaitForMultipleObjects(1, &dwChangeHandles[0],
+												FALSE, dwWaitMs);
+
+		switch (dwWaitStatus)
+		{
+			case WAIT_OBJECT_0:
 
 				// A file was created, renamed, or deleted in the directory.
 				// Refresh this directory and restart the notification.
 				if ( FindNextChangeNotification(dwChangeHandles[0]) == FALSE )
 				{
-					writeln("\n ERROR: FindNextChangeNotification function failed.\n", GetLastError());	
+					writeln("\n ERROR: FindNextChangeNotification function failed.\n", GetLastError());
 				}
 				result = true;
-				break; 
+				break;
 			case WAIT_TIMEOUT:
-				// A timeout occurred, this would happen if some value other 
+				// A timeout occurred, this would happen if some value other
 				// than INFINITE is used in the Wait call and no changes occur.
 				// In a single-threaded environment you might not want an
 				// INFINITE wait.
 				break;
-			default: 
+			default:
 				writeln("\n ERROR: Unhandled dwWaitStatus.\n", GetLastError());
 				break;
 		}
@@ -132,25 +132,26 @@ class DirectoryWatcher
 */
 enum ResourceBaseLocation
 {
-	currentDir,    /// The current working directory 
+	currentDir,    /// The current working directory
 	executableDir, /// The dir of this executable
 	resourceDir,  /// The default resources dir
 	userDataDir,   /// The user data dir which is platform specific
 	sessionDir,    /// Session temporary dir. Is cleared upon start and stop of app.
 }
 
-import jsonx;
+import util.jsonx;
 
 class GlobalStyle : Stylable
 {
-	@property 
-	{		
+	@property
+	{
 		string name() const pure @safe { return null; }
 		ubyte matchStylable(string stylableName) const pure nothrow @safe { return stylableName == "Globals" ? 10 : 0; }
 		const(string[]) classes() const pure nothrow @safe { return null; }
 		bool hasKeyboardFocus() const pure nothrow @safe { return false; }
 		bool isMouseOver() const pure nothrow @safe { return false; }
 		bool isMouseDown() const pure nothrow @safe { return false; }
+        bool isVisible() const pure nothrow @safe { return true; }
 		Stylable parent() pure nothrow @safe { return null; }
 	}
 }
@@ -203,7 +204,7 @@ class GUIApplication : Application
 			editor = ed;
 		}
 		int focusOrder; // LRU ordering
-		
+
 		@noSerialize
 		TextEditor editor;
 	}
@@ -223,7 +224,7 @@ class GUIApplication : Application
 	DirectoryWatcher resourceDirWatcher;
 	string resourcesRoot;
 	StyleSheet defaultStyleSheet;
-	
+
 	GenericResource sessionData;
 
 	private Analytics analytics;
@@ -245,21 +246,22 @@ class GUIApplication : Application
         return guiRoot.activeWindow;
     }
 
-	private this()
+	private this(GUI gui)
 	{
 		// This also sets up tracking keys for analytics
-		globalStyle = new GlobalStyle();
+		guiRoot = gui;
+        globalStyle = new GlobalStyle();
 		setupRegistryEntries();
 		_promptStack = new Stack!PromptQuery();
-		
+
 		// analytics = new GoogleAnalytics("UA-42266538-2", analyticsKey, "Ded", "com.streamwinter.ded", appVersion);
-		
+
 		// analytics = new NullAnalytics;
 		analyticEvent("core", "start");
 		analyticStartTiming("core", "startup");
 		_widgetLocationUpdater = new WidgetLocationUpdater(this);
 		super();
-		register(this);
+		// editorcommands.register(this);
 		editors = new Editors;
 	}
 
@@ -303,7 +305,7 @@ class GUIApplication : Application
 					throw new Exception("Cannot get APPDATA dir");
 				break;
 		}
-		
+
 		auto u = new URI(buildNormalizedPath(basePath, path));
 		u.normalize();
 		return u;
@@ -313,10 +315,11 @@ class GUIApplication : Application
 	{
 		if (gui is null)
 			gui = GUI.create();
-				
-		auto app = new GUIApplication;
-		app.guiRoot = gui;
+
+		auto app = new GUIApplication(gui);
 		app.guiRoot.onFileDropped.connect(&app.onFileDropped);
+
+
 		return app;
 	}
 
@@ -328,59 +331,165 @@ class GUIApplication : Application
 		openFile(path);
 	}
 
+    static struct Config
+    {
+        string behavior; // emacs, vs, vim
+    }
+
+    void loadKeyBindings(string fileName)
+    {
+        static class Rule
+        {
+            string key;
+            string operator;
+            string value;
+            string type;
+            bool negated;
+        }
+
+        static class KeyMapping
+        {
+            string keys;
+            string command;
+            string argument;
+            Rule[] rules;
+        }
+
+        static class KeyMappings
+        {
+            KeyMapping[] mappings;
+        }
+
+        static import gui.ruleset;
+
+        GenericResource keyMappingsResource = getUpdated(fileName);
+
+        KeyMappings mappings = keyMappingsResource.get!KeyMappings();
+        if (mappings is null)
+        {
+            KeyMappings m = new KeyMappings;
+            KeyMapping mp = new KeyMapping;
+            mp.keys = "<ctrl> + i";
+            mp.command = "d.dRocks";
+            auto r = new Rule;
+            r.key = "currentBufferName";
+            r.operator = "equals";
+            r.value = "my buffer";
+            r.type = "string";
+            r.negated = false;
+            mp.rules ~= r;
+            m.mappings ~= mp;
+            keyMappingsResource.add(m);
+            keyMappingsResource.save();
+            return;
+        }
+
+        auto bindingSet = editorBehavior.currentKeyBindingsSet;
+
+        foreach (idx, m; mappings.mappings)
+        {
+            gui.ruleset.RuleSet ruleSet = null;
+            if (m.rules.length)
+            {
+                ruleSet = new gui.ruleset.RuleSet();
+                foreach (rule; m.rules)
+                {
+                    switch (rule.operator)
+                    {
+                        case "equals":
+                            switch (rule.type)
+                            {
+                                case "int":
+                                    ruleSet.addEquals(rule.key, rule.value.to!int, rule.negated);
+                                    break;
+                                case "string":
+                                    ruleSet.addEquals(rule.key, rule.value, rule.negated);
+                                    break;
+                                default:
+                                    addMessage("Invalid type in keymapping rule file '" ~ fileName ~ "' rule " ~ idx.to!string);
+                                    continue;
+                            }
+                            break;
+                        case "regex":
+                            ruleSet.addRegex(rule.key, rule.value, "", rule.negated);
+                            break;
+                        case "containsRegex":
+                            ruleSet.addRegexContains(rule.key, rule.value, "", rule.negated);
+                            break;
+                        default:
+                            addMessage("Invalid operator in keymapping rule file '" ~ fileName ~ "' rule " ~ idx.to!string);
+                            continue;
+                    }
+                }
+            }
+            if (m.argument is null)
+                bindingSet.replaceKeyBinding(m.keys, m.command, ruleSet);
+            else
+            {
+                if (auto cmd = commandManager.lookup(m.command))
+                {
+                    CommandParameter[] args;
+                    cmd.getCommandParameterDefinitions().parseValues(args, m.argument);
+                    bindingSet.replaceKeyBinding(m.keys, m.command, args, ruleSet);
+                }
+            }
+        }
+    }
+
 	void run()
-	{		
+	{
 		setupResourcesRoot();
-		
+
 		// guiRoot.locationsManager.baseURI = "resources/";
 
 		resourceDirWatcher = new DirectoryWatcher(resourcesRoot);
 		guiRoot.timeout(dur!"msecs"(500), &regularCheck);
-		
+
 		scanResources();
-		
+
 		defaultStyleSheet = guiRoot.styleSheetManager.load(resourceURI("default.stylesheet", ResourceBaseLocation.resourceDir));
 		guiRoot.styleSheetManager.onSourceChanged.connect(&styleSheetSourceChanged);
 		guiRoot.textureManager.onSourceChanged.connect(&textureSourceChanged);
 
-		commandManager.create("app.toggleCommandArea", "Toggle visibility of the command area in the current active window", 
+        // Load and apply keybindings overrides
+		commandManager.create("app.toggleCommandArea", "Toggle visibility of the command area in the current active window",
 							  createParams(""),
-							  delegate(CommandParameter[] v) 
-							  {	 
+							  delegate(CommandParameter[] v)
+							  {
 								  CommandControl cc = guiRoot.activeWindow.userData.get!WindowData().commandControl;
 								  bool isShown = cc.isShown;
-	
-								  auto val = v[0].peek!string();		
+
+								  auto val = v[0].peek!string();
 								  if (val !is null)
 									  cc.setCommand(*val);
-								  
+
 								  if (isShown)
 									  cc.show(CommandControl.Mode.hidden);
 								  else
 									  cc.show(CommandControl.Mode.multiline);
 							  });
-		
-		commandManager.create("app.cycleBuffers", "Cycle through buffers in the current active window", 
+
+		commandManager.create("app.cycleBuffers", "Cycle through buffers in the current active window",
 							  createParams(1),
 							  (CommandParameter[] v)
 							  {
 								  import std.conv;
-								  auto cc = guiRoot.activeWindow.userData.get!WindowData().commandControl;									
+								  auto cc = guiRoot.activeWindow.userData.get!WindowData().commandControl;
 
 								  if (!cc.isShown )
 									  cc.show(CommandControl.Mode.multiline);
-								
+
 								  int val = 1;
 								  auto valPtr = v[0].peek!int();
 								  if (valPtr !is null)
 									  val = *valPtr;
 
 								  // Initial cycle. The following cycling is handled by the command widget onCommand()
-								  cc.cycleBuffers(val); 
+								  cc.cycleBuffers(val);
 							  });
-		
-		//                      delegate(std.variant.Variant v) 
-		//                      {	 
+
+		//                      delegate(std.variant.Variant v)
+		//                      {
 		//                          import std.conv;
 		//                          auto bufNames = getActiveBufferCompletions("");
 		//                          if (bufNames.empty)
@@ -412,7 +521,7 @@ class GUIApplication : Application
 		//                      });
 
 		guiRoot.init();
-		
+
 		//guiRoot.timeout(dur!"msecs"(500), );
 
 		setupMainWindow();
@@ -422,11 +531,13 @@ class GUIApplication : Application
 
 		// openFile(buildNormalizedPath(resourcesRoot,"iult.stylesheet"));
 
+        loadKeyMappings();
+
 		loadSession();
 		analyticStopTiming("core", "startup");
-		
+
 		guiRoot.onActivity.connect(&handleActivity);
-		
+
 		guiRoot.run();
 		analyticEvent("core", "stop");
 		if (analytics !is null)
@@ -457,15 +568,15 @@ class GUIApplication : Application
 	{
 		if (_promptStack.empty)
 			return;
-		
-		// If another command control query is already shown we wait for the users answer		
+
+		// If another command control query is already shown we wait for the users answer
 		CommandControl cc = guiRoot.activeWindow.userData.get!WindowData().commandControl;
 		if (cc.isShown)
 			return;
 
 		auto q = _promptStack.top;
 
-		cc.setPrompt(q.question, q.answer, (bool success, string answer) { 
+		cc.setPrompt(q.question, q.answer, (bool success, string answer) {
 			auto result = new PromptQueryResult;
 			result.answer = answer;
 			result.success = success;
@@ -480,6 +591,11 @@ class GUIApplication : Application
 		guiRoot.stop();
 	}
 
+    void quit()
+    {
+		guiRoot.stop();
+    }
+
 	void setupResourcesRoot()
 	{
 		resourcesRoot = absolutePath("resources", thisExePath().dirName());
@@ -490,19 +606,22 @@ class GUIApplication : Application
 		import std.uuid;
 		import core.config;
 
-		setupRegistryEntry(r"Software\Classes\*\shell\Open with Dedit\command", 
+		setupRegistryEntry(r"Software\Classes\*\shell\Open with Dedit\command",
 						   r"C:\Projects\D\ded>ded-debug_d.exe");
-		analyticsKey = setupRegistryEntry(r"Software\SteamWinter\Ded", 
-										  randomUUID().toString());		
+		analyticsKey = setupRegistryEntry(r"Software\SteamWinter\Ded",
+										  randomUUID().toString());
 	}
-	
+
 
 	void scanResources()
 	{
 		guiRoot.locationsManager.scan(resourceURI("*", ResourceBaseLocation.resourceDir));
 	}
 
-	Window createWindow(string name = "mainWindow", int width = 854, int height = 480)
+	Window createWindow(string name = "mainWindow", int width = 854, int height = 900)
+//    Window createWindow(string name = "mainWindow", int width = 705, int height = 658) // maineditor.png
+    // Window createWindow(string name = "mainWindow", int width = 600, int height = 300) // maineditor.png
+//        Window createWindow(string name = "mainWindow", int width = 854, int height = 480) // blog posts (Wide 480p format)
 	{
 		auto win = guiRoot.createWindow(name, width, height);
 		win.styleSheet = defaultStyleSheet;
@@ -524,17 +643,17 @@ class GUIApplication : Application
 		return null;
 	}
 
-version (Windows)	
+version (Windows)
 {
 	private Rectf getExistingWindowRect()
 	{
-		auto hwnd = FindWindowA("SDL_app", "Ded");
+		auto hwnd = FindWindowA("SDL_app", "Deadcode");
 		Rectf result;
 		RECT r;
 		if (hwnd !is null)
 		{
 			GetWindowRect(hwnd, &r);
-			result = Rectf(r.left, r.top, r.bottom - r.top, r.right - r.left);
+			result = Rectf(r.left, r.top, r.right - r.left, r.bottom - r.top);
 		}
 		return result;
 	}
@@ -545,14 +664,20 @@ version (Windows)
         return guiRoot.activeWindow.getWidget(name);
     }
 
+    T getWidget(T)(string name)
+    {
+        return cast(T) guiRoot.activeWindow.getWidget(name);
+    }
+
 	private void setupMainWindow()
 	{
 		auto existingRect = getExistingWindowRect();
 		auto win = createWindow("Deadcode");
-		if (!existingRect.empty && false)
+		if (!existingRect.empty)
 		{
 			win.position = existingRect.pos;
-			win.size = existingRect.size;
+			writeln(existingRect.size);
+            win.size = existingRect.size;
 		}
 
 		// A main widget
@@ -563,11 +688,11 @@ version (Windows)
 		Widget _resizerWidget = new Widget(win, 0, 0, 24, 24);
         _resizerWidget.zOrder = 500f;
 		_resizerWidget.features ~= new WindowResizer();
-		
+
 		// A widget that can be mousedowned and move the window
 		//Widget _draggerWidget = new Widget(win, 0, 0, 20, 32);
 		//_draggerWidget.features ~= new WindowDragger();
-		
+
 		// A widget that can be mousedowned and move the window
 		//Widget _draggerRightWidget = new Widget(win, 0, 0, 20, 32);
 		//_draggerRightWidget.features ~= new WindowDragger();
@@ -611,23 +736,23 @@ version (Windows)
 		//_draggerRightWidget.alignTo(NullWidgetID, Anchor.TopRight, Anchor.TopRight);
 		//_draggerRightWidget.name = "draggerRight";
 
-		
+
 		// _mainWidget.features ~= new BoxRenderer("window-main");
-		
+
 		// _draggerWidget.features ~= new BoxRenderer("window-head");
 		// _resizerWidget.features ~= new BoxRenderer("window-resizer");
-		
-		//_draggerWidget.onMouseClickCallback = (Event e, Widget w) 
+
+		//_draggerWidget.onMouseClickCallback = (Event e, Widget w)
 		//{
 		//    std.stdio.writeln("clicked ", w.pos.v, " ", w.size.v);
-		//    return EventUsed.no; 
+		//    return EventUsed.no;
 		//};
 
 		auto mainBuf = bufferViewManager["*Messages*"];
 		mainBuf.cursorToEnd();
 		mainBuf.clearUndoStack();
 		showBuffer(mainBuf);
-		
+
 		// Add command control
 		auto winData = new WindowData();
 		win.userData = winData;
@@ -663,7 +788,7 @@ version (Windows)
         menu.name = "Menu";
 		menu.parent = win;
 		menu.onMissingCommandArguments.connect(&cc.onMissingCommandArguments);
-		
+
 		// Let text editor handle events before normal gui
 		win.onEvent = (ref Event ev) {
 			// Let the shortcut handler do its magic before event is dispatched to
@@ -685,9 +810,36 @@ version (Windows)
 	//GenericResource load(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
 	//{
 	//    return guiRoot.genericResourceManager.load(resourceURI(path, base));
-	//}	
+	//}
 
-	GenericResource get(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+    GenericResource getLoaded(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+	{
+		// predeclare to sure that unsuccessful loads return a valid resource anyway.
+		auto u = resourceURI(path, base);
+		auto res = guiRoot.genericResourceManager.declare(u);
+		if (res.loadState == LoadState.loaded)
+			return res; // already loaded and ready
+        return null;
+    }
+
+    GenericResource getUpdated(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+	{
+        GenericResource res = getLoaded(path, base);
+        if (res is null)
+        {
+            // load it
+            res = get(path, base);
+        }
+        else
+        {
+            // reload
+            res.unload();
+            res.load();
+        }
+        return res;
+    }
+
+    GenericResource get(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
 	{
 		// predeclare to sure that unsuccessful loads return a valid resource anyway.
 		auto u = resourceURI(path, base);
@@ -734,7 +886,7 @@ version (Windows)
 			string msg = std.conv.text(e);
 			if (e.errno == core.stdc.errno.ENOENT)
 				msg = "No such file";
-			
+
 			addMessage("Error opening file : %s", msg);
 			return null;
 		}
@@ -749,12 +901,19 @@ version (Windows)
 		}
 		view.cursorToStart();
 		view.clearUndoStack();
+
+        // In order to be able to center on line before a redraw we set the visible line count from the current
+        // active buffer
+        auto curBV = getVisibleBuffer();
+        if (curBV)
+            view.visibleLineCount = curBV.visibleLineCount;
+
 		showBuffer(view);
-		//debug view.enableUndoStackDumps();
+		// debug view.enableUndoStackDumps();
 		view.bufferModified.connect(&onBufferModified);
 		// addMessage("Read %s", view.name);
 		return view;
-		//Application.activeEditor.show(view);			
+		//Application.activeEditor.show(view);
 	}
 
 	BufferView createBuffer()
@@ -767,7 +926,7 @@ version (Windows)
 
 	private void onBufferModified(BufferView b, bool isModified)
 	{
-		// Make a backup copy 
+		// Make a backup copy
 		if (std.file.exists(b.name))
 			backupFile(b.name);
 	}
@@ -779,15 +938,29 @@ version (Windows)
 		std.file.copy(path, to);
 	}
 
-	string[] getActiveBufferCompletions(string prefix)
+	CompletionEntry[] getActiveBufferCompletions(string prefix)
 	{
 		// current buffer name is most likely "command" buffer and not an active editor
-		return editors.editors.values
-					.filter!(a => a.editor.bufferView.name.startsWith(prefix))()
-					.array()
-					.sort!("a.focusOrder > b.focusOrder")()
-					.map!"a.editor.bufferView.name"()
-					.array();
+		import util.string;
+
+        //writeln("++++++++++++++++++++++++++++++++++++++++++++");
+        //foreach (item; editors.editors.values
+        //    .filter!(a => a.editor.bufferView.name.startsWith(prefix))
+        //    .array
+        //    .sort!("a.focusOrder > b.focusOrder"))
+        //{
+        //    writeln(item.focusOrder, ": ", item.editor.bufferView.name);
+        //}
+        //writeln("------------------------------------------");
+
+        return editors.editors.values
+					.filter!(a => a.editor.bufferView.name.startsWith(prefix))
+					.array
+					.sort!("a.focusOrder > b.focusOrder")
+					.map!((a) => a.editor.bufferView.name)
+                    .uniquePostfixPath
+                    .map!(a => CompletionEntry(a[0], a[1]))
+                    .array;
 	}
 
 	string[] getBufferCompletions(string prefix)
@@ -804,7 +977,10 @@ version (Windows)
 		if (w is null)
 		{
 			//a create a new widget for this buffer
-			auto editorWidget = new TextEditor(_mainWidget, buf);
+			auto editorWidget = new TextEditor(buf);
+            editorWidget.onGlyphMouseUp.connect(&textEditorGlyphClicked);
+
+            editorWidget.parent = _mainWidget;
 			// guiRoot.timeout(dur!"msecs"(500), () { editorWidget.toggleCursorVisibility(); return true; });
 			//editorWidget.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
 			//editorWidget.alignTo(Anchor.BottomRight);
@@ -823,7 +999,17 @@ version (Windows)
 		w.editor.visible = true;
 		return w;
 	}
-	
+
+    private void textEditorGlyphClicked(Event event, GlyphHit info)
+    {
+		if ((event.mouseMod & KeyMod.CTRL) && (event.mouseButtonsChanged & Event.MouseButton.Left))
+        {
+            // Hardcode this commmand for now until keymappings supports mouse presses
+            // TODO: Fix
+            commandManager.execute("d.gotoDefinition", null);
+        }
+    }
+
 	TextEditor getCurrentTextEditor()
 	{
 		foreach (k,v; editors.editors)
@@ -873,12 +1059,12 @@ version (Windows)
 		w.editor.setKeyboardFocusWidget();
 		currentBuffer = buf;
 	}
-	
+
 	void scheduleWidgetPlacement(Widget placeThisWidget, string relativeToWidgetWithThisName, RelativeLocation loc)
 	{
 		_widgetLocationUpdater.scheduleWidgetPlacement(placeThisWidget, relativeToWidgetWithThisName, loc);
 	}
-	
+
 	enum WidgetPlacementResult
 	{
 		success,
@@ -994,7 +1180,7 @@ version (Windows)
 		while (_parent !is null)
 		{
 			if (getFeatureByType!FeatureType(_parent) !is null)
-				return _parent;				
+				return _parent;
 			_parent = _parent.parent;
 		}
 		return null;
@@ -1010,6 +1196,11 @@ version (Windows)
 		}
 		return null;
 	}
+
+    void repaintAll()
+    {
+        guiRoot.activeWindow.repaint();
+    }
 
 	private void styleSheetSourceChanged(StyleSheet sheet)
 	{
@@ -1044,7 +1235,7 @@ version (Windows)
 		if (resourceDirWatcher.wait(dur!"seconds"(0)))
 			scanResources();
 	}
-	
+
 	static class SessionBuffer
 	{
 		this() {}
@@ -1053,7 +1244,7 @@ version (Windows)
 		int cursorPoint;
 		int lineOffset;
 	}
-	
+
 	static class SessionCopyBuffer
 	{
 		string[] entries;
@@ -1106,7 +1297,7 @@ version (Windows)
 
 	void loadSession()
 	{
-		sessionData = get(".deadcode");
+		sessionData = get("session");
 		if (sessionData is null)
 			return;
 
@@ -1134,10 +1325,11 @@ version (Windows)
 			// TODO: Save undo buffer
 			ed.editor.bufferView.cursorPoint = min(l.cursorPoint, ed.editor.bufferView.length);
 			ed.editor.bufferView.lineOffset = l.lineOffset;
+			ed.editor.bufferView.clearUndoStack();
 		}
 		if (!showBufferName.empty)
 			showBuffer(showBufferName);
-		
+
 		editors.focusOrderCounter = s.focusOrderCounter;
 
 		auto cb = bufferViewManager.copyBuffer;
@@ -1150,6 +1342,39 @@ version (Windows)
 			}
 		}
 	}
+
+    void loadKeyMappings()
+    {
+        static class Config
+        {
+            string keyMappings;
+        }
+
+        editorBehavior.currentKeyBindingsSet.clear();
+
+        // Re-register command extension shortcuts as defined by @Shortcut attribute
+        import extensions.base;
+        registerCommandKeyBindings(this);
+
+        // Load config
+        GenericResource configResource = getUpdated("config");
+        Config config = configResource.get!Config();
+        if (config !is null)
+        {
+            // Base behavior
+            switch (config.keyMappings)
+            {
+                case "emacs":
+                    loadKeyBindings("key-mappings-" ~ config.keyMappings);
+                    break;
+                default:
+                    addMessage("Unknown behavior set in config. Must be 'emacs'");
+            }
+        }
+
+        // User overridden behavior
+        loadKeyBindings("key-mappings-user");
+    }
 
 	Future!PromptQueryResult prompt(string question, string answer = "", CompletionEntry[] delegate(string) getCompletionsDg = null)
 	{
@@ -1200,7 +1425,7 @@ version (Windows)
 					_fiberFutureWaitList[i] = _fiberFutureWaitList[$-1];
 					_fiberFutureWaitList.length = _fiberFutureWaitList.length - 1;
 					done = false;
-					
+
 					// Future ready... resume fiber
 					ff.fiber.call();
 					break;

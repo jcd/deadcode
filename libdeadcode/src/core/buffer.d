@@ -11,6 +11,8 @@ import math.region;
 
 version (unittest) import test;
 
+enum InvalidIndex = int.min;
+
 class GapBuffer(T = dchar)
 {
 	alias T CharType;
@@ -133,9 +135,9 @@ class GapBuffer(T = dchar)
 		gapEnd += deltaSize;
 	}
 
-	void insert(T item, int index = int.max)
+	void insert(T item, int index = InvalidIndex)
 	{
-		if (index == int.max)
+		if (index == InvalidIndex)
 			index = gapStart;
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
 		placeGapStart(index);
@@ -144,9 +146,9 @@ class GapBuffer(T = dchar)
 		gapStart++;
 	}
 
-	void insert(const(T)[] items, int index = int.max)
+	void insert(const(T)[] items, int index = InvalidIndex)
 	{
-		if (index == int.max)
+		if (index == InvalidIndex)
 			index = gapStart;
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
 		placeGapStart(index);
@@ -179,9 +181,9 @@ class GapBuffer(T = dchar)
 	// abc[gap]def
 	// will remove 'd' and end with
 	// abc[gap]ef
-	void remove(int index = int.max)
+	void remove(int index = InvalidIndex)
 	{
-		if (index == int.max)
+		if (index == InvalidIndex)
 			index = gapStart - 1; // TODO: -1 ! Really?
 		enforceEx!Exception(index >= 0 && index < length, text("Index out of bounds 0 <= ", index , " < ", length));
 		placeGapStart(index);
@@ -298,7 +300,8 @@ class GapBuffer(T = dchar)
 			return buffer[from..clampTo].dup;
 		}
 
-		int end = int.max - gapSize <= to ? buffer.length : to+gapSize;
+		// sanitize
+        int end = int.max - gapSize <= to ? buffer.length : to+gapSize;
 
 		// range is after endGap
 		if ( from + gapSize >= gapEnd)
@@ -747,15 +750,25 @@ line3)";
 
 enum TextBoundary
 {
-	unit,
-	chr,
-	word,
-	wordEnd,
-	line,
-	lineEnd,
-	buffer,
+	unit = 1,
+	chr  = 2^^1,
+	wordBegin = 2^^2,
+	wordEnd = 2^^3,
+	punctuationBegin = 2^^4,
+	punctuationEnd = 2^^5,
+	lineBegin = 2^^6,
+	lineEnd = 2^^7,
+	buffer = 2^^8,
+	bufferBegin = 2^^9,
+	bufferEnd = 2^^10,
+	emptyLine = 2^^11,
 }
 
+enum TextBoundaryStrength
+{
+	hard,
+	soft
+}
 
 enum TextBufferAnchorType : byte
 {
@@ -768,6 +781,8 @@ interface TextBufferAnchorOwner
 {
 }
 
+enum InvalidAnchorID = -1;
+
 struct TextBufferAnchor
 {
 	static int nextID = 1;
@@ -779,7 +794,10 @@ struct TextBufferAnchor
 
 class TextBuffer
 {
-	alias dchar CharType;
+	private int _id;
+    private static int _nextID = 1;
+
+    alias dchar CharType;
 	GapBuffer!CharType gbuffer;
 
 	Variant[string] userData;
@@ -796,9 +814,17 @@ class TextBuffer
 
 	mixin Signal!(TextBuffer, TextBufferAnchor) onAnchorRemoved;
 
+final:
+
+    @property int id() const pure nothrow @safe
+    {
+        return _id;
+    }
+
 	this(const(CharType)[] str, size_t initialGapSize)
 	{
-		gbuffer = new GapBuffer!CharType(str, initialGapSize);
+	    _id = _nextID++;
+        gbuffer = new GapBuffer!CharType(str, initialGapSize);
 		lbuffer = new LineBuffer!(CharType, TextBuffer)(this, initialGapSize);
 		if (!str.empty)
 			lbuffer.textInserted(str, 0);
@@ -817,7 +843,7 @@ class TextBuffer
 		return gbuffer.buffer[0..gbuffer.gapStart];
 	}
 
-	@property dchar[] afterGap()
+	@property CharType[] afterGap()
 	{
 		return gbuffer.buffer[gbuffer.gapEnd..$];
 	}
@@ -827,7 +853,7 @@ class TextBuffer
 		return gbuffer.toArray(offsetToBeginningOfLine(length), length);
 	}
 
-	@property size_t lineCountScanned() const
+	debug @property size_t lineCountScanned() const
 	{
 		int count = -1;
 		int index = length;
@@ -888,86 +914,134 @@ class TextBuffer
 		return gbuffer.toArray();
 	}
 
-	bool isNewline(int index) const
+	int prev(int index, bool clamp = true) const
 	{
-		dchar c = gbuffer[index];
+		int len = gbuffer.length;
+        assert(index <= len);
+		if (index > len)
+            return clamp ? len : InvalidIndex;
 
-		return c == '\r' || (c == '\n' && ( index == 0 || gbuffer[index-1] != '\r') );
-	}
-
-	int prev(int index) const
-	{
-		assert(index <= gbuffer.length);
-		index--;
-		if (index <= 0) return 0;
+        index--;
+		if (index < 0)
+            return clamp ? 0 : InvalidIndex;
 
 		dchar c = gbuffer[index];
 
 		// Magic to handle \r\n newlines
 		// If we landed on a \n and a \r is preceeding the do one more
-		// step to land on the \r.
-		// If we landed on a \r the do one more step to land before the \r
+		// step to land on the \r. Also if we landed on a \r we go one more step since the start index is
+        // probably on a \n
 		if (index > 0 &&
-			((c == '\n' && gbuffer[index-1] == '\r') || c == '\r') )
+			( (c == '\n' && gbuffer[index-1] == '\r') || c == '\r') )
 			index--; // \r\n. eat both
 		return index;
 	}
 
-
-	int next(int index) const
+	int next(int index, bool clamp = true) const
 	{
-		assert(index >= 0);
-		if (index >= gbuffer.length) return gbuffer.length;
+        assert(index >= 0);
+		if (index < 0)
+            return clamp ? 0 : InvalidIndex;
+
+		if (index >= gbuffer.length)
+            return clamp ? gbuffer.length : InvalidIndex;
 
 		if (gbuffer[index] == '\r')
-			index++; // \r\n assumed. eat both.
+			index++; // \r\n assumed. eat both. TODO: fix assumption
 		index++;
-		if (index >= gbuffer.length) return gbuffer.length;
+		if (index > gbuffer.length)
+            return clamp ? gbuffer.length : InvalidIndex;
 		return index;
 	}
 
-	bool isWordChar(int index) const
+	int offset(int index, bool forward, bool clamp = true) const
 	{
-		return std.algorithm.canFind(WORDCHARS, this[index]);
+		if (forward)
+			return next(index, clamp);
+		else
+			return prev(index, clamp);
 	}
 
-
-	int offsetBy(int index, int count, TextBoundary bound) const
+	int offsetBy(int index, int count, TextBoundary bound,
+				 TextBoundaryStrength strength = TextBoundaryStrength.soft,
+				 bool clamp = true) const
 	{
-		final switch (bound)
+		switch (bound)
 		{
 			case TextBoundary.unit:
-				return offsetByUnit(index, count);
+				return offsetByUnit(index, count, clamp);
 			case TextBoundary.chr:
-				return offsetByChar(index, count);
-			case TextBoundary.word:
-				return offsetByWord(index, count);
-			case TextBoundary.wordEnd:
-				return offsetToWordBoundary(index, count < 0);
-			case TextBoundary.line:
-				return offsetByLine(index, count);
-			case TextBoundary.lineEnd:
-				return offsetToLineBoundary(index, count < 0);
+				return offsetByChar(index, count, clamp);
 			case TextBoundary.buffer:
-				return count < 0 ? 0 : (count == 0 ? index : length);
+                if (clamp)
+				    return count < 0 ? 0 : (count == 0 ? index : length);
+                else if (count == -1)
+                    return 0;
+                else if (count == 1)
+                    return length;
+                else if (count == 0)
+                    return index;
+                else
+                    return InvalidIndex;
+			default:
+				return offsetByBoundary(index, count, bound, strength, clamp);
 		}
 	}
 
 	// Return the startIndex moved diff characters taking
 	// the clamping on start and end.
-	int offsetByUnit(int startIndex, int diff = 1) const
+	int offsetByUnit(int startIndex, int diff = 1, bool clamp = true) const
 	{
 		assert(startIndex >= 0);
 		int newIndex = startIndex + diff;
-		if (diff > 0)
-		{
-			if (newIndex < 0)
-				newIndex = length; // overflow
-		}
-		else if (newIndex < 0)
-				newIndex = 0; // underflow
-		return newIndex;
+        return diffSanitize(newIndex, diff, clamp);
 	}
+
+    private int sanitize(int idx, bool clamp) const pure nothrow @safe
+    {
+        import std.algorithm;
+        if (idx < 0)
+        {
+            if (clamp)
+                return 0;
+            else
+                return InvalidIndex;
+        }
+
+        int len = length;
+        if (idx > len)
+        {
+            if (clamp)
+                return len;
+            else
+                return InvalidIndex;
+        }
+        return idx;
+    }
+
+    private int diffSanitize(int newIdx, int diff, bool clamp) const pure nothrow @safe
+    {
+        if (newIdx < 0 || newIdx > length)
+        {
+            if (diff > 0)
+            {
+                // overflow
+                if (clamp)
+                    return length;
+                else
+                    return int.min; // signal invalid value
+            }
+            else if (diff < 0)
+            {
+                // underflow
+                if (clamp)
+                    return 0;
+                else
+                    return int.min; // signal invalid value
+            }
+        }
+        return newIdx;
+    }
 
 	unittest
 	{
@@ -983,25 +1057,28 @@ class TextBuffer
 
 	// Return the startIndex moved diff characters taking
 	// the clamping on start and end.
-	int offsetByChar(int startIndex, int diff = 1) const
+	int offsetByChar(int startIndex, int diff = 1, bool clamp = true) const
 	{
-		while (diff > 0)
+		int idx = startIndex;
+        while (diff > 0)
 		{
 			--diff;
-			int idx = next(startIndex);
-			if (idx == startIndex)
+			idx = next(startIndex, false);
+			if (idx == startIndex || idx == InvalidIndex)
 				break;
 			startIndex = idx;
 		}
-		while (diff < 0)
+		while (diff < 0 && idx != InvalidIndex)
 		{
 			++diff;
-			int idx = prev(startIndex);
-			if (idx == startIndex)
+			idx = prev(startIndex, false);
+			if (idx == startIndex || idx == InvalidIndex)
 				break;
 			startIndex = idx;
 		}
-		return startIndex;
+        if (!clamp && idx == InvalidIndex)
+            return InvalidIndex;
+        return startIndex;
 	}
 
 	unittest
@@ -1029,49 +1106,137 @@ class TextBuffer
 	// Algorithm like then one used for emacs/sublime. (not like vs)
 	// The first char is defined by the direction of offs:
 	// offs > 0 means first char is the next char ie. startIndex
-	// offs < 0 meacs first char is prev char ie. startIndex-1
+	// offs < 0 means first char is prev char ie. startIndex-1
 	// First all non-words chars are skipped in the direction,
 	// there may be no non-word chars if in the middle of a word.
 	// Then all word chars are skipped to find the final result.
 	//
 	// This will always place the result index at the end of the
 	// word when offs > 0 and at the start of the word when offs < 0.
-	// This is unlike vs. which always places the result index at the
+	// This is unlike visual studio which always places the result index at the
 	// start of the work no matter the direction.
 	//
-	int offsetByWord(int startIndex, int offs = 1) const
+version (OFF)
+{
+	private int OLDoffsetByWord(int startIndex, int offs = 1, bool clamp = true) const
 	{
-		while (offs < 0)
+		while (offs < 0 && startIndex != InvalidIndex)
 		{
 			++offs;
 			// Find first word char
-			startIndex = findOneOfReverse(prev(startIndex), WORDCHARS);
-			if (startIndex == int.max)
-				return 0; // no word char found ie. must be first word in buffer
+			int fwc = findOneOfReverse(prev(startIndex), WORDCHARS);
+			if (fwc == InvalidIndex)
+            {
+			    // no word char found ie. must be first word in buffer
+                if (offs == 0)
+                    return 0;
+                else if (clamp)
+                    // return startIndex;
+                    return 0;
+                else
+                    return InvalidIndex; // since offset is != 0 we know the next iteration will fail
+            }
 
 			// Locate start of word
-			startIndex = findOneNotOfReverse(startIndex, WORDCHARS);
-			if (startIndex == int.max)
-				return 0; // Cannot find any non word char ie. must be start of buffer
+			int sow = findOneNotOfReverse(fwc, WORDCHARS);
+			if (sow == InvalidIndex)
+            {
+                // Cannot find any non word char ie. must be start of buffer
+                if (offs == 0)
+                    return 0;
+                else if (clamp)
+                    return 0;
+                    //return startIndex;
+                else
+                    return InvalidIndex; // since offset is != 0 we know the next iteration will fail
+            }
 
 			// Correct target because we found the first char before the word start boundary
-			startIndex = next(startIndex);
+			startIndex = next(sow);
+            assert(startIndex != InvalidIndex);
 		}
 
-		while (offs > 0)
+		while (offs > 0 && startIndex != InvalidIndex)
 		{
 			--offs;
 			// Find first word char
-			startIndex = findOneOf(startIndex, WORDCHARS);
-			if (startIndex == int.max)
-				return length; // no word char found ie. must be last work in buffer
+			int fwc = findOneOf(startIndex, WORDCHARS);
+			if (fwc == InvalidIndex)
+            {
+				// no word char found ie. must be last work in buffer
+                if (offs == 0)
+                    return length;
+                else if (clamp)
+                    return length;
+                    // return startIndex;
+                else
+                    return InvalidIndex; // since offset is != 0 we know the next iteration will fail
+            }
 
-			startIndex = findOneNotOf(startIndex, WORDCHARS);
-			if (startIndex == int.max)
-				return length; // Cannot find any non word char ie. must be end of buffer
+			int nwc = findOneNotOf(fwc, WORDCHARS);
+			if (nwc == InvalidIndex)
+            {
+                // Cannot find any non word char ie. must be end of buffer
+                if (offs == 0)
+                    return length;
+                else if (clamp)
+                    return length;
+                    //return startIndex;
+                else
+                    return InvalidIndex; // since offset is != 0 we know the next iteration will fail
+            }
+            startIndex = nwc;
 		}
 		return startIndex;
 	}
+
+    //// Offset index to the closest boundary in the direction of offs
+    //private int offsetByWordBoundary(int index, int offs = 1, bool clamp = true) const
+    //{
+    //    while (offs < 0 && index != InvalidIndex)
+    //    {
+    //        ++offs;
+    //        bool isInWord = std.algorithm.canFind(WORDCHARS, this[index]);
+    //
+    //        index = isInWord ? findOneNotOfReverse(startIndex, WORDCHARS) : findOneOfReverse(startIndex, WORDCHARS);
+    //        if (index == InvalidIndex)
+    //        {
+    //            // Cannot find any non word char ie. must be start of buffer
+    //            if (offs == 0)
+    //                return 0;
+    //            else if (clamp)
+    //                return 0; // start of buffer
+    //            else
+    //                return InvalidIndex; // since offset is != 0 we know the next iteration will fail
+    //        }
+    //        // Correct target because we found the first char before the word start boundary
+    //        if (offs == 0)
+    //            return next(index);
+    //
+    //        assert(index != InvalidIndex);
+    //    }
+    //
+    //    while (offs > 0 && index != InvalidIndex)
+    //    {
+    //        --offs;
+    //        bool isInWord = std.algorithm.canFind(WORDCHARS, this[index]);
+    //
+    //        // Find first word char
+    //        int index = isInWord ? findOneNotOf(index, WORDCHARS) : findOneOf(index, WORDCHARS);
+    //        if (index == InvalidIndex)
+    //        {
+    //            // no word char found ie. must be last work in buffer
+    //            if (offs == 0)
+    //                return length;
+    //            else if (clamp)
+    //                return length;
+    //                // return startIndex;
+    //            else
+    //                return InvalidIndex; // since offset is != 0 we know the next iteration will fail
+    //        }
+    //    }
+    //    return index;
+    //}
 
 	unittest
 	{
@@ -1093,34 +1258,38 @@ class TextBuffer
 		Assert(b.length, b.offsetByWord(0,7));
 		Assert(b.length-5, b.offsetByWord(0,6));
 	}
-
 	// Same behavior as offsetByWord but instead or WORDCHARS being the delimiter
 	// it is end-of-line charaters.
-	int offsetByLine(int startIndex, sizediff_t offs = 1) const
+	int offsetByLine(int startIndex, sizediff_t offs = 1, bool clamp = true) const
 	{
-		while (offs < 0)
+		while (offs < 0 && startIndex != InvalidIndex)
 		{
 			++offs;
 
-			startIndex = findOneOfReverse(prev(prev(startIndex)), "\n");
-			if (startIndex == int.max)
-				return 0; // no newline found ie. must be first line in buffer
+			int foor = findOneOfReverse(prev(prev(startIndex)), "\n");
+			if (foor == InvalidIndex)
+                return clamp ? 0 : InvalidIndex;
+                // return clamp ? startIndex : InvalidIndex;
 
 			// Correct target because we found the first char before the word start boundary
-			startIndex = next(startIndex);
+			startIndex = next(foor);
 		}
 
-		while (offs > 0 && startIndex < length)
+		while (offs > 0 && startIndex != InvalidIndex && startIndex < length)
 		{
 			--offs;
 			auto cur = this[startIndex];
-			if (cur == '\r' || cur == '\n')
-				startIndex = next(startIndex);
+			int curIdx = startIndex;
+            if (cur == '\r' || cur == '\n')
+				curIdx = next(curIdx);
 
-			startIndex = findOneOf(startIndex, "\r\n");
-			if (startIndex == int.max)
-				return length; // Cannot find any non word char ie. must be end of buffer
-		}
+			curIdx = findOneOf(curIdx, "\r\n");
+			if (curIdx == InvalidIndex)
+				return clamp ? length : InvalidIndex; // Cannot find any non word char ie. must be end of buffer
+                // return clamp ? startIndex : InvalidIndex; // Cannot find any non word char ie. must be end of buffer
+
+            startIndex = curIdx;
+        }
 		return startIndex;
 	}
 
@@ -1140,13 +1309,14 @@ class TextBuffer
 		Assert(b.length-8, b.offsetByLine(b.length,-2));
 	}
 
+}
 	// Return a buffer index obtained by moving 'lines' lines from index using
-	// preferredColumn. If preferredColumn is int.max the column of the index
+	// preferredColumn. If preferredColumn is InvalidIndex the column of the index
 	// param is used. lines == 0 is a valid input in order to just navigate current line
 	// using preferredColumn.
-	int offsetVertically(int index, sizediff_t lines = 1, int preferredColumn = int.max) const
+	int offsetVertically(int index, sizediff_t lines = 1, int preferredColumn = InvalidIndex) const
 	{
-		if (preferredColumn == int.max)
+		if (preferredColumn == InvalidIndex)
 			preferredColumn = index - offsetToBeginningOfLine(index);
 
 		int newPos = index;
@@ -1167,7 +1337,8 @@ class TextBuffer
 		{
 
 			// locate the char just above the current cursor char
-			for (int i = 0; i < lines; i++)
+			auto lll = gbuffer.toArray(newPos, newPos + 200 > gbuffer.length ? gbuffer.length : newPos + 200);
+            for (int i = 0; i < lines; i++)
 				newPos = startOfNextLine(newPos);
 
 			int eoline = offsetToEndOfLine(newPos);
@@ -1239,33 +1410,290 @@ class TextBuffer
 	//    Assert(8, b.offsetToWord(8, true));
 	//}
 
-	int offsetToWordBoundary(int index, bool startOfBoundary) const
+	TextBoundary classify(int index) const
 	{
-		// Make sure that index is in a word (or at the end) or return int.max
-		const bool isInWord = std.algorithm.canFind(WORDCHARS, this[index]);
-		int result = int.max;
-		if (isInWord)
+		enum Cls
 		{
-			// On a char in a word
-			if (startOfBoundary)
-				result = offsetByWord(next(index), -1);
-			else
-				result = offsetByWord(index, 1);
+			punct,
+			word,
+			space,
+			newline,
 		}
-		else if (std.algorithm.canFind(WORDCHARS, this[prev(index)]))
+		static Cls cls(const(TextBuffer) b, int idx)
 		{
-			// At end of word
-			if (startOfBoundary)
-				result = offsetByWord(index, -1);
-			else
-				result = index;
+			bool isPunct = std.algorithm.canFind(PUNCTUATIONCHARS, b[idx]);
+			if (isPunct)
+				return Cls.punct;
+
+			if (b[idx] == '\n' || b[idx] == '\r')
+				return Cls.newline;
+
+			if (std.algorithm.canFind(WHITESPACECHARS, b[idx]))
+				return Cls.space;
+
+			return Cls.word;
 		}
-		return result;
+
+		TextBoundary res;
+		if (length == 0)
+		{
+			if (index == 0)
+				res = TextBoundary.bufferBegin | TextBoundary.bufferEnd;
+			return res;
+		}
+
+		if (index == 0)
+			res = res | TextBoundary.bufferBegin | TextBoundary.lineBegin;
+
+        if (index == length)
+        {
+			res = res | TextBoundary.bufferEnd | TextBoundary.lineEnd;
+
+            if (length > 0)
+            {
+                Cls preIdxCls = cls(this, prev(index));
+                final switch (preIdxCls)
+                {
+                    case Cls.word:
+                        res = res | TextBoundary.wordEnd;
+                        break;
+                    case Cls.newline:
+                        res = res | TextBoundary.emptyLine | TextBoundary.lineBegin;
+                        break;
+                    case Cls.punct:
+                        res = res | TextBoundary.punctuationEnd;
+                        break;
+                    case Cls.space:
+                        break;
+                }
+            }
+            return res;
+        }
+
+		Cls curIdxCls = cls(this, index);
+
+		if (index == 0)
+		{
+			final switch (curIdxCls)
+			{
+			case Cls.word:
+				res = res | TextBoundary.lineBegin | TextBoundary.wordBegin;
+                break;
+			case Cls.newline:
+				res = res | TextBoundary.emptyLine | TextBoundary.lineBegin | TextBoundary.lineEnd;
+                break;
+			case Cls.punct:
+				res = res | TextBoundary.lineBegin | TextBoundary.punctuationBegin;
+                break;
+			case Cls.space:
+				res = res | TextBoundary.lineBegin;
+                break;
+			}
+			return res;
+		}
+
+		Cls prevIdxCls = cls(this, index - 1);
+		final switch (prevIdxCls)
+		{
+	        case Cls.word:
+				final switch (curIdxCls)
+				{
+					case Cls.space:
+						res = res | TextBoundary.wordEnd;
+						break;
+					case Cls.newline:
+						res = res | TextBoundary.lineEnd | TextBoundary.wordEnd;
+						break;
+					case Cls.punct:
+						res = res | TextBoundary.punctuationBegin | TextBoundary.wordEnd;
+						break;
+					case Cls.word:
+						break;
+				}
+				break;
+	        case Cls.newline:
+				final switch (curIdxCls)
+				{
+					case Cls.space:
+						res = res | TextBoundary.lineBegin;
+						break;
+					case Cls.newline:
+						res = res | TextBoundary.lineBegin | TextBoundary.lineEnd | TextBoundary.emptyLine;
+						break;
+					case Cls.punct:
+						res = res | TextBoundary.lineBegin | TextBoundary.punctuationBegin;
+						break;
+					case Cls.word:
+						res = res | TextBoundary.lineBegin | TextBoundary.wordBegin;
+						break;
+				}
+				break;
+		    case Cls.punct:
+				final switch (curIdxCls)
+				{
+					case Cls.space:
+						res = res | TextBoundary.punctuationEnd;
+						break;
+					case Cls.newline:
+						res = res | TextBoundary.lineEnd | TextBoundary.punctuationEnd;
+						break;
+					case Cls.punct:
+						break;
+					case Cls.word:
+						res = res | TextBoundary.punctuationEnd | TextBoundary.wordBegin;
+						break;
+				}
+				break;
+            case Cls.space:
+				final switch (curIdxCls)
+				{
+					case Cls.space:
+						break;
+					case Cls.newline:
+						res = res | TextBoundary.lineEnd;
+						break;
+					case Cls.punct:
+						res = res | TextBoundary.punctuationBegin;
+						break;
+					case Cls.word:
+						res = res | TextBoundary.wordBegin;
+						break;
+				}
+				break;
+		}
+		return res;
 	}
 
-	int offsetToLineBoundary(int index, bool startOfBoundary) const
+	final int findByClass(int index, bool forward, TextBoundary cls, bool clamp = true) const
 	{
-		if (startOfBoundary)
+		int idx = index;
+        while (idx != InvalidIndex && (classify(idx) & cls) == 0)
+        {
+            index = idx;
+   			idx = offset(idx, forward, false);
+        }
+		return idx == InvalidIndex && clamp ? index : idx;
+	}
+
+	int offsetByBoundary(int index, int offs,
+						 TextBoundary bound = TextBoundary.wordEnd,
+						 TextBoundaryStrength strength = TextBoundaryStrength.soft,
+						 bool clamp = true) const
+	{
+		if (index == InvalidIndex)
+            return index;
+
+        const bool forward = offs > 0;
+        int delta = forward ? -1 : 1;
+
+		// Locate word boundary in the search direction
+		if (strength == TextBoundaryStrength.soft)
+		{
+			// Make sure we don't check current index and return that because if matches the boundary already
+			int idx = offset(index, forward, false);
+            if (idx == InvalidIndex)
+                return clamp ? index : idx;
+            index = idx;
+		}
+		else
+		{
+			// only need to search once when strength is hard
+			offs = -delta;
+		}
+
+		int idx = index;
+
+		while (offs != 0 && idx != InvalidIndex)
+		{
+			index = idx;
+			idx = findByClass(index, forward, bound, false);
+			offs += delta;
+
+			// If more iterations are needed the move start index in order to not detect the same index again
+			if (offs != 0 && idx != InvalidIndex)
+				idx = offset(idx, forward, false);
+		}
+
+		if (clamp && idx == InvalidIndex)
+			return index;
+		else
+			return idx;
+	}
+
+    //int OLDoffsetToWordBoundary(int index, int dir) const
+    //{
+    //    if (index == InvalidIndex)
+    //        return index;
+    //
+    //    // Make sure that index is in a word (or at the end) or return InvalidIndex
+    //    const bool isInWord = std.algorithm.canFind(WORDCHARS, this[index]);
+    //    int result = InvalidIndex;
+    //    if (isInWord)
+    //    {
+    //        // On a char in a word
+    //        if (dir < 0)
+    //            result = offsetByWord(next(index), -1);
+    //        else
+    //            result = offsetByWord(index, 1);
+    //        return result;
+    //    }
+    //
+    //    index = prev(index);
+    //    if (index != InvalidIndex && std.algorithm.canFind(WORDCHARS, this[index]))
+    //    {
+    //        // At end of word
+    //        if (dir < 0)
+    //            result = offsetByWord(index, -1);
+    //        else
+    //            result = index;
+    //    }
+    //    return result;
+    //}
+    //
+    //int xxoffsetByLineBoundary(int index, int dir, bool clamp = true) const
+    //{
+    //    if (dir == 0)
+    //        return index;
+    //
+    //    // First offset will always go start of current line even if index is already
+    //    // at start of line. All next offsets will skip start of line.
+    //    // Same goes for the other direction.
+    //
+    //    bool startOfLineboundary = dir < 0;
+    //    int idx = _offsetByLineBoundary(index, startOfLineboundary, clamp);
+    //    int delta = dir < 0 ? -1 : 1;
+    //    dir += delta;
+    //    while (dir != 0 && idx != InvalidIndex)
+    //    {
+    //        // skipping the \r\n counts for one offset
+    //        index = offsetByChar(idx, delta, clamp);
+    //        dir += delta;
+    //
+    //        if (dir == 0 || index == idx || index != InvalidIndex)
+    //        {
+    //            idx = index;
+    //            break;
+    //        }
+    //
+    //        // skipping the line content counts for one offset
+    //        idx = _offsetByLineBoundary(index, startOfLineboundary, clamp);
+    //        dir += delta;
+    //    }
+    //    return idx;
+    //}
+version (OFF)
+{
+    int offsetByLineBoundary(int index, int dir, bool clamp = true) const
+    {
+        return _offsetByLineBoundary(index, dir < 0, clamp);
+    }
+
+	int _offsetByLineBoundary(int index, bool startOfBoundary, bool clamp = true) const
+	{
+		if (index == InvalidIndex)
+            return index;
+
+        if (startOfBoundary)
 		{
 			enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
 
@@ -1277,7 +1705,15 @@ class TextBuffer
 			if (index == gbuffer.length || c == '\n' || c == '\r')
 			{
 				int newidx = prev(index);
-				if (newidx == 0)
+				if (newidx == InvalidIndex)
+				{
+					if (clamp)
+						return 0; // start of buffer
+					else
+	                    return newidx;
+				}
+
+                if (newidx == 0)
 					return 0;
 
 				c = gbuffer[newidx];
@@ -1285,7 +1721,8 @@ class TextBuffer
 				// In case it was an empty line we already were at start of line.
 				if (c == '\n' || c == '\r')
 					return index;
-				index = newidx;
+
+                index = newidx;
 			}
 
 			assert(gbuffer.length >= index);
@@ -1313,99 +1750,83 @@ class TextBuffer
 
 			// locate the next \n
 			size_t i = 0;
-			foreach (v; r)
+			dchar prev;
+            foreach (v; r)
 			{
-				if (v == '\n')
+                if (v == '\n')
 				{
-					if (i > 0 && this[i-1] == '\r')
+					if (i > 0 && prev == '\r')
 						i--;
 					break;
 				}
+                prev = v;
 				i++;
 			}
 
 			return index + i;
 		}
 	}
-
-	int offsetToBuffer(int index, bool startOfBoundary) const
-	{
-		if (startOfBoundary)
-			return 0;
-		else
-			return length;
-	}
+}
 
 	int offsetToEndOfLine(int index) const
 	{
-		return offsetToLineBoundary(index, false);
+		return offsetBy(index, 1, TextBoundary.lineEnd, TextBoundaryStrength.hard);
 	}
 
 	int offsetToBeginningOfLine(int index) const
 	{
-		return offsetToLineBoundary(index, true);
+		return offsetBy(index, -1, TextBoundary.lineBegin, TextBoundaryStrength.hard);
 	}
 
 	int offsetToEndOfWord(int index) const
 	{
-		return offsetToWordBoundary(index, false);
+		return offsetBy(index, 1, TextBoundary.wordEnd, TextBoundaryStrength.hard);
 	}
 
 	int offsetToBeginningOfWord(int index) const
 	{
-		return offsetToWordBoundary(index, true);
+		return offsetBy(index, -1, TextBoundary.wordBegin, TextBoundaryStrength.hard);
 	}
 
 	int startOfNextLine(int index) const
 	{
-		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
-		auto r = this[index..gbuffer.length];
-
-		if (index == length)
-			return index;
-
-		int nc = offsetToEndOfLine(index);
-
-		nc = next(nc);
-		return nc;
-		//// locate the next \n
-		//size_t i = 0;
-		//foreach (v; r)
-		//{
-		//    if (v == '\n')
-		//        break;
-		//    i++;
-		//}
-		//
-		//i = index + i + 1;
-		//if (i >= gbuffer.length)
-		//    return gbuffer.length;
-		//return i;
+		return offsetBy(index, 1, TextBoundary.lineBegin, TextBoundaryStrength.soft);
 	}
 
 	int endOfPreviousLine(int index) const
 	{
-		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
-
-		int nc = offsetToBeginningOfLine(index);
-
-		if (nc > 0)
-			nc = prev(nc);
-		return nc;
+		return offsetBy(index, -1, TextBoundary.lineEnd, TextBoundaryStrength.soft);
 	}
 
-	int lineNumber(int index) const
-	{
-		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <=sa ", length));
+    auto findRegex(int index, const(char)[] re, const(char)[] flags = "")
+    {
+        import std.regex;
+        dstring dre = re.to!dstring;
+        auto _re = regex(dre, flags);
 
-		int count = -1;
-		do
-		{
-			index = endOfPreviousLine(index);
-			count++;
-		} while ( index != 0);
-		return count;
-	}
+        static struct FindMatch
+        {
+            typeof(RegexMatch!(dchar[])().front) captures;
+
+            @property int a()
+            {
+                return captures.pre.length;
+            }
+
+            @property int b()
+            {
+                return captures.pre.length + captures.hit.length;
+            }
+
+            @property typeof(gbuffer).CharType[] hit()
+            {
+                return captures.hit;
+            }
+        }
+
+        gbuffer.placeGapStart(0);
+        return matchAll(gbuffer.buffer[gbuffer.gapEnd..$], _re).map!((m) => FindMatch(m));
+    }
 
 	int find(int index, const(char)[] needle) const
 	{
@@ -1419,10 +1840,11 @@ class TextBuffer
 			curEnd++;
 		}
 		assert(gbuffer.length >= index && curEnd <= gbuffer.length);
-		return curEnd <= len && std.algorithm.equal(this[index..curEnd], needle) ? index : int.max;
+		return curEnd <= len && std.algorithm.equal(this[index..curEnd], needle) ? index : InvalidIndex;
 	}
 
-	enum WORDCHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+	enum PUNCTUATIONCHARS = r".,:;?-+*\/&^#@!()'`<>{}[]";
+    enum WHITESPACECHARS = " \t";
 
 	int findOneOf(int index, const(char)[] needles) const
 	{
@@ -1432,7 +1854,7 @@ class TextBuffer
 		{
 			index++;
 		}
-		return index < len ? index : int.max;
+		return index < len ? index : InvalidIndex;
 	}
 
 	int findOneNotOf(int index, const(char)[] needles) const
@@ -1443,29 +1865,31 @@ class TextBuffer
 		{
 			index++;
 		}
-		return index < len ? index : int.max;
+		return index < len ? index : InvalidIndex;
 	}
 
 	int findOneOfReverse(int index, const(char)[] needles) const
 	{
-		size_t len = length;
+		if (index >= length)
+            return InvalidIndex;
 
-		while (index < len && index != int.max && !std.algorithm.canFind(needles, this[index]))
+        while (index >= 0 && index != InvalidIndex && !std.algorithm.canFind(needles, this[index]))
 		{
 			index--;
 		}
-		return index != int.max && index < len ? index : int.max;
+		return index != InvalidIndex && index >= 0 ? index : InvalidIndex;
 	}
 
 	int findOneNotOfReverse(int index, const(char)[] needles) const
 	{
-		size_t len = length;
+		if (index >= length)
+            return InvalidIndex;
 
-		while (index < len && index != int.max && std.algorithm.canFind(needles, this[index]))
+		while (index >= 0 && index != InvalidIndex && std.algorithm.canFind(needles, this[index]))
 		{
 			index--;
 		}
-		return index != int.max && index < len ? index : int.max;
+		return index != InvalidIndex && index >= 0 ? index : InvalidIndex;
 	}
 
 	Region regionForLineNumber(int lineNum)
@@ -1487,20 +1911,42 @@ class TextBuffer
 
 	int lineNumberAt(int index) const
 	{
-		int curLine = 0;
-		int i = 0;
-		do
-		{
-			i = startOfNextLine(i);
-			if (index < i)
-				break;
-			curLine++;
-		}
-		while (i != length);
-		return curLine;
+		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <=sa ", length));
+
+        int firstLine = 0;
+        int lastLine = lbuffer.length;
+        int lineDiff = lastLine - firstLine;
+        while (lineDiff != 1)
+        {
+            int curLine = lineDiff / 2 + firstLine;
+            int curLineStartIndex = lbuffer[curLine];
+            if (curLineStartIndex <= index)
+            {
+                firstLine = curLine;
+            }
+            else if (curLineStartIndex > index)
+            {
+                lastLine = curLine;
+            }
+            lineDiff = lastLine - firstLine;
+        }
+        return firstLine;
+
+        //// TODO: optimize using lbuffer
+        //int curLine = 0;
+        //int i = 0;
+        //do
+        //{
+        //    i = startOfNextLine(i);
+        //    if (index < i || i == InvalidIndex)
+        //        break;
+        //    curLine++;
+        //}
+        //while (i != length);
+        //return curLine;
 	}
 
-	int startAtLineNumberScan(int lineNum) const
+	debug int startAtLineNumberScan(int lineNum) const
 	{
 		int curLine = 0;
 		int i = 0;
@@ -1539,7 +1985,7 @@ class TextBuffer
 		return tuple(offsetToBeginningOfLine(index), offsetToEndOfLine(index));
 	}
 
-	auto lineEndsAtLineNumber(int lineNum) const
+	auto lineEndsForLineNumber(int lineNum) const
 	{
 		auto start = startAtLineNumber(lineNum);
 		return tuple(start, offsetToEndOfLine(start));
@@ -1561,9 +2007,9 @@ class TextBuffer
 	/// Mutating methods below
 	///
 
-	void insert(const(CharType)[] items, int index = int.max)
+	void insert(const(CharType)[] items, int index = InvalidIndex)
 	{
-		index = index == int.max ? gbuffer.editPoint : index;
+		index = index == InvalidIndex ? gbuffer.editPoint : index;
 		gbuffer.insert(items, index);
 		lbuffer.textInserted(items, index);
 	}
@@ -1756,7 +2202,7 @@ class TextBuffer
 				(ownerIsNull || owner is info.owner))
 				return info;
 		}
-		return TextBufferAnchor(TextBufferAnchorType.none, int.max);
+		return TextBufferAnchor(TextBufferAnchorType.none, InvalidAnchorID);
 	}
 
 	auto createLineAnchor(int lineNumber, TextBufferAnchorOwner owner = null)
@@ -1771,7 +2217,7 @@ class TextBuffer
 	auto ensureLineAnchor(int lineNumber, TextBufferAnchorOwner owner = null)
 	{
 		auto la = getLineAnchor(lineNumber, owner);
-		if (la.id != int.max)
+		if (la.id != InvalidAnchorID)
 			return la;
 		return createLineAnchor(lineNumber, owner);
 	}

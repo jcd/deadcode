@@ -6,6 +6,7 @@ import core.command : CommandManager;
 import graphics;
 import gui.event;
 import gui.style;
+import gui.text;
 import gui.widget;
 import gui.widgetfeature;
 import gui.window;
@@ -13,6 +14,7 @@ import gui.window;
 import math;
 
 import std.conv;
+import std.signals;
 import std.string;
 
 alias TextRenderer!BufferView BufferViewRenderer;
@@ -29,19 +31,33 @@ class TextEditor : Widget
 	BufferView bufferView;
 	BufferViewRenderer renderer;
 
+    mixin Signal!() onChanged;
+    mixin Signal!(Event, GlyphHit) onGlyphMouseUp;
+
 	@property TextBuffer.CharType[] text() const
 	{
 		return bufferView.getText();
 	}
+
+    // Binding access
+    @property void value(string txt)
+    {
+        bufferView.clear(txt.to!dstring);
+    }
+
+    // Binding access
+    @property string value() const
+    {
+        return this.text.to!string;
+    }
 
 	// Child widget of TextEditor
 	TextEditorAnchor[] visibleAnchorsChildWidgets;
 
 	private int _mouseStartSelectionIdx;
 
-	this(Widget parent, BufferView buf)
+	this(BufferView buf)
 	{
-		super(parent);
 		acceptsKeyboardFocus = true;
 		// background = "edit-background";
 
@@ -57,7 +73,7 @@ class TextEditor : Widget
 
 		bufferView.onAnchorVisibilityChanged.connect(&onAnchorVisibilityChanged);
 
-		_mouseStartSelectionIdx = int.max;
+		_mouseStartSelectionIdx = InvalidIndex;
 
 		//onKeyboardFocusSignal.connect((Event ev) {
 		//    //window.mouseCursor(MouseCursor.iBeam);
@@ -66,7 +82,18 @@ class TextEditor : Widget
 		//onKeyboardUnfocusSignal.connect((Event ev) {
 		//    window.mouseCursor(MouseCursor.arrow);
 		//});
+        updateLineHighlight();
 	}
+
+    final TextHighlighter getOrCreateHighlighter(string name)
+    {
+        return renderer.getOrCreateHighlighter(name);
+    }
+
+    final void removeHighlighter(string name)
+    {
+        renderer.removeHighlighter(name);
+    }
 
 	override EventUsed onMouseOver(Event e)
 	{
@@ -90,11 +117,11 @@ class TextEditor : Widget
 		if (event.type == EventType.Resize)
 			renderer.textDirty = true;
 
-		if (!hasKeyboardFocus())
-		{
-			return super.onEvent(event);
-			//return EventUsed.no;
-		}
+        //if (!hasKeyboardFocus())
+        //{
+        //    return super.onEvent(event);
+        //    //return EventUsed.no;
+        //}
 
 		switch (event.type)
 		{
@@ -160,7 +187,9 @@ class TextEditor : Widget
 		if (!visible)
 			return;
 
-		renderer.selection = bufferView.selection.normalized();
+        updateLineHighlight();
+
+		//renderer.selection = bufferView.selection.normalized();
 
 		import derelict.opengl3.gl3;
 
@@ -186,7 +215,7 @@ class TextEditor : Widget
 
 	override EventUsed onMouseClick(Event event)
 	{
-		setKeyboardFocusWidget();
+        setKeyboardFocusWidget();
 		return EventUsed.yes;
 	}
 
@@ -219,9 +248,19 @@ class TextEditor : Widget
 		return EventUsed.yes;
 	}
 
+    auto getGlyphRect(int bufferIndex)
+    {
+        return renderer.getGlyphRect(this, bufferIndex);
+    }
+
+    auto getGlyphRect(Vec2f pos)
+    {
+        return renderer.getGlyphAt(this, pos);
+    }
+
 	override EventUsed onMouseDown(Event event)
 	{
-		auto info = renderer.getGlyphAt(this, event.mousePos);
+		auto info = getGlyphRect(event.mousePos);
 		if (info.isValid)
 			return onGlyphMouseDown(event, info);
 
@@ -230,7 +269,7 @@ class TextEditor : Widget
 
 	override EventUsed onMouseDoubleClick(Event event)
 	{
-		auto info = renderer.getGlyphAt(this, event.mousePos);
+		auto info = getGlyphRect(event.mousePos);
 		if (info.isValid)
 		{
 			bufferView.cursorToWordBefore();
@@ -242,7 +281,7 @@ class TextEditor : Widget
 
 	override EventUsed onMouseTripleClick(Event event)
 	{
-		auto info = renderer.getGlyphAt(this, event.mousePos);
+		auto info = getGlyphRect(event.mousePos);
 		if (info.isValid)
 		{
 			bufferView.cursorToBeginningOfLine();
@@ -255,10 +294,10 @@ class TextEditor : Widget
 
 	override EventUsed onMouseMove(Event event)
 	{
-		if (_mouseStartSelectionIdx == int.max)
+		if (_mouseStartSelectionIdx == InvalidIndex)
 			return super.onMouseMove(event);
 
-		auto info = renderer.getGlyphAt(this, event.mousePos);
+		auto info = getGlyphRect(event.mousePos);
 		if (info.isValid)
 			_updateSelectionEnd(info, event.mousePos);
 
@@ -267,11 +306,11 @@ class TextEditor : Widget
 
 	override EventUsed onMouseUp(Event event)
 	{
-		auto info = renderer.getGlyphAt(this, event.mousePos);
+		auto info = getGlyphRect(event.mousePos);
 		if (info.isValid)
-			return onGlyphMouseUp(event, info);
+			return _onGlyphMouseUp(event, info);
 
-		_mouseStartSelectionIdx = int.max;
+		_mouseStartSelectionIdx = InvalidIndex;
 
 		return EventUsed.yes;
 	}
@@ -280,7 +319,7 @@ class TextEditor : Widget
 	{
 		if (event.mouseMod.isShiftDown())
 		{
-			if (_mouseStartSelectionIdx == int.max)
+			if (_mouseStartSelectionIdx == InvalidIndex)
 			{
 				if (bufferView.selection.empty)
 					_mouseStartSelectionIdx = bufferView.cursorPoint;
@@ -292,25 +331,28 @@ class TextEditor : Widget
 		}
 		else
 		{
+			_mouseStartSelectionIdx = InvalidIndex;
 			_updateSelectionEnd(hit, event.mousePos);
-			_mouseStartSelectionIdx = bufferView.selection.a;
 			bufferView.setPreferredCursorColumnFromIndex();
 		}
 		return EventUsed.yes;
 	}
 
-	EventUsed onGlyphMouseUp(Event event, GlyphHit hit)
+	EventUsed _onGlyphMouseUp(Event event, GlyphHit hit)
 	{
 		//_updateSelectionEnd(hit, event.mousePos);
-		_mouseStartSelectionIdx = int.max;
+		_mouseStartSelectionIdx = InvalidIndex;
 		bufferView.setPreferredCursorColumnFromIndex();
+
+        onGlyphMouseUp.emit(event, hit);
+
 		return EventUsed.yes;
 	}
 
 	private void _updateSelectionEnd(GlyphHit hit, Vec2f mousePos)
 	{
 		int index;
-		if (true || _mouseStartSelectionIdx == int.max)
+		if (true || _mouseStartSelectionIdx == InvalidIndex)
 		{
 			// Selection start not set. Do so.
 			// When picking the start glyph we want to split the hit glyph vertically and if the
@@ -319,7 +361,7 @@ class TextEditor : Widget
 			// selection, not when determining the end or when expanding the selection.
 			auto yPosHalfWayGlyphRect = hit.rect.x + hit.rect.w * .5f;
 			index = yPosHalfWayGlyphRect < mousePos.x && !hit.endOfLine ? hit.index+1 : hit.index;
-			if (_mouseStartSelectionIdx == int.max)
+			if (_mouseStartSelectionIdx == InvalidIndex)
 				_mouseStartSelectionIdx = index;
 		}
 		else
@@ -330,9 +372,18 @@ class TextEditor : Widget
 		// Region r = _mouseStartSelectionIdx < index ? Region(_mouseStartSelectionIdx, index, 0) : Region(index, _mouseStartSelectionIdx, 0);
 		bufferView.selection = Region(_mouseStartSelectionIdx, index, 0);
 
-		bufferView.cursorPoint = index;
+		// bufferView.cursorPoint = index;
 		renderer.cursorVisible = true;
 	}
+
+    private void updateLineHighlight()
+    {
+        auto ends = bufferView.buffer.lineEndsAt(bufferView.cursorPoint);
+        auto last = bufferView.buffer.next(ends[1]); // bump it to after the newline in order to have a region for empty lines also.
+        auto hl = getOrCreateHighlighter("lineHighlight");
+        hl.regions.clear();
+        hl.regions.set(ends[0], last);
+    }
 
 	// TODO: move slots to bufferView
 	// Text inserted at pos and forward
@@ -341,6 +392,7 @@ class TextEditor : Widget
 		//Region r = bufferView.selection;
 		//r.entriesInserted(pos, text.length);
 		//bufferView.selection = r;
+        onChanged.emit();
 	}
 
 	// Text remove from pos and forward
@@ -349,6 +401,7 @@ class TextEditor : Widget
 		//Region r = bufferView.selection;
 		//r.entriesRemoved(pos, text.length);
 		//bufferView.selection = r;
+        onChanged.emit();
 	}
 
 	//private void onBufferViewDirty(BufferView bv)
@@ -437,7 +490,7 @@ class TextEditor : Widget
 	void unsetLineAnchor(int lineNumber, string type)
 	{
 		auto anchor = bufferView.buffer.getLineAnchor(lineNumber);
-		if (anchor.id == int.max)
+		if (anchor.id == InvalidAnchorID)
 			return; // no anchor
 		bufferView.buffer.removeLineAnchorByLine(anchor.id); // TODO: optimize
 	}
@@ -530,7 +583,7 @@ class TextEditorAnchor : Widget
         if (lineEnd != lineStart)
         {
             auto lineEndChar = buffer.findOneNotOfReverse(lineEnd, " \t\r\n");
-		    if (lineEndChar != int.max)
+		    if (lineEndChar != InvalidIndex)
 			    lineEnd = lineEndChar;
         }
 

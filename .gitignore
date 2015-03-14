@@ -28,6 +28,7 @@
 ehthumbs.db
 Thumbs.db
 
+/docs
 /.dub
 /external/Derelict3
 /external/harfbuzz
@@ -40,6 +41,7 @@ Thumbs.db
 /bin/Debug
 /bin/Release
 /bin/Unittest
+/ddox
 /*.dll
 /*.exe
 /*.exe_cv

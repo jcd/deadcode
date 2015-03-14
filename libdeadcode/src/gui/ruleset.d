@@ -22,7 +22,7 @@ class RuleEnv
 			return lookupStringValue(key);
 		else static if (is(Type : bool))
 			return lookupBoolValue(key);
-		else static if (is(Type : int)) 
+		else static if (is(Type : int))
 			return lookupIntValue(key);
 		assert(0);
 	}
@@ -42,22 +42,23 @@ class Rule
 		key = k;
 	}
 
-	abstract protected bool eval(RuleEnv env);
+    abstract protected bool eval(RuleEnv env);
+    abstract bool isEqual(Object other) const pure nothrow @safe;
 
-	bool test(RuleEnv env)
+    bool test(RuleEnv env)
 	{
 		if (negate)
 			return !eval(env);
-		else	
+		else
 			return eval(env);
 	}
 }
 
-version(unittest) 
+version(unittest)
 {
 	class UnitTestRuleEnv : RuleEnv
 	{
-		override bool lookupBoolValue(string key) 
+		override bool lookupBoolValue(string key)
 		{
 			if (key == "trueBool")
 				return true;
@@ -66,7 +67,7 @@ version(unittest)
 			throw new InvalidRuleKeyError(key);
 		}
 
-		override string lookupStringValue(string key) 
+		override string lookupStringValue(string key)
 		{
 			if (key == "emptyString")
 				return "";
@@ -77,7 +78,7 @@ version(unittest)
 			throw new InvalidRuleKeyError(key);
 		}
 
-		override int lookupIntValue(string key) 
+		override int lookupIntValue(string key)
 		{
 			if (key == "zeroInt")
 				return 0;
@@ -98,13 +99,19 @@ class EqualRule(Type) : Rule
 		value = v;
 	}
 
+    override bool isEqual(Object other) const pure nothrow @safe
+    {
+        auto o = cast(EqualRule!Type)other;
+        return o !is null && key == o.key && negate == o.negate && value == o.value;
+    }
+
 	override protected bool eval(RuleEnv env)
 	{
 		return env.lookupValue!Type(key) == value;
 	}
 }
 
-unittest 
+unittest
 {
 
 	auto env = new UnitTestRuleEnv();
@@ -120,7 +127,7 @@ unittest
 
 	r1 = new EqualRule!bool("falseBool", true);
 	r1.negate = true;
-	Assert(r1.test(env) == true);	
+	Assert(r1.test(env) == true);
 
 	auto r2 = new EqualRule!bool("unknownBool", true);
 	Assert(collectException!InvalidRuleKeyError(r2.test(env)) !is null);
@@ -142,6 +149,12 @@ class RegexRule : Rule
 		re = regex(_re, flags);
 	}
 
+    override bool isEqual(Object other) const pure nothrow @safe
+    {
+        auto o = cast(RegexRule)other;
+        return o !is null && key == o.key && negate == o.negate && re == o.re;
+    }
+
 	override protected bool eval(RuleEnv env)
 	{
 		auto val = env.lookupValue!string(key);
@@ -150,10 +163,10 @@ class RegexRule : Rule
 	}
 }
 
-unittest 
-{	
+unittest
+{
 	auto env = new UnitTestRuleEnv();
-	
+
 	auto r1 = new RegexRule("allK", "k+");
 	Assert(r1.test(env) == true);
 
@@ -188,30 +201,36 @@ class RegexContainsRule : Rule
 		re = regex(_re, flags);
 	}
 
+    override bool isEqual(Object other) const pure nothrow @safe
+    {
+        auto o = cast(RegexContainsRule)other;
+        return o !is null && key == o.key && negate == o.negate && re == o.re;
+    }
+
 	override protected bool eval(RuleEnv env)
 	{
 		auto val = env.lookupValue!string(key);
-		return !match(val, re).empty;		
+		return !match(val, re).empty;
 	}
 }
 
-unittest 
-{	
+unittest
+{
 	auto env = new UnitTestRuleEnv();
-	
+
 	auto r1 = new RegexContainsRule("allK", "k+");
 	Assert(r1.test(env) == true);
-	
+
 	// Match sub content
 	r1 = new RegexContainsRule("allK", "kkk");
 	Assert(r1.test(env) == true);
-	
+
 	r1 = new RegexContainsRule("emptyString", "k+");
 	Assert(r1.test(env) == false);
-	
+
 	r1 = new RegexContainsRule("testString", ".*estStrin.*");
 	Assert(r1.test(env) == true);
-	
+
 	// Match sub content
 	r1 = new RegexContainsRule("testString", ".*estStrin");
 	Assert(r1.test(env) == true);
@@ -232,7 +251,7 @@ class RuleSet
 	{
 		auto v = new RegexRule(key, r);
 		v.negate = negate;
-		rules ~= v;	
+		rules ~= v;
 	}
 
 	void addRegex(string key, const(char)[] _re, const(char)[] flags = "", bool negate = false)
@@ -244,7 +263,7 @@ class RuleSet
 	{
 		auto v = new RegexContainsRule(key, r);
 		v.negate = negate;
-		rules ~= v;	
+		rules ~= v;
 	}
 
 	void addRegexContains(string key, const(char)[] _re, const(char)[] flags = "", bool negate = false)
@@ -252,10 +271,23 @@ class RuleSet
 		addRegexContains(key, regex(_re, flags));
 	}
 
+    bool isEqual(RuleSet other)
+    {
+		if (other is null || other.rules.length != rules.length)
+            return false;
+
+        foreach (idx, r; rules)
+        {
+            if (!r.isEqual(other.rules[idx]))
+                return false;
+        }
+        return true;
+    }
+
 	bool test(RuleEnv env)
 	{
 		foreach (v; rules)
-			if (!v.test(env)) 
+			if (!v.test(env))
 				return false;
 		return true;
 	}

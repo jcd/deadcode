@@ -193,7 +193,7 @@ struct TextBoxLayout
 		curLine.rect.h = std.math.fmax(curLine.rect.h, style.font.fontLineSkip);
 		auto relPixPos = style.font.fontLineSkip + ascentDiff;
 
-		// Event though screen space in growing in y going downwards we
+		// Even though screen space is growing in y going downwards we
 		// decrease in y going downwards because we want to map into gl coord space
 		auto absPixPos = (-curLine.rect.y) - relPixPos; // style.font.fontLineSkip;
 

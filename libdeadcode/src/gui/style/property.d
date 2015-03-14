@@ -130,6 +130,62 @@ class PropertySpecification(T : float) : PropertySpecificationBase!T
 	}
 }
 
+class PropertySpecification(T : bool) : PropertySpecificationBase!T
+{
+	this(PropertyID _id, T _default, bool _inherited = false)
+	{
+		super(_id, _default, _inherited);
+	}
+
+	bool parse(StyleSheetParser parser, Style style) const @safe
+	{
+		auto tok = parser.nextToken();
+		float num;
+		bool isOn = tok.value == "on" || tok.value == "yes";
+        bool isOff = tok.value == "off" || tok.value == "no";
+        if (isOn || isOff)
+		{
+			if (!multi || style.bools.get(id, null) is null)
+			{
+				style.bools[id] = [ isOn ];
+			}
+			else
+			{
+				style.bools[id] ~= isOn;
+			}
+			return true;
+		}
+		parser.resetToToken(tok);
+		return false;
+	}
+
+	void setDefault(Style style) const pure nothrow @trusted
+	{
+		try
+		{
+			if (!multi || style.durations.get(id, null) is null)
+				style.bools[id] = [ _default ];
+			else
+				style.bools[id] ~= _default;
+		}
+		catch (Exception)
+		{
+			assert(0);
+		}
+	}
+
+	void clear(Style style) const pure nothrow @safe
+	{
+		style.bools[id] = null;
+	}
+
+	static void overlay(ref T[][PropertyID] dest, PropertyID key, T[] value)
+	{
+		if (value.length && key !in dest)
+			dest[key] = value;
+	}
+}
+
 import std.datetime;
 class PropertySpecification(T : Duration) : PropertySpecificationBase!T
 {

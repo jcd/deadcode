@@ -72,6 +72,7 @@ class Style
 	{
 		Rectf[PropertyID] rects;  // Keys in the map are property names
 		float[][PropertyID] floats;
+		bool[][PropertyID] bools;
 		Vec2f[PropertyID]vec2fs;
 
 		Duration[][PropertyID] durations;

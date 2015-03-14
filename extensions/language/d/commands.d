@@ -87,10 +87,160 @@ void dFormatBuffer(BufferView b)
         }
     }
     auto writer = Writer(b);
-    extensions.language.d.dfmt.format!Writer(b.name, cast(ubyte[]) buf, writer);
 
+    extensions.language.d.dfmt.FormatterConfig cfg = {
+        indentSize : 4,
+        useTabs : false,
+        tabSize : 4,
+        columnSoftLimit: 80,
+        columnHardLimit: 120,
+        braceStyle: extensions.language.d.dfmt.BraceStyle.allman
+    };
+
+    extensions.language.d.dfmt.format!Writer(b.name, cast(ubyte[]) buf, writer, &cfg);
 }
 
+
+private string getIndentStringForLineAtIndex(BufferView bv, int index)
+{
+    import std.range;
+    import core.buffer;
+
+    int tabSize = 4;
+    int indentSize = 4;
+    bool useTabs = false;
+
+    int startOfLine = bv.buffer.offsetToBeginningOfLine(index);
+    int firstNonSpace = bv.buffer.offsetBy(startOfLine, 1,
+										   TextBoundary.lineEnd | TextBoundary.wordBegin | TextBoundary.punctuationBegin,
+	                                       TextBoundaryStrength.hard);
+
+    if (firstNonSpace != InvalidIndex)
+    {
+        int spaces = 0;
+        int tabs = 0;
+        foreach (c; bv[startOfLine..firstNonSpace])
+        {
+            if (c == ' ')
+                spaces++;
+            else if (c == '\t')
+                tabs++;
+        }
+
+        int lastIndent = (tabs * tabSize + spaces) / indentSize;
+
+        if (useTabs)
+           return "\t".repeat(lastIndent * indentSize / tabSize).join;
+        else
+           return " ".repeat(lastIndent * indentSize).join;
+    }
+	return "";
+}
+
+void dInsertNewline(BufferView bv)
+{
+    import std.array;
+    import std.range;
+    import core.buffer;
+
+    bv.insert('\n');
+
+	bool isElse = bv.isCursorFollowing("else\n");
+
+    // indent equal to indent level of previous line unless previous line ends with a { then add an extra indent.
+    int p = bv.buffer.prev(bv.cursorPoint);
+	string indentStr = getIndentStringForLineAtIndex(bv, p);
+	bv.insert(indentStr);
+
+	if (isElse)
+    {
+		dInsertScopeBegin(bv);
+    }
+}
+
+void dInsertScopeBegin(BufferView bv)
+{
+    import std.array;
+    import std.range;
+    import core.buffer;
+
+    int tabSize = 4;
+    int indentSize = 4;
+    bool useTabs = false;
+
+    bv.insert('{');
+    string indentStr = getIndentStringForLineAtIndex(bv, bv.cursorPoint);
+	bv.insert('\n');
+    bv.insert(indentStr);
+    if (useTabs)
+	    bv.insert("ffff");
+    else
+	    bv.insert(" ".repeat(indentSize).join);
+	int cp = bv.cursorPoint;
+    bv.insert("\n");
+    bv.insert(indentStr);
+    bv.insert("}");
+    bv.cursorPoint(cp);
+}
+
+
+version (OFF):
+class DAutoFormat : BasicExtension!DAutoFormat
+{
+	override @property string name() { return "unittests"; }
+
+	override void init()
+	{
+		import core.runtime;
+
+		app.bufferViewManager.onBufferViewCreated.connect(&onBufferViewCreated);
+		foreach (bv; app.bufferViewManager.buffers)
+			onBufferViewCreated(bv);
+	}
+
+	private void onBufferViewCreated(BufferView bv)
+	{
+		// TODO: maybe make a single onLinesChanged that can be used instead of the two below
+		bv.onInsert.connect(&textInserted);
+	}
+
+	private void textInserted(BufferView bv, dstring txt, int index)
+	{
+		import std.array;
+		import std.range;
+		import core.buffer;
+
+		int tabSize = 4;
+		int indentSize = 4;
+		bool useTabs = false;
+
+		if (txt.length && txt[$-1] == '\n' && bv.cursorPoint == (index + txt.length))
+		{
+			// indent equal to indent level of previous line unless previous line ends with a { then add an extra indent.
+			int startOfPrevLine = bv.buffer.offsetToBeginningOfLine(bv.buffer.endOfPreviousLine(bv.cursorPoint));
+			int firstNonSpace = bv.buffer.offsetBy(startOfPrevLine, 1, TextBoundary.lineEnd | TextBoundary.wordBegin | TextBoundary.punctuationBegin,  TextBoundaryStrength.hard);
+			if (firstNonSpace != InvalidIndex)
+			{
+				int spaces = 0;
+				int tabs = 0;
+				foreach (c; bv[startOfPrevLine..firstNonSpace])
+				{
+					if (c == ' ')
+						spaces++;
+					else if (c == '\t')
+						tabs++;
+				}
+
+				int lastIndent = (tabs * tabSize + spaces) / indentSize;
+
+				if (useTabs)
+					bv.insert("\t".repeat(lastIndent * indentSize / tabSize).join);
+				else
+					bv.insert(" ".repeat(lastIndent * indentSize).join);
+			}
+		}
+	}
+}
 
 
 //class AnalysisAnchor2 : TextEditorAnchor

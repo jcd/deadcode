@@ -15,7 +15,7 @@ import std.string;
 
 import derelict.sdl2.sdl;
 
-/** KeySequence 
+/** KeySequence
 */
 class KeySequence
 {
@@ -23,25 +23,25 @@ class KeySequence
 	{
 		SDL_Keycode keyCode;
 		KeyMod  mod;
-	
-		bool match(ref const Key s) 
-		{ 
+
+		bool match(ref const Key s)
+		{
 			// Modifiers need special treatment because e.g. lctrl is a subset of ctrl
-			if (keyCode != s.keyCode) 
+			if (keyCode != s.keyCode)
 				return false;
-			
+
 			//int xor = ~(mod ^ s.mod);
 
-			//bool modMatches = KeyMod.LSHIFT & xor 
+			//bool modMatches = KeyMod.LSHIFT & xor
 
 			// Match matrix
-			
+
 			// mod/s.mod | LSHIFT | RSHIFT | SHIFT | NONE
 			// LSHIFT    | yes    | no     | yes   | no
 			// RSHIFT    | no     | yes    | yes   | no
 			// SHIFT     | yes    | yes    | yes   | no
 			// none      | no     | no     | no    | yes
-			
+
 			auto shiftNeeded = mod & KeyMod.SHIFT;
 			auto shiftGotten = s.mod & KeyMod.SHIFT;
 			auto shiftMatch = shiftNeeded & shiftGotten || shiftNeeded == shiftGotten;
@@ -69,7 +69,7 @@ class KeySequence
 							  ((KeyMod.LGUI & mod) == (KeyMod.LGUI & s.mod) ||
 							   (KeyMod.RGUI & mod) == (KeyMod.RGUI & s.mod));
 			return modMatches;
-	*/		
+	*/
 			/*
 			switch (mod)
 			{
@@ -92,11 +92,11 @@ class KeySequence
 			return text(mod, " ", cast(char)keyCode);
 		}
 	}
-	
+
 	Key[] sequence;
-	
-	/** Create a key sequence from a string 
-	 * 
+
+	/** Create a key sequence from a string
+	 *
 	 * The string can contain normal characters and the special tokens:
 	 * * <ctrl>
 	 * * <alt>
@@ -111,7 +111,7 @@ class KeySequence
 		import std.array;
 		auto toks = split(strip(seq));
 		KeyMod mod = KeyMod.NONE;
-		
+
 		KeyMod stringToKeyMod(string s)
 		{
 			switch (s)
@@ -134,30 +134,30 @@ class KeySequence
 				return KeyMod.LSHIFT;
 			case "<rshift>":
 				return KeyMod.RSHIFT;
-			default: 
+			default:
 				return KeyMod.NONE;
 			}
-		}	
-			
+		}
+
 		while (!toks.empty)
 		{
 			auto tok = toks[0];
 			toks = toks[1..$];
 			if (tok.empty)
 				continue;
-			
+
 			auto m = stringToKeyMod(tok);
 			if (m != KeyMod.NONE)
 			{
 				mod = mod | m;
-			
+
 				// next token must be a +
 				enforceEx!Exception(!toks.empty && toks[0] == "+", text("Missing + after ", tok , " in \"", seq , "\""));
 				toks = toks[1..$];
 				enforceEx!Exception(toks.length >= 1, text("Missing key control sequence terminating character after \"", tok, " + \""));
 				continue;
 			}
-			
+
 			if (tok.length != 1)
 			{
 				// Everything but single chars must be inside <...>
@@ -169,38 +169,38 @@ class KeySequence
 		}
 		//std.stdio.writeln(sequence);
 	}
-		
-	unittest 
+
+	unittest
 	{
-		
+
 	}
-		
+
 	@property size_t length() const pure nothrow @safe
 	{
 		return sequence.length;
 	}
 
-	@property void length(size_t l) 
+	@property void length(size_t l)
 	{
 		sequence.length = l;
 	}
-	
+
 	void add(SDL_Keycode code, KeyMod mod)
 	{
 		sequence ~= Key(code, mod);
 	}
-	
+
 	void clear()
 	{
 		sequence.length = 0;
 	}
-	
+
 	/** Check if a key sequence matches this key binding.
-	 * 
+	 *
 	 * Params:
 	 * 		seq the sequence to match
 	 * 		prefixMatchAllowed if seq is a prefix of the bindings key sequence then setting this to true will take that as a match
-	 * 
+	 *
 	 * Returns:
 	 * 		true if a key sequence matches
 	 */
@@ -213,9 +213,9 @@ class KeySequence
 		{
 			if (i == sequence.length)
 				return false; // incoming sequence too long. Should not happen!
-			
+
 			if (!sequence[i].match(k))
-				return false;			
+				return false;
 		}
 		return !seq.sequence.empty;
 	}
@@ -226,7 +226,7 @@ class KeySequence
 		string delim;
 		foreach (k; sequence)
 		{
-			res ~= delim ~ k.toString();	
+			res ~= delim ~ k.toString();
 			delim = ", ";
 		}
 		return res;
@@ -247,7 +247,7 @@ class KeyBinding
 		args = inargs;
 		rules = val;
 	}
-	
+
 	this(string seq, string com, CommandParameter[] inargs, RuleSet val = null)
 	{
 		sequence = new KeySequence(seq);
@@ -257,11 +257,11 @@ class KeyBinding
 	}
 
 	/** Check if a key sequence matches this key binding.
-	 * 
+	 *
 	 * Params:
 	 * 		seq the sequence to match
 	 * 		prefixMatchAllowed if seq is a prefix of the bindings key sequence then setting this to true will take that as a match
-	 * 
+	 *
 	 * Returns:
 	 * 		true if a key sequence matches
 	 */
@@ -278,17 +278,27 @@ class KeyBinding
 
 class KeyBindingsSet
 {
+    import core.signals;
+
 	private
 	{
 		KeyBinding[] set;
 	}
 
+    mixin Signal!() onCleared;
+
+    void clear()
+    {
+        set = null;
+        onCleared.emit();
+    }
+
 	/** Check if a key sequence matches any key binding.
-	 * 
+	 *
 	 * Params:
 	 * 		seq the sequence to match
 	 * 		prefixMatchAllowed if seq is a prefix of the bindings key sequence then setting this to true will take that as a match
-	 * 
+	 *
 	 * Returns:
 	 * 		the list of matching key bindings
 	 */
@@ -301,7 +311,7 @@ class KeyBindingsSet
 				res ~= kb;
 		}
 		return res;
-		
+
 	/*
 		import std.array;
 		return array(std.algorithm.filter!( (a) => { return a.match(seq, prefixMatchAllowed); } )(set));
@@ -316,17 +326,52 @@ class KeyBindingsSet
 		foreach (kb; set)
 		{
 			if (!kb.match(seq, false))
-				newSet ~= kb; 
+				newSet ~= kb;
 		}
 		set = newSet;
 	}
 
+    void removeKeyBinding(KeySequence seq, RuleSet otherRules)
+	{
+		KeyBinding[] newSet;
+		newSet.length = set.length;
+		newSet.length = 0;
+		foreach (kb; set)
+		{
+			if ( ! (kb.match(seq, false) &&
+                    ((kb.rules is null && otherRules is null) || (kb.rules !is null && kb.rules.isEqual(otherRules)) ) ) )
+				newSet ~= kb;
+		}
+		set = newSet;
+	}
+
+    void replaceKeyBinding(string seq, string com, CommandParameter[] args, RuleSet rules = null)
+    {
+        auto seqInst = new KeySequence(seq);
+        removeKeyBinding(seqInst, rules);
+        setKeyBinding(new KeyBinding(seqInst, com, args, rules));
+    }
+
+    void replaceKeyBinding(string seq, string com, string arg, RuleSet rules = null)
+    {
+        auto seqInst = new KeySequence(seq);
+        removeKeyBinding(seqInst, rules);
+        setKeyBinding(new KeyBinding(seqInst, com, [CommandParameter(arg)], rules));
+    }
+
+    void replaceKeyBinding(string seq, string com, RuleSet rules = null)
+    {
+        auto seqInst = new KeySequence(seq);
+        removeKeyBinding(seqInst, rules);
+        setKeyBinding(new KeyBinding(seqInst, com, null, rules));
+    }
+
 	/** Set the key binding for a command
-	 * 
-	 * This will overwrite any existing key binding for the specified command if 
+	 *
+	 * This will overwrite any existing key binding for the specified command if
 	 * already present.
 	 * If the key sequence is already used by another key binding then the
-	 * the key sequence will be used by both key bindings after this call. This 
+	 * the key sequence will be used by both key bindings after this call. This
 	 * means that both commands is executed on key sequence matches.
 	 */
 	void setKeyBinding(KeyBinding b) //if ( is(T : KeyBinding) ) )
@@ -335,48 +380,48 @@ class KeyBindingsSet
 		/*
 		// Check if a binding for the command is already set and remove that one if so.
 		auto r = std.algorithm.find!"a.command == b.command"(set, b);
-		
+
 		if (r.empty)
 			set ~= b;
 		else
 			r[0] = b;
 			*/
 	}
-	
+
 	/// ditto
 	void setKeyBinding(string seq, string com, CommandParameter[] args = null, RuleSet val = null)
 	{
 		setKeyBinding(new KeyBinding(seq, com, args, val));
-	}	
-	
+	}
+
 	/// ditto
 	// TODO: Make into template when 2.065 is reached
 	void setKeyBinding(string seq, string com, string arg, RuleSet val = null)
 	{
 		setKeyBinding(new KeyBinding(seq, com, [CommandParameter(arg)], val));
-	}	
+	}
 
 	/// ditto
 	void setKeyBinding(string seq, string com, int arg, RuleSet val = null)
 	{
 		setKeyBinding(new KeyBinding(seq, com, [CommandParameter(arg)], val));
-	}	
+	}
 
 	/// ditto
 	void setKeyBinding(string seq, string com, RuleSet val)
 	{
 		setKeyBinding(new KeyBinding(seq, com, null, val));
-	}	
+	}
 
 	//// ditto
-	//void setKeyBinding(KeySequence seq, string com, Variant args = Variant(), RuleSet val = null) 
+	//void setKeyBinding(KeySequence seq, string com, Variant args = Variant(), RuleSet val = null)
 	//{
 	//    setKeyBinding(new KeyBinding(seq, com, args, val));
-	//}	
+	//}
 
 	/// ditto
 	/*
-	void setKeyBinding(string seq, string commandName, Variant args = Variant(), RuleSet val = null) 
+	void setKeyBinding(string seq, string commandName, Variant args = Variant(), RuleSet val = null)
 	{
 		auto s = new KeySequence(seq);
 
@@ -427,13 +472,13 @@ class KeyBindingsSet
 					// This instance of this class will no be used for following bindings to the sequence since
 					// we just overwrote the entry
 				}
-				
+
 				override void execute(Variant data)
 				{
 					auto comm = createBinding();
 					if (comm is null)
 						return;
-					comm.execute(data);
+					USE CMDMANAGER -> comm.execute(data);
 					// This instance of this class will no be used for following bindings to the sequence since
 					// we just overwrote the entry
 				}
@@ -448,25 +493,25 @@ class KeyBindingsSet
 class KeyBindingStack
 {
 	KeyBindingsSet[] stack;
-	
-	/** Current active key bindings 
+
+	/** Current active key bindings
 	 */
 	@property ref KeyBindingsSet keyBindings()
 	{
 		return stack[$-1];
 	}
-	
+
 	/** Push a new KeyBindings set at the new active one
-	 * 
+	 *
 	 * This can be pop() later on to restore the old one.
  	 */
 	void push(KeyBindingsSet b)
 	{
 		stack ~= b;
 	}
-	
+
 	/** Pop the active key bindings of stack
-	 * 
+	 *
 	 * This will restore the previous key bindings as the active
 	 */
 	void pop()
@@ -475,11 +520,11 @@ class KeyBindingStack
 	}
 
 	/** Check if a key sequence matches any key binding.
-	 * 
+	 *
 	 * Params:
 	 * 		seq the sequence to match
 	 * 		prefixMatchAllowed if seq is a prefix of the bindings key sequence then setting this to true will take that as a match
-	 * 
+	 *
 	 * Returns:
 	 * 		the list of matching key bindings
 	 */
@@ -487,20 +532,20 @@ class KeyBindingStack
 	{
 		return stack[0].match(seq, prefixMatchAllowed);
 	}
-	
+
 	/** Set the key binding for a command
-	 * 
-	 * This will overwrite any existing key binding for the specified command if 
+	 *
+	 * This will overwrite any existing key binding for the specified command if
 	 * already present.
 	 * If the key sequence is already used by another key binding then the
-	 * the key sequence will be used by both key bindings after this call. This 
+	 * the key sequence will be used by both key bindings after this call. This
 	 * means that both commands is executed on key sequence matches.
 	 */
 	void setKeyBinding()(KeyBinding b) //if ( is(T : KeyBinding) ) )
 	{
 		stack[0].setKeyBinding(b);
 	}
-	
+
 	/// ditto
 	void setKeyBinding(T)(T seq, string com) if ( is(T : string) || is(T : KeySequence))
 	{
@@ -516,7 +561,7 @@ class KeyBindingStack
 
 	/*
 	/// ditto
-	void setKeyBinding()(string seq, string commandName) 
+	void setKeyBinding()(string seq, string commandName)
 	{
 		stack[0].setKeyBinding(seq, commandName);
 	}

@@ -17,7 +17,9 @@ import io.iomanager;
 
 class StyleSheetManager : ResourceManager!StyleSheet
 {
-	private
+	static void function(StyleSheetManager) onInitialized[];
+
+    private
 	{
 		FontManager _fontManager;  // TODO: No need for managers I think. Let the ones why create styles know about that
 		MaterialManager _materialManager;
@@ -67,7 +69,9 @@ class StyleSheetManager : ResourceManager!StyleSheet
 		ssm.addPropertyShorthand("transition",
 								 "property", "duration", "timing", "delay").multi = true;
 
-		return ssm;
+		foreach (i; onInitialized)
+            i(ssm);
+        return ssm;
 	}
 
 	private void createBuiltinStyleSheet(MaterialManager mm, FontManager fm)

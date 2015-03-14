@@ -11,7 +11,7 @@ import gui.resources.texture;
 
 import io.iomanager;
 
-import jsonx;
+import util.jsonx;
 
 import std.file;
 
@@ -19,7 +19,7 @@ class Material : graphics.material.Material, IResource!Material
 {
 	private static @property Material builtIn() { return null; } // hide
 
-	@property 
+	@property
 	{
 		string name()
 		{
@@ -63,7 +63,7 @@ class Material : graphics.material.Material, IResource!Material
 				p.ensureLoaded();
 			return _shader;
 		}
-		
+
 		override void shader(graphics.shaderprogram.ShaderProgram s)
 		{
 			_shader = s;
@@ -76,14 +76,14 @@ class Material : graphics.material.Material, IResource!Material
 				t.ensureLoaded();
 			return _texture;
 		}
-		
+
 
 		override void texture( graphics.texture.Texture t)
 		{
 			_texture = t;
 		}
 	}
-	
+
 	Manager _manager;
 	Handle _handle;
 	string _name;
@@ -149,8 +149,8 @@ class MaterialSerializer : ResourceSerializer!Material
 	{
 		_shaderProgramManager = shaderProgramManager;
 		_textureManager = textureManager;
-	}	
-	
+	}
+
 	override bool canRead() pure const nothrow { return true; }
 
 	override bool canHandle(URI uri)
@@ -158,7 +158,7 @@ class MaterialSerializer : ResourceSerializer!Material
 		import std.path;
 		return uri.extension == ".material";
 	}
-	
+
 	override void deserialize(Material res, string str)
 	{
 		struct ShaderProgramSpec
@@ -171,7 +171,7 @@ class MaterialSerializer : ResourceSerializer!Material
 		auto spURI = new URI(spec.shaderProgram);
 		auto texURI = new URI(spec.texture);
 		auto baseURI = res.uri.dirName;
-	
+
 		if (!spURI.isAbsolute)
 			spURI.makeAbsolute(baseURI);
 		if (!texURI.isAbsolute)

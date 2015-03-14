@@ -1,4 +1,4 @@
-module jsonx;
+module util.jsonx;
 
 import std.algorithm : find;
 import std.ascii : isControl, isUpper, isDigit, isHexDigit, isWhite;
@@ -7,7 +7,7 @@ import std.range;
 import std.traits;
 import std.exception : enforceEx;
 import std.variant;
-import std.stdio;	
+import std.stdio;
 
 // TODO: recursion depth limit
 // TODO: option for sorted object keys when encoding
@@ -184,7 +184,7 @@ auto _getFieldInfo(T)()
 {
 	import std.array;
 	string[] result;
-	foreach (member; __traits(allMembers, T))	
+	foreach (member; __traits(allMembers, T))
 	{
 		//bool ignored = [__traits(getAttributes, member)].indexOf("noserialize") != -1;
 		bool ignored = false;
@@ -220,7 +220,7 @@ void jsonEncode_impl(S, A)(S obj, ref A app) if((is(S == struct) || is(S == clas
 	NoSerializeLookup!S fieldLookup;
 
     foreach(i, val; obj.tupleof) {
-        
+
 		static if (isSomeFunction!val)
 			continue;
 		/* obj.tupleof[i].stringof is something like "obj.member".
@@ -316,15 +316,15 @@ template hasAttribute(alias A, alias S, size_t i = size_t.max)
 	//}
 	//else static if (i == 0)
 	//    enum hasAttribute = attrs[0] == A;
-	//else 
+	//else
 	//    enum hasAttribute = attrs[i] == A || hasAttribute!(A, S, i - 1);
 }
 
 ///* Make sure things we cannot serialize is marked as such*/
-//void jsonEncode_impl(S, A)(S s, ref A app) if (( __traits(compiles, hasAttribute!(noSerialize, S)) && hasAttribute!(noSerialize, S))) 
+//void jsonEncode_impl(S, A)(S s, ref A app) if (( __traits(compiles, hasAttribute!(noSerialize, S)) && hasAttribute!(noSerialize, S)))
 //{
 //    app.put("null");
-//    // static assert (__traits(getAttributes, 
+//    // static assert (__traits(getAttributes,
 //}
 
 /* Encode associative array */
@@ -550,7 +550,7 @@ T jsonDecode_impl(T, R)(ref R input) if(isInputCharRange!R && isSomeString!T) {
                 /* We need to use the appender */
                 if(inputSave) {
                     app = appender(inputSave[1 .. inputSave.length - input.length].idup);
-                    inputSave = null;                    
+                    inputSave = null;
                 }
             }
 
@@ -630,7 +630,7 @@ T jsonDecode_impl(T, R)(ref R input) if(isInputCharRange!R && isSomeString!T) {
             }
         } else if(isControl(c) && c != '\n' && c != '\t' && c != '\r' ) {
             /* Error - JSON strings cannot include raw control characters */
-            
+
 			throw new JsonException("encountered raw control character. Rest is " ~ to!string(input));
         } else {
             /* Regular character */
@@ -846,7 +846,7 @@ unittest {
             } catch(JsonException) {
                 caught = true;
             }
-            assert(caught);            
+            assert(caught);
 
             caught = false;
             try {

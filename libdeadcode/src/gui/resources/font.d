@@ -6,7 +6,7 @@ import gui.resource;
 
 import io.iomanager;
 
-import jsonx;
+import util.jsonx;
 
 import std.path;
 
@@ -16,15 +16,15 @@ class Font : GFont, IResource!Font
 
 	public this()
 	{
-		
+
 	}
 
 	//private this(string path, size_t size)
 	//{
 	//    super(path, size);
 	//}
-	
-	@property 
+
+	@property
 	{
 		string name()
 		{
@@ -81,19 +81,19 @@ class FontManager : ResourceManager!Font
 	{
 		return get(builtinFontHandle);
 	}
-	
+
 	static FontManager create(IOManager ioManager)
 	{
 		auto fm = new FontManager;
 		auto fp = new JsonFontSerializer;
 		fm.ioManager = ioManager;
 		fm.addSerializer(fp);
-		
+
 		fm.createBuiltinFont();
-		
+
 		return fm;
 	}
-	
+
 	private void createBuiltinFont()
 	{
 		builtinFontHandle = declare(builtinFontPath).handle;
@@ -115,7 +115,7 @@ class JsonFontSerializer : ResourceSerializer!Font
 	{
 		return uri.extension == ".font";
 	}
-	
+
 	override void deserialize(Font res, string str)
 	{
 		struct FontSpec

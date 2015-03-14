@@ -6,7 +6,7 @@ import gui.resource;
 
 import io.iomanager;
 
-import jsonx;
+import util.jsonx;
 
 import std.file;
 
@@ -14,7 +14,7 @@ class ShaderProgram : graphics.material.ShaderProgram, IResource!ShaderProgram
 {
 	private static @property ShaderProgram builtIn() { return null; } // hide
 
-	@property 
+	@property
 	{
 		string name()
 		{
@@ -35,7 +35,7 @@ class ShaderProgram : graphics.material.ShaderProgram, IResource!ShaderProgram
 		{
 			_handle = h;
 		}
-		
+
 		Manager manager() pure nothrow @safe
 		{
 			return _manager;
@@ -66,7 +66,7 @@ class ShaderProgramManager : ResourceManager!ShaderProgram
 	{
 		return get(builtinShaderProgramHandle);
 	}
-	
+
 	static ShaderProgramManager create(IOManager ioManager)
 	{
 		auto fm = new ShaderProgramManager;
@@ -90,7 +90,7 @@ class ShaderProgramManager : ResourceManager!ShaderProgram
 			p.manager.onResourceLoaded(p, null);
 			return true;
 		}
-		
+
 		bool save(ShaderProgram p, URI uri)
 		{
 			throw new Exception("Cannot save shader programs");
@@ -113,7 +113,7 @@ class ShaderProgramSerializer : ResourceSerializer!ShaderProgram
 		import std.path;
 		return uri.extension == ".shaderprogram";
 	}
-	
+
 	override void deserialize(ShaderProgram res, string str)
 	{
 		struct ShaderProgramSpec
@@ -128,7 +128,7 @@ class ShaderProgramSerializer : ResourceSerializer!ShaderProgram
 		transTable['\r'] = "\\r";
 		auto trStr = translate(str, transTable);
 		auto spec = jsonDecode!ShaderProgramSpec(str);
-		
+
 		// TODO: Make explicit attach and link here!
 		if (ShaderProgram.create(spec.vertexShader, spec.fragmentShader, res) !is null)
 		{

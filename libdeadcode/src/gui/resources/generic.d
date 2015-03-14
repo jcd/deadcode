@@ -5,7 +5,7 @@ import gui.resource;
 
 import io.iomanager;
 
-import jsonx;
+import util.jsonx;
 
 import std.array;
 import std.path;

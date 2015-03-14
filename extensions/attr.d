@@ -46,19 +46,26 @@ template registerModuleWidgetClassByName(alias Mod)
 
 enum isValid(alias T) = T != "x"; // __traits(compiles, Filter!(isPublicBasicCommandClassInModule!(Mod), T));
 
+template isAccessible(string Mod)
+{
+    // pragma(msg, Mod);
+	enum isAccessible(string symName) = __traits(compiles, mixin(Mod ~ "." ~ symName));
+}
+
+
 alias moduleCommandFunctions(alias Mod) = Filter!(isPublicFunctionInModule!(Mod), __traits(allMembers, Mod));
-alias moduleCommandClasses(alias Mod) = Filter!(isPublicBasicCommandClassInModule!(Mod), Filter!(isValid, __traits(allMembers, Mod)));
-alias moduleWidgetClasses(alias Mod) = Filter!(isPublicBasicWidgetClassInModule!(Mod), Filter!(isValid, __traits(allMembers, Mod)));
+alias moduleCommandClasses(string Mod) = Filter!(isPublicBasicCommandClassInModule!(mixin(Mod)), Filter!(isAccessible!Mod, __traits(allMembers, mixin(Mod))));
+alias moduleWidgetClasses(alias Mod) = Filter!(isPublicBasicWidgetClassInModule!(mixin(Mod)), Filter!(isAccessible!Mod, __traits(allMembers, mixin(Mod))));
 
 alias extensionCommandFunctions(alias Mod) = staticMap!(registerModuleCommandFunctionByName!Mod, moduleCommandFunctions!Mod);
 alias extensionCommandFunctions(string Mod = __MODULE__) = staticMap!(registerModuleCommandFunctionByName!(mixin(Mod)), moduleCommandFunctions!(mixin(Mod)));
 
 alias extensionCommandClasses(alias Mod) = moduleCommandClasses!Mod;
 // alias extensionCommandClasses(string Mod = __MODULE__) = moduleCommandClasses!(mixin(Mod));
-alias extensionCommandClasses(string Mod = __MODULE__) = staticMap!(registerModuleCommandClassByName!(mixin(Mod)), moduleCommandClasses!(mixin(Mod)));
+alias extensionCommandClasses(string Mod = __MODULE__) = staticMap!(registerModuleCommandClassByName!(mixin(Mod)), moduleCommandClasses!(Mod));
 
 alias extensionWidgetClasses(alias Mod) = moduleWidgetClasses!Mod;
-alias extensionWidgetClasses(string Mod = __MODULE__) = staticMap!(registerModuleWidgetClassByName!(mixin(Mod)), moduleWidgetClasses!(mixin(Mod)));
+alias extensionWidgetClasses(string Mod = __MODULE__) = staticMap!(registerModuleWidgetClassByName!(mixin(Mod)), moduleWidgetClasses!(Mod));
 
 
 alias getCommandFunctionFunction(alias F) = F.Function;

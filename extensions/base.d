@@ -10,6 +10,7 @@ public import core.command;
 public import core.commandparameter;
 
 public import controls.button;
+public import controls.textfield;
 public import guiapplication;
 public import gui.widget;
 public import gui.window;
@@ -17,6 +18,7 @@ public import gui.event;
 public import gui.label;
 public import gui.layout.constraintlayout;
 public import gui.layout.gridlayout;
+public import gui.widgetfeature.dragger;
 public import gui.widgetfeature.ninegridrenderer;
 public import gui.widgetfeature.textrenderer;
 public import gui.styledtext;

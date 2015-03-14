@@ -12,14 +12,17 @@ class Application
 	{
 		BufferViewManager _bufferViewManager;
 		BufferView _currentBuffer;
+		int _previousBufferID;
 		EditorBehavior _editorBehavior;
 		CommandManager _commandManager;
 	}
-	
+
 	@property
 	{
 		BufferViewManager bufferViewManager() { return _bufferViewManager; }
-		ref BufferView currentBuffer() { return _currentBuffer; }
+		void currentBuffer(BufferView v) { _previousBufferID = _currentBuffer is null ? 0 : _currentBuffer.id; _currentBuffer = v; }
+        BufferView currentBuffer() { return _currentBuffer; }
+        BufferView previousBuffer() { return bufferViewManager[_previousBufferID]; }
 		EditorBehavior editorBehavior() { return _editorBehavior; }
 		CommandManager commandManager() { return _commandManager; }
 	}

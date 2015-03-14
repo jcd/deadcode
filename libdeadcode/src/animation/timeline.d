@@ -11,7 +11,7 @@ import std.traits;
 
 class Timeline
 {
-public: 
+public:
 	class Runner
 	{
 		protected this(float dur, float _start)
@@ -57,7 +57,7 @@ private:
 
 	class AnimatorRunner : Runner
 	{
-		protected this (Animator a, float d, float s) 
+		protected this (Animator a, float d, float s)
 		{
 			super(d, s);
 			animator = a;
@@ -90,7 +90,7 @@ private:
 		protected final override void update(float offset)
 		{
 		}
-		
+
 		protected final override bool onDone()
 		{
 			callback(data);
@@ -101,7 +101,7 @@ private:
 		EventCallback callback;
 	}
 
-	Runner _schedule; 
+	Runner _schedule;
 	Runner _head;
 
 public:
@@ -120,7 +120,7 @@ public:
 	}
 
 	Runner getRunner(string name)
-	{	
+	{
 		Runner cur = _head;
 		while (cur !is null)
 		{
@@ -179,6 +179,15 @@ public:
 		return newAnim;
 	}
 
+	Runner animate(Target)(double timeStep, Target target, float duration = float.max, float start = float.max)
+	{
+		// auto m = mutator!propertyPath(owner);
+		start = start == float.max ? timer.now : start;
+		auto a = new DiscreteAnimator!Target(target, timeStep);
+
+		return insert(a, duration, start);
+	}
+
 	Runner insert(Animator anim, float duration, float start)
 	{
 		auto newAnim = new AnimatorRunner(anim, duration, start);
@@ -225,7 +234,7 @@ public:
 	/*
 	void remove(Handle h)
 	{
-		
+
 	}
 */
 	void start()
@@ -262,7 +271,7 @@ public:
 			else if (n >= (cur.start + cur.duration) && cur.onDone())
 			{
 				cur.stopped = true;
-				
+
 				// remove cur from list
 				if (prev is null)
 				{

@@ -11,7 +11,7 @@ class renderqueue
 
 	void add(Model m)
 	{
-		// TODO: use appender
+		// TODO: use appender... or not now that assumeSafeAppend is used.
 		queue ~= m;
 	}
 
@@ -35,7 +35,7 @@ class renderqueue
 
 	void clear()
 	{
-		// TODO: use assumeSafe thingy
 		queue.length = 0;
-	}
+	    assumeSafeAppend(queue);
+    }
 }

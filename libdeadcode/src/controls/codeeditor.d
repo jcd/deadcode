@@ -20,10 +20,10 @@ class CodeEditor : TextEditor
 	* undo/redo
 	* move line/word
 	* linelayout caching (textrenderer)
-	* 
+	*
 	*/
-	this(Widget parent, BufferView buf)
+	this(BufferView buf)
 	{
-		super(parent, buf);
+		super(buf);
 	}
 }

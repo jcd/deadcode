@@ -14,8 +14,13 @@ struct CommandCall
 CommandParameter parse(CommandParameter typeSpecifier, string input)
 {
 	import std.conv;
+    scope (failure)
+    {
+        import std.stdio;
+        debug writeln("Input string was ", input);
+    }
 	CommandParameter parsedValue = typeSpecifier.visit!( (int p) => CommandParameter(input.to!int),
-														 (string p) => CommandParameter(input), 
+														 (string p) => CommandParameter(input),
 														 (float p) => CommandParameter(input.to!int) );
 	return parsedValue;
 }
@@ -60,7 +65,7 @@ class CommandParameterDefinitions
 		return parameters.length;
 	}
 
-	bool isTypesMatching(CommandParameterDefinitions other) const  
+	bool isTypesMatching(CommandParameterDefinitions other) const
 	{
 		if (other.parameters.length != parameters.length)
 			return false;
@@ -85,7 +90,7 @@ class CommandParameterDefinitions
 			{
 				if (v.type() != fromValues[i].type())
 						throw new Exception(format("Cannot set command parameter of type %s to value of type %s",
-										   parameters[i].type(), v.type()));
+										   v.type(), fromValues[i].type()));
 				toValues ~= fromValues[i];
 			}
 			else
@@ -110,13 +115,26 @@ class CommandParameterDefinitions
 		bool allSet = true;
 
 		toValues.length = parameters.length;
-		
+
 		foreach (i, v; parameters)
 		{
 			string token = munch(input, "^ \t");
+            if (!token.empty)
+            {
+                try
+                {
+                    CommandParameter parsedValue = v.parse(token);
+                    toValues[i] = parsedValue;
+                }
+                catch (Exception)
+                {
+                    token = null;
+                }
+            }
+
 			if (token.empty)
 			{
-				// Fill with default values		
+				// Fill with default values
 				foreach (idx; i .. parameters.length)
 				{
 					toValues[idx] = v;
@@ -126,8 +144,8 @@ class CommandParameterDefinitions
 				break;
 			}
 
-			CommandParameter parsedValue = v.parse(token);
-			toValues[i] = parsedValue;
+
+
 		}
 		return allSet;
 	}
@@ -138,7 +156,7 @@ class CommandParameterDefinitions
 		parametersAreNull[idx]= false;
 	}
 
-	// 
+	//
 	static CommandParameterDefinitions create(Args...)(Args args)
 	{
 		CommandParameterDefinitions res = new CommandParameterDefinitions;
@@ -166,7 +184,7 @@ class CommandParameterDefinitions
 	}
 }
 
-CommandParameterDefinitions createParams(Args...)(Args args) if ( ! is(Args[0] == string[]) ) 
+CommandParameterDefinitions createParams(Args...)(Args args) if ( ! is(Args[0] == string[]) )
 {
 	return CommandParameterDefinitions.create(args);
 }
@@ -179,7 +197,7 @@ CommandParameterDefinitions createParams(Args...)(string[] names, Args args)
 }
 
 CommandParameter[] createArgs(Args...)(Args args)
-{	
+{
 	CommandParameter[] res;
 	res.length = args.length;
 	foreach (i, a; args)

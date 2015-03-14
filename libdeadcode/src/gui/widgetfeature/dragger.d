@@ -5,60 +5,84 @@ import gui.widget;
 import gui.widgetfeature;
 import math;
 
+import gui.style.manager;
+
+static init()
+{
+    StyleSheetManager.onInitialized ~= &registerCSSProperties;
+}
+
+private void registerCSSProperties(StyleSheetManager ssm)
+{
+    ssm.addPropertySpecification!bool("dragger", false);
+}
+
 class Dragger : WidgetFeature
 {
 	Rectf handleRect;
 	Vec2f startDragPos;
-	enum dragTriggerDistance = 30f; // pixels to drag before drag is started
+	enum dragTriggerDistance = 5f; // pixels to drag before drag is started
 
-	this(Rectf handleRect)
+	this(Rectf handleRect = Rectf.init)
 	{
 		this.handleRect = handleRect;
 		this.startDragPos = Vec2f(-1000000, -1000000);
-	}
+    }
 
 	override EventUsed send(Event event, Widget widget)
 	{
 		// Dragging support
 		Rectf handleRectAbs = handleRect;
-		handleRectAbs.pos.x += widget.rect.pos.x;
+        if (handleRect == Rectf.init)
+        {
+            handleRectAbs.pos = Vec2f(0,0);
+            handleRectAbs.size = widget.rect.size;
+        }
+        handleRectAbs.pos.x += widget.rect.pos.x;
 		handleRectAbs.pos.y += widget.rect.pos.y;
+
+        EventUsed used = EventUsed.yes;
 
 		if (event.type == EventType.MouseDown && handleRectAbs.contains(event.mousePos))
 		{
-			widget.grabMouse();
 			startDragPos = event.mousePos;
-			return EventUsed.yes;
+            used = EventUsed.no;
 		}
-
-		if ( (startDragPos - event.mousePos).squaredLength() < (dragTriggerDistance*dragTriggerDistance) )
+		else if (event.type == EventType.MouseUp)
 		{
-			// Wait for drag trigger distance
-			return EventUsed.no;
+            startDragPos = Vec2f(-1000000, -1000000);
+            if (widget.isGrabbingMouse())
+			    widget.releaseMouse();
+            else
+                used = EventUsed.no;
 		}
-
-		if (widget.isGrabbingMouse() &&
-		    event.type == EventType.MouseMove &&
-		    event.mouseButtonsActive == Event.MouseButton.Left)
+		else if ( (widget.isGrabbingMouse() || (startDragPos - event.mousePos).squaredLength() >= (dragTriggerDistance*dragTriggerDistance)) &&
+		         event.type == EventType.MouseMove &&
+		         event.mouseButtonsActive == Event.MouseButton.Left)
 		{
+            if (!widget.isGrabbingMouse())
+                widget.grabMouse();
 			startDragPos = Vec2f(-1000000, -1000000);
-			widget.parent = null;
-			widget.moveTo(widget.rect.x + event.mousePosRel.x, widget.rect.y + event.mousePosRel.y);
-			return EventUsed.yes;
+			widget.parent = widget.window;
+			widget.overridePos = Vec2f(widget.rect.x + event.mousePosRel.x, widget.rect.y + event.mousePosRel.y);
+			//widget.moveTo(widget.rect.x + event.mousePosRel.x, widget.rect.y + event.mousePosRel.y);
+            //import gui.style.types;
+            //
+            //   widget.styleOverride.position = CSSPosition.fixed;
+            //widget.styleOverride.left = CSSScale(widget.rect.x + event.mousePosRel.x, CSSUnit.pixels);
+            //widget.styleOverride.top = CSSScale(widget.rect.x + event.mousePosRel.x, CSSUnit.pixels);
 		}
+        else
+        {
+            used = EventUsed.no;
+        }
 
-		if (event.type == EventType.MouseUp)
-		{
-			startDragPos = Vec2f(-1000000, -1000000);
-			widget.releaseMouse();
-			return EventUsed.yes;
-		}
-		return EventUsed.no;
+		return used;
 	}
 
 	override void update(Widget widget)
 	{
-	}
+    }
 }
 
 

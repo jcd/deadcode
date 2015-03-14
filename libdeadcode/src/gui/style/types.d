@@ -200,6 +200,7 @@ enum CSSUnit : byte
 	cm,
 	inch,
 	pct,
+    fit,
 	automatic
 }
 

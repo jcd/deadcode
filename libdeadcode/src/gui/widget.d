@@ -352,16 +352,45 @@ class Widget : Stylable
 	//void transition(Property*
 
 
-	bool visible;
+	@property bool visible() const pure nothrow @safe
+    {
+        return _visible;
+    }
+
+    @property void visible(bool v) nothrow
+    {
+        if (_visible == v)
+            return;
+        _visible = v;
+
+        // If this widget has keyboard focus then release it.
+        if (!_visible && window.getKeyboardFocusWidgetID == id)
+            window.setKeyboardFocusWidget(NullWidgetID);
+    }
+
+    void show()
+    {
+        _visible = true;
+    }
+
+    void hide()
+    {
+        _visible = false;
+    }
 
 	protected
 	{
 		@Bindable()
 		Rectf _rect;  // rect for events like mouse over etc.
+		Vec2f _minSize;
+		Vec2f _maxSize;
+
 		bool _sizeDirty;
 		Widget _parent;
 		Widgets _children;
 	}
+
+    protected bool _visible;
 
 	private void eventCallbackHelper(EventType t, EventUsed delegate(Event, Widget) del)
 	{
@@ -544,33 +573,44 @@ class Widget : Stylable
 			size = Vec2f(sz.x, sz.y);
 		}
 
-		const(Vec2f) preferredSize()
+        void minSize(Vec2f sz)
 		{
-			return size;
+            _minSize = sz;
 		}
 
-		void preferredSize(Vec2f prefSize)
+        void maxSize(Vec2f sz)
 		{
+            _maxSize = sz;
+        }
 
-		}
+        //
+        //const(Vec2f) preferredSize()
+        //{
+        //    return size;
+        //}
+        //
+        //void preferredSize(Vec2f prefSize)
+        //{
+        //
+        //}
 
-		const(Vec2f) minSize()
-		{
-			return preferredSize;
-		}
-
-		void minSize(Vec2f mSize)
-		{
-		}
-
-		const(Vec2f) maxSize()
-		{
-			return preferredSize;
-		}
-
-		void maxSize(Vec2f mSize)
-		{
-		}
+        //const(Vec2f) minSize()
+        //{
+        //    return _minSize;
+        //}
+        //
+        //void minSize(Vec2f mSize)
+        //{
+        //}
+        //
+        //const(Vec2f) maxSize()
+        //{
+        //    return preferredSize;
+        //}
+        //
+        //void maxSize(Vec2f mSize)
+        //{
+        //}
 
 		ref float x()
 		{
@@ -593,10 +633,33 @@ class Widget : Stylable
 		}
 
         ref float w()
-        {
-//            _printDirty("w");
-  //          _sizeDirty = true;
+		{
             return _rect.w;
+		}
+
+        const(float) w() const
+		{
+			return _rect.w;
+		}
+
+        ref float minWidth()
+		{
+            return _minSize.x;
+		}
+
+        const(float) minWidth() const
+		{
+            return _minSize.x;
+		}
+
+        ref float maxWidth()
+		{
+            return _maxSize.x;
+		}
+
+        const(float) maxWidth() const
+        {
+            return _maxSize.x;
         }
 
         //@Bindable()
@@ -611,27 +674,35 @@ class Widget : Stylable
         //    }
         //}
 
-		const(float) w() const
+
+		ref h()
 		{
-			return _rect.w;
+            return _rect.h;
 		}
 
-		@Bindable()
-		void h(float value)
-		{
-			//std.stdio.writeln("h ", name, " ", _rect.h);
-            //if (_rect.h != value)
-            //{
-            //    _printDirty("h");
-//				_sizeDirty = true;
-				_rect.h = value;
-//			}
-		}
-
-		@Bindable()
 		const(float) h() const
 		{
 			return _rect.h;
+		}
+
+        ref float minHeight()
+        {
+            return _minSize.y;
+        }
+
+        const(float) minHeight() const
+		{
+            return _minSize.y;
+		}
+
+        ref float maxHeight()
+        {
+            return _maxSize.y;
+        }
+
+        const(float) maxHeight() const
+		{
+            return _maxSize.y;
 		}
 
 		Vec2f pos()
@@ -663,6 +734,22 @@ class Widget : Stylable
 		void onKeyboardFocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyboardFocus, del); }
 		void onKeyboardUnfocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyboardUnfocus, del); }
 	}
+
+    void setFlexSize(FlexSize flexSize)
+    {
+        size = flexSize.preferred;
+        _minSize = flexSize.min;
+        if (_minSize.x.isNaN)
+            _minSize.x = -float.infinity;
+        if (_minSize.y.isNaN)
+            _minSize.y = -float.infinity;
+
+        _maxSize = flexSize.max;
+        if (_maxSize.x.isNaN)
+            _maxSize.x = float.infinity;
+        if (_maxSize.y.isNaN)
+            _maxSize.y = float.infinity;
+    }
 
 	void moveBy(float x, float y)
 	{
@@ -918,6 +1005,8 @@ class Widget : Stylable
 		_rect = Rectf(x, y, width, height);
 		id = _id == NullWidgetID ? _nextID++ : _id;
 		this.acceptsKeyboardFocus = false;
+        _minSize = Vec2f(-float.infinity, -float.infinity);
+        _maxSize = Vec2f(float.infinity, float.infinity);
 	}
 
 	this(Widget _parent, float x = 0, float y = 0, float width = 100, float height = 100) nothrow
@@ -1064,10 +1153,10 @@ class Widget : Stylable
 
 	protected void calculateSize(Widget positionReference)
 	{
-		Vec2f newSize = calcSize(this, positionReference);
+        FlexSize flexSize = calcSize(this, positionReference);
+        setFlexSize(flexSize);
         //if (size != newSize)
         //{
-            size = newSize;
         //    forceDirty();
         //}
 	}
@@ -1112,6 +1201,7 @@ class Widget : Stylable
         if (st.position == CSSPosition.relative || st.position == CSSPosition.absolute || positionReference is null ||
             (st.position.isMixed && (st.position[1] == CSSPosition.relative || st.position[1] == CSSPosition.absolute)))
             positionReference = this;
+
 
         static Rectf[] origChildrenRects;
         assumeSafeAppend(origChildrenRects);

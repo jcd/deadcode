@@ -91,6 +91,10 @@ class Style
 			CSSPositionMix _position;
 			CSSScaleMix _width;
 			CSSScaleMix _height;
+			CSSScaleMix _minWidth;
+			CSSScaleMix _minHeight;
+			CSSScaleMix _maxWidth;
+			CSSScaleMix _maxHeight;
 			CSSScaleMix _left;
 			CSSScaleMix _right;
 			CSSScaleMix _top;
@@ -224,9 +228,24 @@ class Style
 			_width = v;
 		}
 
-		bool heightValid() const
+		CSSScaleMix minWidth() const
 		{
-			return !_height.value.isNaN;
+			return _minWidth;
+		}
+
+		void minWidth(T)(T v) pure nothrow @safe if (is (T:CSSScale) || is(T:CSSScaleMix))
+		{
+			_minWidth = v;
+		}
+
+        CSSScaleMix maxWidth() const
+		{
+			return _maxWidth;
+		}
+
+		void maxWidth(T)(T v) pure nothrow @safe if (is (T:CSSScale) || is(T:CSSScaleMix))
+		{
+			_maxWidth = v;
 		}
 
 		CSSScaleMix height() const
@@ -237,6 +256,26 @@ class Style
 		void height(T)(T v) pure nothrow @safe if (is (T:CSSScale) || is(T:CSSScaleMix))
 		{
 			_height = v;
+		}
+
+		CSSScaleMix minHeight() const
+		{
+			return _minHeight;
+		}
+
+		void minHeight(T)(T v) pure nothrow @safe if (is (T:CSSScale) || is(T:CSSScaleMix))
+		{
+			_minHeight = v;
+		}
+
+        CSSScaleMix maxHeight() const
+		{
+			return _maxHeight;
+		}
+
+		void maxHeight(T)(T v) pure nothrow @safe if (is (T:CSSScale) || is(T:CSSScaleMix))
+		{
+			_maxHeight = v;
 		}
 
 		Font font()
@@ -750,7 +789,11 @@ class Style
 		st.increaseVersion();
 		st._position = _position;
 		st._width = _width;
+		st._minWidth = _minWidth;
+		st._maxWidth = _maxWidth;
 		st._height= _height;
+		st._minHeight= _minHeight;
+		st._maxHeight= _maxHeight;
 		st._left = _left;
 		st._top = _top;
 		st._right = _right;

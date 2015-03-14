@@ -609,6 +609,19 @@ class StyleSheetParser
 	// Parse into val and eat unit specifier as well
 	void parseScale(ref CSSScale val)
 	{
+        if (curToken.value == "fit")
+        {
+            val.unit = CSSUnit.fit;
+            val.value = 1;
+            return;
+        }
+        else if (curToken.value == "auto")
+        {
+            val.unit = CSSUnit.automatic;
+            val.value = 1;
+            return;
+        }
+
 		assertToken(TokenType.number);
 		val.value = curToken.value.to!float();
 
@@ -767,28 +780,32 @@ class StyleSheetParser
 					break;
 				case "width":
 					requireNextToken();
-					if (curToken.value == "fit")
-					{
-						style._width.unit = CSSUnit.automatic;
-						style._width.value = 1;
-					}
-					else
-					{
 						parseScale(style._width);
-					}
+					requireNextToken();
+					break;
+				case "min-width":
+					requireNextToken();
+					parseScale(style._minWidth);
+					requireNextToken();
+					break;
+				case "max-width":
+					requireNextToken();
+					parseScale(style._maxWidth);
 					requireNextToken();
 					break;
 				case "height":
 					requireNextToken();
-					if (curToken.value == "fit")
-					{
-						style._height.unit = CSSUnit.automatic;
-						style._height.value = 1;
-					}
-					else
-					{
 						parseScale(style._height);
-					}
+					requireNextToken();
+					break;
+				case "min-height":
+					requireNextToken();
+					parseScale(style._minHeight);
+					requireNextToken();
+					break;
+				case "max-height":
+					requireNextToken();
+					parseScale(style._maxHeight);
 					requireNextToken();
 					break;
 				default:

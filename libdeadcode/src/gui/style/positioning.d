@@ -14,12 +14,6 @@ private const(Vec2f) calcBasePosition(Widget w, Widget positionReference, CSSPos
 			break;
 		case CSSPosition.absolute:
 			return positionReference.pos;
-            //Widget p = w.parent; // lookFirstPositionedParent();
-            //if (p !is null)
-            //    res = p.rect.pos;
-            //else
-            //    res = Vec2f(0,0);
-			break;
 		case CSSPosition.relative:
 			break;
 		case CSSPosition.static_:
@@ -31,7 +25,14 @@ private const(Vec2f) calcBasePosition(Widget w, Widget positionReference, CSSPos
 	return res;
 }
 
-public Vec2f calcSize(Widget w, Widget positionReference)
+struct FlexSize
+{
+    Vec2f min;
+    Vec2f max;
+    Vec2f preferred;
+}
+
+public FlexSize calcSize(Widget w, Widget positionReference)
 {
     //Vec2f parentSize = void;
     //Widget p = w.parent; // lookFirstPositionedParent();
@@ -55,8 +56,8 @@ public Vec2f calcSize(Widget w, Widget positionReference)
 
 private Vec2f getAutoSize(int I)(Widget w, Style st, Widget positionReference)
 {
-	bool widthIsAutoA = st.width[I].unit == CSSUnit.automatic;
-	bool heightIsAutoA = st.height[I].unit == CSSUnit.automatic;
+	bool widthIsAutoA = st.width[I].unit == CSSUnit.fit;
+	bool heightIsAutoA = st.height[I].unit == CSSUnit.fit;
 
 	if (widthIsAutoA || heightIsAutoA)
 	{
@@ -66,9 +67,9 @@ private Vec2f getAutoSize(int I)(Widget w, Style st, Widget positionReference)
 		{
 			Vec2f intrinsicSize = child.intrinsicSize;
 			if (intrinsicSize.x.isNaN) // TODO: handle partial intrinsic on one axis
-				child.size = calcSizeFromBaseSize(child, positionReference, zero);
+				child.setFlexSize(calcSizeFromBaseSize(child, positionReference, zero));
 			else
-				child.size = intrinsicSize;
+				child.setFlexSize(FlexSize(intrinsicSize, intrinsicSize, intrinsicSize));
 		}
 
 		w.layoutChildren(true, positionReference);
@@ -95,7 +96,7 @@ private Vec2f getAutoSize(int I)(Widget w, Style st, Widget positionReference)
 }
 
 
-public Vec2f calcSizeFromBaseSize(Widget w, Widget positionReference, Vec2f baseSize)
+public FlexSize calcSizeFromBaseSize(Widget w, Widget positionReference, Vec2f baseSize)
 {
 	Style st = w.style;
 	RectfOffset pad = st.padding;
@@ -108,13 +109,19 @@ public Vec2f calcSizeFromBaseSize(Widget w, Widget positionReference, Vec2f base
 
 	float mixHorzA = baseSize.x;
 	if (autoSizeA.x.isNaN)
-		calcWidth!0(mixHorzA, st);
+		calcWidth!(0,"width")(mixHorzA, st);
 	else
 		mixHorzA = autoSizeA.x;
 
+    float minW = baseSize.x;
+    calcWidth!(0,"minWidth")(minW, st);
+
+    float maxW = baseSize.x;
+    calcWidth!(0,"maxWidth")(maxW, st);
+
 	// Crap! cannot tell why pad.left needs to be added here in the case of autoSize since that
 	// shoul have been included by the auto size calculation for DirectionalLayout!
-	mixHorzA += pad.left + pad.right;
+	// mixHorzA += pad.left + pad.right;
 
 	if (st.width.isMixed || st.left.isMixed || st.right.isMixed)
 	{
@@ -123,7 +130,7 @@ public Vec2f calcSizeFromBaseSize(Widget w, Widget positionReference, Vec2f base
 
 		float mixHorzB = baseSize.x;
 		if (autoSizeB.x.isNaN)
-			calcWidth!1(mixHorzB, st);
+			calcWidth!(1,"width")(mixHorzB, st);
 		else
 			mixHorzB = autoSizeB.x;
 
@@ -138,11 +145,17 @@ public Vec2f calcSizeFromBaseSize(Widget w, Widget positionReference, Vec2f base
 
 	float mixVertA = baseSize.y;
 	if (autoSizeA.y.isNaN)
-		calcHeight!0(mixVertA, st);
+		calcHeight!(0,"height")(mixVertA, st);
 	else
 		mixVertA = autoSizeA.y;
 
-	mixVertA += pad.top + pad.bottom;
+    float minHeight = baseSize.y;
+    calcHeight!(0, "minHeight")(minHeight, st);
+
+    float maxHeight = baseSize.y;
+    calcHeight!(0, "maxHeight")(maxHeight, st);
+
+	// mixVertA += pad.top + pad.bottom;
 
 	if (st.height.isMixed || st.top.isMixed || st.bottom.isMixed)
 	{
@@ -152,7 +165,7 @@ public Vec2f calcSizeFromBaseSize(Widget w, Widget positionReference, Vec2f base
 		float mixVertB = baseSize.y;
 
 		if (autoSizeB.y.isNaN)
-			calcHeight!1(mixVertB, st);
+			calcHeight!(1,"height")(mixVertB, st);
 		else
 			mixVertB = autoSizeB.y;
 
@@ -170,7 +183,8 @@ public Vec2f calcSizeFromBaseSize(Widget w, Widget positionReference, Vec2f base
     {
         r.y = r.y;
     }
-	return r;
+
+    return FlexSize(Vec2f(minW, minHeight), Vec2f(maxW, maxHeight), r);
 }
 
 
@@ -259,8 +273,10 @@ private float cssScaleToPixel(float baseValue, CSSScale s)
 			return s.value;
 		case CSSUnit.points:
 			return s.value;
-		case CSSUnit.automatic:
+		case CSSUnit.fit:
 			return 0f;
+		case CSSUnit.automatic:
+			return float.nan;
 	}
 }
 
@@ -277,42 +293,43 @@ private void calcX(int i)(float baseWidth, ref float res, Style st)
 	float wi = cssScaleToPixel(baseWidth, st.width[i]);
 	float l = cssScaleToPixel(baseWidth, st.left[i]);
 	float r = cssScaleToPixel(baseWidth, st.right[i]);
-	l = l.isNaN ? 0 : l;
-	r = r.isNaN ? 0 : r;
 
 	if (wi.isNaN)
 	{
+        l = l.isNaN ? 0 : l;
 		res += l;
 	}
 	else
 	{
-		if (!st.left[i].value.isNaN)
+		if (!l.isNaN)
 			res += l;
-		else if (!st.right[i].value.isNaN)
+		else if (!r.isNaN)
 			res += baseWidth - r;
 	}
 }
 
-private void calcWidth(int i)(ref float res, Style st)
+private void calcWidth(int i, string width)(ref float res, Style st)
 {
-	float wi = cssScaleToPixel(res, st.width[i]);
+	float wi = cssScaleToPixel(res, mixin("st." ~ width ~ "[i]"));
 	float l = cssScaleToPixel(res, st.left[i]);
 	float r = cssScaleToPixel(res, st.right[i]);
-	l = l.isNaN ? 0 : l;
-	r = r.isNaN ? 0 : r;
 
 	if (wi.isNaN)
 	{
-		// Modify incoming base value
-		res -= l + r;
+        l = l.isNaN ? 0 : l;
+        r = r.isNaN ? 0 : r;
+		static if (width == "width")
+		    res -= l + r; // // Modify incoming base value
+        else
+            res = float.nan;
 	}
 	else
 	{
 		// Overwrite incoming base value
 		res = wi;
-		if (!st.left[i].value.isNaN)
+		if (!l.isNaN)
 		{
-			if (!st.right[i].value.isNaN)
+			if (!r.isNaN)
 				res -= r;
 		}
 	}
@@ -323,40 +340,42 @@ private void calcY(int i)(float baseHeight, ref float res, Style st)
 	float hi = cssScaleToPixel(baseHeight, st.height[i]);
 	float t = cssScaleToPixel(baseHeight, st.top[i]);
 	float b = cssScaleToPixel(baseHeight, st.bottom[i]);
-	t = t.isNaN ? 0 : t;
-	b = b.isNaN ? 0 : b;
 
 	if (hi.isNaN)
 	{
+        t = t.isNaN ? 0 : t;
 		res += t;
 	}
 	else
 	{
-		if (!st.top[i].value.isNaN)
+		if (!t.isNaN)
 			res += t;
-		else if (!st.bottom[i].value.isNaN)
+		else if (!b.isNaN)
 			res += baseHeight - b;
 	}
 }
 
-private void calcHeight(int i)(ref float res, Style st)
+private void calcHeight(int i, string height)(ref float res, Style st)
 {
-	float hi = cssScaleToPixel(res, st.height[i]);
+	float hi = cssScaleToPixel(res, mixin("st." ~ height ~ "[i]"));
 	float t = cssScaleToPixel(res, st.top[i]);
 	float b = cssScaleToPixel(res, st.bottom[i]);
-	t = t.isNaN ? 0 : t;
-	b = b.isNaN ? 0 : b;
 
 	if (hi.isNaN)
 	{
-		res -= t + b;
+        t = t.isNaN ? 0 : t;
+        b = b.isNaN ? 0 : b;
+        static if (height == "height")
+		    res -= t + b;
+        else
+            res = float.nan;
 	}
 	else
 	{
 		res = hi;
-		if (!st.top[i].value.isNaN)
+		if (!t.isNaN)
 		{
-			if (!st.bottom[i].value.isNaN)
+			if (!b.isNaN)
 				res -= b;
 		}
 	}

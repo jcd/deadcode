@@ -11,7 +11,8 @@
 		"derelict-gl3": "1.0.10",
 		"derelict-sdl2": "1.2.8",
 		"derelict-ft": "1.0.0",
-		"libdparse": "~master"
+		"libdparse": "~master",
+		"msgpack-d": "~>0.9.5"
 	},
 	"buildRequirements": ["allowWarnings"],
 	"configurations": [
@@ -24,6 +25,16 @@
 		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : [ "debugMode", "debugInfo"]
+		},
+		{
+        "name": "ddox",
+        "targetType": "executable",
+		"targetName" : "ded-debug",
+		"dflags" : ["-vcolumns", "-version=NoMain", "-c", "-Df__dummy.html", "-X" , "-Xfdocs.json"],
+		"lflags": ["/NOCODEVIEW"],
+		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
+		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
+		"buildOptions" : [ "debugMode", "debugInfo", "syntaxOnly"]
 		},
 		{
         "name": "udebug",
@@ -47,6 +58,9 @@
         "targetType": "executable",
 		"targetName" : "ded-unittest",
 		"lflags": ["/NOCODEVIEW"],
+		"dflags" : ["-vcolumns", "-version=NoMain"],
+		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
+		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : ["unittests", "debugMode", "debugInfo"]
 		},
 		{

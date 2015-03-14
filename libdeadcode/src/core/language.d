@@ -37,7 +37,7 @@ interface ICodeIntel
 interface ICodeModel
 {
 	@property ICodeIntel codeIntel();
-	
+	@property string name() const pure nothrow @safe;	
 	void updateAST();
 	string getSuggestedPath();
 }

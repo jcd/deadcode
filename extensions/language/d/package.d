@@ -38,6 +38,11 @@ class DCodeModel : ICodeModel
 		return _codeIntel;
 	}
 
+	@property string name() const pure nothrow @safe
+    {
+        return "D";
+    }
+
 	private this(BufferView v, DCodeIntel i)
 	{
 		_bufferView = v;

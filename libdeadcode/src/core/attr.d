@@ -4,7 +4,7 @@ module core.attr;
 
 	Template accepting a type and will in turn create a homonym template accepting another type.
 	The final template value will be true if the two types are equal and false if not.
-*/ 
+*/
 template isType(ThisType)
 {
 	template isType(alias OtherType)
@@ -21,7 +21,7 @@ template isType(ThisType)
 
 Template accepting a type and will in turn create a homonym template accepting another type.
 The final template value will be true if the two types are unequal and false if not.
-*/ 
+*/
 template isNotType(ThisType)
 {
 	template isNotType(alias OtherType)
@@ -41,6 +41,12 @@ alias hasAttribute(alias what, AttrType) = anySatisfy!(isType!AttrType, __traits
 /// Compile time get all attributes on 'what' that have type AttrType
 enum getAttributes(alias what, AttrType) = [ Filter!(isType!AttrType, __traits(getAttributes, what)) ];
 // enum getAttributes(What, AttrType) = [ Filter!(isType!AttrType, __traits(getAttributes, What)) ];
+
+template isEqual(string One)
+{
+    enum isEqual(string Other) = One == Other;
+}
+alias hasDerivedMember(alias what, string memberName) = anySatisfy!(isEqual!memberName, __traits(derivedMembers, what));
 
 
 struct sillyWalk { int i; }
@@ -85,7 +91,7 @@ void walkModules(alias a)() {
 
             pragma(msg, "  Member " ~ memberName);
 			static if(!is(typeof(member)))
-				pragma(msg, "  " ~ member.stringof);  
+				pragma(msg, "  " ~ member.stringof);
 
             // pragma(msg, "looking at " ~ memberName);
             import std.string;

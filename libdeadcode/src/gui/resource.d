@@ -69,14 +69,14 @@ A Resource can be in different load states:
 * unknown  : an instance does not exists but this is the state for removed or unknown resources in a ResourceManager
 * declared : known by a ResourceManager by handle but no Resource available to reference
 * unloaded : A Resource is available to reference but has not been loaded
-* loading  : loading 
+* loading  : loading
 * loaded   : loaded and ready
 */
 class Resource(T) : IResource!T
 {
 public:
 
-	@property 
+	@property
 	{
 		public Handle handle() const pure nothrow @safe
 		{
@@ -147,7 +147,7 @@ public:
 			_ioManager = iom;
 		}
 	}
-	
+
 	this()
 	{
 		_defaultLoader = new DefaultLoader;
@@ -184,7 +184,7 @@ public:
 				return v;
 			}
 		}
-		
+
 		return null;
 	}
 
@@ -235,20 +235,20 @@ public:
 	{
 		ResourceState* rs = h in _resourcesByHandle;
 		enforceEx!ResourceException(rs !is null, "Cannot set URI on unknown resource in manager");
-		
+
 		if (rs.state == LoadState.declared && uri !is null)
 			rs.state = LoadState.unloaded;
 		else if (rs.state != LoadState.declared && rs.state != LoadState.unloaded)
 			enforceEx!ResourceException(uri !is null, "Cannot set " ~ T.stringof ~ " resource URI to null when loaded");
-		
+
 		rs.uri = uri;
 	}
 
 	/*
-	// Set the named resource to res, optionally providing a uri overriding any existing uri for the named resource 
+	// Set the named resource to res, optionally providing a uri overriding any existing uri for the named resource
 	// that may exist.
 	// This may create a new resource or update a predeclared (using declare()) resource.
-	// Method is protected since only managers themselves are allowed to set 
+	// Method is protected since only managers themselves are allowed to set
 	protected void set(string name, T res, URI uri = null)
 	{
 		ResourceState* rs = name in _resourcesByName;
@@ -259,7 +259,7 @@ public:
 	protected void set(Handle h, T res, URI uri = null)
 	{
 		ResourceState* rs = h in _resourcesByHandle;
-		enforceEx!ResourceException(rs, std.string.format("Cannot set resource by handle %s for handle unknown by %s manager", 
+		enforceEx!ResourceException(rs, std.string.format("Cannot set resource by handle %s for handle unknown by %s manager",
 														  h, T.stringof));
 		set(rs, res, uri);
 	}
@@ -342,16 +342,16 @@ public:
 
 		if (state.loader is null)
 			state.loader = _defaultLoader;
-		
+
 		bool ok = true;
-		try 
+		try
 		{
 			if (!state.loader.load(state.resource, state.uri))
 			{
 				state.state = preState;
 				ok = false;
 			}
-		} 
+		}
 		catch (Exception e)
 		{
 			state.state = preState;
@@ -389,7 +389,7 @@ public:
 		ResourceState rs = res[0];
 		rs.loader = loader;
 		bool newlyDeclared = res[1];
-		
+
 		if (!load(rs))
 		{
 			//// Unsuccessful load
@@ -400,9 +400,9 @@ public:
 			//    return null;
 			//}
 		}
-		
+
 		// Is null in case of newlyDeclared and unsuccessfull because of remove() above
-		return rs.resource; 
+		return rs.resource;
 	}
 
 	final T load(string uriString)
@@ -431,7 +431,7 @@ public:
 	{
 		ResourceState* rs = h in _resourcesByHandle;
 		enforceEx!ResourceException(rs, "Cannot save " ~ T.stringof ~ " resource from unknown handle");
-		
+
 		if (rs.loader is null)
 			rs.loader = _defaultLoader;
 
@@ -475,7 +475,7 @@ public:
 		return success;
 	}
 
-	final bool unload(Handle h)
+	bool unload(Handle h)
 	{
 		ResourceState* rs = h in _resourcesByHandle;
 		enforceEx!ResourceException(rs, "Cannot unload " ~ T.stringof ~ " resource with unknown handle");
@@ -508,7 +508,7 @@ public:
 		deallocate(rs.resource);
 		_resourcesByHandle.remove(h);
 	}
-	
+
 	final T get(Handle h, T def)
 	{
 		auto i = h in _resourcesByHandle;
@@ -521,7 +521,7 @@ public:
 
 	final T get(Handle h)
 	{
-		return enforceEx!ResourceException(get(h, null), 
+		return enforceEx!ResourceException(get(h, null),
 										   std.string.format("No %s with handle %s in manager", T.stringof, h));
 	}
 
@@ -532,7 +532,7 @@ public:
 			return null;
 		//if (!prepare(*i))
 		//	return null;
-		return i.uri;		
+		return i.uri;
 	}
 
 	bool prepare(ResourceState rs)
@@ -554,7 +554,7 @@ public:
 			case LoadState.unloading:
 				success = false;
 				break;
-		}		
+		}
 		return success;
 	}
 
@@ -562,10 +562,10 @@ public:
 	{
 		_serializers ~= serializer;
 	}
-	
+
 	/**
 	Callback for LocationManager when it finds an URI that this manager may be interested in.
-	You need to register the manager with a Locations instance to get callbacks. 
+	You need to register the manager with a Locations instance to get callbacks.
 	You probably want to reimplement this in a derived manager.
 
 	Example:
@@ -589,7 +589,7 @@ public:
 				return;
 			}
 		}
-		
+
 		import std.path;
 		foreach (s; _serializers)
 		{
@@ -644,21 +644,21 @@ public:
 	mixin Signal!(T) onSourceChanged;
 
 protected:
-	
-	class ResourceState 
+
+	class ResourceState
 	{
 		// The URI needs to point to something that contains enough info to actually be able to construct
-		// the resource. E.g. for a font it would need to be info about the font file and the size of the font 
+		// the resource. E.g. for a font it would need to be info about the font file and the size of the font
 		// (ie. some kind of font spec). For a texture a simple path to a .png file may be enough.
-		
+
 		// URI is the universal identifier for this resource.
-		// If the URI is on URL form it also specifies how to obtain the resource. E.g. an image 
+		// If the URI is on URL form it also specifies how to obtain the resource. E.g. an image
 		// could be file:data/theimage.ong
 		// In other cases the URL point to a resource spec file that describes how to create a resource. E.g. a
 		// font can have a file:data/thefont.font file which specifies a font size of 16dpi and contains another URI
 		// to a .ttf file.
 		// All resources are loaded from a URI by a ResourceProvider, and for the URL subset the URLResourceProvider
-		// will handle that. 
+		// will handle that.
 		this(URI u, T res, LoadState s)
 		{
 			uri = u;
@@ -671,7 +671,7 @@ protected:
 		Loader loader;
 		SysTime lastModified;
 	}
-	
+
 	Handle _nextHandle;
 	Handle createHandle()
 	{
@@ -693,16 +693,16 @@ interface IResourceLoader(T)
 	bool save(T r, URI uri);
 }
 
-class ResourceSerializer(T) 
+class ResourceSerializer(T)
 {
 	import std.array;
 
 	/** Serialization
-	Returns: 
+	Returns:
 	false if the IO cannot handle the required resource
 	*/
 	bool canHandle(URI uri) { return false; }
-	
+
 	bool canRead() pure const nothrow { return false; }
 	bool canWrite() pure const nothrow { return false; }
 
@@ -783,9 +783,9 @@ version(unittest)
 
 		override void serialize(Dummy res, Appender!string output)
 		{
-			
+
 		}
-			
+
 		override void deserialize(Dummy res, IO io)
 		{
 			res.manager.onResourceLoaded(res, this);

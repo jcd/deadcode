@@ -7,6 +7,7 @@ import graphics.model;
 import graphics.rendertarget;
 import graphics.texture;
 //import gui.style; // : Style;
+import gui.style.types : SpriteFrames, SpriteFramesType;
 import gui.window;
 import math;
 import std.range;
@@ -216,33 +217,56 @@ struct Sprite
 
 }
 
-interface SpriteSet
-{
-	Sprite opIndex(size_t n);
-}
+//interface SpriteSet
+//{
+//    @property float frameTime() const pure nothrow @safe;
+//    @property size_t count()
+//    Sprite opIndex(size_t n);
+//}
+//
+//class SpriteGrid : SpriteSet
+//{
+//    Sprite sprite; // Sprite that where sub sprites are taken from
+//    Vec2f size;    // Size of each sub sprite
+//    int cols;
+//    int rows;
+//    private float _frameTime;
+//
+//    this(Sprite baseSprite, Vec2f subSpriteSize, int row, int col)
+//    {
+//        sprite = baseSprite;
+//        rows = row;
+//        cols = col;
+//        size = subSpriteSize;
+//    }
+//
+//    @property float frameTime() const pure nothrow @safe
+//    {
+//        return _frameTime;
+//    }
+//
+//    Sprite opIndex(size_t n)
+//    {
+//        Rectf r = sprite.rect;
+//        int row = n / cols;
+//        int col = n % cols;
+//        r.x += size.x * col;
+//        r.y += rect.h * row;
+//        return Sprite(r);
+//    }
+//}
 
-class SpriteGrid : SpriteSet
-{
-	Rectf rect;   // Start sprite location on texture in pixels and size of each sprite
-	int cols;
-	int rows;
+//Rectf getRectForFrame(Rectf sprite, const(SpriteFrames) f, size_t n)
+//{
+//    Rectf r = sprite;
+//    n = n % f.count;
+//    int row = n / f.columns;
+//    int col = n % f.columns;
+//    r.x += sprite.w * col;
+//    r.y += sprite.h * row;
+//    return r;
+//}
 
-	this(Rectf r, int row, int col)
-	{
-		rect = r;
-		rows = row;
-		cols = col;
-	}
-
-	Sprite opIndex(size_t n)
-	{
-		Rectf r = rect;
-		int nrow = n / cols;
-		r.x += (n - nrow * cols) * rect.w;
-		r.y += nrow * rect.h;
-		return Sprite(r);
-	}
-}
 
 /**
 
@@ -264,6 +288,11 @@ class BoxModel
 		mixin(dirtyProp("Sprite", "bottomLeft", "_dirtyBorders"));
 		mixin(dirtyProp("Sprite", "bottom", "_dirtyBorders"));
 		mixin(dirtyProp("Sprite", "bottomRight", "_dirtyBorders"));
+
+        void sprite(Sprite s)
+        {
+            setupDefaultNinePatch(s);
+        }
 
 		Material material()
 		{
@@ -607,13 +636,13 @@ class BoxModel
 	void draw(Mat4f transform)
 	{
 		// Vec2f pixelWorldSize = Window.active.renderTarget.pixelSizeToWorld(Vec2f(1,1))
-
-		if (_dirtyRect || _dirtyBorders) // || pixelWorldSize != _lastPixelWorldSize)
-			update(Window.active.renderTarget);
-
-		assert(_model.material !is null);
-
-		_model.draw(transform);
+        assert(_model.material !is null);
+        if (_model.material.texture !is null)
+        {
+		    if (_dirtyRect || _dirtyBorders) // || pixelWorldSize != _lastPixelWorldSize)
+			    update(Window.active.renderTarget);
+		    _model.draw(transform);
+        }
 	}
 
 }

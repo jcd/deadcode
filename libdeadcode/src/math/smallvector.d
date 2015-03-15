@@ -7,6 +7,8 @@ import std.traits;
 import std.string : format;
 import std.conv;
 
+// Part of GFM: https://github.com/d-gamedev-team/gfm
+
 // generic 1D small vector
 // N is the element count, T the contained type
 // intended for 3D

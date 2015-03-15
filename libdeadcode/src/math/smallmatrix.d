@@ -7,6 +7,8 @@ import std.traits;
 import std.typecons;
 import std.typetuple;
 
+// Part of GFM: https://github.com/d-gamedev-team/gfm
+
 // generic small non-resizeable matrix with R rows and C columns
 // N is the element count, T the contained type
 // intended for 3D (mainly size 3x3 and 4x4)
@@ -372,13 +374,13 @@ align(1) struct SmallMatrix(size_t R, size_t C, T)
                 const oneMinusC = 1 - c;
                 const T s = sin(angle);
                 axis = axis.normalized();
-                T x = axis.x, 
+                T x = axis.x,
                   y = axis.y,
                   z = axis.z;
                 T xy = x * y,
                   yz = y * z,
                   xz = x * z;
-                
+
                 res.c[0][0] = x * x * oneMinusC + c;
                 res.c[0][1] = x * y * oneMinusC - z * s;
                 res.c[0][2] = x * z * oneMinusC + y * s;
@@ -507,7 +509,7 @@ align(1) struct SmallMatrix(size_t R, size_t C, T)
             enum IDENTITY = makeIdentity();
         }
     }
-    
+
 }
 
 // GLSL is a big inspiration here

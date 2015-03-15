@@ -9,6 +9,7 @@ import std.exception : enforceEx;
 import std.variant;
 import std.stdio;
 
+// From https://github.com/gianm/d-json
 // TODO: recursion depth limit
 // TODO: option for sorted object keys when encoding
 // TODO: option for pretty-print when encoding

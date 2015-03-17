@@ -329,7 +329,17 @@ class GUIApplication : Application
 	static GUIApplication create(GUI gui = null)
 	{
 		if (gui is null)
-			gui = GUI.create();
+                {
+                    // TODO: Dependency injection
+                    version (all)
+                        gui = GUI.create();
+                    else
+                    {
+                        import graphics.graphicssystem;
+                        GraphicsSystem gs = new NullGraphicsSystem();
+                        gui = GUI.create(gs);
+                    }
+                }
 
 		auto app = new GUIApplication(gui);
 		app.guiRoot.onFileDropped.connect(&app.onFileDropped);

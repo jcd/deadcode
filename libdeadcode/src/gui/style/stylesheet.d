@@ -14,6 +14,7 @@ import gui.style.types;
 
 import std.algorithm;
 import std.range;
+import std.typecons;
 
 version (unittest)
 {
@@ -334,7 +335,7 @@ class Rule
 
         //if (specificity == 0)
         //    calculateSpecificity();
-		for (int i = selectors.length - 1; i >= 0; i--)
+		for (int i = cast(int)selectors.length - 1; i >= 0; i--)
         {
             auto s = selectors[i];
             Tuple!(Stylable, ubyte) matchLevel = s.match(w);
@@ -447,7 +448,7 @@ class StyleSheet : Resource!StyleSheet
             uint specificity = s.match(w);
 			if (specificity)
 			{
-				matches ~= Match(s, i, specificity);
+                            matches ~= Match(s, cast(int)i, specificity);
 				matchedRules ~= s.toHash();
 			}
 		}

@@ -4,20 +4,24 @@ import gui.widgetfeature;
 
 import gui.event;
 import gui.widget;
-import std.c.windows.windows;
+
 import math;
 
-struct CURSORINFO {
+version (Windows)
+{
+    import std.c.windows.windows;
+    struct CURSORINFO {
 	DWORD   cbSize;
 	DWORD   flags;
 	HCURSOR hCursor;
 	POINT   ptScreenPos;
-};
-alias CURSORINFO* PCURSORINFO, NPCURSORINFO, LPCURSORINFO;
+    };
+    alias CURSORINFO* PCURSORINFO, NPCURSORINFO, LPCURSORINFO;
 
-extern (Windows) nothrow
-{
-	export BOOL GetCursorInfo(LPCURSORINFO lpPoint);
+    extern (Windows) nothrow
+    {
+        export BOOL GetCursorInfo(LPCURSORINFO lpPoint);
+    }
 }
 
 /** Makes a widget able to drag the containing window
@@ -58,15 +62,20 @@ class WindowResizer : WidgetFeature
 
 	override void update(Widget widget)
 	{
+            version (Windows)
+            {
 		if (widget.isGrabbingMouse() && startDragPos.x > -1000)
 		{
 			Vec2f screenPos = getCursorScreenPos();
 			widget.window.size = startSize + (screenPos - startDragPos);
 		}
+            }
 	}
 
 	static Vec2f getCursorScreenPos()
 	{
+            version (Windows)
+            {
 		CURSORINFO desktopPos;
 		desktopPos.cbSize = CURSORINFO.sizeof;
 		if (! GetCursorInfo(&desktopPos))
@@ -75,5 +84,11 @@ class WindowResizer : WidgetFeature
 		}
 		Vec2f pos = Vec2f(desktopPos.ptScreenPos.x, desktopPos.ptScreenPos.y);
 		return pos;
+            }
+            version (linux)
+            {
+                pragma(msg, "Warning: getCursorScreenPos not implemented");
+                return Vec2f(0,0);
+            }
 	}
 }

@@ -510,8 +510,8 @@ class ErrorListStyler : TextStyler
 		assert(r.b >= 0 && r.b <= text.length);
 		auto buf = array(text[r.a .. r.b]);
 
-		size_t lastEndIdx = 0;
-		size_t offset = r.a;
+		int lastEndIdx = 0;
+		int offset = r.a;
 
 		import std.regex;
 		auto ctr = regex(errorLineRe, "mg");
@@ -523,10 +523,10 @@ class ErrorListStyler : TextStyler
 		{
 			if (m.empty)
 				continue;
-			auto begin = m.pre.length;
+			auto begin = cast(int)m.pre.length;
 
 			auto filePath = m.captures[1];
-			auto end = begin + filePath.length;
+			auto end = begin + cast(int)filePath.length;
 			if (begin != lastEndIdx)
 				_regionSet.merge(offset + lastEndIdx, offset + begin, DStyle.other);
 
@@ -536,12 +536,12 @@ class ErrorListStyler : TextStyler
 
 			auto lineInFile = m.captures[2];
 			begin = end;
-			end = begin + lineInFile.length;
+			end = begin + cast(int)lineInFile.length;
 			_regionSet.set(offset + begin, offset + end, DStyle.error);
 
 			auto message = m.captures[3];
 			begin = end + 1;
-			end = begin + message.length;
+			end = begin + cast(int)message.length;
 
             DStyle otherStyle = DStyle.other;
             if (issueLineNumber == _errorListWidget.currentIssueLine)

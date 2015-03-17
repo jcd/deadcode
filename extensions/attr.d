@@ -73,15 +73,13 @@ alias getCommandFunctionFunction(alias F) = F.Function;
 template registerCommands(string Mod = __MODULE__)
 {
 	import std.typetuple;
-	version (Windows)
-    {
         pragma(msg, "Registering command functions: ", Mod, " ", staticMap!(getCommandFunctionFunction, extensionCommandFunctions!Mod));
 	    //pragma(msg, "xx ", __traits(allMembers, Mod));
 	    //alias x = TypeTuple!(extensionCommandClasses!Mod);
 	    pragma(msg, "Registering command classes  : ", Mod, " ", TypeTuple!(extensionCommandClasses!Mod));
 	    pragma(msg, "Registering widget classes  : ", Mod, " ", TypeTuple!(extensionWidgetClasses!Mod));
-    }
-    else
+
+    version (OFF)
     {
         pragma(msg, "Registering command functions: ", Mod, " ", staticMap!(getCommandFunctionFunction, extensionCommandFunctions!Mod));
         // static if (is(typeof(staticMap!(getCommandFunctionFunction, extensionCommandFunctions!Mod)))) {};

@@ -604,7 +604,7 @@ T jsonDecode_impl(T, R)(ref R input) if(isInputCharRange!R && isSomeString!T) {
                     }
 
                     /* Unicode escape state */
-                    wchar units[2];
+                    wchar[2] units;
 
                     /* Read first unit */
                     units[0] = nextUnit();
@@ -691,7 +691,7 @@ JsonNull jsonDecode_impl(T, R)(ref R input) if(isInputCharRange!R && is(T == Jso
 }
 
 class JsonException : Exception {
-    this(string s, string file = __FILE__, int line = __LINE__) {
+    this(string s, string file = __FILE__, ulong line = __LINE__) {
         super(s, file, line);
     }
 }

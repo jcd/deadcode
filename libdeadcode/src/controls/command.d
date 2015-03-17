@@ -484,8 +484,8 @@ class CommandControl : Widget
                 while (i < 0)
 			    i += completions.length;
 
-    		    i = i % completions.length;
-	    	    cycleBufferStartOffset = (cycleBufferStartOffset + i) % completions.length;
+                i = i % cast(int)completions.length;
+                cycleBufferStartOffset = (cycleBufferStartOffset + i) % cast(int)completions.length;
 
 	    	    app.previewBuffer(completions[cycleBufferStartOffset].data);
         }
@@ -669,7 +669,7 @@ class CommandControl : Widget
 	void displayStringList(string[] list)
 	{
 		dstring comps;
-		size_t maxLen = reduce!( (a,b) => max(a, b.length) )(0, list);
+		size_t maxLen = reduce!( (a,b) => max(a, cast(int)b.length) )(0, list);
 		size_t cutLen = 40;
 
 		foreach (c; list)
@@ -799,7 +799,7 @@ version(oldvw)
 		{
 			auto res = completions.dropExactly(completionStyler.lineHighlighted);
 			import std.stdio;
-			commandField.bufferView.remove(-prefix.length);
+			commandField.bufferView.remove(-cast(int)prefix.length);
 			//completionWidget.visible = true;
 			completionWidget.bufferView.clear();
 			commandField.bufferView.insert(dtext(res.front.label ~ ' '));

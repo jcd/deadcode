@@ -15,13 +15,15 @@
 		"msgpack-d": "~>0.9.5"
 	},
 	"buildRequirements": ["allowWarnings"],
+	"lflags-windows": ["/NOCODEVIEW"],
+	"libs-posix": ["curl"],
 	"configurations": [
 		{
         "name": "debug",
         "targetType": "executable",
 		"targetName" : "ded-debug",
+		"lflags-posix": ["-g"],
 		"dflags" : ["-vcolumns", "-version=NoMain"],
-		"lflags": ["/NOCODEVIEW"],
 		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : [ "debugMode", "debugInfo"]
@@ -31,7 +33,6 @@
         "targetType": "executable",
 		"targetName" : "ded-debug",
 		"dflags" : ["-vcolumns", "-version=NoMain", "-c", "-Df__dummy.html", "-X" , "-Xfdocs.json"],
-		"lflags": ["/NOCODEVIEW"],
 		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : [ "debugMode", "debugInfo", "syntaxOnly"]
@@ -40,14 +41,13 @@
         "name": "udebug",
         "targetType": "executable",
 		"targetName" : "ded-debug",
-		"lflags": ["/NOCODEVIEW"],
+		"lflags-posix": ["-g"],
 		"buildOptions" : [ "debugMode", "debugInfo","unittests"]
 		},
 		{
         "name": "release",
         "targetType": "executable",
 		"targetName" : "ded",
-		"lflags": ["/NOCODEVIEW"],
 		"dflags" : ["-vcolumns", "-version=NoMain" ],
 		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
@@ -57,7 +57,7 @@
         "name": "unittest",
         "targetType": "executable",
 		"targetName" : "ded-unittest",
-		"lflags": ["/NOCODEVIEW"],
+		"lflags-posix": ["-g"],
 		"dflags" : ["-vcolumns", "-version=NoMain"],
 		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
@@ -67,8 +67,8 @@
         "name": "dunittest",
         "targetType": "executable",
 		"targetName" : "ded-debug",
+		"lflags-posix": ["-g"],
 		"dflags" : ["-vcolumns","-profile", "-version=NoMain"],
-		"lflags": ["/NOCODEVIEW"],
 		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : ["unittests", "debugMode", "debugInfo"]

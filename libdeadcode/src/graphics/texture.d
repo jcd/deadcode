@@ -96,7 +96,7 @@ class Texture
 
 	static Texture create(size_t width, size_t height)
 	{
-		SDL_Surface * s = SDL_CreateRGBSurface(0, width, height, 32,0,0,0,0);
+            SDL_Surface * s = SDL_CreateRGBSurface(0, cast(int)width, cast(int)height, 32,0,0,0,0);
 		assert(s);
 		auto texture = createFromSDLSurface(s);
 		SDL_FreeSurface(s);
@@ -131,7 +131,7 @@ class Texture
 			pixels[i*4+3] = cast(ubyte)0xff;
 		}
 
-		glTexImage2D(GL_TEXTURE_2D, 0, mode, width, height, 0, mode, GL_UNSIGNED_BYTE, pixels.ptr);
+		glTexImage2D(GL_TEXTURE_2D, 0, mode, cast(int)width, cast(int)height, 0, mode, GL_UNSIGNED_BYTE, pixels.ptr);
 		intoThis.width = width;
 		intoThis.height = height;
 		return intoThis;

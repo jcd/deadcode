@@ -30,6 +30,8 @@ import std.string;
 
 enum appName = "DeadCode";
 
+version (Windows)
+{
 import std.c.windows.windows;
 extern (Windows)
 {
@@ -52,18 +54,6 @@ extern (Windows)
 }
 
 ///
-enum RelativeLocation
-{
-	topOf,
-	bottomOf,
-	leftIn,
-	rightIn,
-	above,
-	below,
-	leftOf,
-	rightOf,
-	inside,
-}
 
 class DirectoryWatcher
 {
@@ -126,6 +116,21 @@ class DirectoryWatcher
 		}
 		return result;
 	}
+}
+
+} // version (Windows)
+
+enum RelativeLocation
+{
+	topOf,
+	bottomOf,
+	leftIn,
+	rightIn,
+	above,
+	below,
+	leftOf,
+	rightOf,
+	inside,
 }
 
 /** The location that is use as base for relative paths/URIs.
@@ -221,7 +226,7 @@ class GUIApplication : Application
 	Editors editors;
 
 	Widget _mainWidget;
-	DirectoryWatcher resourceDirWatcher;
+	version (Windows) DirectoryWatcher resourceDirWatcher;
 	string resourcesRoot;
 	StyleSheet defaultStyleSheet;
 
@@ -250,7 +255,7 @@ class GUIApplication : Application
 	{
 		// This also sets up tracking keys for analytics
 		guiRoot = gui;
-        globalStyle = new GlobalStyle();
+                globalStyle = new GlobalStyle();
 		setupRegistryEntries();
 		_promptStack = new Stack!PromptQuery();
 
@@ -296,6 +301,8 @@ class GUIApplication : Application
 				addMessage("Implement sessionDir");
 				break;
 			case ResourceBaseLocation.userDataDir:
+                            version (Windows)
+                            {
 				char[MAX_PATH] buffer;
 				auto CSIDL_APPDATA = 0x001a;
 				void* dummy;
@@ -303,7 +310,15 @@ class GUIApplication : Application
 					basePath = absolutePath(buildPath(buffer[0..strlen(buffer.ptr)].idup, appName));
 				else
 					throw new Exception("Cannot get APPDATA dir");
-				break;
+                            }
+                            version (linux)
+                            {
+                                import std.process;
+                                import std.path;
+                                string home = environment.get("XDG_DATA_HOME", expandTilde("~/.local/share"));
+                                basePath = absolutePath(buildPath(home, appName));
+                            }
+			    break;
 		}
 
 		auto u = new URI(buildNormalizedPath(basePath, path));
@@ -327,7 +342,7 @@ class GUIApplication : Application
 	{
 		analyticEvent("core", "fileDrop");
 		addMessage("Dropped file %s ", path);
-		path = path.replace(r"\", "/");
+		path = path.replace("\\", "/");
 		openFile(path);
 	}
 
@@ -442,7 +457,7 @@ class GUIApplication : Application
 
 		// guiRoot.locationsManager.baseURI = "resources/";
 
-		resourceDirWatcher = new DirectoryWatcher(resourcesRoot);
+		version (Windows) resourceDirWatcher = new DirectoryWatcher(resourcesRoot);
 		guiRoot.timeout(dur!"msecs"(500), &regularCheck);
 
 		scanResources();
@@ -606,10 +621,29 @@ class GUIApplication : Application
 		import std.uuid;
 		import core.config;
 
-		setupRegistryEntry(r"Software\Classes\*\shell\Open with Dedit\command",
-						   r"C:\Projects\D\ded>ded-debug_d.exe");
-		analyticsKey = setupRegistryEntry(r"Software\SteamWinter\Ded",
-										  randomUUID().toString());
+                version (Windows)
+                {
+                    setupRegistryEntry(r"Software\Classes\*\shell\Open with Dedit\command",
+                                       r"C:\Projects\D\ded>ded-debug_d.exe");
+                    analyticsKey = setupRegistryEntry(r"Software\SteamWinter\Ded",
+                                                      randomUUID().toString());
+                }
+                version (linux)
+                {
+                    import std.file;
+
+                    auto u = resourceURI("analyticsKey");
+                    
+                    mkdirRecurse(u.dirName.uriString);
+
+                    if (exists(u.uriString))
+                        analyticsKey = readText(u.uriString);
+                    else
+                    {
+                        analyticsKey = randomUUID().toString();
+                        std.file.write(u.uriString, analyticsKey);
+                    }                    
+                }
 	}
 
 
@@ -658,6 +692,15 @@ version (Windows)
 		return result;
 	}
 }
+version (linux)
+{
+    pragma(msg, "Warning: Missing getExistingWindowRect");
+    private Rectf getExistingWindowRect()
+    {
+        return Rectf(0,0, 500, 500);
+    }
+}
+
 
     Widget getWidget(string name)
     {
@@ -1232,8 +1275,15 @@ version (Windows)
 
     private void checkDirForChanges()
 	{
+            version (Windows)
+                {
 		if (resourceDirWatcher.wait(dur!"seconds"(0)))
 			scanResources();
+                }
+            version (linux)
+                {
+                    pragma(msg, "Warning: Missing checkDirForChanges on linux");
+                }
 	}
 
 	static class SessionBuffer

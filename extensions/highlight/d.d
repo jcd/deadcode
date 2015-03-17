@@ -79,7 +79,7 @@ class DSourceStyler : TextStyler
 
 	private int styleBufferViewRegionHelper(Range)(ref Range tokens)
 	{
-		int lastEnd = 0;
+		size_t lastEnd = 0;
 		while (!tokens.empty)
 		{
 			auto t = tokens.front;
@@ -144,13 +144,13 @@ class DSourceStyler : TextStyler
 			}
 		}
 
-		return lastEnd;
+		return cast(int)lastEnd;
 	}
 
-	void set(int a, int len, DStyle st)
+	void set(size_t a, size_t len, DStyle st)
 	{
 		// We can simply append since order it guaranteed
-		_regionSet ~= Region(a, a + len, st); 
+            _regionSet ~= Region(cast(int)a, cast(int)(a + len), st); 
 	
 		//_regionSet.set(a, a + len, st);
 		// _regionSet.merge(Region(a, a + len, st));
@@ -207,13 +207,13 @@ class DSourceStyler : TextStyler
 			auto begin = m.pre.length;
 			auto end = begin + m.hit.length;
 			if (begin != lastEndIdx)
-				_regionSet.set(offset + lastEndIdx, offset + begin, DStyle.other);
-			_regionSet.set(offset + begin, offset + end, t);
+                            _regionSet.set(cast(int)(offset + lastEndIdx), cast(int)(offset + begin), DStyle.other);
+			_regionSet.set(cast(int)(offset + begin), cast(int)(offset + end), t);
 			lastEndIdx = end;
 		}
 
 		if (lastEndIdx != r.b)
-			_regionSet.set(offset + lastEndIdx, r.b, DStyle.other);
+                    _regionSet.set(cast(int)(offset + lastEndIdx), cast(int)(r.b), DStyle.other);
 
 		onChanged.emit();
 	}

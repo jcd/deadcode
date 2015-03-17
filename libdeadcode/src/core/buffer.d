@@ -60,7 +60,7 @@ class GapBuffer(T = dchar)
 
 	void moveEditPointToEnd()
 	{
-		placeGapStart(length);
+            placeGapStart(cast(int)length);
 	}
 
 	private void placeGapStart(int index)
@@ -152,7 +152,7 @@ class GapBuffer(T = dchar)
 			index = gapStart;
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <= ", length));
 		placeGapStart(index);
-		ensureGapCapacity(items.length);
+		ensureGapCapacity(cast(int)items.length);
 		buffer[index..index+items.length] = items[];
 		gapStart += items.length;
 	}
@@ -301,7 +301,7 @@ class GapBuffer(T = dchar)
 		}
 
 		// sanitize
-        int end = int.max - gapSize <= to ? buffer.length : to+gapSize;
+                int end = int.max - gapSize <= to ? cast(int)buffer.length : cast(int)(to+gapSize);
 
 		// range is after endGap
 		if ( from + gapSize >= gapEnd)
@@ -358,7 +358,7 @@ class LineBuffer(T, Text) : GapBuffer!int
 
 	this(Text text, size_t initialGapSize)
 	{
-		super([0], initialGapSize);
+            super([0], cast(int)initialGapSize);
 		moveEditPointToEnd();
 		_lastTextBufferEditPoint = 0;
 		_text = text;
@@ -367,7 +367,7 @@ class LineBuffer(T, Text) : GapBuffer!int
 	private int getEditPoint(int index)
 	{
 		auto len = length;
-		int curLineIndex = editPoint;
+		int curLineIndex = cast(int)editPoint;
 		assert(curLineIndex > 0, "Line index < 1");
 
 		if (index != _lastTextBufferEditPoint)
@@ -415,7 +415,7 @@ class LineBuffer(T, Text) : GapBuffer!int
 		// Correct all line entries after the new inserting to reflect shifted text buffer indexes
 		foreach (i; curLineIndex..len)
 		{
-			auto newVal = this[i] + txtLen;
+                        auto newVal = this[i] + cast(int)txtLen;
 			this[i] = newVal;
 		}
 
@@ -441,13 +441,13 @@ class LineBuffer(T, Text) : GapBuffer!int
 				auto textBufferIndex = index + i;
 				auto lineStartIndex = textBufferIndex + 1;
 
-				insert(lineStartIndex);
+				insert(cast(int)lineStartIndex);
 
 				if (linesInserted == 0)
 				{
 
 					bool isAtStartOfLine = prevNewlineTextBufferIndex == textBufferIndex;
-					firstInsertedLineNumber = isAtStartOfLine ? editPoint - 2 : editPoint - 1;
+					firstInsertedLineNumber = cast(int)(isAtStartOfLine ? editPoint - 2 : editPoint - 1);
 				}
 
 				linesInserted++;
@@ -457,7 +457,7 @@ class LineBuffer(T, Text) : GapBuffer!int
 
 		auto endPoint = editPoint;
 
-		_lastTextBufferEditPoint = index + txtLen;
+		_lastTextBufferEditPoint = cast(int)(index + txtLen);
 
 		if (startLineModified)
 		{
@@ -824,7 +824,7 @@ final:
 	this(const(CharType)[] str, size_t initialGapSize)
 	{
 	    _id = _nextID++;
-        gbuffer = new GapBuffer!CharType(str, initialGapSize);
+            gbuffer = new GapBuffer!CharType(str, cast(int)initialGapSize);
 		lbuffer = new LineBuffer!(CharType, TextBuffer)(this, initialGapSize);
 		if (!str.empty)
 			lbuffer.textInserted(str, 0);
@@ -850,13 +850,13 @@ final:
 
 	@property const(dchar)[] lastLine() const
 	{
-		return gbuffer.toArray(offsetToBeginningOfLine(length), length);
+            return gbuffer.toArray(offsetToBeginningOfLine(cast(int)length), cast(int)length);
 	}
 
 	debug @property size_t lineCountScanned() const
 	{
 		int count = -1;
-		int index = length;
+		int index = cast(int)length;
 		do
 		{
 			index = endOfPreviousLine(index);
@@ -901,12 +901,12 @@ final:
 	{
 		size_t s = gbuffer.length + gbuffer.gapSize;
 		if (s < cap)
-			gbuffer.ensureGapCapacity(gbuffer.gapSize + (cap - s));
+                    gbuffer.ensureGapCapacity(gbuffer.gapSize + cast(int)(cap - s));
 	}
 
 	CharType[] toArray(size_t from, size_t to) const
 	{
-		return gbuffer.toArray(from, to);
+            return gbuffer.toArray(cast(int)from, cast(int)to);
 	}
 
 	CharType[] toArray() const pure nothrow
@@ -916,7 +916,7 @@ final:
 
 	int prev(int index, bool clamp = true) const
 	{
-		int len = gbuffer.length;
+            int len = cast(int)gbuffer.length;
         assert(index <= len);
 		if (index > len)
             return clamp ? len : InvalidIndex;
@@ -944,13 +944,13 @@ final:
             return clamp ? 0 : InvalidIndex;
 
 		if (index >= gbuffer.length)
-            return clamp ? gbuffer.length : InvalidIndex;
+                    return clamp ? cast(int)gbuffer.length : InvalidIndex;
 
 		if (gbuffer[index] == '\r')
 			index++; // \r\n assumed. eat both. TODO: fix assumption
 		index++;
 		if (index > gbuffer.length)
-            return clamp ? gbuffer.length : InvalidIndex;
+                    return clamp ? cast(int)gbuffer.length : InvalidIndex;
 		return index;
 	}
 
@@ -974,11 +974,11 @@ final:
 				return offsetByChar(index, count, clamp);
 			case TextBoundary.buffer:
                 if (clamp)
-				    return count < 0 ? 0 : (count == 0 ? index : length);
+                    return count < 0 ? 0 : (count == 0 ? index : cast(int)length);
                 else if (count == -1)
                     return 0;
                 else if (count == 1)
-                    return length;
+                    return cast(int)length;
                 else if (count == 0)
                     return index;
                 else
@@ -1008,7 +1008,7 @@ final:
                 return InvalidIndex;
         }
 
-        int len = length;
+        int len = cast(int)length;
         if (idx > len)
         {
             if (clamp)
@@ -1027,7 +1027,7 @@ final:
             {
                 // overflow
                 if (clamp)
-                    return length;
+                    return cast(int)length;
                 else
                     return int.min; // signal invalid value
             }
@@ -1337,7 +1337,7 @@ version (OFF)
 		{
 
 			// locate the char just above the current cursor char
-			auto lll = gbuffer.toArray(newPos, newPos + 200 > gbuffer.length ? gbuffer.length : newPos + 200);
+                    auto lll = gbuffer.toArray(newPos, newPos + 200 > gbuffer.length ? cast(int)gbuffer.length : cast(int)(newPos + 200));
             for (int i = 0; i < lines; i++)
 				newPos = startOfNextLine(newPos);
 
@@ -1810,12 +1810,12 @@ version (OFF)
 
             @property int a()
             {
-                return captures.pre.length;
+                return cast(int)captures.pre.length;
             }
 
             @property int b()
             {
-                return captures.pre.length + captures.hit.length;
+                return cast(int)(captures.pre.length + captures.hit.length);
             }
 
             @property typeof(gbuffer).CharType[] hit()
@@ -1914,7 +1914,7 @@ version (OFF)
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " <=sa ", length));
 
         int firstLine = 0;
-        int lastLine = lbuffer.length;
+        int lastLine = cast(int)lbuffer.length;
         int lineDiff = lastLine - firstLine;
         while (lineDiff != 1)
         {
@@ -1976,7 +1976,7 @@ version (OFF)
 		if (lbuffer.length > lineNum)
 			idx = lbuffer[lineNum];
 		else
-			return length;
+                    return cast(int)length;
 		return prev(idx);
 	}
 
@@ -2009,7 +2009,7 @@ version (OFF)
 
 	void insert(const(CharType)[] items, int index = InvalidIndex)
 	{
-		index = index == InvalidIndex ? gbuffer.editPoint : index;
+            index = index == InvalidIndex ? cast(int)gbuffer.editPoint : index;
 		gbuffer.insert(items, index);
 		lbuffer.textInserted(items, index);
 	}

@@ -51,8 +51,8 @@ class SearchCommand : BasicCommand
 		    if (idx != -1)
 		    {
 			    auto at = cursorPointAtStart + idx;
-			    currentTextEditor.bufferView.selection = Region(at, at + needle.length);
-			    currentTextEditor.bufferView.cursorPoint = at + needle.length;
+			    currentTextEditor.bufferView.selection = Region(at, at + cast(int)needle.length);
+			    currentTextEditor.bufferView.cursorPoint = at + cast(int)needle.length;
 		    }
 		    currentTextEditor.getOrCreateHighlighter("search").regions.clear();
 		    cursorPointAtStart = -1;
@@ -168,7 +168,7 @@ class SearchCommand : BasicCommand
             if (idx != -1)
             {
                 auto at = idx;
-			    highlighter.regions.set(at, at + needle.length);
+                highlighter.regions.set(at, at + cast(int)needle.length);
 
                 // The region index that is right after the cursor position.
                 int cursorRegionIndexOffset = -1;
@@ -184,7 +184,7 @@ class SearchCommand : BasicCommand
                     at = idx + nextIdx;
                     if (cursorRegionIndexOffset == -1 && at >= cursorPointAtStart)
                         cursorRegionIndexOffset = count;
-                    highlighter.regions.set(at, at + needle.length);
+                    highlighter.regions.set(at, at + cast(int)needle.length);
                     idx = at + 1;
                 }
                 cursorAtRegionIndex = nextRegionIndex(cursorAtRegionIndex, cursorRegionIndexOffset);
@@ -194,7 +194,7 @@ class SearchCommand : BasicCommand
             if (cursorAtRegionIndex != int.min)
             {
                 import std.algorithm : min, max;
-                cursorAtRegionIndex = (highlighter.regions.length + cursorAtRegionIndex) % highlighter.regions.length;
+                cursorAtRegionIndex = (cast(int)highlighter.regions.length + cursorAtRegionIndex) % cast(int)highlighter.regions.length;
                 Region activeRegion = highlighter.regions[cursorAtRegionIndex];
                 currentTextEditor.bufferView.viewOnCharPaged(activeRegion.a);
                 currentTextEditor.bufferView.selection = activeRegion;

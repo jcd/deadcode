@@ -193,10 +193,10 @@ class GenericResource : Resource!GenericResource
 		{
 			if (key in index)
 				return -1;
-			index[key] = idx;
+			index[key] = cast(int)idx;
 		}
 		helpers ~= new Helper!T(value);
-		return idx;
+		return cast(int)idx;
 	}
 
 	void serialize(Appender!string output)

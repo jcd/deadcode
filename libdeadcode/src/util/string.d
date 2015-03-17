@@ -36,7 +36,7 @@ auto uniquePostfixPath(R)(R names)
             auto prefix = commonPrefix(r[index-1].reversePathElements, item.reversePathElements);
             if (prefix.length != 0)
             {
-                int newElementsUsed = prefix.length + 1; // +1 to add the disambiguating elements
+                int newElementsUsed = cast(int)prefix.length + 1; // +1 to add the disambiguating elements
                 item.pathElementsUsed = min(newElementsUsed, item.reversePathElements.length);
                 r[index - 1].pathElementsUsed = min(newElementsUsed, r[index - 1].reversePathElements.length);
             }

@@ -56,7 +56,7 @@ final class Mesh
 		// do the drawing dance
 		if (buffers[0].uploadedSize != 0)
 		{
-			glDrawArrays(GL_TRIANGLES, 0, buffers[0].uploadedSize / 3); 
+                    glDrawArrays(GL_TRIANGLES, 0, cast(int)(buffers[0].uploadedSize / 3));
 		}
 	}
 }

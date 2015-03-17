@@ -40,13 +40,13 @@ UnitTestInfo parseUnitTestName(string func)
 	if (func[0..2] != "__")
 		agName = func[0..func.indexOf(".__")];
 	const int DELIMLEN = 11; // __unittestL
-	int offsBegin = agName.length + DELIMLEN + (agName.length ? 1 : 0);
-	int offsEnd = func.indexOf("_", offsBegin);
+	int offsBegin = cast(int)agName.length + DELIMLEN + (agName.length ? 1 : 0);
+	int offsEnd = cast(int)func.indexOf("_", offsBegin);
 	int agAtLine = func[offsBegin..offsEnd].to!int;
 
 	// In case of Asserts in member functions of classes defined in a unittest scope
 	// we need to check of . after the __unittestLxx_xx
-	int offsStop = func.indexOf(".", offsEnd);
+	int offsStop = cast(int)func.indexOf(".", offsEnd);
 
 	int testNumber = func[offsEnd+1.. offsStop == -1 ? func.length : offsStop].to!int;
 	return UnitTestInfo(func, agName, testNumber, agAtLine);

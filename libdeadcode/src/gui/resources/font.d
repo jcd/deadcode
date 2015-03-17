@@ -72,6 +72,10 @@ version(Windows)
 {
 	private immutable string builtinFontPath = r"C:\Windows\Fonts\verdana.ttf";
 }
+version(linux)
+{
+	private immutable string builtinFontPath = r"/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
+}
 
 class FontManager : ResourceManager!Font
 {

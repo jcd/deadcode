@@ -375,7 +375,7 @@ class DCompletionExtension : BasicExtension!DCompletionExtension
 			{
 				result[i].completion = response.completions[i];
 				result[i].kind = cast(CompletionKind)response.completionKinds[i];
-				result[i].location = response.locations[i];
+				result[i].location = cast(int)response.locations[i];
 				app.addMessage("%s %s %s", response.completions[i], response.completionKinds[i],
 					response.locations[i]);
 			}
@@ -407,7 +407,7 @@ class DCompletionExtension : BasicExtension!DCompletionExtension
 		{
 			auto response = getResponse(socket);
 			result.completion = response.symbolFilePath;
-			result.location = response.symbolLocation;
+			result.location = cast(int)response.symbolLocation;
 		}
 		return result;
 	}

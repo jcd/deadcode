@@ -66,7 +66,7 @@ class Window : Widget
 
 	static Window active;
 
-	override @property Window window() pure nothrow nothrow @safe
+	override @property Window window() pure nothrow @safe
 	{
 		return this;
 	}

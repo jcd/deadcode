@@ -824,7 +824,7 @@ class Widget : Stylable
 		_rect.h = y;
 	}
 
-	@property Window window() pure nothrow nothrow @safe
+	@property Window window() pure nothrow @safe
 	{
 		return _parent is null ? null : _parent.window;
 	}

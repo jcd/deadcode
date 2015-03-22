@@ -44,7 +44,7 @@ void dCheckIfElse(TextEditor editor)
 //	Analysis.the.setMessages(v, c1.messages);
     foreach (msg; c1.messages)
     {
-        anchorManager.ensureLineAnchor(editor, msg.line - 1, msg);
+        anchorManager.ensureLineAnchor(editor, cast(int)msg.line - 1, msg);
         writeln(msg.key, " ", msg.message);
     }
 
@@ -54,7 +54,7 @@ void dCheckIfElse(TextEditor editor)
 
     foreach (msg; c2.messages)
     {
-        anchorManager.ensureLineAnchor(editor, msg.line - 1, msg);
+        anchorManager.ensureLineAnchor(editor, cast(int)msg.line - 1, msg);
         writeln(msg.key, " ", msg.message);
     }
 	// Analysis.the.setMessages(v, c.messages);

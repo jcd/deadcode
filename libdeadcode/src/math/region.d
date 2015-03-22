@@ -790,7 +790,7 @@ class RegionSet
 				// Merge current region and r
 				r = cur.cover(r); // ok to use covert because regions intersects or are touching
 				if (mergeStartIdx == -1)
-					mergeStartIdx = i; // remember the first merged index into regions
+                                    mergeStartIdx = cast(int)i; // remember the first merged index into regions
 				// Continue to see if any of the next regions is to be merged
 			}
 			else if (mergeStartIdx != -1)
@@ -943,7 +943,7 @@ class RegionSet
 				// Merge current region and r
 				r = r.cover(regions[i]);
 				if (mergeStartIdx == -1)
-					mergeStartIdx = i;
+                                    mergeStartIdx = cast(int)i;
 				// Continue to see if any of the next regions is to be merged
 				continue;
 			}

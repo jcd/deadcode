@@ -69,3 +69,11 @@ version (Windows)
 		return null;
 	}
 }
+version (linux)
+{
+	string setupRegistryEntry(string keyPath, string value)
+	{
+            pragma(msg, "Warning: setupRegistryEntry not implemented on linux");
+            return "DUMMY-REGISTRY-KEY";
+        }
+}

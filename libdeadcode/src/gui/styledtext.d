@@ -121,17 +121,17 @@ class TextStyler
 	protected void textInsertedCallback(BufferView b, BufferView.BufferString str,int from)
 	{
 		// Update region set
-		_regionSet.entriesInserted(from, str.length);
+            _regionSet.entriesInserted(from, cast(int)str.length);
 		import std.stdio;
 		//writefln("Insert styler %s from %s", str.length, from);
-		scheduleRegion(Region(from, from + str.length));
+		scheduleRegion(Region(from, from + cast(int)str.length));
 	}
 
 	// In case a bufferview is hooked up to this styling
 	protected void textRemovedCallback(BufferView b, BufferView.BufferString str,int from)
 	{
 		// Update region set
-		_regionSet.entriesRemoved(from, str.length);
+            _regionSet.entriesRemoved(from, cast(int)str.length);
 
 		import std.stdio;
 		// writefln("Removed styler %s from %s", str.length, from);
@@ -197,7 +197,7 @@ class TextStyler
 	private void forceUpdate(Text)(Region r, Text text)
 	{
 		// Sanitize the region
-		r = r.clip(0, text.length);
+            r = r.clip(0, cast(int)text.length);
 
 		// Look for the preceeding and succeeding whitespace and form a region using that
 		// to use for restyling.
@@ -213,7 +213,7 @@ class TextStyler
 		}
 		else
 		{
-			styleRegion(Region(0, text.length), text);
+                    styleRegion(Region(0, cast(int)text.length), text);
 		}
 	}
 
@@ -331,13 +331,13 @@ class StyleSheetStyler : TextStyler
 			}
 
 			if (begin != lastEndIdx)
-				_regionSet.merge(offset + lastEndIdx, offset + begin, StyleSheetStyle.other);
-			_regionSet.merge(offset + begin, offset + end, t);
+                            _regionSet.merge(cast(int)(offset + lastEndIdx), cast(int)(offset + begin), StyleSheetStyle.other);
+			_regionSet.merge(cast(int)(offset + begin), cast(int)(offset + end), t);
 			lastEndIdx = end;
 		}
 
 		if (lastEndIdx != text.length)
-			_regionSet.merge(offset + lastEndIdx, r.b, StyleSheetStyle.other);
+                    _regionSet.merge(cast(int)(offset + lastEndIdx), r.b, StyleSheetStyle.other);
 
 		onChanged.emit();
 	}
@@ -389,7 +389,7 @@ class ChangeLogStyler : TextStyler
 		{
 			auto begin = m.pre.length + m[1].length;
 			auto end = begin + m[2].length;
-			_regionSet.merge(offset + begin, offset + end, styling);
+			_regionSet.merge(cast(int)(offset + begin), cast(int)(offset + end), styling);
 		}
 	}
 

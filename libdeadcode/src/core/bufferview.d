@@ -40,7 +40,7 @@ class RegionView
 	{
 		int length() const pure nothrow @safe
 		{
-			return region.length;
+                    return cast(int)region.length;
 		}
 
 		bool empty() const pure nothrow @safe
@@ -72,12 +72,12 @@ class RegionView
 
 	private void textInserted(BufferView v, BufferView.BufferString text, int pos)
 	{
-		region.entriesInserted(pos, text.length);
+            region.entriesInserted(pos, cast(int)text.length);
 	}
 
 	private void textRemoved(BufferView v, BufferView.BufferString text, int pos)
 	{
-		region.entriesRemoved(pos, text.length);
+            region.entriesRemoved(pos, cast(int)text.length);
 	}
     /*
 
@@ -462,7 +462,7 @@ class BufferView
 	{
 		if (s <= buffer.length)
 			return;
-		buffer.gbuffer.ensureGapCapacity(s - buffer.length);
+		buffer.gbuffer.ensureGapCapacity(cast(int)(s - buffer.length));
 	}
 
 	debug void enableUndoStackDumps() { _undoStack.dumpEnabled = true; }
@@ -567,7 +567,7 @@ class BufferView
 
 		int length() const nothrow
 		{
-			return buffer.length;
+                    return cast(int)buffer.length;
 		}
 
 		const(TextBuffer.CharType)[] lastLine() const
@@ -613,7 +613,7 @@ class BufferView
 			auto ends = buffer.lineEndsAt(cursorPoint);
 			return Region(ends[0], ends[1]);
 		case RegionQuery.buffer:
-			return Region(0, buffer.length);
+                    return Region(0, cast(int)buffer.length);
 		}
 	}
 
@@ -643,7 +643,7 @@ class BufferView
 	bool isCursorFollowing(string s) const
     {
         if (cursorPoint >= s.length)
-	        return getText(cursorPoint - s.length, cursorPoint) == s.to!dstring;
+            return getText(cast(int)(cursorPoint - s.length), cursorPoint) == s.to!dstring;
         return false;
     }
 
@@ -663,15 +663,15 @@ class BufferView
 		auto offsetToStart = r.a - cursorPoint;
 		_undoStack.push!ActionGroupAction(this,
 										  new CursorAction(TextBoundary.unit, offsetToStart),
-										  new RemoveAction(TextBoundary.unit, r.length),
+                                                  new RemoveAction(TextBoundary.unit, cast(int)r.length),
 										  new InsertAction(txt));
 
 		if (restoreCursorPoint <= begin)
 			cursorPoint = restoreCursorPoint;
 		else if (Region(begin, end).contains(restoreCursorPoint))
-			cursorPoint = begin + txt.length;
+                    cursorPoint = begin + cast(int)txt.length;
 		else
-			cursorPoint = restoreCursorPoint - ((end == int.max ? buffer.length : end) - begin - txt.length);
+                    cursorPoint = cast(int)(restoreCursorPoint - ((end == int.max ? buffer.length : end) - begin - txt.length));
 		// selection = oldSelection;
 	}
 
@@ -704,7 +704,7 @@ class BufferView
 
 	int lineCount() const
 	{
-		return buffer.lineNumberAt(buffer.length == 0 ? 0 : buffer.length - 1);
+            return buffer.lineNumberAt(buffer.length == 0 ? 0 : cast(int)buffer.length - 1);
 	}
 
 	// Note that using this may mess with the modified state reset in undo()!

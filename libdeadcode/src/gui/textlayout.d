@@ -31,7 +31,7 @@ struct TextBoxLayout
 
 	@property int lineCount()
 	{
-		return lines.length - (curLine !is null && curLine.region.empty ? 1 : 0);
+            return cast(int)lines.length - (curLine !is null && curLine.region.empty ? 1 : 0);
 	}
 
 	private

@@ -113,7 +113,7 @@ protected:
 */
 class ResourceException : Exception
 {
-	this(string s, string file = __FILE__, int line = __LINE__) {
+	this(string s, string file = __FILE__, size_t line = __LINE__) {
         super(s, file, line);
     }
 }

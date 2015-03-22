@@ -14,7 +14,7 @@ import gui.window;
 import math;
 
 import std.conv;
-import std.signals;
+import core.signals;
 import std.string;
 
 alias TextRenderer!BufferView BufferViewRenderer;
@@ -34,9 +34,9 @@ class TextEditor : Widget
     mixin Signal!() onChanged;
     mixin Signal!(Event, GlyphHit) onGlyphMouseUp;
 
-	@property TextBuffer.CharType[] text() const
+    @property TextBuffer.CharType[] text() const
 	{
-		return bufferView.getText();
+            return bufferView.getText();
 	}
 
     // Binding access

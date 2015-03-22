@@ -84,7 +84,7 @@ class Font //: Resource!Font
 		SDL_ClearError();
 		//string p = "C:\\Users\\jonasd\\Documents\\Projects\\dteam\\ded\\bin\\Debug\\";
 		//p ~= path;
-		ttfFont = TTF_OpenFont(toStringz(path), size);
+		ttfFont = TTF_OpenFont(toStringz(path), cast(int)size);
 		enforceEx!Exception(ttfFont !is null, text("Error loading font ", path, " ", TTF_GetError()));
 		TTF_SetFontHinting(ttfFont, TTF_HINTING_LIGHT);
 		uint begin = cast(uint) ' ';

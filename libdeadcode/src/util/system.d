@@ -3,6 +3,8 @@ module util.system;
 import core.sys.windows.windows;
 import std.string;
 
+version (Windows)
+{
 string getRunningExecutablePath()
 {
 	char[1024] buf;
@@ -10,6 +12,25 @@ string getRunningExecutablePath()
 	auto idx = lastIndexOf(buf[0..res], '\\');
 	string p = buf[0 .. idx+1].idup;
 	return p;
+}
+}
+version (linux)
+{
+    string getRunningExecutablePath()
+    {
+        import core.sys.posix.unistd;
+        import std.string;
+        enum buflen = 512;
+        char[buflen] buf;
+        /* the easiest case: we are in linux */
+        
+        ssize_t res = readlink ("/proc/self/exe".toStringz, buf.ptr, buflen);
+        if (res != -1)
+        {
+            return buf[0..res].idup;
+        }
+        return null;
+    }
 }
 
 version (Windows)

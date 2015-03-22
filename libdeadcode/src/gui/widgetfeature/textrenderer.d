@@ -440,7 +440,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		if (textStyler is null)
 		{
 			rset = new RegionSet();
-			rset.set(0, text.length);
+			rset.set(0, cast(int)text.length);
 		}
 		else
 		{
@@ -662,7 +662,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		}
 		else
 		{
-			int nextIdx = _glyphWindowRectCache.length;
+                    int nextIdx = cast(int)_glyphWindowRectCache.length;
 
 			Rectf glyphRect;
 
@@ -763,7 +763,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
         else if (!glyphRect.x.isFinite())
         {
             if (text.length <= i)
-			    return GlyphHit(true, text.length, glyphRect); // end of last line
+                return GlyphHit(true, cast(int)text.length, glyphRect); // end of last line
             else
                 return GlyphHit(false, InvalidIndex, glyphRect);
         }
@@ -773,7 +773,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
             {
                 // TODO: do same prev() stuff in fallback loop below
                 int delta = text.buffer.prev(i) - i;
-                int idx = _glyphWindowRectCache.length;
+                int idx = cast(int)_glyphWindowRectCache.length;
                 if (idx >= -(delta - 1))
                 {
                     i += delta;

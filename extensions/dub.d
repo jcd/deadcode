@@ -186,7 +186,7 @@ class DubBuildCommand : BasicCommand
 	}
 }
 
-extern (Windows) nothrow export HWND FindWindowA(LPCTSTR className, LPCTSTR windowName);
+// extern (Windows) nothrow export HWND FindWindowA(LPCTSTR className, LPCTSTR windowName);
 
 
 /**

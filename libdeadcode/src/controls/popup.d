@@ -160,7 +160,7 @@ class PopupList : Widget
 
     void cycleFocus(int step)
     {
-        int idx = children.length == 0 ? 0 : (_focusItemIndex + step) % children.length;
+        int idx = children.length == 0 ? 0 : (_focusItemIndex + step) % cast(int)children.length;
         setFocusChild(idx);
     }
 
@@ -183,7 +183,7 @@ class PopupList : Widget
     {
         foreach (idx, c; children)
             if (b is c)
-                onItemActivated.emit(this, idx);
+                onItemActivated.emit(this, cast(int)idx);
         assert(0);
     }
 }

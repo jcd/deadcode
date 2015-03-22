@@ -316,7 +316,7 @@ class InsertAction : Action
 
         auto insertPoint = bv.cursorPoint;
 		bv.buffer.insert(txt, insertPoint);
-		int v = insertPoint + txt.length;
+		int v = insertPoint + cast(int)txt.length;
         bv.setSelectRegion(v);
 		bv.setPreferredCursorColumnFromIndex();
 		bv.modified = true;
@@ -332,8 +332,8 @@ class InsertAction : Action
 
 	override void undo(BufferView bv)
 	{
-        bv.setSelectRegion(bv.cursorPoint - insertedText.length);
-		bv.buffer.removeRange(bv.cursorPoint, insertedText.length + bv.cursorPoint);
+            bv.setSelectRegion(bv.cursorPoint - cast(int)insertedText.length);
+            bv.buffer.removeRange(bv.cursorPoint, cast(int)insertedText.length + bv.cursorPoint);
 		bv.preferredCursorColumn(preferredColumn);
 		// bv.setIndexFromPreferredCursorColumn();
 		bv.modified = true;

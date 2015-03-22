@@ -84,7 +84,7 @@ class RenderWindow : RenderTarget
 	{
 		// TODO: read from file
 		SDL_Surface *surface;     // Declare an SDL_Surface to be filled in with pixel data from an image file
-		ushort pixels[16*16] = [  // ...or with raw pixel data.
+		ushort[16*16] pixels = [  // ...or with raw pixel data.
 			0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff,
 			0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff,
 			0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff,
@@ -209,87 +209,4 @@ class RenderWindow : RenderTarget
 			//SDL_MinimizeWindow(win);
 		}
 	}
-
-	/** Convert a size in pixels to a size in world coordinate at z = 0
-	 */
-	override Vec2f pixelSizeToWorld(Vec2f pixels)
-	{
-		Vec2i s = size;
-		pixels.x /= s.x * 0.5f;
-		pixels.y /= s.y * 0.5f;
-		return pixels;
-	}
-
-	/** Convert a size in pixels to a size in world coordinate at z = 0
-	 */
-	override Vec2f worldSizeToPixel(Vec2f worldUnits)
-	{
-		Vec2i s = size;
-		worldUnits *= 0.5f;
-		return Vec2f(s.x * worldUnits.x, s.y * -worldUnits.y);
-	}
-
-	/// ditto
-	override float pixelWidthToWorld(float x)
-	{
-		x /= size.x * 0.5f;
-		return x;
-	}
-
-	/// ditto
-	override float pixelHeightToWorld(float y)
-	{
-		y /= size.y * 0.5f;
-		return y;
-	}
-
-	/** Window pixel coordinate to world coordinate at z = 0
-	 */
-	Vec2f windowToWorld(float x, float y)
-	{
-		// world goes from (-1,-1) to (1,1)
-		Vec2i s = size;
-		return Vec2f(2f * x / s.x - 1f, -2f * y / s.y + 1f);
-	}
-
-	/// ditto
-	Vec2f windowToWorld(Vec2f src)
-	{
-		return windowToWorld(src.x, src.y);
-	}
-
-	/** Window pixel coordinate to world coordinate at z = 0
-	 */
-	Rectf windowToWorld(float x1, float y1, float x2, float y2)
-	{
-		// world goes from (-1,-1) to (1,1)
-		Vec2f pTopLeft = windowToWorld(x1, y1);
-		Vec2f pLowRight = windowToWorld(x2, y2);
-		auto r = Rectf(pTopLeft.x, pTopLeft.y, 0, 0);
-		r.x2 = pLowRight.x;
-		r.y2 = pLowRight.y;
-		return r;
-	}
-
-	override Rectf windowToWorld(Rectf r)
-	{
-		return windowToWorld(r.x, r.y, r.x2, r.y2);
-	}
-
-	/** World coordinate (ignoring z) to window pixel coordinate
-	 */
-	override Vec2f worldToPixelPos(Vec2f src)
-	{
-		// world goes from (-1,-1) to (1,1)
-		Vec2i s = size;
-		return Vec2f(( 0.5f * src.x + 0.5f) * s.x, ( 0.5f * -src.y + 0.5f) * s.y);
-	}
-
-	override Rectf worldToWindow(Rectf r)
-	{
-		Vec2f winPos = worldToPixelPos(r.pos);
-		Vec2f winSize = worldSizeToPixel(r.size);
-		return Rectf(winPos, winSize);
-	}
-
 }

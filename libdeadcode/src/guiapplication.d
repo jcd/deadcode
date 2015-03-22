@@ -134,7 +134,7 @@ enum ResourceBaseLocation
 {
 	currentDir,    /// The current working directory
 	executableDir, /// The dir of this executable
-	resourceDir,  /// The default resources dir
+	resourceDir,   /// The default resources dir
 	userDataDir,   /// The user data dir which is platform specific
 	sessionDir,    /// Session temporary dir. Is cleared upon start and stop of app.
 }
@@ -222,7 +222,7 @@ class GUIApplication : Application
 
 	Widget _mainWidget;
 	DirectoryWatcher resourceDirWatcher;
-	string resourcesRoot;
+	private string resourcesRoot;
 	StyleSheet defaultStyleSheet;
 
 	GenericResource sessionData;
@@ -529,8 +529,6 @@ class GUIApplication : Application
 		static import extensions.base;
 		extensions.base.init(this);
 
-		// openFile(buildNormalizedPath(resourcesRoot,"iult.stylesheet"));
-
         loadKeyMappings();
 
 		loadSession();
@@ -598,7 +596,16 @@ class GUIApplication : Application
 
 	void setupResourcesRoot()
 	{
-		resourcesRoot = absolutePath("resources", thisExePath().dirName());
+        version (release)
+        {
+            import core.pack;
+            resourcesRoot = buildPath(FilePack!"resources.pack"().unpack(), "resources");
+            writeln("Unpack dir ", FilePack!"resources.pack"().unpack());
+        }
+        else
+        {
+            resourcesRoot = absolutePath("resources", thisExePath().dirName());
+        }
 	}
 
 	void setupRegistryEntries()

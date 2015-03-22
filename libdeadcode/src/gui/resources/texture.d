@@ -8,11 +8,11 @@ import io.iomanager;
 
 import std.file;
 
-class Texture : graphics.material.Texture, IResource!Texture
+class Texture : graphics.texture.Texture, IResource!Texture
 {
 	private static @property Texture builtIn() { return null; } // hide
 
-	@property 
+	@property
 	{
 		string name()
 		{
@@ -73,7 +73,7 @@ class TextureManager : ResourceManager!Texture
 		fm.createBuiltinTexture();
 		return fm;
 	}
-	
+
 	static class BuiltinLoader : Loader
 	{
 		bool load(Texture t, URI uri)
@@ -107,7 +107,7 @@ class TextureSerializer : ResourceSerializer!Texture
 		import std.algorithm;
 		return [ ".png" ].countUntil(uri.extension) >= 0;
 	}
-	
+
 	override void deserialize(Texture res, IO io)
 	{
 		// TODO: Make use of the IO instead of using sdl builtin loader

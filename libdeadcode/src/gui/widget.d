@@ -15,6 +15,8 @@ import gui.window;
 import math; // Rectf;
 
 import std.algorithm;
+import std.array : empty;
+import std.math : isNaN;
 
 // widget
 // control

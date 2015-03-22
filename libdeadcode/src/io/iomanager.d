@@ -55,7 +55,7 @@ interface IOProtocol
 //}
 
 class IOManager
-{	
+{
 	IO open(URI uri, IOMode mode)
 	{
 		auto iop = getProtocol(uri);
@@ -66,7 +66,10 @@ class IOManager
 	{
 		auto iop = getProtocolImpl(uri);
 		if (iop is null)
-			throw new IOException(std.string.format("No handler for URI '%s'", uri));
+        {
+        	import std.string : format;
+        	throw new IOException(format("No handler for URI '%s'", uri));
+        }
 		return iop;
 	}
 

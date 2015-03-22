@@ -10,7 +10,7 @@ import util.jsonx;
 
 import std.file;
 
-class ShaderProgram : graphics.material.ShaderProgram, IResource!ShaderProgram
+class ShaderProgram : graphics.shaderprogram.ShaderProgram, IResource!ShaderProgram
 {
 	private static @property ShaderProgram builtIn() { return null; } // hide
 

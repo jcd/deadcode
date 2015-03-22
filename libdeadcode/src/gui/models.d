@@ -15,7 +15,10 @@ import std.container;
 
 Model createTriangle()
 {
-	float[] v = [   -0.75f, -0.75f, 0.0f,
+    import graphics.mesh : Mesh;
+    static import std.algorithm;
+
+    float[] v = [   -0.75f, -0.75f, 0.0f,
                   0.75f, 0.75f, 0.0f,
                   -0.75f, 0.75f, 0.0f];
 	float[] c = [   0.0f, 0.0f,
@@ -110,6 +113,8 @@ Model createRdenderTargetQuad(Rectf pixelRect, Material mat, RenderWindow win)
 
 Model createQuad(Rectf worldRect, Material mat = null)
 {
+    import graphics.mesh : Mesh;
+    static import std.algorithm;
 	auto m = new Model;
 	float[] vert = quadVertices(worldRect);
 	float[] uv = [
@@ -139,7 +144,10 @@ Model createQuad(Rectf worldRect, Material mat = null)
 
 void updateQuads(Model m, Rectf[] worldRects)
 {
-	float[] uv = [
+    import graphics.mesh : Mesh;
+    static import std.algorithm;
+
+    float[] uv = [
 		0f, 1f,
 		0f, 1f,
 		1f,  1f,
@@ -166,6 +174,7 @@ void updateQuads(Model m, Rectf[] worldRects)
 
 Model createEmptyModel(Material mat = null)
 {
+    import graphics.mesh : Mesh;
 	auto m = new Model;
 
 	Buffer vertexBuf = Buffer.create();
@@ -370,6 +379,7 @@ class BoxModel
 
 	private void _init(Material mat)
 	{
+        import graphics.mesh : Mesh;
 		color = Color(1,1,1);
 		_dirtyRect = true;
 
@@ -410,9 +420,6 @@ class BoxModel
 		// world is negative downwards, win is positive
 		worldRect.y = -worldRect.y;
 		worldRect.h = -worldRect.h;
-
-		if (widgetID == 8)
-			std.stdio.writeln("m8 ", worldRect.y, " ", worldRect.h);
 
 		// Swap coords from win to world x,y dir
 		// worldSize.y = -(worldSize.y + worldSize.h); // world is negative downwards, win is positive

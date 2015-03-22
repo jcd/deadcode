@@ -31,7 +31,10 @@ import std.algorithm;
 	//auto dirPath = dirName(absolutePath(path));
 	//	auto filenamePrefix = baseName(path);
 
-	debug std.stdio.writeln(path, " ", relDirPath, " : ", filenamePrefix, " ", dirEntries(relDirPath, SpanMode.shallow));
+    debug {
+        static import std.stdio;
+        std.stdio.writeln(path, " ", relDirPath, " : ", filenamePrefix, " ", dirEntries(relDirPath, SpanMode.shallow));
+    }
 
 	auto paths = dirEntries(relDirPath, SpanMode.shallow)
 		.filter!(a => a.name.baseName.startsWith(filenamePrefix))
@@ -98,6 +101,7 @@ void fileSave(BufferView buf, GUIApplication app)
 
 void fileSaveAs(BufferView buf, GUIApplication app, string filename)
 {
+    static import std.stdio;
 	// handle encoding
 	buf.name = filename;
 	auto f = std.stdio.File(filename, "wb");

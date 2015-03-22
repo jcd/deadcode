@@ -16,6 +16,7 @@ import gui.style.types;
 import std.datetime;
 import std.string;
 import core.signals;
+import std.math : isNaN;
 
 alias string StyleID;
 immutable StyleID NullStyleName = "";

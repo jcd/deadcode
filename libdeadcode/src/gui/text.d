@@ -4,6 +4,7 @@ import graphics.buffer;
 import graphics.color;
 import graphics.model;
 import graphics.mesh;
+static import graphics.texture;
 import gui.gui;
 import gui.models;
 import gui.resources.font;
@@ -17,6 +18,7 @@ import math;
 
 import std.array;
 import std.typecons;
+static import std.math;
 
 /** A TextRenderer that can draw some text that may be decorated
  *

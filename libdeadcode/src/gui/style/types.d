@@ -225,7 +225,7 @@ struct CSSScale
 		return CSSScale(valueOrZero, unit);
 	}
 
-	CSSScale opBinary(string OP)(CSSScale v) const pure nothrow
+    CSSScale opBinary(string OP)(CSSScale v) const pure nothrow if (OP != "=") /*DMD BUG WORKAROUND*/
 	{
 		CSSScale res = this;
 		mixin("res.value " ~ OP ~ "= v.value;");

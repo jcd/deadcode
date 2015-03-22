@@ -332,9 +332,10 @@ template hasAttribute(alias A, alias S, size_t i = size_t.max)
 void jsonEncode_impl(S : T[K], T, K, A)(S arr, ref A app) {
     app.put('{');
     bool first = true;
+    import std.algorithm : sort;
 
     // XXX provide a way to disable sorting
-    foreach(key; arr.keys.sort) {
+    foreach(key; sort(arr.keys)) {
         if(!first)
             app.put(',');
 
@@ -691,8 +692,8 @@ JsonNull jsonDecode_impl(T, R)(ref R input) if(isInputCharRange!R && is(T == Jso
 }
 
 class JsonException : Exception {
-    this(string s, string file = __FILE__, size_t line = __LINE__) {
-        super(s, file, line);
+    this(string s, string file = __FILE__, size_t line = __LINE__, Throwable next = null) @safe pure nothrow {
+        super(s, file, line, next);
     }
 }
 

@@ -280,6 +280,7 @@ void wordUppercase(GUIApplication app, string dummy)
 @Shortcut("<ctrl> + o")
 void textUppercase(GUIApplication app, string dummy)
 {
+    static import std.uni;
 	auto b = app.currentBuffer;
 	auto r = b.getRegion(RegionQuery.selectionOrWord);
 	if (!r.empty)
@@ -290,6 +291,7 @@ void textUppercase(GUIApplication app, string dummy)
 @Shortcut("<ctrl> + r")
 void textUppercase2(BufferView buf)
 {
+    static import std.uni;
 	buf.map!(std.uni.toUpper)(RegionQuery.selectionOrWord);
 }
 

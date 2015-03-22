@@ -44,6 +44,7 @@ class Font //: Resource!Font
 
 		@property bool empty() const
 		{
+            static import std.math;
 			return std.math.isNaN(uvRect.size.x);
 		}
 	}
@@ -145,7 +146,8 @@ class Font //: Resource!Font
 			gi.ch = cast(wchar)i;
 			if (TTF_GlyphMetrics(ttfFont, i, &gi.minX, &gi.maxX, &gi.minY, &gi.maxY, &gi.advance) != 0)
 			{
-				std.stdio.writeln("Error creating ascii glyph ", TTF_GetError(), " ", i);
+                import std.stdio;
+				writeln("Error creating ascii glyph ", TTF_GetError(), " ", i);
 				continue;
 			}
 
@@ -171,7 +173,8 @@ class Font //: Resource!Font
 			gi.ch = cast(wchar)ch;
 			if (TTF_GlyphMetrics(ttfFont, cast(ushort)ch, &gi.minX, &gi.maxX, &gi.minY, &gi.maxY, &gi.advance) != 0)
 			{
-				std.stdio.writeln("Error creating uncode glyph ", TTF_GetError(), " ", ch);
+                import std.stdio;
+				writeln("Error creating uncode glyph ", TTF_GetError(), " ", ch);
 				continue;
 			}
 
@@ -238,7 +241,8 @@ class Font //: Resource!Font
 			SDL_Surface * s = TTF_RenderGlyph_Blended(ttfFont, cast(wchar)gi.ch, col);
 			if (s is null)
 			{
-				std.stdio.writeln("Could not rasterize glyph ", gi.ch);
+                import std.stdio;
+				writeln("Could not rasterize glyph ", gi.ch);
 				return;
 			}
 

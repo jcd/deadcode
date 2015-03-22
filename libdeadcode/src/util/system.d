@@ -23,11 +23,13 @@ version (linux)
         enum buflen = 512;
         char[buflen] buf;
         /* the easiest case: we are in linux */
-        
+
         ssize_t res = readlink ("/proc/self/exe".toStringz, buf.ptr, buflen);
         if (res != -1)
         {
-            return buf[0..res].idup;
+            size_t rr = res;
+            while (rr > 0 && buf[rr-1] != '/') --rr;
+            return (rr > 0 ? buf[0..rr].idup : "./".idup);
         }
         return null;
     }

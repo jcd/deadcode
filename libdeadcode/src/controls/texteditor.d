@@ -573,6 +573,7 @@ class TextEditorAnchor : Widget
 
 	void recalculateRect()
 	{
+        import std.math : isNaN;
 		TextEditor editor = cast(TextEditor) parent;
 
 		TextBuffer buffer = editor.bufferView.buffer;

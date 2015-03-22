@@ -17,6 +17,7 @@ import math.region;
 import math.smallvector;
 
 import std.algorithm;
+import std.array : empty;
 import std.conv;
 import std.regex;
 import core.signals;

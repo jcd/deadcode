@@ -290,7 +290,8 @@ public:
 	{
 		bool load(T r, URI uri)
 		{
-			enforceEx!ResourceException(_ioManager, std.string.format("IOManager not set on %s", this.stringof));
+			import std.string : format;
+            enforceEx!ResourceException(_ioManager, format("IOManager not set on %s", this.stringof));
 
 			if (uri is null)
 				return false;
@@ -313,7 +314,8 @@ public:
 
 		bool save(T r, URI uri)
 		{
-			enforceEx!ResourceException(_ioManager, std.string.format("IOManager not set on %s", this.stringof));
+			import std.string : format;
+            enforceEx!ResourceException(_ioManager, format("IOManager not set on %s", this.stringof));
 
 			if (uri is null)
 				return false;
@@ -521,8 +523,9 @@ public:
 
 	final T get(Handle h)
 	{
+        import std.string : format;
 		return enforceEx!ResourceException(get(h, null),
-										   std.string.format("No %s with handle %s in manager", T.stringof, h));
+										   format("No %s with handle %s in manager", T.stringof, h));
 	}
 
 	final URI getURI(Handle h)

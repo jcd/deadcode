@@ -101,6 +101,8 @@ class UnittestAnchor : TextEditorAnchor
 	{
 		import std.stdio;
 		import test;
+        import std.array : empty;
+
 		auto bufferName = textEditor.bufferView.name;
 		TestRecord rec = getTestResult(bufferName, textAnchor.number+1);
 

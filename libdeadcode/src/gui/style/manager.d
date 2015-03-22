@@ -7,6 +7,7 @@ import math;
 import gui.resource;
 import gui.resources.material;
 import gui.resources.font : Font, FontManager;
+import graphics.color : Color;
 
 import gui.style.property;
 import gui.style.style;

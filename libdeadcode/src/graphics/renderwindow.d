@@ -41,7 +41,8 @@ class RenderWindow : RenderTarget
 
 		if(!win)
 		{
-			std.stdio.writefln("Error creating SDL window");
+			import std.stdio;
+            writeln("Error creating SDL window");
 			SDL_Quit();
 		}
 

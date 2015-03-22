@@ -4,7 +4,15 @@ import graphics.model;
 import gui.resources.material : Material;
 import gui.resources.texture : Texture;
 import gui.text;
-import gui;
+import gui.widget;
+import gui.widgetfeature : WidgetFeature;
+import gui.styledtext : TextStyler;
+import gui.style.stylesheet : Stylable;
+import gui.textlayout : TextBoxLayout;
+import gui.event : Event, EventUsed, EventType;
+import gui.style.stylesheet : matchStylableImpl, StyleSheet;
+import gui.style.style : Style;
+import gui.resources.font : Font;
 import math;
 import core.buffer : InvalidIndex;
 import core.time;
@@ -119,6 +127,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		 // TODO: maybe model should be owner of styledText_
 		import util.system;
         import std.path;
+        import gui.models : createQuad;
 		_cursorModel = createQuad(Rectf(0,0,1, 1), Material.create(Texture.builtInWhite)); // buildPath(getRunningExecutablePath(), "resources", "materials", "white.png")));
 		_cursorModel.subModel.blend = false;
 		cursorVisible = true;

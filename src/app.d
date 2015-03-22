@@ -75,6 +75,7 @@ private int myMain(string[] args)
 		} 
 		catch (Exception e)
 		{
+            static import std.stdio;
 			std.stdio.writeln("Caught Exception: ", e);
 			version (Windows)
 			{

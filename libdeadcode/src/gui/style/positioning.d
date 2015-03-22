@@ -3,6 +3,7 @@ module gui.style.positioning;
 import gui.widget;
 import gui.style;
 import math;
+import std.math : isNaN;
 
 private const(Vec2f) calcBasePosition(Widget w, Widget positionReference, CSSPosition cssPos)
 {

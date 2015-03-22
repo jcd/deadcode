@@ -178,7 +178,9 @@ class Tree : Widget
 
 	override void layoutChildren(bool fit, Widget positionReference)
 	{
-		super.layoutChildren(fit, positionReference);
+		static import gui.style;
+
+        super.layoutChildren(fit, positionReference);
 		if (isLeaf)
 		{
 			gui.style.Style st = style;

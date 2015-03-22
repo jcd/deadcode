@@ -94,6 +94,7 @@ class GUI
 
 	static GUI create(GraphicsSystem gs = null)
 	{
+        static import io.file;
 		import util.system;
 		import gui.resources;
 		auto g = new GUI(gs is null ? new graphics.graphicssystem.OpenGLSystem() : gs);
@@ -147,9 +148,10 @@ class GUI
 
 	void init()
 	{
-		assert(!running);
+		import std.exception;
+        assert(!running);
 		timeline.start();
-		std.exception.enforceEx!Exception(_graphicsSystem.init(), "Error initializing graphics");
+		enforceEx!Exception(_graphicsSystem.init(), "Error initializing graphics");
 		_lastTick = SDL_GetTicks();
 		SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
 		SDL_StartTextInput();
@@ -220,7 +222,8 @@ class GUI
 
 	private void handleEvents(bool waitForEvents)
 	{
-		Uint32 curTick = SDL_GetTicks();
+		static import std.algorithm;
+        Uint32 curTick = SDL_GetTicks();
 		int msPassed = cast(int) curTick - _lastTick;
 		_lastTick = curTick;
 
@@ -353,7 +356,11 @@ class GUI
 					//    running = false;
 					ev.type = EventType.KeyDown;
 					ev.keyCode = e.key.keysym.sym;
-					ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
+                    ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
+                    {
+                        static import core.stdc.string;
+                    	ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..core.stdc.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
+                    }
 					keyMod = cast(KeyMod)SDL_GetModState();
 					ev.mod = keyMod;
 					ev.windowID = e.key.windowID;
@@ -364,11 +371,14 @@ class GUI
 					//    running = false;
 					ev.type = EventType.KeyUp;
 					ev.keyCode = e.key.keysym.sym;
-					ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
+					{
+                    	static import core.stdc.string;
+                    	ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..core.stdc.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
+                    }
 					keyMod = cast(KeyMod)SDL_GetModState();
 					ev.mod = keyMod;
 					ev.windowID = e.key.windowID;
-					//std.stdio.writeln("got text " , SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))], " ", e.key.repeat, " ",e.key.state);
+					//std.stdio.writeln("got text " , SDL_GetKeyName(e.key.keysym.sym)[0..core.stdc.string.strlen(SDL_GetKeyName(e.key.keysym.sym))], " ", e.key.repeat, " ",e.key.state);
 					break;
 				case SDL_TEXTINPUT:
 					//std.stdio.writeln(e.text.text);
@@ -412,6 +422,7 @@ class GUI
 					stop();
 					break;
 				default:
+                    static import std.stdio;
 					std.stdio.writeln("unhandled event ", e.type);
 					break;
 			}
@@ -432,7 +443,10 @@ class GUI
 		if (w !is null)
 			w.dispatchEvent(e);
 		else
-			std.stdio.writeln("Event with no window target received ", e);
+        {
+            import std.stdio;
+            writeln("Event with no window target received ", e);
+        }
 	}
 
 	void repaintAllWindows()

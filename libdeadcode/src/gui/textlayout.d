@@ -36,6 +36,8 @@ struct TextBoxLayout
 
 	private
 	{
+        private import gui.resources.font : Font;
+
 		// One instance of this per line per style used in the line
 		struct LineHeightBufferInfo {
 			// Info to locate vertices for a line in the model.

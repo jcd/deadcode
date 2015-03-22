@@ -14,8 +14,8 @@ import gui.widgetfeature.textrenderer;
 import gui.window;
 
 public import behavior.behavior : EditorBehavior;
-import behavior.behavior : RuleEnv, KeyBindingRuleEnv;
-
+import gui.ruleset : RuleEnv;
+import behavior.behavior : KeyBindingRuleEnv;
 
 import std.array;
 import std.variant;

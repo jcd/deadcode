@@ -28,6 +28,8 @@ import math;
 */
 class NineGridRenderer : WidgetFeature
 {
+    private import graphics.color : Color;
+
 	string styleName;
 	BoxModel model;
 	private RectfOffset _spriteBorder;

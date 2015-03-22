@@ -5,6 +5,7 @@ import core.uri;
 import gui.resource;
 import gui.resources.material : Material, MaterialManager;
 import gui.resources.font : Font, FontManager;
+import graphics.color : Color;
 
 import gui.style.manager;
 import gui.style.style;

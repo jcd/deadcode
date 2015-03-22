@@ -1,6 +1,8 @@
 module gui.resources.material;
 
 static import graphics.material;
+static import graphics.shaderprogram;
+static import graphics.texture;
 
 import core.uri;
 

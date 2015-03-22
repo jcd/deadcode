@@ -36,6 +36,8 @@ alias uint WindowID;
 
 class Window : Widget
 {
+    private static import std.variant;
+
 	// Return true if event has been used
 	alias EventUsed delegate(ref Event) OnEvent;
 	alias void delegate() OnUpdate;

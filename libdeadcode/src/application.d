@@ -44,6 +44,7 @@ class Application
 	{
 		import std.string;
 		import std.conv;
+        static import std.stdio;
 		auto view = bufferViewManager["*Messages*"];
 		std.stdio.writeln("*Messages* " ~ format(msgs));
 		view.insert(dtext(format(msgs)));

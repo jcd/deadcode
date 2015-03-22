@@ -999,7 +999,6 @@ final:
 
     private int sanitize(int idx, bool clamp) const pure nothrow @safe
     {
-        import std.algorithm;
         if (idx < 0)
         {
             if (clamp)

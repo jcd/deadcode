@@ -1,7 +1,5 @@
 module core.signals;
 
-import std.signals;
-
 /*
 */
 
@@ -18,6 +16,7 @@ extern (C) void  rt_detachDisposeEvent( Object obj, DisposeEvt evt );
 
 mixin template Signal(T...)
 {
+    private import std.signals;
     mixin std.signals.Signal!T _signal;
     // alias _signal this;
 

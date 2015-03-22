@@ -219,13 +219,15 @@ class CommandHello : Command
 
 	override void execute(CommandParameter[] data)
 	{
-		std.stdio.writeln("Hello");
+        import std.stdio;
+		writeln("Hello");
 	}
 }
 
 // Second way to do it
 auto helloCommand()
 {
+    static import std.stdio;
 	return new DelegateCommand("test.hello", "Echo \"Hello\" to stdout",
 							   null,
 	                           delegate (CommandParameter[] data) { std.stdio.writeln("Hello"); });

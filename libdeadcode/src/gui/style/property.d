@@ -10,6 +10,7 @@ import gui.style.types;
 import math;
 
 import std.range;
+import std.math : isNaN;
 
 alias string PropertyID;
 

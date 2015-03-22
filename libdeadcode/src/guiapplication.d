@@ -27,6 +27,7 @@ import std.datetime;
 import std.file;
 import std.path;
 import std.string;
+static import std.exception;
 
 enum appName = "DeadCode";
 
@@ -650,7 +651,7 @@ class GUIApplication : Application
                     import std.file;
 
                     auto u = resourceURI("analyticsKey");
-                    
+
                     mkdirRecurse(u.dirName.uriString);
 
                     if (exists(u.uriString))
@@ -659,7 +660,7 @@ class GUIApplication : Application
                     {
                         analyticsKey = randomUUID().toString();
                         std.file.write(u.uriString, analyticsKey);
-                    }                    
+                    }
                 }
 	}
 
@@ -735,6 +736,7 @@ version (linux)
 		auto win = createWindow("Deadcode");
 		if (!existingRect.empty)
 		{
+            import std.stdio;
 			win.position = existingRect.pos;
 			writeln(existingRect.size);
             win.size = existingRect.size;
@@ -938,11 +940,13 @@ version (linux)
 			return null;
 		}
 
+        static import std.stdio;
 		std.stdio.File file;
 		try
 			file = std.stdio.File(path, "rb");
 		catch (std.exception.ErrnoException e)
 		{
+            static import core.stdc.errno;
 			string msg = std.conv.text(e);
 			if (e.errno == core.stdc.errno.ENOENT)
 				msg = "No such file";

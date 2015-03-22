@@ -18,6 +18,7 @@ void showEndOfLIne(GUIApplication a, TextEditor e, BufferView b)
     //import gui.event;
     //e.setLineAnchor(2, "myanchor")
     // .onMouseClickCallback = (Event e, Widget w) { b.insert("Hello world"); return EventUsed.yes; };
+    import core.buffer : InvalidIndex;
 
     auto buf = e.bufferView.buffer;
 	auto bufLen = buf.length;

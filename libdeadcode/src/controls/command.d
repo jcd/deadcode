@@ -621,9 +621,10 @@ class CommandControl : Widget
 
 	private auto getActiveCommand()
 	{
+        static import std.conv;
 		// Parse last line of buffer and offer autocomplete if possible
 		auto l = std.conv.text(commandField.bufferView.lastLine);
-		auto cmdName = std.string.munch(l, "^ ");
+		auto cmdName = munch(l, "^ ");
 		struct GetActiveCommandData
 		{
 			Command cmd;
@@ -648,7 +649,7 @@ class CommandControl : Widget
                 endCompletionSession();
                 beginCompletionSession(cmdName);
             }
-			std.string.munch(l, " \t");
+			munch(l, " \t");
 			result.rest = l;
 		}
 
@@ -731,7 +732,7 @@ version(oldvw)
 
 	private void showCommandNameCompletions(string str)
 	{
-		auto cmdNameSearch = std.string.munch(str, "^ ");
+		auto cmdNameSearch = munch(str, "^ ");
 
 		auto cmdList = app.commandManager.lookupFuzzy(cmdNameSearch);
 
@@ -776,7 +777,7 @@ version(oldvw)
 	private void completeCommandName(string str)
 	{
 		// Try to complete command name
-		auto cmdNameSearch = std.string.munch(str, "^ ");
+		auto cmdNameSearch = munch(str, "^ ");
 		Command[] cmdList = app.commandManager.lookupFuzzy(cmdNameSearch);
 
 		auto res = cmdList
@@ -808,6 +809,7 @@ version(oldvw)
 
 	private void updatePromptCompletions()
 	{
+        static import std.conv;
 		auto txt = std.conv.text(commandField.bufferView.lastLine);
 		auto compls = _completionDelegate(txt);
 		if (compls.empty)
@@ -820,6 +822,7 @@ version(oldvw)
 
 	private void completePrompt()
 	{
+        static import std.conv;
 		auto txt = std.conv.text(commandField.bufferView.lastLine);
 		auto compls = _completionDelegate(txt);
 		auto res = compls.dropExactly(completionStyler.lineHighlighted);

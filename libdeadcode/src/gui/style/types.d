@@ -227,7 +227,7 @@ struct CSSScale
 
 	CSSScale opBinary(string OP)(CSSScale v) const pure nothrow
 	{
-		Rect!T res = this;
+		CSSScale res = this;
 		mixin("res.value " ~ OP ~ "= v.value;");
 		// mixin("res.size " ~ OP ~ "= v.unit;");
 		return res;

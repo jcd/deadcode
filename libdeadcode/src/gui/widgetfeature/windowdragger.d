@@ -5,21 +5,6 @@ import gui.widget;
 import gui.widgetfeature;
 import math;
 
-import std.c.windows.windows;
-
-struct CURSORINFO {
-	DWORD   cbSize;
-	DWORD   flags;
-	HCURSOR hCursor;
-	POINT   ptScreenPos;
-};
-alias CURSORINFO* PCURSORINFO, NPCURSORINFO, LPCURSORINFO;
-
-extern (Windows) nothrow
-{
-	export BOOL GetCursorInfo(LPCURSORINFO lpPoint);
-}
-
 /** Makes a widget able to drag the containing window
  */
 class WindowDragger : WidgetFeature
@@ -56,14 +41,8 @@ class WindowDragger : WidgetFeature
 	{
 		if (widget.isGrabbingMouse())
 		{
-			CURSORINFO desktopPos;
-			desktopPos.cbSize = CURSORINFO.sizeof;
-			if (! GetCursorInfo(&desktopPos))
-			{
-				std.stdio.writeln("errocode ", GetLastError());
-			}
-
-			Vec2f winPos = Vec2f(desktopPos.ptScreenPos.x, desktopPos.ptScreenPos.y);
+			import platform.cursor;
+            Vec2f winPos = getScreenPosition();
 			widget.window.position = winPos - startDragPos;
 		}
 	}

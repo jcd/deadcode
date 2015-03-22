@@ -14,15 +14,19 @@
 		"libdparse": "~master",
 		"msgpack-d": "~>0.9.5"
 	},
+	"versions-windows": ["Unicode" ],
+	"lflags-windows": ["/NOCODEVIEW"],
+	"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 	"buildRequirements": ["allowWarnings"],
+	"importPaths": [
+		"external/d-libraries"
+    ],
 	"configurations": [
 		{
         "name": "debug",
         "targetType": "executable",
 		"targetName" : "ded-debug",
-		"dflags" : ["-vcolumns", "-version=NoMain"],
-		"lflags": ["/NOCODEVIEW"],
-		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
+		"dflags" : ["-J.","-vcolumns", "-version=NoMain"],	
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : [ "debugMode", "debugInfo"]
 		},
@@ -31,8 +35,6 @@
         "targetType": "executable",
 		"targetName" : "ded-debug",
 		"dflags" : ["-vcolumns", "-version=NoMain", "-c", "-Df__dummy.html", "-X" , "-Xfdocs.json"],
-		"lflags": ["/NOCODEVIEW"],
-		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : [ "debugMode", "debugInfo", "syntaxOnly"]
 		},
@@ -40,16 +42,15 @@
         "name": "udebug",
         "targetType": "executable",
 		"targetName" : "ded-debug",
-		"lflags": ["/NOCODEVIEW"],
 		"buildOptions" : [ "debugMode", "debugInfo","unittests"]
 		},
 		{
         "name": "release",
         "targetType": "executable",
 		"targetName" : "ded",
-		"lflags": ["/NOCODEVIEW"],
-		"dflags" : ["-vcolumns", "-version=NoMain" ],
-		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
+		"preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources.pack" ],
+		"dflags" : ["-J.","-vcolumns", "-version=release", "-version=NoMain" ],
+		"sourceFiles": [ "src/win.def" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : [ "releaseMode" ]
 		},
@@ -57,9 +58,7 @@
         "name": "unittest",
         "targetType": "executable",
 		"targetName" : "ded-unittest",
-		"lflags": ["/NOCODEVIEW"],
 		"dflags" : ["-vcolumns", "-version=NoMain"],
-		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : ["unittests", "debugMode", "debugInfo"]
 		},
@@ -68,8 +67,6 @@
         "targetType": "executable",
 		"targetName" : "ded-debug",
 		"dflags" : ["-vcolumns","-profile", "-version=NoMain"],
-		"lflags": ["/NOCODEVIEW"],
-		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : ["unittests", "debugMode", "debugInfo"]
 		}

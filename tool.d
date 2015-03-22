@@ -14,13 +14,14 @@ void usage()
 {
 	auto usageTmpl = """tool <command> [command options...]
 Commands
-  setup   : Setup development env. e.g. create VS project files.
-  build   : Compile and link libraries and executables
-  test    : Run tests (building if necessary) optional filter can be provided
-  dist    : Create and/or upload installer e.g. tool dist 1.3
-  help    : Takes one of the other commands as sole argument
-  changes : Git git changeset comments since provided tag
-  ddox    : Build ddox
+  setup     : Setup development env. e.g. create VS project files.
+  build     : Compile and link libraries and executables
+  test      : Run tests (building if necessary) optional filter can be provided
+  test-file : Run unittest on specific source path(s) relative to libdeadcode/src
+  dist      : Create and/or upload installer e.g. tool dist 1.3
+  help      : Takes one of the other commands as sole argument
+  changes   : Git git changeset comments since provided tag
+  ddox      : Build ddox
   listPublished : list published zips on server
 """;
  write(usageTmpl);
@@ -38,6 +39,9 @@ void commandUsage(string cmd)
 			break;
 		case "test":
 			test([], true);
+			break;
+		case "test-file":
+			testFile([], true);
 			break;
 		case "dist":
 			dist([], true);
@@ -80,6 +84,9 @@ void main(string[] args)
 		case "test":
 			test(args);
 			return;
+		case "test-file":
+			testFile(args);
+			return;
 		case "dist":
 			dist(args);
 			return;
@@ -92,6 +99,9 @@ void main(string[] args)
 		case "ddox":
 			ddox(args);
 			return;
+        case "generate-resource-pack":
+            generateResourcePack(args);
+            return;
 		case "help":
 			if (args.length == 2)
 				usage();
@@ -159,6 +169,34 @@ void test(string[] args, bool showUsage = false)
 		}
 	}
 	wait(res.pid);
+}
+
+void testFile(string[] args, bool showUsage = false)
+{
+	if (showUsage)
+	{
+		writeln("tool test-file <path relative to libdeadcode/src/>...");
+		writeln("Run unittest for source file specified.");
+		return;
+	}
+
+    if (args.length < 3)
+    {
+        writeln("Missing source file(s) argument");
+        return;
+    }
+
+	auto cmd = r"rdmd.exe -version=Unicode --main -Ilibdeadcode\src -Iexternal\d-libraries -unittest .\libdeadcode\src\";
+    foreach (p; args[2..$])
+    {
+        auto runCmd = cmd ~ p;
+        auto res = pipeShell(runCmd, Redirect.stdin | Redirect.stderrToStdout | Redirect.stdout);
+        foreach (line; res.stdout.byLine)
+        {
+            writeln(line);
+        }
+        wait(res.pid);
+    }
 }
 
 void dist(string[] args, bool showUsage = false)
@@ -233,13 +271,13 @@ void collect(string packRoot)
 	string[] files = [
 		"ded.exe",
 		"ded-debug.exe",
+        "dcd-server.exe",
 		"SDL2.dll",
 		"SDL2_image.dll",
 		"SDL2_ttf.dll",
 		"libfreetype-6.dll",
 		"libpng16-16.dll",
 		"zlib1.dll",
-		"white.png",
 		"Changelog.txt"
 	];
 
@@ -492,5 +530,55 @@ void ddox(string[] args, bool showUsage = false)
         upload("ddox/images", uploadPath, true);
         upload("ddox/prettify", uploadPath, true);
         upload("ddox/page", uploadPath, true);
+    }
+}
+
+void generateResourcePack(string[] args, bool showUsage = false)
+{
+	if (showUsage)
+	{
+		writeln("tool generate-resource-list <target file>");
+		writeln("Generate a file listing all resource files");
+		return;
+	}
+
+	if (args.length < 3)
+	{
+		writeln("Missing target file argument");
+		return;
+	}
+
+	string targetFilePath = args[2];
+    if (exists(targetFilePath))
+        remove(targetFilePath);
+
+    auto r = dirEntries("resources", SpanMode.depth);
+    struct FileInfo
+    {
+        string path;
+        ulong size;
+    }
+
+    FileInfo[] infos;
+
+    foreach (name; r)
+	{
+        if (name.isDir)
+            continue;
+        auto sz = name.getSize();
+		infos ~= FileInfo(name, sz);
+    }
+
+	auto f = File(targetFilePath, "w");
+    f.write("# This file is auto generated as a prebuild step for release builds\n");
+    f.write("files: ", infos.length, "\n");
+
+    foreach (i; infos)
+        f.write("\"", i.path, "\"", " ", i.size, "\n");
+
+    foreach (i; infos)
+    {
+        ubyte[] bytes = cast(ubyte[]) read(i.path);
+        f.rawWrite(bytes);
     }
 }

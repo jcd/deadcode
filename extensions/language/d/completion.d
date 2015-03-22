@@ -273,8 +273,11 @@ class DCompletionExtension : BasicExtension!DCompletionExtension
 
 	void stopServer()
 	{
+		if (_serverPID !is null)
+        {
 		kill(_serverPID);
 		wait(_serverPID);
+	}
 	}
 
 	TcpSocket connectToServer()

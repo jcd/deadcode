@@ -1,13 +1,13 @@
 module graphics.material;
 
-import derelict.opengl3.gl3; 
+import derelict.opengl3.gl3;
 import graphics.shaderprogram;
 import graphics.texture;
 
-class Material 
+class Material
 {
 	private static Material builtIn_;
-	
+
 	static @property Material builtIn()
 	{
 		if (builtIn_ is null)
@@ -18,7 +18,7 @@ class Material
 		}
 		return builtIn_;
 	}
-	
+
 	protected ShaderProgram _shader;
 	protected Texture _texture;
 
@@ -41,7 +41,7 @@ class Material
 	{
 		_texture = t;
 	}
-	
+
 	@property bool hasTexture() const
 	{
 		return _texture !is null;
@@ -55,21 +55,29 @@ class Material
 	static Material create(const(char)[] imagePath)
 	{
 		Texture tex = Texture.create(imagePath);
-		
+
 		Material mat = new Material();
 		mat._texture = tex;
 		mat._shader = ShaderProgram.builtIn;
 		return mat;
 	}
-	
+
+	static Material create(Texture tex)
+	{
+		Material mat = new Material();
+		mat._texture = tex;
+		mat._shader = ShaderProgram.builtIn;
+		return mat;
+	}
+
 	void bind()
 	{
 		shader.bind();
 		texture.bind(0);
 	}
-	
+
 	void unbind()
 	{
-		glBindTexture(GL_TEXTURE_2D, 0); 
+		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 }

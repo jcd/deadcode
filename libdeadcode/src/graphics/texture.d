@@ -20,13 +20,30 @@ import std.stdio : writeln;
 class Texture
 {
 	private static Texture builtIn_;
+	private static Texture builtInWhite_;
 
 	static @property Texture builtIn()
 	{
 		import util.system;
 		if (builtIn_ is null)
-			builtIn_ = create(getRunningExecutablePath() ~ "bg2.png");
+        {
+		    builtIn_ = new Texture;
+            create(8, 8, Color.magenta, builtIn_);
+            // builtIn_ = create(getRunningExecutablePath() ~ "bg2.png");
+        }
 		return builtIn_;
+	}
+
+	static @property Texture builtInWhite()
+	{
+		import util.system;
+		if (builtInWhite_ is null)
+        {
+		    builtInWhite_ = new Texture;
+            create(8, 8, Color.white, builtInWhite_);
+            // builtIn_ = create(getRunningExecutablePath() ~ "bg2.png");
+        }
+		return builtInWhite_;
 	}
 
 	uint glTextureID = 0;
@@ -111,7 +128,6 @@ class Texture
 		glGenTextures(1, &(intoThis.glTextureID));
 		assert(intoThis.glTextureID > 0);
 		glBindTexture(GL_TEXTURE_2D, intoThis.glTextureID);
-
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

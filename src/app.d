@@ -2,6 +2,43 @@ module app;
 
 import guiapplication;
 
+version (Windows)
+{
+    import core.runtime;
+    import core.sys.windows.windows;
+    import std.string;
+
+    extern (Windows)
+        int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+                    LPSTR lpCmdLine, int nCmdShow)
+        {
+            int result;
+
+            try
+            {
+                Runtime.initialize();
+                result = myMain(null);
+                Runtime.terminate();
+            }
+            catch (Throwable e)
+            {
+                MessageBoxA(null, e.toString().toStringz(), "Error",
+                            MB_OK | MB_ICONEXCLAMATION);
+                result = 0;     // failed
+            }
+
+            return result;
+        }
+}
+else
+{
+    int main(string[] args)
+    {
+        return myMain(args);
+    }
+}
+
+
 
 /** TODO:
  * 
@@ -14,7 +51,7 @@ import guiapplication;
  * and for the last category some constraints on the widget types
  * it will act on. (need some kind of tagging of widgets?)
  */
-int main(string args[])
+private int myMain(string[] args)
 { 
 	import core.attr;
 

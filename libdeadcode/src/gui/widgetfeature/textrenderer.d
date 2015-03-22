@@ -2,6 +2,7 @@ module gui.widgetfeature.textrenderer;
 
 import graphics.model;
 import gui.resources.material : Material;
+import gui.resources.texture : Texture;
 import gui.text;
 import gui;
 import math;
@@ -118,7 +119,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		 // TODO: maybe model should be owner of styledText_
 		import util.system;
         import std.path;
-		_cursorModel = createQuad(Rectf(0,0,1, 1), Material.create(buildPath(getRunningExecutablePath(), "resources", "materials", "white.png")));
+		_cursorModel = createQuad(Rectf(0,0,1, 1), Material.create(Texture.builtInWhite)); // buildPath(getRunningExecutablePath(), "resources", "materials", "white.png")));
 		_cursorModel.subModel.blend = false;
 		cursorVisible = true;
 		// std.stdio.writeln(getRunningExecutablePath() ~ "white.png");

@@ -16,6 +16,7 @@
 	},
 	"versions-windows": ["Unicode" ],
 	"lflags-windows": ["/NOCODEVIEW"],
+	"libs-posix": ["curl"],
 	"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 	"buildRequirements": ["allowWarnings"],
 	"importPaths": [

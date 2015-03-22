@@ -691,7 +691,7 @@ JsonNull jsonDecode_impl(T, R)(ref R input) if(isInputCharRange!R && is(T == Jso
 }
 
 class JsonException : Exception {
-    this(string s, string file = __FILE__, ulong line = __LINE__) {
+    this(string s, string file = __FILE__, size_t line = __LINE__) {
         super(s, file, line);
     }
 }

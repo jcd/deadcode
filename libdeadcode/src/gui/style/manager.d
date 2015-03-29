@@ -18,7 +18,7 @@ import io.iomanager;
 
 class StyleSheetManager : ResourceManager!StyleSheet
 {
-	static void function(StyleSheetManager) onInitialized[];
+	static void function(StyleSheetManager)[] onInitialized;
 
     private
 	{

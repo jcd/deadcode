@@ -189,6 +189,13 @@ class StyleTransitionAnimator : Animator
 }
 */
 
+enum CSSVisibility : byte
+{
+    invalid,
+    visible,
+    hidden
+}
+
 enum CSSUnit : byte
 {
 	pixels,

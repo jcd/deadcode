@@ -101,6 +101,7 @@ class Style
 			CSSScaleMix _right;
 			CSSScaleMix _top;
 			CSSScaleMix _bottom;
+			CSSVisibility _visibility;
 		}
 
 		// ref types
@@ -413,6 +414,16 @@ class Style
         void backgroundSpriteAnimation(SpriteFrames f)
         {
             _backgroundSpriteAnimation = f;
+        }
+
+        CSSVisibility visibility() const pure nothrow @safe
+        {
+            return _visibility;
+        }
+
+        void visibility(CSSVisibility v) pure nothrow @safe
+        {
+            _visibility = v;
         }
 
 		string name() const
@@ -796,6 +807,9 @@ class Style
 		if (_position == CSSPosition.invalid)
 			_position = sf._position;
 
+        if (_visibility == CSSVisibility.invalid)
+			_visibility = sf._visibility;
+
 		foreach (key, values; sf.propertyIDs)
 			PropertySpecification!PropertyID.overlay(propertyIDs, key, values);
 
@@ -837,6 +851,7 @@ class Style
 		st._top = _top;
 		st._right = _right;
 		st._bottom = _bottom;
+		st._visibility = _visibility;
 		st._font = _font;
 		st._background = _background;
 		st._nullFields = _nullFields;

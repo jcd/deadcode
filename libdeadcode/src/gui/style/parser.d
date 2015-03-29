@@ -602,6 +602,31 @@ class StyleSheetParser
 		style.wordWrap = curToken.value == "true";
 	}
 
+	void parseVisibilityProperty(Style style)
+	{
+		requireNextToken(TokenType.identifier);
+
+        // TODO: support "inherit"
+        switch (curToken.value)
+        {
+            case "visible":
+                style.visibility = CSSVisibility.visible;
+                break;
+            case "hidden":
+                style.visibility = CSSVisibility.hidden;
+                break;
+            case "initial":
+                style.visibility = CSSVisibility.visible;
+                break;
+            //case "inherit":
+            //    style.visibility = CSSVisibility.visible;
+            //    break;
+            default:
+                addError("Invalid visibility value ", line);
+                break;
+        }
+	}
+
 	void parseRect(ref Rectf r)
 	{
 		r.x = requireNextOptionalNumber();
@@ -777,6 +802,10 @@ class StyleSheetParser
 				case "wordWrap":
 					parseWordWrapProperty(style);
                     style._nullFields |= 1;
+					requireNextToken();
+					break;
+				case "visibility":
+					parseVisibilityProperty(style);
 					requireNextToken();
 					break;
 				case "padding":

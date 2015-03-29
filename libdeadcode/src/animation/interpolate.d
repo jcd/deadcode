@@ -12,31 +12,31 @@ import math.bezier;
 //    pingPong
 //}
 
-class Curve(T) 
+class Curve(T)
 {
-	// CurveStop curveStop;	
+	// CurveStop curveStop;
 
 	abstract @property
 	{
 		double begin() const pure;
 		double end() const pure;
 	}
-	
+
 	@property duration() const pure
 	{
 		return end - begin;
 	}
-	
+
 	abstract T eval(double timeOffset);
 }
 
 class Clip(T)
 {
 	CurveBinding!T[] bindings;
-	
+
 	private double _duration; // If set to -1 means calculated by looking a duration of each curve
 
-	@property 
+	@property
 	{
 		double duration() const
 		{
@@ -46,10 +46,10 @@ class Clip(T)
 				return _duration;
 			else if (bindings.length == 0)
 				return 0.0;
-		
+
 			double begin = double.infinity;
 			double end = -double.infinity;
-		
+
 			foreach (b; bindings)
 			{
 				begin = min(b.curveBegin, begin);
@@ -64,7 +64,7 @@ class Clip(T)
 		}
 	}
 
-	void clearExplicitDuration() 
+	void clearExplicitDuration()
 	{
 		_duration = -1;
 	}
@@ -135,7 +135,7 @@ void createCurves(alias CurveType, T)(Clip!T clip, double x1, T y1, double x2, T
 		}
 
 		Curve!FieldType getCurve(OwnerType, FieldType, string fieldPath)(FieldType q1, FieldType q2)
-		{			
+		{
 			return new CurveType!(FieldType)(_x1, q1, _x2, q2);
 		}
 	}
@@ -250,10 +250,10 @@ static CurveBinding!T[] getTransitionCurves(CurveProvider, T)(CurveProvider p, T
 	ObjectProxy!T proxyObj2 = proxy(y2);
 
 	CurveBinding!T[] result;
-	
+
 	// pragma(msg, T);
-	//pragma(msg, ObjectProxy!T.fields);	
-	
+	//pragma(msg, ObjectProxy!T.fields);
+
 	foreach (f; ObjectProxy!T.fields)
 	{
 		auto b = new CurveBinding!(f.OwnerType, f.fieldPath)();
@@ -263,7 +263,7 @@ static CurveBinding!T[] getTransitionCurves(CurveProvider, T)(CurveProvider p, T
 		auto y2value = f.get(y2);
 		//if (y1value != y2value)
 		//{
-		
+
 		// TODO: Make Animatable() in addition to Bindable()
 		//static if (f.fieldPath != "_position")
 		//{
@@ -272,7 +272,7 @@ static CurveBinding!T[] getTransitionCurves(CurveProvider, T)(CurveProvider p, T
 //		}
 		//}
 	}
-	
+
 	return result;
 }
 
@@ -286,21 +286,21 @@ static CurveBinding!T[] getTransitionCurves(CurveProvider, T)(CurveProvider p, T
 
 static this()
 {
-	class Foo 
+	class Foo
 	{
 		float field1;
-		
+
 		@Bindable()
 		float field2;
-		
+
 		@Bindable()
 		Color color1;
 	}
-	
+
 	// pragma(msg, ObjectProxy!Foo.fields);
-	
+
 	auto res = getCurves!Foo();
-	
+
 	auto foo = new Foo();
 	foo.field1 = 1;
 	foo.field2 = 2;
@@ -322,11 +322,11 @@ static this()
 	target.field1 = 42;
 	auto clip = new Clip!Foo();
 	clip.bindings = curves;
-	
+
 	clip.update(target, 0.5);
 	assert(target.field1 == 42);
 	assert(target.field2 == 11);
-	
+
 	assert(target.color1 == Color.interpolate(foo.color1, foo2.color1, 0.5));
 }
 
@@ -343,13 +343,13 @@ class CurveBinding(T) if ( ! is (T : FieldProxy!(A,B), A, B) )
 /*
 class CurveBinding( MutatorType : FieldProxy!(A,B), A, B) : CurveBinding!(MutatorType.OwnerType)
 {
-	
+
 	//	alias DirectFieldMutator!(Field, T) MutatorType;
 	// alias FieldProxy!(Field, T) MutatorType;
 
 	static if (is(MutatorType.FieldType : float))
 	{
-		override void update(MutatorType.OwnerType object, double timeOffset) 
+		override void update(MutatorType.OwnerType object, double timeOffset)
 		{
 			float value = curve.eval(timeOffset);
 			MutatorType.set(object, value);
@@ -361,7 +361,7 @@ class CurveBinding( MutatorType : FieldProxy!(A,B), A, B) : CurveBinding!(Mutato
 import graphics.color;
 import std.traits;
 
-class CurveBinding(T, string Field) : CurveBinding!T 
+class CurveBinding(T, string Field) : CurveBinding!T
 {
 	//	alias DirectFieldMutator!(Field, T) MutatorType;
 	alias FieldProxy!(Field, T) MutatorType;
@@ -401,7 +401,7 @@ class SampleCurve(T) : Curve!T
 
 	this (double b, double e)
 	{
-		_begin = b; 
+		_begin = b;
 		_end = e;
 	}
 
@@ -424,6 +424,18 @@ auto interpolate(T : int)(T beginValue, T endValue, float delta)
 auto interpolate(T : uint)(T beginValue, T endValue, float delta)
 {
 	return cast(uint) std.math.round((endValue - beginValue) * delta + beginValue);
+}
+
+auto interpolate(T : CSSVisibility)(T beginValue, T endValue, float delta)
+{
+	if (endValue == beginValue)
+        return endValue;
+
+    // To support fading we treat transition from visible to hidden and vice verse different.
+    if (beginValue == CSSVisibility.visible && delta >= 1)
+            return CSSVisibility.hidden;
+
+    return CSSVisibility.visible;
 }
 
 auto interpolate(T : Color)(T beginValue, T endValue, float delta)
@@ -597,14 +609,14 @@ class CubicBezierCurve(T) : Curve!T
 		double _end;
 		T  _beginValue;
 		T  _endValue;
-	
+
 		UnitBezier _unitBezier;
 	}
-	
+
 	//union
 	//{
 	//    float[4] p;
-	//    struct 
+	//    struct
 	//    {
 	//        float p0, p1, p2, p3;
 	//    }
@@ -629,7 +641,7 @@ class CubicBezierCurve(T) : Curve!T
 		_beginValue = yBegin;
 		_endValue = yEnd;
 		_unitBezier = ub;
-		//p[] = ease; 
+		//p[] = ease;
 	}
 
 	override T eval(double offset)
@@ -652,17 +664,17 @@ class CubicBezierCurve(T) : Curve!T
 			//Vec2f pc = Vec2f(p2,p3);
 			//Vec2f pd = Vec2f(0,0);
 
-			//Vec2f b =      (1.0-t*t*t)*        pa + 
+			//Vec2f b =      (1.0-t*t*t)*        pa +
 			//          3.0 * (1.0-t*t) * t *     pb +
 			//          3.0 * (1.0-t) *   t*t *   pc +
 			//                            t*t*t * pd;
-			
-			//Vec2f b = pa *     (1.0-t*t*t)        + 
+
+			//Vec2f b = pa *     (1.0-t*t*t)        +
 			//    pb * (3.0 * (1.0-t*t) * t)      +
 			//    pc * (3.0 * (1.0-t) *   t*t)    +
 			//    pd * (t*t*t);
 			//
-			
+
 			double epsilon = 1.0 / (200.0 * duration);
 			auto y = _unitBezier.solve(t, epsilon);
 
@@ -670,9 +682,9 @@ class CubicBezierCurve(T) : Curve!T
 			//static if (is(T : CSSScaleMix))
 			//    std.stdio.writeln(offset, " ", " ", _begin, " ", b);
 			return result;
-			
+
 			//
-			//auto b =     (1-t^3) * p0 + 
+			//auto b =     (1-t^3) * p0 +
 			//         3 * (1-t^2) * t * p1 +
 			//         3 * (1-t) * t^2 * p2 +
 			//         t^3 * p3;
@@ -723,7 +735,7 @@ class SystemTimer : Timer
 		return systemNow;
 	}
 
-	static @property double systemNow() 
+	static @property double systemNow()
 	{
 		auto t = TickDuration.currSystemTick;
 		auto res = t.to!("seconds", double)();
@@ -769,7 +781,7 @@ class InterpolateTimer : Timer
 		_duration = duration;
 	}
 
-	void reset() 
+	void reset()
 	{
 		_start = _timer is null ? SystemTimer.systemNow : _timer.now;
 	}
@@ -795,5 +807,5 @@ class InterpolateTimer : Timer
 		if (dt >= _duration)
 			return 1f;
 		return dt / _duration;
-	}	
+	}
 }

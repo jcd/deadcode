@@ -13,6 +13,7 @@ alias DisposeEvt = void delegate(Object);
 extern (C) void  rt_attachDisposeEvent( Object obj, DisposeEvt evt );
 extern (C) void  rt_detachDisposeEvent( Object obj, DisposeEvt evt );
 
+/*
 
 mixin template Signal(T...)
 {
@@ -36,8 +37,9 @@ mixin template Signal(T...)
         connect(&d.cb);
     }
 }
+*/
 
-/+
+
 mixin template Signal(T1...)
 {
     static import std.c.stdlib;
@@ -185,4 +187,4 @@ mixin template Signal(T1...)
     slot_t[] slots;             // the slots to call from emit()
     size_t slots_idx;           // used length of slots[]
 }
-+/
+

@@ -12,7 +12,8 @@
 		"derelict-sdl2": "1.2.8",
 		"derelict-ft": "1.0.0",
 		"libdparse": "~master",
-		"msgpack-d": "~>0.9.5"
+		"msgpack-d": "~>0.9.5",
+		"libasync": "~>0.7.1"
 	},
 	"versions-windows": ["Unicode" ],
 	"lflags-windows": ["/NOCODEVIEW"],

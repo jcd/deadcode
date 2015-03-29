@@ -6,7 +6,7 @@ version (Windows)
     import std.c.windows.windows;
     import win32.shlobj;
 
-    import std.c.string;
+    import core.stdc.wctype;
     import std.string;
     import win32.objidl;
     import std.conv;

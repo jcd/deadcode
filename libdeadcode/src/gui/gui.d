@@ -27,7 +27,7 @@ class GUI
 		class Timeout
 		{
 			bool done;
-			int msLeft;
+			int msNext;
 			abstract bool onTimeout();
 		}
 
@@ -40,7 +40,7 @@ class GUI
 			this(int ms, Fn f, Args a)
 			{
 				done = false;
-				msLeft = ms;
+				msNext = SDL_GetTicks() + ms;
 				msInit = ms;
 				fn = f;
 				args = a;
@@ -50,7 +50,7 @@ class GUI
 			{
 				if (fn(args))
 				{
-					msLeft = msInit;
+					msNext = SDL_GetTicks() + msInit;
 					return true;
 				}
 				done = true;
@@ -224,12 +224,7 @@ class GUI
 	{
 		static import std.algorithm;
         Uint32 curTick = SDL_GetTicks();
-		int msPassed = cast(int) curTick - _lastTick;
 		_lastTick = curTick;
-
-		// Make sure we make progress no matter what
-		if (msPassed == 0)
-			msPassed = 1;
 
 		// int smallestTimeout = std.algorithm.max(_timeouts.empty ? int.max : _timeouts[0].msLeft - msPassed, 0);
 		int smallestTimeout = int.max;
@@ -240,14 +235,13 @@ class GUI
 
 		foreach_reverse (ref t; _timeouts)
 		{
-			t.msLeft -= msPassed;
-			if (t.msLeft <= 0)
+			if (t.msNext <= curTick)
 			{
 				//timedOutThisTick = true;
 				if (t.onTimeout())
 				{
 					// callback asked to repeat timeout
-                    smallestTimeout = std.algorithm.min(smallestTimeout, t.msLeft);
+                    smallestTimeout = std.algorithm.min(smallestTimeout, t.msNext);
 				}
                 else
                 {
@@ -259,7 +253,7 @@ class GUI
 			}
             else
             {
-                smallestTimeout = std.algorithm.min(smallestTimeout, t.msLeft);
+                smallestTimeout = std.algorithm.min(smallestTimeout, t.msNext);
             }
             //else if (smallestTimeout > t.msLeft)
             //{
@@ -284,7 +278,7 @@ class GUI
 		if (waitForEvents /* && _eventQueue.empty && !timedOutThisTick */)
 		{
 			if (smallestTimeout != int.max)
-				pollResult = SDL_WaitEventTimeout(&e, smallestTimeout);
+				pollResult = SDL_WaitEventTimeout(&e, smallestTimeout - curTick);
 			else
 				pollResult = SDL_WaitEvent(&e);
 		}

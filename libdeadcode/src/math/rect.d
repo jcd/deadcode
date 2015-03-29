@@ -52,6 +52,11 @@ struct Rect(T)
 		return isNaN(size.x) || isNaN(size.y) || size.x == 0 || size.y == 0 || isNaN(pos.x) || isNaN(pos.y);
 	}
 
+    @property isPoint() const @safe
+    {
+        return size.x == 0 && size.y == 0;
+    }
+
 	@property ref T x()
 	{
 		return pos.x;

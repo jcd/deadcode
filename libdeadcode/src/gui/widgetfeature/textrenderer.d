@@ -753,7 +753,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 
 		// glyphRect.y is bottom
 		bool found = false;
-		while (glyphRect.x.isFinite() && pos.y > glyphRect.y2)
+		while (glyphRect.x.isFinite() && pos.y > glyphRect.y2 && !glyphRect.isPoint())
 		{
 			//std.stdio.writeln(glyphRect, " ", pos);
 			if (glyphRect.contains(pos))

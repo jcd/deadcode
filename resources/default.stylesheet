@@ -595,7 +595,7 @@ Tree#Menu {
 	background-sprite-border: 6 6 6 6;
 	padding : 5 0 20 10;
 	width: 160px;
-	height: 270px;
+	height: 350px;
 	right: 160px;
 	top: 24px;
 	offset: 0 0;

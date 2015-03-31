@@ -186,10 +186,12 @@ void testFile(string[] args, bool showUsage = false)
         return;
     }
 
-	auto cmd = r"rdmd.exe -version=Unicode --main -Ilibdeadcode\src -Iexternal\d-libraries -unittest .\libdeadcode\src\";
+	auto cmd = r"rdmd.exe -version=Unicode --main -Ilibdeadcode\src -IC:\Users\jonasd\AppData\Roaming\dub\packages\memutils-0.3.1\source -IC:\Users\jonasd\AppData\Roaming\dub\packages\libasync-0.7.1\source -Iexternal\d-libraries -unittest .\libdeadcode\src\";
+
     foreach (p; args[2..$])
     {
         auto runCmd = cmd ~ p;
+        writeln(runCmd);
         auto res = pipeShell(runCmd, Redirect.stdin | Redirect.stderrToStdout | Redirect.stdout);
         foreach (line; res.stdout.byLine)
         {

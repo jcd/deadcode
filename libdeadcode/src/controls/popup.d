@@ -28,12 +28,12 @@ class PopupList : Widget
 
 	override @property void visible(bool v)
 	{
-        if (_visible == v)
+        if (visible == v)
             return;
-        _visible = v;
+        visible = v;
 
         // If this widget has keyboard focus then release it.
-        if (!_visible)
+        if (!visible)
         {
             if (childOrThisHasFocus())
                 window.setKeyboardFocusWidget(_unfocusWidgetID);

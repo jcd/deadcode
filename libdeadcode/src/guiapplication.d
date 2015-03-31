@@ -18,6 +18,8 @@ import controls.menu;
 import controls.texteditor;
 import gui.resources.generic;
 import gui.layout;
+import io.asyncio;
+
 import math; // Vec2f
 
 import std.algorithm;
@@ -61,7 +63,7 @@ class DirectoryWatcher
 	import std.datetime;
 
 	string path;
-	HANDLE dwChangeHandles[1];
+	HANDLE[1] dwChangeHandles;
 
 	this(string path)
 	{
@@ -234,6 +236,7 @@ class GUIApplication : Application
 	GenericResource sessionData;
 
 	private Analytics analytics;
+    private AsyncIO _asyncIO;
 
 	T getGlobalStyle(T)(string name)
 	{
@@ -275,11 +278,11 @@ class GUIApplication : Application
 	{
 	}
 
-	URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+	core.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
 	{
 		if (isAbsolute(path))
 		{
-			auto res = new URI(path);
+			auto res = new core.uri.URI(path);
 			res.normalize();
 			return res;
 		}
@@ -322,7 +325,7 @@ class GUIApplication : Application
 			    break;
 		}
 
-		auto u = new URI(buildNormalizedPath(basePath, path));
+		auto u = new core.uri.URI(buildNormalizedPath(basePath, path));
 		u.normalize();
 		return u;
 	}
@@ -345,7 +348,7 @@ class GUIApplication : Application
 		auto app = new GUIApplication(gui);
 		app.guiRoot.onFileDropped.connect(&app.onFileDropped);
 
-
+        app._asyncIO = new AsyncIO();
 		return app;
 	}
 
@@ -469,7 +472,8 @@ class GUIApplication : Application
 		// guiRoot.locationsManager.baseURI = "resources/";
 
 		version (Windows) resourceDirWatcher = new DirectoryWatcher(resourcesRoot);
-		guiRoot.timeout(dur!"msecs"(500), &regularCheck);
+
+        // timeout(dur!"msecs"(500), &regularCheck);
 
 		scanResources();
 
@@ -584,9 +588,11 @@ class GUIApplication : Application
 	{
 		// Since this is called by onActivity the futures supported currently are only those
 		// being fulfilled by an activity ie. key press, mouse move etc.
+
+	    doMainFiberWork();
 		handleFiberFutures();
 		handlePromptQuery();
-	}
+    }
 
 	private void handlePromptQuery()
 	{
@@ -922,6 +928,23 @@ version (linux)
 		}
 		return res;
 	}
+
+    U getConfig(U)(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+    {
+        auto resource = get(path, base);
+
+        if (resource is null)
+            return null;
+
+        auto firstObjectInResource = resource.get!U();
+        if (firstObjectInResource is null)
+        {
+            firstObjectInResource = new U();
+            resource.add(firstObjectInResource);
+        }
+
+        return firstObjectInResource;
+    }
 
 	BufferView openFile(string path)
 	{
@@ -1465,6 +1488,84 @@ version (linux)
 		return future.get();
 	}
 
+    string showSelectFolderDialogBasic(string defaultDir)
+    {
+         auto promise = new Promise!string();
+         pushMainFiberWork( () {
+             static import platform.dialog;
+             string res = platform.dialog.showSelectFolderDialogBasic(defaultDir);
+             promise.setValue(res);
+         });
+         yieldFuture(promise.getFuture());
+         return promise.getFuture().get();
+    }
+
+    U yield(U, Args...)(U delegate(Args) dlg, Args args)
+    {
+        import core.thread;
+        auto promise = new Promise!U();
+
+        auto thread = new Thread( () {
+            promise.setValue(dlg(args));
+        });
+
+        thread.start();
+        yieldFuture(promise.getFuture());
+        thread.join();
+        return promise.getFuture().get();
+    }
+
+    U yield(U, Args...)(U function(Args) dlg, Args args)
+    {
+        import core.thread;
+        auto promise = new Promise!U();
+
+        auto thread = new Thread( () {
+            promise.setValue(dlg(args));
+        });
+
+        thread.start();
+        yieldFuture(promise.getFuture());
+        thread.join();
+        return promise.getFuture().get();
+    }
+
+	void timeout(Fn, Args...)(Duration d, Fn fn, Args args)
+	{
+		guiRoot.timeout(d, fn, args);
+	}
+
+    struct MainFiberWork
+    {
+        void delegate() dlg;
+    }
+
+    MainFiberWork[] _mainFiberWorkList;
+
+    void pushMainFiberWork(void delegate() dlg)
+    {
+        assumeSafeAppend(_mainFiberWorkList);
+        _mainFiberWorkList ~= MainFiberWork(dlg);
+    }
+
+    string ping()
+    {
+		import core.thread;
+		enforce(Fiber.getThis() !is null);
+        auto future = _asyncIO.ping("Hello there");
+		yieldFuture(future);
+		return future.get().reply;
+    }
+
+    bool download(string url, string fileDestPath)
+    {
+		import core.thread;
+		enforce(Fiber.getThis() !is null);
+        auto future = _asyncIO.download(url, fileDestPath);
+		yieldFuture(future);
+		return future.get().success;
+    }
+
 	private struct FiberFutureWait
 	{
 		import core.thread;
@@ -1503,6 +1604,14 @@ version (linux)
 				}
 			}
 		}
+	}
+
+	private void doMainFiberWork()
+	{
+        foreach (ff; _mainFiberWorkList)
+            ff.dlg();
+		_mainFiberWorkList.length = 0;
+        assumeSafeAppend(_mainFiberWorkList);
 	}
 
 	//static import core.future;

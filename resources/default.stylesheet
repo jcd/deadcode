@@ -8,6 +8,7 @@
 	padding : 0 0 0 0;
 	offset: 0 0;
 	position: static;
+	visibility: visible;
 }
 
 Label {
@@ -748,6 +749,7 @@ MyWidget {
 	width: 150px;
 	height: fit;
 	z-index: 200;
+	visibility: hidden;
 }
 
 BasicWidget {

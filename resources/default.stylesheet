@@ -788,3 +788,89 @@ FooWidget > Button:hover {
 	background-color: #555555;
 	transition: left 0.5s, background-color 0.5s;
 }
+
+
+Notice {
+	position: fixed;
+	color: #d8d8d2;
+	font : url(fonts/RobotoCondensed-Light.ttf) 38;
+	background-color: #0a373d;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	right: 70%;
+	bottom: 70%;
+	width: 300px;
+	height: 90px;
+	padding: 28 25 10 0;
+	transition: bottom 0.5s, top 0.5s, width 0.5s, right 0.5s, left 0.5s, bottom 0.5s;
+}
+
+Notice.small {
+	position: fixed;
+	color: #d8d8d2;
+	font : url(fonts/RobotoCondensed-Light.ttf) 14;
+	background-color: #0a373d;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	bottom: 40px;
+	right: 270px;
+	width: 245px;
+	height: 40px; 
+	padding: 12 15 10 0;
+	transition: bottom 0.5s, top 0.5s, width 0.5s, right 0.5s, left 0.5s, bottom 0.5s;	
+}
+
+
+Notice > Widget#notice-buttons
+{
+	top: 5px;
+	min-height: 30px;
+	padding: 5 95 10 15;
+}
+
+Noticde:hover > Widget#notice-buttons
+{
+	top: -20px;
+}
+
+Notidce > Widget#notice-buttons:hover > Button
+{
+	top: -50px;
+	max-width: 80px;
+	padding: 0 . . .;
+	max-height: 30px;
+}
+
+
+Notice.xdefault > Widget > Button
+{
+	max-width: 80px;
+	padding: 5 . . .;
+	max-height: 30px;
+}
+
+Notice.xdefault > Widget
+{
+	padding: 5 95 0 0;
+}
+
+Notice > Label
+{
+	padding: -1 10 0 0;
+}
+
+Notice > Widget#notice-icon
+{
+	height: 16px;
+	max-height: 16px;
+	min-height: 16px;
+	width: 16px;
+	max-width: 16px;
+	min-width: 16px;
+	background: url(materials/progress_16x16.png);
+	background-color: #ffffff;
+	background-sprite: 0 0 16 16;
+	background-sprite-animation: grid(12,1,12,0.03);
+}

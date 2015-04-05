@@ -866,20 +866,22 @@ version (linux)
 		menu.parent = win;
 		menu.onMissingCommandArguments.connect(&cc.onMissingCommandArguments);
 
-		// Let text editor handle events before normal gui
-		win.onEvent = (ref Event ev) {
+        guiRoot.onEvent.connectTo((Event* ev) {
 			// Let the shortcut handler do its magic before event is dispatched to
 			// the widgets.
 			if (ev.type == EventType.Focus)
 				scanResources();
 
-			auto used = editorBehavior.onEvent(ev);
-			return used;
-			//if (used == EventUsed.yes)
+			ev.used = editorBehavior.onEvent(*ev) == EventUsed.yes;
+        });
 
-			//    return used;
-			//return cc.onCommand(ev);
-		};
+		// Let text editor handle events before normal gui
+        //win.onEvent = (ref Event ev) {
+        //    //if (used == EventUsed.yes)
+        //
+        //    //    return used;
+        //    //return cc.onCommand(ev);
+        //};
 	}
 
 

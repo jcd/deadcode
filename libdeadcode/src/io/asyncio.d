@@ -122,6 +122,12 @@ class AsyncIO
         worker.run();
     }
 
+    void stopWorker()
+    {
+        _workerTid.send(true);
+        _signal.trigger(_eventLoop);
+    }
+
     auto download(string url, string dest)
     {
         auto j = new DownloadJob(url, dest);
@@ -182,6 +188,7 @@ class AsyncIOWorker
         _signal.run({
             receive(
                     (shared(IJob) j) { thaw(j).run(_eventLoop); },
+                    (bool s) { kill(); },
                     (Variant v) { writeln("Received variant in asyncio worker ", v); }
                     );
         });
@@ -190,7 +197,7 @@ class AsyncIOWorker
     void run()
     {
         while (!_shutdown)
-            _shutdown = !_eventLoop.loop();
+            _shutdown = !_eventLoop.loop(dur!"days"(7)) || _shutdown; // _shutdown may have been set in a signal
         destroyAsyncThreads();
     }
 

@@ -16,6 +16,7 @@ import std.typetuple;
 struct MenuItem
 {
 	string path;
+    string argument;
 }
 
 enum isMenuItem(alias T) = is(typeof(T) == MenuItem);

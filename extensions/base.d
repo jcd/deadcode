@@ -212,7 +212,17 @@ void init(GUIApplication app)
 		c.init();
 		app.commandManager.add(c);
 		if (!c.menuItem.path.empty)
+        {
+		    if (c.menuItem.argument is null)
+            {
 			app.menu.addTreeItem(c.menuItem.path, c.name);
+            }
+            else
+            {
+                auto args = app.commandManager.parseCommandArguments(c.name, c.menuItem.argument);
+                app.menu.addTreeItem(c.menuItem.path, c.name, args);
+            }
+        }
 
 		import std.stdio;
 		//writeln(c.name);

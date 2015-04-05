@@ -296,32 +296,38 @@ class Widget : Stylable
         if (_computedStyleChanged())
         {
             forceDirty();
-
-            if (_computedStyle.backgroundSpriteAnimation !is null)
-            {
-                if (backgroundSpriteAnimationRunner !is null)
-                    backgroundSpriteAnimationRunner.abort();
-
-                backgroundSpriteRect = _computedStyle.backgroundSprite;
-                // TODO: get rid of closure
-               backgroundSpriteAnimationRunner =
-                   window.timeline.animate(_computedStyle.backgroundSpriteAnimation.frameTime,
-                                                    (double timestamp, int count) {
-                                                            backgroundSpriteRect = _computedStyle.getBackgroundSpriteRectForFrame(count);
-                                                    });
-            }
-            else
-            {
-                if (backgroundSpriteAnimationRunner !is null)
-                    backgroundSpriteAnimationRunner.abort();
-                backgroundSpriteRect = _computedStyle.backgroundSprite;
-            }
+            stopBackgroundSpriteAnimation();
+            backgroundSpriteRect = _computedStyle.backgroundSprite;
+            if (visible)
+                startBackgroundSpriteAnimation();
             lastStyleID = _computedStyle.id;
             lastStyleVersion = _computedStyle.currentVersion;
         }
 
 		return _computedStyle;
 	}
+
+    protected void startBackgroundSpriteAnimation() nothrow
+    {
+        if (_computedStyle.backgroundSpriteAnimation !is null)
+        {
+            // TODO: get rid of closure
+            backgroundSpriteAnimationRunner =
+                window.timeline.animate(_computedStyle.backgroundSpriteAnimation.frameTime,
+                                        (double timestamp, int count) {
+                                            backgroundSpriteRect = _computedStyle.getBackgroundSpriteRectForFrame(count);
+                                        });
+        }
+    }
+
+    protected void stopBackgroundSpriteAnimation() nothrow
+    {
+        if (backgroundSpriteAnimationRunner !is null)
+        {
+            backgroundSpriteAnimationRunner.abort();
+            backgroundSpriteAnimationRunner = null;
+        }
+    }
 
     private bool _computedStyleChanged()
     {
@@ -382,7 +388,6 @@ class Widget : Stylable
 
 	//void transition(Property*
 
-
 	@property bool visible() const pure nothrow @safe
     {
         return _visible;
@@ -393,6 +398,14 @@ class Widget : Stylable
         if (_visible == v)
             return;
         _visible = v;
+
+        if (_computedStyle)
+        {
+            if (v)
+                startBackgroundSpriteAnimation();
+            else
+                stopBackgroundSpriteAnimation();
+        }
 
         // If this widget has keyboard focus then release it.
         if (!_visible && window.getKeyboardFocusWidgetID == id)

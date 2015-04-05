@@ -270,6 +270,9 @@ class GUIApplication : Application
 		analyticStartTiming("core", "startup");
 		_widgetLocationUpdater = new WidgetLocationUpdater(this);
 		super();
+
+        setLogFile(resourceURI("log.txt", ResourceBaseLocation.userDataDir).uriString);
+
 		// editorcommands.register(this);
 		editors = new Editors;
 	}

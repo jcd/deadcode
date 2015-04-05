@@ -83,6 +83,7 @@ class GUI
 
 	mixin Signal!string onFileDropped;
 	mixin Signal!() onActivity;
+	mixin Signal!(Event*) onEvent;
 
 	/*
 	static @property GUI the()
@@ -194,7 +195,6 @@ class GUI
 
 	void tick()
 	{
-
 		assert(running);
 
 		// TODO: handle multiple windows
@@ -433,13 +433,18 @@ class GUI
 
 	private void dispatchEvent(Event e)
 	{
+        onEvent.emit(&e);
+
+        if (e.used)
+            return;
+
 		auto w = e.windowID in _windows;
 		if (w !is null)
 			w.dispatchEvent(e);
 		else
         {
             import std.stdio;
-            writeln("Event with no window target received ", e);
+            debug writeln("Event with no window target received ", e);
         }
 	}
 
@@ -465,8 +470,13 @@ class GUI
 		ev.width = cast(int)sz.x;
 		ev.height = cast(int)sz.y;
 		ev.windowID = win.id;
-		_eventQueue.enqueue(ev);
+		postEvent(ev);
 
 		return win;
 	}
+
+    void postEvent(Event ev)
+    {
+		_eventQueue.enqueue(ev);
+    }
 }

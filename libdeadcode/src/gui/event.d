@@ -97,6 +97,7 @@ struct Event
 	EventType type;
 	Uint32 windowID;
 	Uint32 timestamp;
+    bool used = false;
 
 	string toString() const
 	{

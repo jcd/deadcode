@@ -346,6 +346,19 @@ class CommandManager
         execute(cmd, args);
     }
 
+    CommandParameter[] parseCommandArguments(string cmdName, string argsString)
+    {
+        auto cmd = lookup(cmdName);
+        if (cmd is null)
+            return null;
+
+        CommandParameter[] args;
+        auto defs = cmd.getCommandParameterDefinitions();
+        if (defs !is null)
+            defs.parseValues(args, argsString);
+        return args;
+    }
+
     bool executeWithMissingArguments(Command cmd, ref CommandParameter[] args)
     {
 		// TODO: handle fibers

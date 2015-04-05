@@ -861,7 +861,7 @@ Notice > Label
 	padding: -1 10 0 0;
 }
 
-Notice > Widget#notice-icon
+Notice:visible > Widget#notice-icon
 {
 	height: 16px;
 	max-height: 16px;

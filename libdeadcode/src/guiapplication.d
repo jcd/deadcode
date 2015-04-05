@@ -626,20 +626,26 @@ class GUIApplication : Application
 
     void quit()
     {
+		_asyncIO.stopWorker();
 		guiRoot.stop();
     }
 
 	void setupResourcesRoot()
 	{
-        version (release)
+        version (portable)
         {
             import core.pack;
-            resourcesRoot = buildPath(FilePack!"resources.pack"().unpack(), "resources");
-            writeln("Unpack dir ", FilePack!"resources.pack"().unpack());
+            string destDir = FilePack!"resources.pack"().unpack();
+            resourcesRoot = buildPath(destDir, "resources");
+            writeln("Unpack dir ", destDir);
+            destDir = FilePack!"binaries.pack"().unpack();
+            binariesRoot = buildPath(destDir, "binaries");
+            writeln("Unpack dir ", destDir);
         }
         else
         {
             resourcesRoot = absolutePath("resources", thisExePath().dirName());
+            binariesRoot = absolutePath("binaries", thisExePath().dirName());
         }
 	}
 

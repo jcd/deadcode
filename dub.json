@@ -50,8 +50,9 @@
         "name": "release",
         "targetType": "executable",
 		"targetName" : "ded",
-		"preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources.pack" ],
-		"dflags" : ["-J.","-vcolumns", "-version=release", "-version=NoMain" ],
+		"preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources resources.pack",
+									   "tool.bat generate-resource-pack binaries binaries.pack" ],
+		"dflags" : ["-J.","-vcolumns", "-version=portable", "-version=release", "-version=NoMain" ],
 		"sourceFiles": [ "src/win.def" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : [ "releaseMode" ]

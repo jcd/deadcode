@@ -539,22 +539,30 @@ void generateResourcePack(string[] args, bool showUsage = false)
 {
 	if (showUsage)
 	{
-		writeln("tool generate-resource-list <target file>");
+		writeln("tool generate-resource-list <source dir> <target file>");
 		writeln("Generate a file listing all resource files");
 		return;
 	}
 
 	if (args.length < 3)
 	{
+		writeln("Missing source dir argument");
+		return;
+	}
+
+	if (args.length < 4)
+	{
 		writeln("Missing target file argument");
 		return;
 	}
 
-	string targetFilePath = args[2];
+	string sourceDir = args[2];
+
+	string targetFilePath = args[3];
     if (exists(targetFilePath))
         remove(targetFilePath);
 
-    auto r = dirEntries("resources", SpanMode.depth);
+    auto r = dirEntries(sourceDir, SpanMode.depth);
     struct FileInfo
     {
         string path;

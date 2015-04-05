@@ -14,7 +14,7 @@ class Timeline
 public:
 	class Runner
 	{
-		protected this(float dur, float _start)
+		protected this(float dur, float _start) nothrow @safe
 		{
 			stopped = false;
 			duration = dur;
@@ -24,7 +24,7 @@ public:
 		protected abstract void update(float offset);
 		protected abstract bool onDone(); // return true if animation should be removed when done
 
-		void abort()
+		void abort() nothrow
 		{
 			stopped = true;
 		}
@@ -57,7 +57,7 @@ private:
 
 	class AnimatorRunner : Runner
 	{
-		protected this (Animator a, float d, float s)
+		protected this (Animator a, float d, float s) nothrow @safe
 		{
 			super(d, s);
 			animator = a;
@@ -79,7 +79,7 @@ private:
 
 	class EventRunner : Runner
 	{
-		protected this(float triggerTime, EventCallback cb, int _data = 0)
+		protected this(float triggerTime, EventCallback cb, int _data = 0) nothrow @safe
 		{
 			const float verySmallDuration = 0.00000001;
 			super(verySmallDuration, triggerTime);
@@ -172,14 +172,14 @@ public:
 		return insert(a, clip.duration, start);
 	}
 
-	Runner event(float afterDuration, EventCallback callback, int data = 0)
+	Runner event(float afterDuration, EventCallback callback, int data = 0) nothrow
 	{
 		auto newAnim = new EventRunner(timer.now + afterDuration, callback, data);
 		insert(newAnim, true);
 		return newAnim;
 	}
 
-	Runner animate(Target)(double timeStep, Target target, float duration = float.max, float start = float.max)
+	Runner animate(Target)(double timeStep, Target target, float duration = float.max, float start = float.max) nothrow
 	{
 		// auto m = mutator!propertyPath(owner);
 		start = start == float.max ? timer.now : start;
@@ -188,7 +188,7 @@ public:
 		return insert(a, duration, start);
 	}
 
-	Runner insert(Animator anim, float duration, float start)
+	Runner insert(Animator anim, float duration, float start) nothrow
 	{
 		auto newAnim = new AnimatorRunner(anim, duration, start);
 		newAnim.removeWhenDone = true;
@@ -196,7 +196,7 @@ public:
 		return newAnim;
 	}
 
-	private void insert(Runner newAnim, bool removeWhenDone)
+	private void insert(Runner newAnim, bool removeWhenDone) nothrow
 	{
 		Runner prev = null;
 		Runner cur = _schedule;

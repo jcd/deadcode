@@ -6,6 +6,8 @@ import core.bufferview;
 import core.command;
 import core.stdc.errno;
 
+import std.stdio;
+
 class Application
 {
 	private
@@ -15,7 +17,8 @@ class Application
 		int _previousBufferID;
 		EditorBehavior _editorBehavior;
 		CommandManager _commandManager;
-	}
+	    File _logFile;
+    }
 
 	@property
 	{
@@ -40,6 +43,11 @@ class Application
 		_editorBehavior = new EmacsBehavior(this);
 	}
 
+    void setLogFile(string path)
+    {
+        _logFile = File(path, "a");
+    }
+
 	void addMessage(Types...)(Types msgs)
 	{
 		import std.string;
@@ -47,7 +55,14 @@ class Application
         static import std.stdio;
 		auto view = bufferViewManager["*Messages*"];
 		std.stdio.writeln("*Messages* " ~ format(msgs));
-		view.insert(dtext(format(msgs)));
+        auto fmtmsg = format(msgs);
+        if (_logFile.getFP() !is null)
+        {
+            _logFile.writeln(fmtmsg);
+            _logFile.flush();
+        }
+
+		view.insert(dtext(fmtmsg));
 		view.insert("\n"d);
 	}
 }

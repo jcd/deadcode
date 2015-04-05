@@ -481,8 +481,6 @@ class GUIApplication : Application
 
 		version (Windows) resourceDirWatcher = new DirectoryWatcher(resourcesRoot);
 
-        // timeout(dur!"msecs"(500), &regularCheck);
-
 		scanResources();
 
 		defaultStyleSheet = guiRoot.styleSheetManager.load(resourceURI("default.stylesheet", ResourceBaseLocation.resourceDir));
@@ -559,6 +557,10 @@ class GUIApplication : Application
 		//                      });
 
 		guiRoot.init();
+        regularCheck();
+
+        // TODO: get rid of this active polling
+        timeout(dur!"msecs"(500), &regularCheck);
 
 		//guiRoot.timeout(dur!"msecs"(500), );
 

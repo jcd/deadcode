@@ -138,13 +138,14 @@ enum RelativeLocation
 
 /** The location that is use as base for relative paths/URIs.
 */
-enum ResourceBaseLocation
+enum ResourceBaseLocation : uint
 {
-	currentDir,    /// The current working directory
-	executableDir, /// The dir of this executable
-	resourceDir,   /// The default resources dir
-	userDataDir,   /// The user data dir which is platform specific
-	sessionDir,    /// Session temporary dir. Is cleared upon start and stop of app.
+	currentDir = 1,    /// The current working directory
+	executableDir = 2, /// The dir of this executable
+	resourceDir = 4,   /// The default resources dir
+	binariesDir = 8,   /// The default binary helper executables dir
+	userDataDir = 16,  /// The user data dir which is platform specific
+	sessionDir = 32,   /// Session temporary dir. Is cleared upon start and stop of app.
 }
 
 import util.jsonx;
@@ -231,6 +232,7 @@ class GUIApplication : Application
 	Widget _mainWidget;
 	version (Windows) DirectoryWatcher resourceDirWatcher;
 	private string resourcesRoot;
+	private string binariesRoot;
 	StyleSheet defaultStyleSheet;
 
 	GenericResource sessionData;
@@ -302,6 +304,9 @@ class GUIApplication : Application
 				break;
 			case ResourceBaseLocation.resourceDir:
 				basePath = resourcesRoot;
+				break;
+			case ResourceBaseLocation.binariesDir:
+				basePath = binariesRoot;
 				break;
 			case ResourceBaseLocation.sessionDir:
 				// TODO: implement

@@ -8,7 +8,9 @@ import core.commandparameter;
 import core.command : CompletionEntry;
 import core.future;
 import core.container;
+import core.signals;
 import core.uri;
+
 import graphics;
 import gui;
 import gui.resources.texture : GTexture = Texture;
@@ -201,6 +203,9 @@ class GUIApplication : Application
 
 	import std.container;
 	Stack!PromptQuery _promptStack;
+
+    // int is ResourceBaseLocation flags changed
+    mixin Signal!(uint) onResourceBaseLocationChanged;
 
 	private string _restartExecutable;
 	private IWidgetLocationUpdater _widgetLocationUpdater;
@@ -691,6 +696,34 @@ class GUIApplication : Application
 	{
 		guiRoot.locationsManager.scan(resourceURI("*", ResourceBaseLocation.resourceDir));
 	}
+
+    bool setCurrentDirectory(string path)
+    {
+        version (Windows)
+        {
+            import std.c.windows.windows;
+            import std.conv;
+            auto ws = path.to!wstring;
+            ws ~= '\0';
+            auto r = SetCurrentDirectoryW(ws.ptr);
+            if (r == 0)
+            {
+                import core.sys.windows.windows;
+                import std.windows.syserror;
+                MessageBoxA( null, ("Could not change current directory " ~  sysErrorString(GetLastError()) ~ ": '" ~ path ~ "'").toStringz(), "Change directory failed", MB_OK);
+            }
+            bool success = r != 0;
+        }
+        else
+        {
+            pragma(msg, "Warning: SetCurrentDirectory not implemented!");
+            success = false;
+        }
+        if (success)
+            onResourceBaseLocationChanged.emit(ResourceBaseLocation.currentDir);
+
+        return success;
+    }
 
 	Window createWindow(string name = "mainWindow", int width = 854, int height = 900)
 //    Window createWindow(string name = "mainWindow", int width = 705, int height = 658) // maineditor.png

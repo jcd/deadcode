@@ -723,19 +723,19 @@ float then(float value, Curve i)
 interface Timer
 {
 	void reset();
-	@property double now() const;
+	@property double now() const nothrow;
 }
 
 class SystemTimer : Timer
 {
 	void reset() {}
 
-	@property double now() const
+	@property double now() const nothrow
 	{
 		return systemNow;
 	}
 
-	static @property double systemNow()
+	static @property double systemNow() nothrow
 	{
 		auto t = TickDuration.currSystemTick;
 		auto res = t.to!("seconds", double)();
@@ -754,9 +754,9 @@ class InterpolateTimer : Timer
 
 	@property
 	{
-		double start() const { return _start; }
-		double end() const { return _start + _duration; }
-		double duration() const { return _start; }
+		double start() const pure nothrow @safe { return _start; }
+		double end() const pure nothrow @safe { return _start + _duration; }
+		double duration() const pure nothrow @safe { return _start; }
 	}
 
 	this(Duration duration, Timer timer = null)
@@ -786,7 +786,7 @@ class InterpolateTimer : Timer
 		_start = _timer is null ? SystemTimer.systemNow : _timer.now;
 	}
 
-	@property double now() const
+	@property double now() const nothrow
 	{
 		auto timeNow = _timer is null ? SystemTimer.systemNow : _timer.now;
 		if (timeNow <= _start)

@@ -72,7 +72,7 @@ class DiscreteAnimator(T) : Animator
             target   = the target object to be updated
             timeStep = the time step between each update call on object
     */
-	this(T target, double timeStep)
+	this(T target, double timeStep) nothrow
 	{
 		_target = target;
         _timeStep = timeStep;

@@ -184,22 +184,16 @@ private bool setupNewDeadcodeDevelopmentDir(GUIApplication app, string dir)
 
     if ( app.yield(&gitClone, dir) )
     {
-        version (Windows)
+        if (app.setCurrentDirectory(dir))
         {
-            import std.c.windows.windows;
-            import std.conv;
-
-            if (SetCurrentDirectoryW(dir.to!wstring.ptr))
-            {
-                app.addMessage("Current working dir %s", dir);
-                notice.visible = false;
-            }
-            else
-            {
-                app.addMessage("Error: Current working dir not %s", dir);
-                notice.show("Error: Couldn't change working dir", false);
-                app.timeout(dur!"seconds"(2), () { notice.visible = false; return false; });
-            }
+            app.addMessage("Current working dir %s", dir);
+            notice.visible = false;
+        }
+        else
+        {
+            app.addMessage("Error: Current working dir not %s", dir);
+            notice.show("Error: Couldn't change working dir", false);
+            app.timeout(dur!"seconds"(2), () { notice.visible = false; return false; });
         }
     }
     else

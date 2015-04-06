@@ -28,7 +28,7 @@
         "name": "debug",
         "targetType": "executable",
 		"targetName" : "ded-debug",
-		"dflags" : ["-J.","-vcolumns", "-version=NoMain"],	
+		"dflags" : ["-J.","-vcolumns", "-version=portable", "-version=NoMain"],	
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : [ "debugMode", "debugInfo"]
 		},

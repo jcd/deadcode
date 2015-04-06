@@ -2,7 +2,7 @@ module core.moduleloader;
 
 struct ModuleLoader(alias Mod, string modFilename)
 {
-    version (release)
+    version (portable)
     {
         enum dllBytes = cast(ubyte[]) import(modFilename);
 
@@ -48,7 +48,7 @@ struct ModuleLoader(alias Mod, string modFilename)
 
 struct ModuleLoaderRaw(string modFilename)
 {
-    version (release)
+    version (portable)
     {
         enum dllBytes = cast(ubyte[]) import(modFilename);
 

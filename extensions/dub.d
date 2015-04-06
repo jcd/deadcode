@@ -1,5 +1,6 @@
 module extensions.dub;
 
+import core.signals;
 import core.time;
 
 import extensions;
@@ -103,7 +104,7 @@ class DubBuildCommand : BasicCommand
 
 	static void build(Tid pTid)
 	{
-		// TODO: Get build configuration from project settings
+		// TODO: Get build configuration from package settings
 		string configuration = "debug";
 		string cmd = "dub build -v --config=" ~ configuration;
 
@@ -190,58 +191,128 @@ class DubBuildCommand : BasicCommand
 
 
 /**
-	Dub project navigation
+	Dub package navigation
 */
-class Project : BasicExtension!Project
+class Package : BasicExtension!Package
 {
-	override @property string name() { return "dub.project"; }
+	override @property string name() { return "dub.package"; }
+
+    // from name, to name
+    mixin Signal!(string, string) onActiveConfigurationChanged;
+
+    static class BuildSettings
+    {
+        string[] sourceFiles;
+        string[] sourcePaths;
+        string mainSourceFile;
+    }
+
+    BuildSettings globalBuildSettings;
 
 	static class Configuration
 	{
 		bool isAutoConfiguration;
-		bool isAutoSourcePaths;
 		string name;
-		string[] sourceFiles;
-		string[] sourcePaths;
-		string mainSourceFile;
-	}
+        BuildSettings buildSettings;
+    }
 
-	string projectName;
+	string packageName;
 	Configuration[] configurations;
-	string activeConfiguration;
+	Configuration   activeConfiguration;
 
 	string[] knownFiles;
 	string   knownFilesCommonPrefix;
 
-	override void init()
+    override void init()
 	{
-		if (readDubFile() && !configurations.empty)
+        readPackageDirectory();
+        app.onResourceBaseLocationChanged.connect(&updateResourceBaseLocations);
+    }
+
+    private void reset()
+    {
+        packageName = null;
+        configurations = null;
+        globalBuildSettings = null;
+        activeConfiguration = null;
+        knownFiles = null;
+        knownFilesCommonPrefix = null;
+    }
+
+    private void updateResourceBaseLocations(uint changedLocations)
+    {
+        if (changedLocations & ResourceBaseLocation.currentDir)
+            readPackageDirectory();
+    }
+
+    private void readPackageDirectory()
+    {
+        reset();
+
+        if (readDubFile())
 		{
-			knownFiles = getConfigurationFiles(configurations.front.name);
-			knownFilesCommonPrefix = knownFiles.empty ? "" : knownFiles[0];
-			foreach (name; knownFiles)
-				knownFilesCommonPrefix = commonPrefix(name, knownFilesCommonPrefix);
+            if (configurations.length)
+                setActiveConfiguration(configurations[0].name);
 		}
 	}
 
-	private string[] getConfigurationFiles(string configurationName)
-	{
-		auto r = find!(a => a.name == configurationName)(configurations);
+    void setActiveConfiguration(string name)
+    {
+		auto r = find!(a => a.name == name)(configurations);
 		if (r.empty)
 		{
-			app.addMessage("Cannot get files for unknown configuration " ~ configurationName);
+			app.addMessage("Cannot set unknown active configuration " ~ name);
+            return;
+		}
+        auto conf = r.front;
+        setActiveConfiguration(conf);
+    }
+
+    void setActiveConfiguration(Configuration conf)
+    {
+        string oldConfigName = activeConfiguration is null ? null : activeConfiguration.name;
+        activeConfiguration = conf;
+
+        knownFiles.length = 0;
+        knownFilesCommonPrefix.length = 0;
+
+        knownFiles = getConfigurationFiles(conf);
+        knownFilesCommonPrefix = knownFiles.empty ? "" : knownFiles[0];
+        foreach (name; knownFiles)
+            knownFilesCommonPrefix = commonPrefix(name, knownFilesCommonPrefix);
+
+        onActiveConfigurationChanged.emit(oldConfigName, activeConfiguration.name);
+    }
+
+    private Configuration lookupConfiguration(string name)
+    {
+		auto r = find!(a => a.name == name)(configurations);
+		if (r.empty)
+		{
+			app.addMessage("Cannot get unknown configuration '%s'", name);
 			return null;
 		}
+        return r.front;
+    }
 
+	private string[] getConfigurationFiles(Configuration conf)
+	{
 		string[] result;
-		Configuration conf = r.front;
-		foreach (p; conf.sourceFiles)
+
+        foreach (p; conf.buildSettings.sourceFiles)
 			result ~= scanForFiles(p);
 
-		foreach (p; conf.sourcePaths)
+		foreach (p; globalBuildSettings.sourceFiles)
 			result ~= scanForFiles(p);
 
-		result ~= scanForFiles(conf.mainSourceFile);
+		foreach (p; resolveSourcePaths())
+			result ~= scanForFiles(p);
+
+		if (conf.buildSettings.mainSourceFile.length)
+            result ~= scanForFiles(conf.buildSettings.mainSourceFile);
+        else
+		    result ~= scanForFiles(globalBuildSettings.mainSourceFile);
+
 		return result;
 	}
 
@@ -249,6 +320,7 @@ class Project : BasicExtension!Project
 	{
 		configurations = null;
 		activeConfiguration = null;
+        globalBuildSettings = new BuildSettings;
 
 		string dubConf;
 		if (exists("package.json"))
@@ -261,7 +333,8 @@ class Project : BasicExtension!Project
 			return false;
 		}
 
-		JSONValue[string] dubObject = parseJSON(dubConf).object;
+		JSONValue val = parseJSON(dubConf);
+        JSONValue[string] dubObject = val.object;
 		JSONValue* nameTxt = "name" in dubObject;
 		if (nameTxt is null)
 		{
@@ -269,7 +342,9 @@ class Project : BasicExtension!Project
 			return false;
 		}
 
-		projectName = nameTxt.str;
+		packageName = nameTxt.str;
+
+        parseBuildSettings(globalBuildSettings, val);
 
 		JSONValue* configs = "configurations" in dubObject;
 		if (configs is null)
@@ -280,7 +355,6 @@ class Project : BasicExtension!Project
 		}
 		else
 		{
-
 			foreach (ref JSONValue conf; configs.array)
 			{
 				auto newConf = createConfiguration(conf);
@@ -294,81 +368,102 @@ class Project : BasicExtension!Project
 	private Configuration createAutoConfiguration()
 	{
 		Configuration result = new Configuration;
-		result.isAutoConfiguration = true;
-		result.isAutoSourcePaths = true;
+        result.buildSettings = new BuildSettings;
+
+        result.isAutoConfiguration = true;
 		result.name = "library";
 
-		foreach (p; [ "source", "src" ])
-		{
-			if (exists(p) && isDir(p))
-			{
-				result.sourcePaths = [p];
-				break;
-			}
-		}
+		if (globalBuildSettings.sourcePaths.empty)
+            addAutoSourcePaths(result.buildSettings.sourcePaths);
 
-		if (result.sourcePaths.empty)
+		if (globalBuildSettings.sourcePaths.empty && result.buildSettings.sourcePaths.empty)
 		{
 			app.addMessage("Warning: No configuration specified in dub json file and no src or source folders present to use as default");
 		}
 
-		foreach (n; ["app.d", name ~ ".d"])
-		{
-			auto mainSourceFile = buildPath(result.sourcePaths.front, n);
-			if (isFile(mainSourceFile))
-			{
-				result.name = "application";
-				result.mainSourceFile = mainSourceFile;
-				break;
-			}
-		}
+		foreach (src; [ "source", "src" ])
+        {
+            foreach (n; ["app.d", "main.d", buildPath(packageName, "app.d"), buildPath(packageName, "main.d")])
+		    {
+			    auto mainSourceFile = buildPath(src, n);
+			    if (exists(mainSourceFile) && isFile(mainSourceFile))
+			    {
+				    result.name = "application";
+				    result.buildSettings.mainSourceFile = mainSourceFile;
+				    break;
+			    }
+		    }
+        }
 
 		return result;
 	}
 
-	private Configuration createConfiguration(ref JSONValue conf)
-	{
-		auto c = new Configuration;
-		c.isAutoConfiguration = false;
-		c.name = conf.object["name"].str;
+    private void addAutoSourcePaths(ref string[] sourcePaths)
+    {
+        foreach (p; [ "source", "src" ])
+		{
+			if (exists(p) && isDir(p))
+			{
+			    sourcePaths ~= p;
+			}
+		}
+    }
 
-		JSONValue* srcFiles = "sourceFiles" in conf.object;
-
+    private void parseBuildSettings(BuildSettings s, ref JSONValue conf)
+    {
+        JSONValue* srcFiles = "sourceFiles" in conf.object;
 		if (srcFiles !is null)
 		{
 			foreach (ref p; srcFiles.array)
-				c.sourceFiles ~= p.str;
+				s.sourceFiles ~= p.str;
 		}
 
-		JSONValue* srcPaths = "sourcePaths" in conf.object;
+        JSONValue* srcPaths = "sourcePaths" in conf.object;
+        if (srcPaths)
+        {
+			foreach (ref p; srcPaths.array)
+				s.sourcePaths ~= p.str;
+        }
+    }
 
-		if (srcPaths is null)
-		{
-			c.isAutoSourcePaths = true;
+	private Configuration createConfiguration(ref JSONValue conf)
+	{
+		auto c = new Configuration;
+        c.buildSettings = new BuildSettings;
+		c.isAutoConfiguration = false;
+		c.name = conf.object["name"].str;
+
+        parseBuildSettings(c.buildSettings, conf);
+
+		return c;
+	}
+
+    // The source paths is dependant on active configuration, global build settings and in case they are both empty
+    // it will fall back on auto detected source paths (according to dub format spec).
+    string[] resolveSourcePaths()
+    {
+        if (activeConfiguration is null)
+            return null;
+        string[] paths = globalBuildSettings.sourcePaths;
+        foreach (p; activeConfiguration.buildSettings.sourcePaths)
+            paths ~= p;
+
+        if (paths.empty)
+        {
+            // Auto detect
 			foreach (p; [ "source", "src" ])
 			{
 				if (exists(p) && isDir(p))
 				{
-					c.sourcePaths = [p];
-					break;
+					paths ~= p;
 				}
 			}
+        }
 
-			if (c.sourcePaths.empty)
-				app.addMessage("Warning: No sourcePaths specified in dub config file and not default folders source or src present for configuration " ~ c.name);
-		}
-		else
-		{
-			c.isAutoSourcePaths = false;
-			foreach (ref p; srcPaths.array)
-				c.sourcePaths ~= p.str;
-
-			if (c.sourcePaths.empty)
-		 		app.addMessage("Warning: No paths in sourcePaths field in dub config file for configuration " ~ c.name);
-		}
-
-		return c;
-	}
+        if (paths.empty)
+            app.addMessage("Warning: No sourcePaths specified in dub config file and no default folders source or src present for configuration " ~ activeConfiguration.name);
+        return paths;
+    }
 
 	private string[] scanForFiles(string path)
 	{
@@ -413,7 +508,7 @@ class DubQuickOpenCommand : BasicCommand
 
 	override CompletionEntry[] getCompletions(CommandParameter[] data)
 	{
-		Project p = getExtension!Project("dub.project");
+		Package p = getExtension!Package("dub.package");
 		if (p is null)
 			return null;
 		import std.typecons;
@@ -426,6 +521,14 @@ class DubQuickOpenCommand : BasicCommand
 	}
 }
 
+@InFiber
+@MenuItem("Open/Dub Package", "")
+void DubOpenPackage(GUIApplication app, string path)
+{
+    if (path.empty)
+        path = app.showSelectFolderDialogBasic(r"C:\");
+    app.setCurrentDirectory(path);
+}
 
 // import extensions.search;
 // import extensions.attr;

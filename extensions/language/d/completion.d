@@ -218,11 +218,10 @@ struct SymbolInfo
 class DCompletionExtension : BasicExtension!DCompletionExtension
 {
 	private
-{
-	ushort _serverPort = 9166;
-	Pid _serverPID;
-	static DCompletionExtension _singleton;
-}
+    {
+	    ushort _serverPort = 9166;
+	    Pid _serverPID;
+    }
 
 	@property
 	{
@@ -241,16 +240,14 @@ class DCompletionExtension : BasicExtension!DCompletionExtension
 			return _serverPort;
 		}
 
-		static DCompletionExtension instance()
-		{
-			return _singleton;
-		}
 	}
 
-	override void init()
+    override void init()
 	{
-		_singleton = this;
-	    startServer();
+        static import extensions.dub;
+        startServer();
+        app.onResourceBaseLocationChanged.connect(&updateResourceBaseLocations);
+        extensions.dub.Package.instance.onActiveConfigurationChanged.connect(&packageUpdated);
     }
 
     override void fini()
@@ -258,16 +255,53 @@ class DCompletionExtension : BasicExtension!DCompletionExtension
         stopServer();
     }
 
+    private void updateResourceBaseLocations(uint changedLocations)
+    {
+        bool restart = (changedLocations & ResourceBaseLocation.binariesDir) != 0;
+
+        if (restart)
+        {
+            stopServer();
+            startServer();
+        }
+    }
+
+    private void packageUpdated(string oldPackageName, string newPackageName)
+    {
+        stopServer();
+        startServer();
+    }
+
 	void startServer()
 	{
-        _serverPID = spawnProcess(["dcd-server",
-                                  "-I", r"C:\D\dmd2\src\druntime",
-                                  "-I", r"C:\D\dmd2\src\phobos",
-                                  "-I", r"C:\Projects\D\ded\libdeadcode\src",
-                                  "-I", r"C:\Projects\D\ded\extensions"
-                                    ]
-                                  );
-	    import util.system;
+        string execPath = app.resourceURI("dcd-server", ResourceBaseLocation.binariesDir).uriString();
+        string cwd = app.resourceURI("", ResourceBaseLocation.currentDir).uriString();
+        try
+        {
+            // TODO: Fetch -I info from dub file
+            static import extensions.dub;
+
+            string[] cmdLine = [execPath];
+
+            // TODO: lookup dmd dirs
+            string[] sourcePaths = [ r"C:\D\dmd2\src\druntime", r"C:\D\dmd2\src\phobos" ];
+
+            sourcePaths ~= extensions.dub.Package.instance.resolveSourcePaths();
+
+            foreach (p; sourcePaths)
+            {
+                cmdLine ~= "-I";
+                cmdLine ~= p;
+            }
+            _serverPID = spawnProcess(cmdLine);
+            app.addMessage("dcd spawned: %s", cmdLine);
+        }
+        catch (ProcessException e)
+        {
+            app.addMessage("Error spawning dcd-server %s", execPath);
+        }
+
+        import util.system;
         // killProcessWithThisProcess(_serverPID.osHandle);
     }
 
@@ -275,9 +309,14 @@ class DCompletionExtension : BasicExtension!DCompletionExtension
 	{
 		if (_serverPID !is null)
         {
-		kill(_serverPID);
-		wait(_serverPID);
-	}
+            auto r = tryWait(_serverPID);
+            if (!r.terminated)
+            {
+		        kill(_serverPID);
+		        wait(_serverPID);
+            }
+            _serverPID = null;
+	    }
 	}
 
 	TcpSocket connectToServer()

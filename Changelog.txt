@@ -1,3 +1,106 @@
+Release 0.14 - 06 April 2015 
+
+Overview:
+
+    * Embedded dependencies (resources, dlls) into portable executable 
+    * Add libasync for io (network io only for now)
+    * Support for opening another dub project
+    * New command for setting up a deadcode dev environment.
+    * Basic text indent and comment region
+    * Now builds on linux (but crashes)
+
+Changes:
+
+    36829fe Use new 'portable' version flag for using pack files and not the release version flag.
+    d4fe3ad Use yielding setCurrentDirectory in deadcodedev extension.
+    bf9e2b6 Make shutdown of dcd-server more stable. 
+            Make dcd-server start get import paths from dub extension. 
+            Make completion extension respond to binaries dir changes.
+    72ffc1d Rename DubProject to DubPackage. 
+            Improve dub format compliance. 
+            Make dub extension respond to current dir changes.
+    c11d674 BasicExtensions are now singletons
+    a5233f2 New signal for working directory changes.
+    09233ef Move regular timeout check to prevent crash.
+    53a8d16 Support for base path for binaries.
+    fb11677 Use global gui event handler instead on window event handler.
+    e9135a2 Stop asyncio worker before exit to prevent hang.
+    5514123 Set log file.
+    969d299 Support for global gui event interseption.
+    fdfc8ff Refactor start/stop sprite anim on style. 
+            Made change in vwidget isibility start/stop anim on widget.
+    47f3c0f Support for stopping asyncio worker
+    965a8cd Helper to get CommandParameter array from cmd name and arg string.
+    5e633a0 Add more nothrow
+    3428751 Support for command arguments for MenuItem attribute.
+    2192b95 Add more nothrow @safe
+    f44efef Support for logging to file in addition to in editor log widget.
+    3dc5778 Add more nothrow @safe
+    0a13d83 Less busy repaint
+    96424aa Support for building other packs than resources. 
+            New binaries pack with the dcd-server.
+    d2d2463 Add temporary hardcoded paths to unittest single file build
+    e07f984 Styling for Notice widget
+    157a696 Visibility property on default stylesheet.
+    24a7545 Make menu taller
+    0b1b6a3 Visible flag cleanup
+    00e71eb Add async worker thread for io based on libasync. 
+            Add generic yield fiber on work to thread. 
+            Add getConfig for an extension to get some config. 
+            Add showFolderSelector that yields until a folder is selected. 
+            Add download() that yields until done. 
+            Change deadcodedev extension to use new asyncio and folder selection.
+    2751228 Add support for adding progress on a future. 
+            Add support for then() on future. 
+            Made future/promise thread safe.
+    a516ccc Add linasync as dependency
+    479825f Support for interpolating CSSVisibility
+    0794117 Fix to make compile with new dmd 2.067 version.
+    93df423 Fix timeout callback to work correctly after main loop has been blocked
+    5cfef8e Do not use C style array decl
+    09bf4cc Support for visibility attribute in CSS style
+    4448568 Break glyph locating loop on invalid rect
+    240a257 Fix to make compile with new dmd 2.067 version.
+    b278788 Method to check if a rect has all corners in the same point
+    ddc60b1 Build fixes for linux from Ketmar. Thx!
+    129497b Make build on windows after linux branch merge
+    e471014 Merge linux branch
+    62f8523 Basic text indent and commenting extension
+    9cfa909 Missing basic commands extension
+    db2b1f2 Initial code for deadcodedev extension
+    c2c67af Cleanup dub.json and add win32 import path on windows. 
+            Add prebuild command in release builds to create resources pack. 
+            Set Unicode version flag on builds.
+    4282f8c Win32 imports
+    0cab112 Do not use hardcoded resource in text renderer but use builtin instead.
+    e9e03da Use resource pack in release mode
+    15738ec Use module load and pack on initialization.
+    7574c59 New Pack class that can pack e.g. resource into executable and unpack when needed.
+    c8fab7c New module loader class that can load a dll from embedded array or file
+    46fdee0 Remove unused resource files
+    643f5d3 win.def file to allow for console less app.
+    bbd297a Material factory from texture
+    05c53ff Builtin textures doesn't load from file anymore.
+    29a55a7 Use refactored cursor position function.
+    4b5f639 Fix weird bug not triggered on window but on posix
+    794169a Support for showing a folder selection dialog in windows
+    efbd6e7 Get cursor support moved to platform folder
+    618a654 Semantic version support
+    703e61c Make dcd server process handling more stable
+    a82cfb9 Use winmain for windows in order to start deadcode without a console window.
+    27192ab Support for unittesting a single source file. 
+            Support for generating resource pack. 
+            Embed dcd-server.exe in distribution.
+    806c835 Linux build fixes for signals
+    c7e25c8 Fixes for linux
+    8898100 Compiles and link on linux
+    c26be37 Delete dteam.userprefs
+    6da0acc Fix spelling error
+    5092b04 Added dcd server
+    b75d536 Info about trello access
+    8810c5e Readme and license info
+
+
 Release 0.13 - 14 March 2015 
 
 Overview:

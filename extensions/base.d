@@ -200,11 +200,15 @@ void init(GUIApplication app)
 {
 	import std.range;
 
+    // Two step initialization of extensions because they might be depending on each other
+    // and we have to ensure that initialization of one can rely on another valid extension.
 	foreach (e; g_Extensions)
-	{
 		e.app = app;
-		e.init();
-	}
+
+    foreach (e; g_Extensions)
+    {
+		e.makeInstance(); // will call init() and make it initialized
+    }
 
 	foreach (c; g_Commands)
 	{
@@ -215,7 +219,7 @@ void init(GUIApplication app)
         {
 		    if (c.menuItem.argument is null)
             {
-			app.menu.addTreeItem(c.menuItem.path, c.name);
+                app.menu.addTreeItem(c.menuItem.path, c.name);
             }
             else
             {
@@ -716,6 +720,7 @@ class IBasicExtension
 {
 	GUIApplication app;
 
+
 	@property BufferView currentBuffer()
 	{
 		return app.currentBuffer;
@@ -734,6 +739,7 @@ class IBasicExtension
 		return app.getCurrentTextEditor();
 	}
 
+    abstract protected void makeInstance();
 	abstract @property string name();
 	abstract void init();
 	abstract void fini();
@@ -745,13 +751,29 @@ class BasicExtension(T) : IBasicExtension
 {
 	static this()
 	{
-		g_Extensions ~= new T;
+        _singleton = new T;
+		g_Extensions ~= _singleton;
 	}
 
-	//override void ()
-	//{
-	//    // no-op
-	//}
+    static
+    {
+        private T _singleton;
+        private bool _isInitialized = false;
+        @property T instance()
+        {
+            if (!_singleton._isInitialized)
+            {
+                _singleton.init();
+                _singleton._isInitialized = true;
+            }
+            return _singleton;
+        }
+    }
+
+    final override protected void makeInstance()
+    {
+        instance();
+    }
 
 	override void init()
 	{

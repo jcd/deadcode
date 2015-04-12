@@ -23,8 +23,9 @@ class GUI
 		EventQueue _eventQueue;
 		Uint32 _lastTick;
 		Uint32 _lastScrollTick;
+        Uint32[] _customEventTypes;
 
-		class Timeout
+        class Timeout
 		{
 			bool done;
 			int msNext;
@@ -158,6 +159,11 @@ class GUI
 		SDL_StartTextInput();
 		running = true;
 	}
+
+    void registerCustomEventType(Uint32 t)
+    {
+        _customEventTypes ~= t;
+    }
 
 	void run()
 	{
@@ -303,6 +309,7 @@ class GUI
 
 			Event ev;
 			ev.timestamp = e.common.timestamp;
+
 			switch(e.type) {
 				case SDL_MOUSEMOTION:
 					ev.type = EventType.MouseMove;
@@ -416,8 +423,22 @@ class GUI
 					stop();
 					break;
 				default:
-                    static import std.stdio;
-					std.stdio.writeln("unhandled event ", e.type);
+                    // Try any custom event types registered
+                    bool gotEvent = false;
+                    foreach (et; _customEventTypes)
+                    {
+                        gotEvent = gotEvent || et == e.type;
+                    }
+
+                    if (!gotEvent)
+                    {
+                        static import std.stdio;
+					    std.stdio.writeln("unhandled event ", e.type);
+                    }
+                    else
+                    {
+                        ev.type = EventType.AsyncCompletion;
+                    }
 					break;
 			}
 

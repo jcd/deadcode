@@ -273,7 +273,7 @@ void collect(string packRoot)
 	string[] files = [
 		"ded.exe",
 		"ded-debug.exe",
-        "dcd-server.exe",
+        "binaries/dcd-server.exe",
 		"SDL2.dll",
 		"SDL2_image.dll",
 		"SDL2_ttf.dll",
@@ -285,9 +285,11 @@ void collect(string packRoot)
 
 	writeln("Copying");
 
+	import std.path;
+
 	foreach (f; files)
 	{
-		string dest = buildPath(packRoot, f);
+		string dest = buildPath(packRoot, baseName(f));
 		std.stdio.writeln(f, " => ", dest);
 		if (exists(dest))
 			remove(dest);

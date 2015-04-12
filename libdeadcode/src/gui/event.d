@@ -34,6 +34,7 @@ enum EventType
 	Focus,		/// The window has been focused
 	Layout,     /// Relayout is required
 	StyleSheetChanged, // The stylesheet has been changed
+    AsyncCompletion // An async job has completed
 }
 
 string ctGenerateEventCallbacks()
@@ -148,6 +149,8 @@ struct Event
 				return text("Event(Layout", timestamp, ")");
 			case EventType.StyleSheetChanged: // The stylesheet has been changed
 				return text("Event(StyleSheetChanged", timestamp, ")");
+			case EventType.AsyncCompletion: // An async job has completed
+				return text("Event(AsyncCompletion", timestamp, ")");
 		}
 	}
 

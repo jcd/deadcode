@@ -6,19 +6,21 @@ import libasync;
 
 import std.concurrency;
 
-struct AsyncDownloadResult
+import util.queue;
+
+struct WatchDirResult
 {
-    string url;
-    string dest;
-    size_t byteCount;
-    Duration dur;
+    uint id;
+    shared GrowableCircularQueue!DWChangeInfo changesRange;
+    bool success;
 }
 
 private
 {
     interface IJob
     {
-        abstract void run(EventLoop eventLoop);
+        abstract @property bool isDone();
+        abstract void run(AsyncIOWorker worker);
     }
 
     mixin template JobImpl(Result, Args...)
@@ -26,12 +28,20 @@ private
         Result _result;
         Args _args;
 
+        private bool _isDone;
+
+        @property bool isDone() const pure nothrow @safe
+        {
+            return _isDone;
+        }
+
         private Promise!Result _promise;
 
         this(Args args)
         {
             _args = args;
             _promise = new Promise!Result;
+            _isDone = false;
         }
 
         Promise!Result getPromise()
@@ -48,19 +58,30 @@ private
             string reply;
         }
 
+        private AsyncTimer _timerOneShot;
+
         mixin JobImpl!(Result, string);
 
-        // This runs in the worker thread with eventLoop begin worker thread eventLoop
-        override void run(EventLoop eventLoop)
+        ~this()
         {
+            destroy(_timerOneShot);
+        }
+
+        // This runs in the worker thread with eventLoop begin worker thread eventLoop
+        override void run(AsyncIOWorker worker)
+        {
+            EventLoop eventLoop = worker._eventLoop;
             static int i = 0;
-            AsyncTimer g_timerOneShot = new AsyncTimer(eventLoop);
-            g_timerOneShot.duration(1.seconds).run({
-                auto r =Result(_args[0], "Pong to you " ~ i.to!string);
+            _timerOneShot = new AsyncTimer(eventLoop);
+            _timerOneShot.duration(1.seconds).run({
+                auto r = Result(_args[0], "Pong to you " ~ i.to!string);
                 _promise.setValue(r);
+                _isDone = true;
+                worker.resultProduced(this);
             });
             i++;
-/*
+
+            /*
             // Nothing to run on the event loop. Just fulfill the promise
             import std.conv;
             _result = Result(_args[0], "Pong to you " ~ i.to!string);
@@ -80,12 +101,20 @@ private
             bool success;
         }
 
+        HTTPClient _client;
+
+        ~this()
+        {
+            destroy(_client);
+        }
+
         mixin JobImpl!(Result, string, string);
 
-        override void run(EventLoop eventLoop)
+        override void run(AsyncIOWorker worker)
         {
-            auto client = new HTTPClient(eventLoop);
-            auto future = client.GET(new URI(_args[0]));
+            EventLoop eventLoop = worker._eventLoop;
+            _client = new HTTPClient(eventLoop);
+            auto future = _client.GET(new URI(_args[0]));
             future.then( delegate(HTTPResponse r) {
                  import std.file;
 
@@ -93,7 +122,48 @@ private
                 write(_args[1], r.content);
 
                 _promise.setValue(Result(true));
+                _isDone = true;
+                worker.resultProduced(this);
             });
+        }
+    }
+
+    class WatchDirJob : IJob
+    {
+        private AsyncDirectoryWatcher _watcher;
+        static private uint s_NextID = 1;
+
+        alias WatchDirResult Result;
+
+        mixin JobImpl!(Result, string, DWFileEvent, bool);
+
+        ~this()
+        {
+            _watcher.kill();
+            destroy(_watcher);
+        }
+
+        override void run(AsyncIOWorker worker)
+        {
+
+            EventLoop eventLoop = worker._eventLoop;
+
+            _watcher = new AsyncDirectoryWatcher(eventLoop);
+
+            auto r = new shared GrowableCircularQueue!DWChangeInfo();
+            auto result = Result(s_NextID++, r, true);
+
+            _watcher.run({
+                DWChangeInfo[1] change;
+                DWChangeInfo[] changeRef = change.ptr[0..1];
+                while(_watcher.readChanges(changeRef)){
+                    r.push(change[0]);
+                }
+                worker.resultProduced(this);
+            });
+            _watcher.watchDir(_args);
+
+            _promise.setValue(result);
         }
     }
 }
@@ -105,18 +175,26 @@ class AsyncIO
         Tid _workerTid;
         EventLoop _eventLoop;
         shared AsyncSignal _signal;
+        uint _sdlCustomEventType;
+    }
+
+    @property uint customEventType() const pure nothrow @safe
+    {
+        return _sdlCustomEventType;
     }
 
     this()
     {
+        import derelict.sdl2.sdl;
+        _sdlCustomEventType = SDL_RegisterEvents(1);
         _eventLoop = new EventLoop();
-        _workerTid = spawn(&spawnWorker, thisTid);
+        _workerTid = spawn(&spawnWorker, thisTid, _sdlCustomEventType);
         _signal = receiveOnly!(shared AsyncSignal)();
     }
 
-    private static void spawnWorker(Tid parentTid)
+    private static void spawnWorker(Tid parentTid, uint sdlCustomEventType)
     {
-        auto worker = new AsyncIOWorker();
+        auto worker = new AsyncIOWorker(sdlCustomEventType);
         // Need to share the signal between parent and worker
         parentTid.send(worker._signal);
         worker.run();
@@ -131,6 +209,15 @@ class AsyncIO
     auto download(string url, string dest)
     {
         auto j = new DownloadJob(url, dest);
+        return startAsync(j);
+    }
+
+    /** Returns an async range that with directory changes
+
+    */
+    auto watchDir(string path, DWFileEvent ev = DWFileEvent.ALL, bool recursive = false)
+    {
+        auto j = new WatchDirJob(path, ev, recursive);
         return startAsync(j);
     }
 
@@ -176,18 +263,20 @@ class AsyncIOWorker
         EventLoop _eventLoop;
         bool _shutdown = false;
         shared AsyncSignal _signal;
+        AsyncDirectoryWatcher resourceDirWatcher;
+        uint _sdlCustomEventType;
     }
 
-    this()
+    this(uint sdlCustomEventType)
     {
         import std.stdio;
         import std.typecons;
-
+        _sdlCustomEventType = sdlCustomEventType;
         _eventLoop = new EventLoop();
         _signal = new shared AsyncSignal(_eventLoop);
         _signal.run({
             receive(
-                    (shared(IJob) j) { thaw(j).run(_eventLoop); },
+                    (shared(IJob) j) { thaw(j).run(this); },
                     (bool s) { kill(); },
                     (Variant v) { writeln("Received variant in asyncio worker ", v); }
                     );
@@ -205,6 +294,25 @@ class AsyncIOWorker
     {
         import std.traits;
         return cast(Unqual!T)t;
+    }
+
+    private void resultProduced(IJob job)
+    {
+        if (job.isDone)
+        {
+            destroy(job);
+        }
+        signalOwnerThread();
+    }
+
+    // This will wake up the SDL loop
+    private void signalOwnerThread()
+    {
+        import derelict.sdl2.sdl;
+        SDL_Event event;
+        //   SDL_Zero(event); not needed since dlang does this
+        event.type = _sdlCustomEventType;
+        SDL_PushEvent(&event);
     }
 
     void kill()

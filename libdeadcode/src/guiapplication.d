@@ -22,6 +22,10 @@ import gui.resources.generic;
 import gui.layout;
 import io.asyncio;
 
+import util.queue;
+
+import libasync : DWChangeInfo;
+
 import math; // Vec2f
 
 import std.algorithm;
@@ -235,7 +239,9 @@ class GUIApplication : Application
 	Editors editors;
 
 	Widget _mainWidget;
-	version (Windows) DirectoryWatcher resourceDirWatcher;
+    shared GrowableCircularQueue!DWChangeInfo resourceDirWatcherQueue;
+
+    // version (Windows) DirectoryWatcher resourceDirWatcher;
 	private string resourcesRoot;
 	private string binariesRoot;
 	StyleSheet defaultStyleSheet;
@@ -280,7 +286,7 @@ class GUIApplication : Application
 
         setLogFile(resourceURI("log.txt", ResourceBaseLocation.userDataDir).uriString);
 
-		// editorcommands.register(this);
+        // editorcommands.register(this);
 		editors = new Editors;
 	}
 
@@ -361,7 +367,6 @@ class GUIApplication : Application
 		auto app = new GUIApplication(gui);
 		app.guiRoot.onFileDropped.connect(&app.onFileDropped);
 
-        app._asyncIO = new AsyncIO();
 		return app;
 	}
 
@@ -484,8 +489,6 @@ class GUIApplication : Application
 
 		// guiRoot.locationsManager.baseURI = "resources/";
 
-		version (Windows) resourceDirWatcher = new DirectoryWatcher(resourcesRoot);
-
 		scanResources();
 
 		defaultStyleSheet = guiRoot.styleSheetManager.load(resourceURI("default.stylesheet", ResourceBaseLocation.resourceDir));
@@ -562,10 +565,20 @@ class GUIApplication : Application
 		//                      });
 
 		guiRoot.init();
+
+        _asyncIO = new AsyncIO();
+        guiRoot.registerCustomEventType(_asyncIO.customEventType);
+
+		import libasync : DWFileEvent;
+        _asyncIO.watchDir(resourcesRoot, DWFileEvent.ALL,  true).then( (WatchDirResult r) {
+            resourceDirWatcherQueue = r.changesRange;
+        });
+
+        // Regular check will also be called on every refocus or async job completion
         regularCheck();
 
         // TODO: get rid of this active polling
-        timeout(dur!"msecs"(500), &regularCheck);
+        //timeout(dur!"msecs"(500), &regularCheck);
 
 		//guiRoot.timeout(dur!"msecs"(500), );
 
@@ -639,7 +652,7 @@ class GUIApplication : Application
     void quit()
     {
 		_asyncIO.stopWorker();
-		guiRoot.stop();
+        guiRoot.stop();
     }
 
 	void setupResourcesRoot()
@@ -909,8 +922,17 @@ version (linux)
         guiRoot.onEvent.connectTo((Event* ev) {
 			// Let the shortcut handler do its magic before event is dispatched to
 			// the widgets.
-			if (ev.type == EventType.Focus)
-				scanResources();
+			switch (ev.type) with (EventType)
+            {
+			case Focus:
+                regularCheck();
+                break;
+            case AsyncCompletion:
+                regularCheck();
+                break;
+            default:
+                break;
+            }
 
 			ev.used = editorBehavior.onEvent(*ev) == EventUsed.yes;
         });
@@ -1368,17 +1390,17 @@ version (linux)
         _widgetLocationUpdater.performLocationUpdates();
     }
 
+    // The dir change watches thread puts changes into a queue.
+    // Here we simply check if there is something in the queue and scan resources.
+    // Note that the watching thread will wake up the main thread in case it notices some changes
+    // and therefore we will get here process it.
     private void checkDirForChanges()
 	{
-            version (Windows)
-                {
-		if (resourceDirWatcher.wait(dur!"seconds"(0)))
-			scanResources();
-                }
-            version (linux)
-                {
-                    pragma(msg, "Warning: Missing checkDirForChanges on linux");
-                }
+        if (resourceDirWatcherQueue is null)
+            return;
+
+        if (resourceDirWatcherQueue.clear())
+            scanResources();
 	}
 
 	static class SessionBuffer

@@ -20,6 +20,7 @@
 	"libs-posix": ["curl"],
 	"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 	"buildRequirements": ["allowWarnings"],
+	"versions" : ["NoMain"],
 	"importPaths": [
 		"external/d-libraries"
     ],
@@ -28,15 +29,16 @@
         "name": "debug",
         "targetType": "executable",
 		"targetName" : "ded-debug",
-		"dflags" : ["-J.","-vcolumns", "-version=portable", "-version=NoMain"],	
+		"dflags" : ["-J.","-vcolumns"],	
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
-		"buildOptions" : [ "debugMode", "debugInfo"]
+		"buildOptions" : [ "debugMode", "debugInfo"],
+		"sourcePaths": [ "libdeadcode/src", "src", "extensions" ]
 		},
 		{
         "name": "ddox",
         "targetType": "executable",
 		"targetName" : "ded-debug",
-		"dflags" : ["-vcolumns", "-version=NoMain", "-c", "-Df__dummy.html", "-X" , "-Xfdocs.json"],
+		"dflags" : ["-vcolumns", "-c", "-Df__dummy.html", "-X" , "-Xfdocs.json"],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : [ "debugMode", "debugInfo", "syntaxOnly"]
 		},
@@ -44,15 +46,17 @@
         "name": "udebug",
         "targetType": "executable",
 		"targetName" : "ded-debug",
+		"versions" : ["portable"],
 		"buildOptions" : [ "debugMode", "debugInfo","unittests"]
 		},
 		{
         "name": "release",
         "targetType": "executable",
 		"targetName" : "ded",
+		"versions" : ["portable", "release"],
 		"preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources resources.pack",
 									   "tool.bat generate-resource-pack binaries binaries.pack" ],
-		"dflags" : ["-J.","-vcolumns", "-version=portable", "-version=release", "-version=NoMain" ],
+		"dflags" : ["-J.","-vcolumns"],
 		"sourceFiles": [ "src/win.def" ],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : [ "releaseMode" ]
@@ -61,7 +65,7 @@
         "name": "unittest",
         "targetType": "executable",
 		"targetName" : "ded-unittest",
-		"dflags" : ["-vcolumns", "-version=NoMain"],
+		"dflags" : ["-vcolumns"],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : ["unittests", "debugMode", "debugInfo"]
 		},
@@ -69,7 +73,7 @@
         "name": "dunittest",
         "targetType": "executable",
 		"targetName" : "ded-debug",
-		"dflags" : ["-vcolumns","-profile", "-version=NoMain"],
+		"dflags" : ["-vcolumns","-profile"],
 		"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 		"buildOptions" : ["unittests", "debugMode", "debugInfo"]
 		}

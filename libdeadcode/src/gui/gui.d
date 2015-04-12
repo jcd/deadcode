@@ -407,6 +407,11 @@ class GUI
 							break;
 						case SDL_WINDOWEVENT_FOCUS_GAINED:
 							ev.type = EventType.Focus;
+                            ev.on = true;
+							break;
+                        case SDL_WINDOWEVENT_FOCUS_LOST:
+							ev.type = EventType.Focus;
+                            ev.on = false;
 							break;
 						default:
 							break;

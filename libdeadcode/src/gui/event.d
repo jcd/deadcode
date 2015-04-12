@@ -144,7 +144,7 @@ struct Event
 			case EventType.Resize:     /// The window has been resized
 				return text("Event(Resize, ", timestamp, ", ", width, ", ", height, ")");
 			case EventType.Focus:		/// The window has been focused
-				return text("Event(Focus, ", timestamp, ", ", windowID, ")");
+				return text("Event(Focus, ", timestamp, ", ", windowID, ",", on, ")");
 			case EventType.Layout:     /// Relayout is required
 				return text("Event(Layout", timestamp, ")");
 			case EventType.StyleSheetChanged: // The stylesheet has been changed
@@ -201,6 +201,10 @@ struct Event
 		{
 			string file;
 		}
+        struct
+        {
+            bool on;
+        }
 	}
 
 	bool opEquals(Event e)

@@ -925,6 +925,7 @@ version (linux)
 			switch (ev.type) with (EventType)
             {
 			case Focus:
+                if (ev.on)
                 regularCheck();
                 break;
             case AsyncCompletion:

@@ -45,9 +45,9 @@ import std.c.windows.windows;
 extern (Windows)
 {
 	nothrow export HWND FindWindowA(LPCTSTR className, LPCTSTR windowName);
-	nothrow export HANDLE FindFirstChangeNotificationA(LPCTSTR lpPathName, BOOL bWatchSubtree, DWORD dwNotifyFilter);
-	nothrow export BOOL FindNextChangeNotification(HANDLE hChangeHandle);
-	nothrow export BOOL FindCloseChangeNotificationA(HANDLE hChangeHandle);
+	//nothrow export HANDLE FindFirstChangeNotificationA(LPCTSTR lpPathName, BOOL bWatchSubtree, DWORD dwNotifyFilter);
+	//nothrow export BOOL FindNextChangeNotification(HANDLE hChangeHandle);
+	//nothrow export BOOL FindCloseChangeNotificationA(HANDLE hChangeHandle);
 	nothrow export BOOL SHGetSpecialFolderPathA(
 											   HWND hwndOwner,
 											   LPTSTR lpszPath,
@@ -63,7 +63,7 @@ extern (Windows)
 }
 
 ///
-
+/*
 class DirectoryWatcher
 {
 	import std.datetime;
@@ -126,7 +126,7 @@ class DirectoryWatcher
 		return result;
 	}
 }
-
+*/
 } // version (Windows)
 
 enum RelativeLocation
@@ -926,7 +926,7 @@ version (linux)
             {
 			case Focus:
                 if (ev.on)
-                regularCheck();
+                    regularCheck();
                 break;
             case AsyncCompletion:
                 regularCheck();

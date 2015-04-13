@@ -2,7 +2,6 @@ module platform.dialog;
 
 version (Windows)
 {
-
     import std.c.windows.windows;
     import win32.shlobj;
 
@@ -10,6 +9,20 @@ version (Windows)
     import std.string;
     import win32.objidl;
     import std.conv;
+
+    enum MessageBoxStyle
+    {
+        none,
+        error = MB_ICONERROR,
+        yesNo = MB_YESNO,
+        modal = MB_TASKMODAL,
+    }
+
+    int messageBox(string title, string message, MessageBoxStyle t)
+    {
+        import std.string;
+        return MessageBoxA(null, message.toStringz(), title.toStringz(), t);
+    }
 
     string showSelectFolderDialogBasic(string startDir)
     {

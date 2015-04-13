@@ -48,10 +48,8 @@ void deadcodeSetupDevelopmentEnvironment(GUIApplication app)
     if (hasConfiguredDevelopmentEnvironment(app) || isRunningInDevelopmentEnvironment(app))
         return;
 
-    version(Windows)
-        string startDir = "C:\\";
-    else
-        string startDir = "~/";
+    import platform.config;
+    string startDir = resourceURI("", ResourceBaseLocation.homeDir).uriString();
 
     string devDir = selectDevelopmentEnvironmentFolder(app, startDir);
 

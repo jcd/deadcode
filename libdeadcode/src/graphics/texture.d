@@ -24,24 +24,20 @@ class Texture
 
 	static @property Texture builtIn()
 	{
-		import util.system;
 		if (builtIn_ is null)
         {
 		    builtIn_ = new Texture;
             create(8, 8, Color.magenta, builtIn_);
-            // builtIn_ = create(getRunningExecutablePath() ~ "bg2.png");
         }
 		return builtIn_;
 	}
 
 	static @property Texture builtInWhite()
 	{
-		import util.system;
 		if (builtInWhite_ is null)
         {
 		    builtInWhite_ = new Texture;
             create(8, 8, Color.white, builtInWhite_);
-            // builtIn_ = create(getRunningExecutablePath() ~ "bg2.png");
         }
 		return builtInWhite_;
 	}

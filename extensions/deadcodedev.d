@@ -142,6 +142,8 @@ private string selectDevelopmentEnvironmentFolder(GUIApplication app, string sta
 private bool setupNewDeadcodeDevelopmentDir(GUIApplication app, string dir)
 {
     import std.stdio;
+    import platform.system;
+
     app.addMessage("Setting up Deadcode development dir %s", dir);
     if (!exists(dir))
     {
@@ -182,18 +184,11 @@ private bool setupNewDeadcodeDevelopmentDir(GUIApplication app, string dir)
 
     if ( app.yield(&gitClone, dir) )
     {
-        if (app.setCurrentDirectory(dir))
-        {
+        app.setCurrentDirectory(dir);
             app.addMessage("Current working dir %s", dir);
-            notice.visible = false;
-        }
-        else
-        {
-            app.addMessage("Error: Current working dir not %s", dir);
-            notice.show("Error: Couldn't change working dir", false);
+        notice.show("Dev setup ready", true);
             app.timeout(dur!"seconds"(2), () { notice.visible = false; return false; });
         }
-    }
     else
     {
         app.addMessage("Error: Couldn't clone deadcode from github");
@@ -213,25 +208,6 @@ bool gitClone(string dir)
         writeln(line);
     }
     return wait(res.pid) == 0;
-}
-
-private bool shellCommandExists(string cmd)
-{
-    import std.process;
-    import std.regex;
-
-    auto res = pipeShell(cmd, Redirect.stdin | Redirect.stderrToStdout | Redirect.stdout);
-    version (Windows)
-    {
-        auto re = regex(r"is not recognized as an internal or external command");
-    }
-    foreach (line; res.stdout.byLine)
-    {
-        if (!line.matchFirst(re).empty)
-            return false;
-    }
-    wait(res.pid);
-    return true;
 }
 
 bool installDMD(GUIApplication app)

@@ -11,9 +11,12 @@ import core.container;
 import core.signals;
 import core.uri;
 
+public import platform.config : ResourceBaseLocation;
+
 import graphics;
 import gui;
 import gui.resources.texture : GTexture = Texture;
+
 import controls.button;
 import controls.command;
 import controls.menu;
@@ -37,97 +40,6 @@ import std.path;
 import std.string;
 static import std.exception;
 
-enum appName = "DeadCode";
-
-version (Windows)
-{
-import std.c.windows.windows;
-extern (Windows)
-{
-	nothrow export HWND FindWindowA(LPCTSTR className, LPCTSTR windowName);
-	//nothrow export HANDLE FindFirstChangeNotificationA(LPCTSTR lpPathName, BOOL bWatchSubtree, DWORD dwNotifyFilter);
-	//nothrow export BOOL FindNextChangeNotification(HANDLE hChangeHandle);
-	//nothrow export BOOL FindCloseChangeNotificationA(HANDLE hChangeHandle);
-	nothrow export BOOL SHGetSpecialFolderPathA(
-											   HWND hwndOwner,
-											   LPTSTR lpszPath,
-											   int csidl,
-											   BOOL fCreate
-												   );
-	//nothrow export BOOL ReadDirectoryChangesW(HANDLE hDirect1ory, LPVOID lpBuffer, DWORD nBufferLength,
-	//                                  BOOL bWatchSubtree,
-	//                                  DWORD dwNotifyFilter,
-	//                                  LPDWORD lpBytesReturned,
-	//                                  LPOVERLAPPED lpOverlapped,
-	//								  LPOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
-}
-
-///
-/*
-class DirectoryWatcher
-{
-	import std.datetime;
-
-	string path;
-	HANDLE[1] dwChangeHandles;
-
-	this(string path)
-	{
-		this.path = buildNormalizedPath(path);
-		dwChangeHandles[0] = FindFirstChangeNotificationA(
-														 path.toStringz(),                         // directory to watch
-														 true,                         // do not watch subtree
-														 FILE_NOTIFY_CHANGE_LAST_WRITE); // watch file name changes
-		import std.stdio;
-		if (dwChangeHandles[0] == INVALID_HANDLE_VALUE)
-		{
-			writeln("\n ERROR: FindFirstChangeNotification function failed.\n", GetLastError());
-		}
-	}
-
-	bool wait(Duration d)
-	{
-		// Watch the directory
-		bool result = false;
-
-		if (dwChangeHandles[0] == INVALID_HANDLE_VALUE)
-			return result;
-
-		// Change notification is set. Now wait on both notification
-		// handles and refresh accordingly.
-
-		// Wait for notification.
-		DWORD dwWaitMs = cast(uint)d.total!"msecs"();
-		DWORD dwWaitStatus = WaitForMultipleObjects(1, &dwChangeHandles[0],
-												FALSE, dwWaitMs);
-
-		switch (dwWaitStatus)
-		{
-			case WAIT_OBJECT_0:
-
-				// A file was created, renamed, or deleted in the directory.
-				// Refresh this directory and restart the notification.
-				if ( FindNextChangeNotification(dwChangeHandles[0]) == FALSE )
-				{
-					writeln("\n ERROR: FindNextChangeNotification function failed.\n", GetLastError());
-				}
-				result = true;
-				break;
-			case WAIT_TIMEOUT:
-				// A timeout occurred, this would happen if some value other
-				// than INFINITE is used in the Wait call and no changes occur.
-				// In a single-threaded environment you might not want an
-				// INFINITE wait.
-				break;
-			default:
-				writeln("\n ERROR: Unhandled dwWaitStatus.\n", GetLastError());
-				break;
-		}
-		return result;
-	}
-}
-*/
-} // version (Windows)
 
 enum RelativeLocation
 {
@@ -140,18 +52,6 @@ enum RelativeLocation
 	leftOf,
 	rightOf,
 	inside,
-}
-
-/** The location that is use as base for relative paths/URIs.
-*/
-enum ResourceBaseLocation : uint
-{
-	currentDir = 1,    /// The current working directory
-	executableDir = 2, /// The dir of this executable
-	resourceDir = 4,   /// The default resources dir
-	binariesDir = 8,   /// The default binary helper executables dir
-	userDataDir = 16,  /// The user data dir which is platform specific
-	sessionDir = 32,   /// Session temporary dir. Is cleared upon start and stop of app.
 }
 
 import util.jsonx;
@@ -241,9 +141,6 @@ class GUIApplication : Application
 	Widget _mainWidget;
     shared GrowableCircularQueue!DWChangeInfo resourceDirWatcherQueue;
 
-    // version (Windows) DirectoryWatcher resourceDirWatcher;
-	private string resourcesRoot;
-	private string binariesRoot;
 	StyleSheet defaultStyleSheet;
 
 	GenericResource sessionData;
@@ -266,6 +163,13 @@ class GUIApplication : Application
     @property Window activeWindow()
     {
         return guiRoot.activeWindow;
+    }
+
+    // TODO: move to ctx
+    core.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+    {
+        static import platform.config;
+        return platform.config.resourceURI(path, base);
     }
 
 	private this(GUI gui)
@@ -292,61 +196,6 @@ class GUIApplication : Application
 
 	~this()
 	{
-	}
-
-	core.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
-	{
-		if (isAbsolute(path))
-		{
-			auto res = new core.uri.URI(path);
-			res.normalize();
-			return res;
-		}
-
-		import core.stdc.string;
-		string basePath;
-		final switch (base)
-		{
-			case ResourceBaseLocation.currentDir:
-				basePath = absolutePath(std.file.getcwd());
-				break;
-			case ResourceBaseLocation.executableDir:
-				basePath = absolutePath(thisExePath().dirName());
-				break;
-			case ResourceBaseLocation.resourceDir:
-				basePath = resourcesRoot;
-				break;
-			case ResourceBaseLocation.binariesDir:
-				basePath = binariesRoot;
-				break;
-			case ResourceBaseLocation.sessionDir:
-				// TODO: implement
-				addMessage("Implement sessionDir");
-				break;
-			case ResourceBaseLocation.userDataDir:
-                            version (Windows)
-                            {
-				char[MAX_PATH] buffer;
-				auto CSIDL_APPDATA = 0x001a;
-				void* dummy;
-				if (SHGetSpecialFolderPathA(dummy, buffer.ptr, CSIDL_APPDATA, 0) == TRUE)
-					basePath = absolutePath(buildPath(buffer[0..strlen(buffer.ptr)].idup, appName));
-				else
-					throw new Exception("Cannot get APPDATA dir");
-                            }
-                            version (linux)
-                            {
-                                import std.process;
-                                import std.path;
-                                string home = environment.get("XDG_DATA_HOME", expandTilde("~/.local/share"));
-                                basePath = absolutePath(buildPath(home, appName));
-                            }
-			    break;
-		}
-
-		auto u = new core.uri.URI(buildNormalizedPath(basePath, path));
-		u.normalize();
-		return u;
 	}
 
 	static GUIApplication create(GUI gui = null)
@@ -570,7 +419,8 @@ class GUIApplication : Application
         guiRoot.registerCustomEventType(_asyncIO.customEventType);
 
 		import libasync : DWFileEvent;
-        _asyncIO.watchDir(resourcesRoot, DWFileEvent.ALL,  true).then( (WatchDirResult r) {
+        static import platform.config;
+        _asyncIO.watchDir(platform.config.resourcesRoot, DWFileEvent.ALL,  true).then( (WatchDirResult r) {
             resourceDirWatcherQueue = r.changesRange;
         });
 
@@ -657,6 +507,8 @@ class GUIApplication : Application
 
 	void setupResourcesRoot()
 	{
+        import platform.config : resourcesRoot, binariesRoot;
+
         version (portable)
         {
             import core.pack;
@@ -677,31 +529,17 @@ class GUIApplication : Application
 	void setupRegistryEntries()
 	{
 		import std.uuid;
-		import core.config;
+		import platform.config;
+        addFileBrowserContextMenuItem("Open with DeadCode", r"C:\Projects\D\ded>ded-debug_d.exe");
+        analyticsKey = getOrSetConfigField("analyticsKey", randomUUID().toString());
 
-                version (Windows)
-                {
-                    setupRegistryEntry(r"Software\Classes\*\shell\Open with Dedit\command",
-                                       r"C:\Projects\D\ded>ded-debug_d.exe");
-                    analyticsKey = setupRegistryEntry(r"Software\SteamWinter\Ded",
-                                                      randomUUID().toString());
-                }
-                version (linux)
-                {
-                    import std.file;
-
-                    auto u = resourceURI("analyticsKey");
-
-                    mkdirRecurse(u.dirName.uriString);
-
-                    if (exists(u.uriString))
-                        analyticsKey = readText(u.uriString);
-                    else
-                    {
-                        analyticsKey = randomUUID().toString();
-                        std.file.write(u.uriString, analyticsKey);
-                    }
-                }
+        //version (Windows)
+        //        {
+        //            setupRegistryEntry(r"Software\Classes\*\shell\Open with Dedit\command",
+        //                               r"C:\Projects\D\ded>ded-debug_d.exe");
+        //            analyticsKey = setupRegistryEntry(r"Software\SteamWinter\DeadCode",
+        //                                              );
+        //        }
 	}
 
 
@@ -763,31 +601,6 @@ class GUIApplication : Application
 		return null;
 	}
 
-version (Windows)
-{
-	private Rectf getExistingWindowRect()
-	{
-		auto hwnd = FindWindowA("SDL_app", "Deadcode");
-		Rectf result;
-		RECT r;
-		if (hwnd !is null)
-		{
-			GetWindowRect(hwnd, &r);
-			result = Rectf(r.left, r.top, r.right - r.left, r.bottom - r.top);
-		}
-		return result;
-	}
-}
-version (linux)
-{
-    pragma(msg, "Warning: Missing getExistingWindowRect");
-    private Rectf getExistingWindowRect()
-    {
-        return Rectf(0,0, 500, 500);
-    }
-}
-
-
     Widget getWidget(string name)
     {
         return guiRoot.activeWindow.getWidget(name);
@@ -800,6 +613,7 @@ version (linux)
 
 	private void setupMainWindow()
 	{
+        import platform.display : getExistingWindowRect;
 		auto existingRect = getExistingWindowRect();
 		auto win = createWindow("Deadcode");
 		if (!existingRect.empty)

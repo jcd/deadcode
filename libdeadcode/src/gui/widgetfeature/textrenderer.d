@@ -125,16 +125,10 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		textStyler = _textStyler;
 
 		 // TODO: maybe model should be owner of styledText_
-		import util.system;
-        import std.path;
         import gui.models : createQuad;
 		_cursorModel = createQuad(Rectf(0,0,1, 1), Material.create(Texture.builtInWhite)); // buildPath(getRunningExecutablePath(), "resources", "materials", "white.png")));
 		_cursorModel.subModel.blend = false;
 		cursorVisible = true;
-		// std.stdio.writeln(getRunningExecutablePath() ~ "white.png");
-		// this._cursorModel.material.texture = font.fontMap;
-		//_textStyler.text.onInsert.connect(&onTextDirty);
-		//_textStyler.text.onRemove.connect(&onTextDirty);
 
 		_bufferOffsetForCurrentCache = InvalidIndex;
 	}

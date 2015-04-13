@@ -169,6 +169,7 @@ enum ResourceBaseLocation : uint
 	binariesDir = 8,   /// The default binary helper executables dir
 	userDataDir = 16,  /// The user data dir which is platform specific
 	sessionDir = 32,   /// Session temporary dir. Is cleared upon start and stop of app.
+	homeDir = 64,      /// The user home dir which is platform specific
 }
 
 core.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
@@ -217,6 +218,23 @@ core.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLo
                 import std.path;
                 string home = environment.get("XDG_DATA_HOME", expandTilde("~/.local/share"));
                 basePath = absolutePath(buildPath(home, appName));
+            }
+            break;
+        case ResourceBaseLocation.homeDir:
+            version (Windows)
+            {
+				char[MAX_PATH] buffer;
+				auto CSIDL_PROFILE = 0x0028;
+				void* dummy;
+				if (SHGetSpecialFolderPathA(dummy, buffer.ptr, CSIDL_PROFILE, 0) == TRUE)
+					basePath = buildPath(buffer[0..strlen(buffer.ptr)].idup);
+				else
+					throw new Exception("Cannot get HOME dir");
+            }
+            version (linux)
+            {
+                string home = expandTilde("~");
+                basePath = absolutePath(home);
             }
             break;
     }

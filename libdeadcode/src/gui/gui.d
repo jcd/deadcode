@@ -97,7 +97,7 @@ class GUI
 	static GUI create(GraphicsSystem gs = null)
 	{
         static import io.file;
-		import util.system;
+		import platform.system;
 		import gui.resources;
 		auto g = new GUI(gs is null ? new graphics.graphicssystem.OpenGLSystem() : gs);
 

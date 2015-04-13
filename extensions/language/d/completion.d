@@ -301,8 +301,8 @@ class DCompletionExtension : BasicExtension!DCompletionExtension
             app.addMessage("Error spawning dcd-server %s", execPath);
         }
 
-        import util.system;
-        // killProcessWithThisProcess(_serverPID.osHandle);
+        import platform.system;
+        //killProcessWithThisProcess(_serverPID.osHandle);
     }
 
 	void stopServer()

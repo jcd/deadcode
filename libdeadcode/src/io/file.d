@@ -14,7 +14,7 @@ class File : IO
 	{
 		// debug std.stdio.writeln("Opening ", path);
 		string modeString;
-		
+
 		final switch (mode)
 		{
 			case IOMode.read:
@@ -62,7 +62,7 @@ class File : IO
 
 		static if( __traits(compiles, r.reserve(1)))
 			r.reserve(sz);
-		
+
 		// TODO: Get rid of temp buf for reading and read directly into input range
 		char[] buf;
 		buf.length = sz;
@@ -85,7 +85,7 @@ class File : IO
 	}
 
 	//ubyte[] readAll();
-	
+
 	string readText()
 	{
 		import std.array;
@@ -108,17 +108,14 @@ class FileProtocol : IOProtocol
 	bool canHandle(URI url)
 	{
 		string schema = url.schema;
-		version (Windows)
-		{
-			auto isAbsPath = url.uriString.length > 3 && schema.length == 1 && url.uriString[1..3] == ":/";
-			return schema is null || schema == "file" || isAbsPath;
-		}
-		else
-		{
-			return schema is null || schema == "file";
-		}
+
+        // driveName is alway null on posix
+        auto hasDrive = driveName(url.uriString) !is null;
+		auto isWinAbsPath = hasDrive && url.uriString.length > 3 && schema.length == 1 && url.uriString[1..3] == ":/";
+
+        return schema is null || schema == "file" || isWinAbsPath;
 	}
-	
+
 	IO open(URI url, IOMode mode)
 	{
 		return File.open(uriToPath(url), mode);
@@ -131,7 +128,7 @@ class FileProtocol : IOProtocol
 
 	static string uriToPath(URI inUrl)
 	{
-		import util.system;
+		import platform.system;
 		auto url = inUrl.toString();
 
 		string origURL = url;
@@ -148,10 +145,10 @@ class FileProtocol : IOProtocol
 
 		if (url.startsWith("/"))
 		{
-			// Relative to base path 
+			// Relative to base path
 			url = buildPath(base, url);
 		}
-		else 
+		else
 		{
 			url = buildPath(getRunningExecutablePath, url);
 		}
@@ -163,9 +160,9 @@ unittest
 {
 	import test;
 	auto fp = new FileProtocol;
-	
+
 	string[] paths = [ "file:///install.ini", "file://c:/install.ini", "/install.ini" ];
-	
+
 	// Convenience protocol method for reading all text in a file
 	foreach (p; paths)
 	{

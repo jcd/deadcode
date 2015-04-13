@@ -1,44 +1,9 @@
 module app;
 
 import guiapplication;
+import platform.system;
 
-version (Windows)
-{
-    import core.runtime;
-    import core.sys.windows.windows;
-    import std.string;
-
-    extern (Windows)
-        int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-                    LPSTR lpCmdLine, int nCmdShow)
-        {
-            int result;
-
-            try
-            {
-                Runtime.initialize();
-                result = myMain(null);
-                Runtime.terminate();
-            }
-            catch (Throwable e)
-            {
-                MessageBoxA(null, e.toString().toStringz(), "Error",
-                            MB_OK | MB_ICONEXCLAMATION);
-                result = 0;     // failed
-            }
-
-            return result;
-        }
-}
-else
-{
-    int main(string[] args)
-    {
-        return myMain(args);
-    }
-}
-
-
+mixin platformMain!myMain;
 
 /** TODO:
  *

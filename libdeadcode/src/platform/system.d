@@ -1,4 +1,4 @@
-module util.system;
+module platform.system;
 
 import core.sys.windows.windows;
 import std.string;
@@ -13,9 +13,63 @@ string getRunningExecutablePath()
 	string p = buf[0 .. idx+1].idup;
 	return p;
 }
+
+bool shellCommandExists(string cmd)
+{
+    import std.process;
+    import std.regex;
+
+    auto res = pipeShell(cmd, Redirect.stdin | Redirect.stderrToStdout | Redirect.stdout);
+    version (Windows)
+    {
+        auto re = regex(r"is not recognized as an internal or external command");
+    }
+    foreach (line; res.stdout.byLine)
+    {
+        if (!line.matchFirst(re).empty)
+            return false;
+    }
+    wait(res.pid);
+    return true;
+}
+
+mixin template platformMain(alias customMain)
+{
+    import core.runtime;
+    import core.sys.windows.windows;
+    import std.string;
+
+    extern (Windows)
+        int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+                    LPSTR lpCmdLine, int nCmdShow)
+        {
+            int result;
+
+            try
+            {
+                Runtime.initialize();
+                result = customMain(null);
+                Runtime.terminate();
+            }
+            catch (Throwable e)
+            {
+                MessageBoxA(null, e.toString().toStringz(), "Error",
+                            MB_OK | MB_ICONEXCLAMATION);
+                result = 1;     // failed
+            }
+
+            return result;
+        }
+}
+
+
+
 }
 version (linux)
 {
+
+    // http://stackoverflow.com/questions/284325/how-to-make-child-process-die-after-parent-exits
+
     string getRunningExecutablePath()
     {
         import core.sys.posix.unistd;
@@ -32,6 +86,14 @@ version (linux)
             return (rr > 0 ? buf[0..rr].idup : "./".idup);
         }
         return null;
+    }
+
+    mixin template platformMain(alias customMain)
+    {
+        int main(string[] args)
+        {
+            return customMain(args);
+        }
     }
 }
 

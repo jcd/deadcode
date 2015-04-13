@@ -35,6 +35,8 @@ enum appName = "DeadCode";
 
 version (Windows)
 {
+    immutable string builtinFontPath = r"C:\Windows\Fonts\verdana.ttf";
+
     import std.c.windows.windows;
     extern (Windows)
     {
@@ -119,6 +121,7 @@ version (Windows)
 }
 version (linux)
 {
+    immutable string builtinFontPath = r"/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
 
     import std.format;
 

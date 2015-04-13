@@ -68,14 +68,6 @@ private:
 	string _name;
 }
 
-version(Windows)
-{
-	private immutable string builtinFontPath = r"C:\Windows\Fonts\verdana.ttf";
-}
-version(linux)
-{
-	private immutable string builtinFontPath = r"/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
-}
 
 class FontManager : ResourceManager!Font
 {
@@ -100,6 +92,7 @@ class FontManager : ResourceManager!Font
 
 	private void createBuiltinFont()
 	{
+        import platform.config;
 		builtinFontHandle = declare(builtinFontPath).handle;
 	}
 

@@ -535,24 +535,5 @@ class BasicCommands : BasicExtension!BasicCommands
 		    }
 	    }
 
-	    // cmgr.add(new IncrementalSearchCommand);
-
-	    /*
-	    cmgr.create("edit.commitCompletion", "Commit the active completion", delegate(Variant data) {
-		    std.stdio.writeln("commit completion");
-	    });
-    */
-
-	    import util.build;
-	    cmgr.create("core.rebuildEditor", "Rebuild the editor and replace the running instance with it",
-				    null,
-				    delegate(CommandParameter[] data) {
-    //	            	build.buildIt();
-	            	    // Serialize
-	            	    // rename build version to xx
-	            	    // start xx
-	            	    //    The spawned instance will check if it is called xx then deserialize by piping to the running.exe, and then kill the original ded.exe running
-	            	    // timeout starting and notify
-	                });
     }
 }

@@ -399,6 +399,35 @@ class StyleSheet : Resource!StyleSheet
 	{
 		//FontManager _fontManager;  // TODO: No need for managers I think. Let the ones why create styles know about that
 		//MaterialManager _materialManager;
+
+        static class NamedStylable : Stylable
+        {
+            private string _styleName;
+
+            @property
+            {
+                string name() const pure @safe { return null; }
+                ubyte matchStylable(string stylableName) const pure nothrow @safe { return stylableName == _styleName ? 10 : 0; }
+                const(string[]) classes() const pure nothrow @safe { return null; }
+                bool hasKeyboardFocus() const pure nothrow @safe { return false; }
+                bool isMouseOver() const pure nothrow @safe { return false; }
+                bool isMouseDown() const pure nothrow @safe { return false; }
+                bool isVisible() const pure nothrow @safe { return true; }
+                Stylable parent() pure nothrow @safe { return null; }
+
+                @property void styleName(string n)
+                {
+                    _styleName = n;
+                }
+            }
+
+            this(string styleName)
+            {
+                _styleName = styleName;
+            }
+        }
+
+        NamedStylable _tempStylable;
 	}
 
 	Rule[] rules;
@@ -406,6 +435,11 @@ class StyleSheet : Resource!StyleSheet
 
 	alias size_t[] RuleSetID;
 	Style[RuleSetID] styleCache;
+
+    this()
+    {
+        _tempStylable = new NamedStylable("");
+    }
 
 	void clear()
 	{
@@ -426,6 +460,12 @@ class StyleSheet : Resource!StyleSheet
 		other.rules = r;
 		other.styleCache = sc;
 	}
+
+    Style getStyle(string styleName)
+    {
+        _tempStylable.styleName = styleName;
+        return getStyle(_tempStylable);
+    }
 
 	Style getStyle(Stylable w)
 	{

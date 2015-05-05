@@ -56,21 +56,6 @@ enum RelativeLocation
 
 import util.jsonx;
 
-class GlobalStyle : Stylable
-{
-	@property
-	{
-		string name() const pure @safe { return null; }
-		ubyte matchStylable(string stylableName) const pure nothrow @safe { return stylableName == "Globals" ? 10 : 0; }
-		const(string[]) classes() const pure nothrow @safe { return null; }
-		bool hasKeyboardFocus() const pure nothrow @safe { return false; }
-		bool isMouseOver() const pure nothrow @safe { return false; }
-		bool isMouseDown() const pure nothrow @safe { return false; }
-        bool isVisible() const pure nothrow @safe { return true; }
-		Stylable parent() pure nothrow @safe { return null; }
-	}
-}
-
 interface IWidgetLocationUpdater
 {
 	void scheduleWidgetPlacement(Widget placeThisWidget, string relativeToWidgetWithThisName, RelativeLocation loc);
@@ -102,7 +87,6 @@ class PromptQueryResult
 class GUIApplication : Application
 {
 	GUI guiRoot;
-	GlobalStyle globalStyle;
 	Menu menu;
 
 	import std.container;
@@ -151,7 +135,7 @@ class GUIApplication : Application
 	T getGlobalStyle(T)(string name)
 	{
 		T res;
-		defaultStyleSheet.getStyle(globalStyle).getProperty(name, res);
+		defaultStyleSheet.getStyle("Globals").getProperty(name, res);
 		return res;
 	}
 
@@ -176,7 +160,6 @@ class GUIApplication : Application
 	{
 		// This also sets up tracking keys for analytics
 		guiRoot = gui;
-        globalStyle = new GlobalStyle();
 		setupRegistryEntries();
 		_promptStack = new Stack!PromptQuery();
 

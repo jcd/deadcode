@@ -270,7 +270,7 @@ class PropertySpecification(T : CubicCurveParameters) : PropertySpecificationBas
 
 	bool parse(StyleSheetParser parser, Style style) const @safe
 	{
-		import animation.interpolate;
+		import animation.curve;
 
 		auto tok = parser.nextToken();
 

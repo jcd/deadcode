@@ -105,7 +105,9 @@ class DiscreteAnimator(T) : Animator
 */
 class AnimatedObject(T) : Animator
 {
-	T object;    /// The object being animated
+	import animation.clip;
+
+    T object;    /// The object being animated
 	Clip!T clip; /// The Clip used for animating the object
 
 	/** Constructor accepting the object to be animated

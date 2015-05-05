@@ -1,6 +1,7 @@
 module animation.timeline;
 
 import animation.animator;
+import animation.clip;
 import animation.interpolate;
 import animation.mutator;
 

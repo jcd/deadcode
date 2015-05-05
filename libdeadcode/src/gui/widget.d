@@ -251,7 +251,7 @@ class Widget : Stylable
 					_computedStyle.styleSheet = null;
 				}
 
-				import animation.interpolate;
+				import animation.clip;
 				auto clip = new Clip!Style();
 				//clip.createCurves!CubicCurve(0, _computedStyle, 0.5, _targetStyle);
 				snapshotInterpolatedStyle();

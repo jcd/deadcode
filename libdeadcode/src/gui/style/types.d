@@ -5,6 +5,7 @@ import gui.style.stylesheet;
 
 import std.algorithm;
 
+
 enum AnimationLoopMode
 {
 	once,
@@ -53,6 +54,7 @@ class Animation
 }
 
 
+/+
 class Animator
 {
 	import animation.interpolate;
@@ -148,6 +150,7 @@ class Animator
 		}
 	}
 }
++/
 
 /** CSS Transition
 */
@@ -158,7 +161,7 @@ import core.time;
 
 struct Transition
 {
-	import animation.interpolate;
+	import animation.curve;
 
 	this(string propName,
 		 Duration dura = dur!"seconds"(0),

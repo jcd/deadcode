@@ -63,7 +63,7 @@ class StyleSheetManager : ResourceManager!StyleSheet
 		import std.datetime;
 		ssm.addPropertySpecification!Duration("transition-delay", dur!"seconds"(0)).multi = true;
 		ssm.addPropertySpecification!Duration("transition-duration", dur!"seconds"(0)).multi = true;
-		auto ease = animation.interpolate.CubicBezierCurve!float.ease;
+		auto ease = animation.curve.CubicBezierCurve!float.ease;
 		ssm.addPropertySpecification!CubicCurveParameters("transition-timing", ease.dup[0..4]).multi = true;
 		// ssm.addPropertySpecification!float("transition-timing", 0f);
 		ssm.addPropertySpecification!PropertyID("transition-property", "all").multi = true;

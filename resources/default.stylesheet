@@ -11,6 +11,24 @@
 	visibility: visible;
 }
 
+DebugHighlight {
+	color: #d8d8d2;
+	font : url(fonts/RobotoCondensed-Light.ttf) 14;
+	background-color: #ffff00;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+}
+
+ScrollView {
+	color: #d8d8d2;
+	font : url(fonts/RobotoCondensed-Light.ttf) 14;
+	background-color: #ff00ff;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+}
+
 Label {
 	font : url(fonts/RobotoCondensed-Light.ttf) 16;
 	color: #ffffff;
@@ -88,6 +106,16 @@ TestWidget:hover {
 	height: 40%;
 	width: 40%;
 	transition-duration: 0.3s, 0.2s, 0.5s;
+}
+
+Testing {
+	position: absolute;
+	background-color: #0a1a1a;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	width: 240px;
+	height: 240px;
 }
 
 TextEditor {
@@ -426,7 +454,7 @@ TextField
 
 CommandControl
 {
-	background-color: #1a1a1f;
+	background-color: #2a9eb9;
 	background: url(materials/white-small-nine-patch.png);
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
@@ -446,7 +474,7 @@ CommandControl.hidden
 
 CommandControl.multiline
 {
-	height: 40%;
+	height: 70%;
 	transition: height 0.1s; 
 }
 
@@ -460,8 +488,8 @@ CommandControl > Label
 {
 	position: relative;
 	font : url(fonts/RobotoCondensed-Light.ttf) 19;
-	width: 100%;
 	padding: -2 5 3 0;
+	width: fit;
 }
 
 CommandControl.hidden > Label
@@ -523,11 +551,6 @@ CommandControl > TextEditor
 	background-sprite-border: 6 6 6 6;
 }
 
-CommandControl.multiline > TextEditor
-{
-
-}
-
 CommandControl.hidden > TextEditor#commandCompletion
 {
 	height: 0px;
@@ -568,7 +591,8 @@ TextEditor#commandCompletion {
 	background: url(materials/white-small-nine-patch.png);
 	color: #a8a8a2;
 	padding : 6 6 6 0;
-	background-color: #0a272d;
+	background-color: #314447;
+
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	font : url(fonts/RobotoCondensed-Light.ttf) 19;
@@ -596,7 +620,7 @@ Tree#Menu {
 	background-sprite-border: 6 6 6 6;
 	padding : 5 0 20 10;
 	width: 160px;
-	height: 350px;
+	height: 370px;
 	right: 160px;
 	top: 24px;
 	offset: 0 0;
@@ -604,10 +628,9 @@ Tree#Menu {
 }
 
 Tree#Menu.hidden {
-	padding: 0 0 0 0;
-	width: 0px;
 	height: 0px;
-	transition: width 0.1s, height 0.3s, background-color 0.3s;
+	transition: height 0.1s, background-color 0.3s;
+	background-sprite-border: 0 6 6 0;
 }
 
 Tree#Menu Tree.leaf
@@ -647,7 +670,7 @@ Tree#WidgetHierarchyTree
 	background-color: #0a272d;
 	background-sprite: 4 4 6 6;
 	background-sprite-border: 0 0 0 0;
-	width: 440px;
+	width: 100%;
 }
 
 Tree#WidgetHierarchyTree Tree > Label
@@ -671,9 +694,13 @@ Tree#WidgetHierarchyTree Tree.leaf
 	padding: 2 0 0 2;
 }
 
+Tree#WidgetHierarchyTree Tree.leaf.selected
+{
+	background-color: #1a474d;
+}
+
 Tree#WidgetHierarchyTree Tree.leaf:hover 
 {
-	background-color: #1a474d;	
 }
 
 Tree#WidgetHierarchyTree Tree.leaf:active {
@@ -683,8 +710,21 @@ Tree#WidgetHierarchyTree Tree.leaf:active {
 
 #WidgetHierarchy Button
 {
-	left: 470px;
 	z-index: 200;
+}
+
+#WidgetHierarchy > Widget#Buttons 
+{
+	height: 20px;
+}
+
+
+#WidgetHierarchy {
+	position: relative;
+	width: 350px;
+	height: 100%;
+	z-index: 200;
+	visibility: hidden;
 }
 
 #menuButton {
@@ -874,3 +914,4 @@ Notice:visible > Widget#notice-icon
 	background-sprite: 0 0 16 16;
 	background-sprite-animation: grid(12,1,12,0.03);
 }
+

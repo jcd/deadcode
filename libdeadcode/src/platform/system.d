@@ -3,16 +3,6 @@ module platform.system;
 import core.sys.windows.windows;
 import std.string;
 
-version (Windows)
-{
-string getRunningExecutablePath()
-{
-	char[1024] buf;
-	DWORD res = GetModuleFileNameA(cast(void*)0, buf.ptr, 1024);
-	auto idx = lastIndexOf(buf[0..res], '\\');
-	string p = buf[0 .. idx+1].idup;
-	return p;
-}
 
 bool shellCommandExists(string cmd)
 {
@@ -24,6 +14,10 @@ bool shellCommandExists(string cmd)
     {
         auto re = regex(r"is not recognized as an internal or external command");
     }
+	version (linux)
+{
+	auto re = regex(r"No command '");
+}
     foreach (line; res.stdout.byLine)
     {
         if (!line.matchFirst(re).empty)
@@ -31,6 +25,17 @@ bool shellCommandExists(string cmd)
     }
     wait(res.pid);
     return true;
+}
+
+version (Windows)
+{
+string getRunningExecutablePath()
+{
+	char[1024] buf;
+	DWORD res = GetModuleFileNameA(cast(void*)0, buf.ptr, 1024);
+	auto idx = lastIndexOf(buf[0..res], '\\');
+	string p = buf[0 .. idx+1].idup;
+	return p;
 }
 
 mixin template platformMain(alias customMain)

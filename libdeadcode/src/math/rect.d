@@ -142,6 +142,14 @@ struct Rect(T)
 		return r;
 	}
 
+    Rect!T offset(Vec2!T offset) const pure nothrow
+	{
+		Rect!T r = this;
+		r.pos.x += offset.x;
+		r.pos.y += offset.y;
+		return r;
+	}
+
 	Rect!T clip(Rect!T toBeClipped) const pure nothrow
 	{
 		toBeClipped.x = fmax(this.x, toBeClipped.x);

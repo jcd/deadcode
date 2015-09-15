@@ -52,17 +52,20 @@ void textCommentSelectionToggle(BufferView v)
 private void addTextPrefix(BufferView v, dstring text)
 {
     auto r = v.getRegion(RegionQuery.selectionOrLine);
-	if (r.empty)
-		return;
 
     auto rr = SelectionRestorer(v);
 
 	r = r.normalized();
 
     int firstLine = v.buffer.lineNumberAt(r.a);
+	int lastLine = firstLine;
+	if (!r.empty)
+	{
 	bool endSelIsStartOfLine = v.buffer[r.b-1] == '\n';
 	int endSelIdx = endSelIsStartOfLine ? r.b-1 : r.b;
-	int lastLine = v.buffer.lineNumberAt(endSelIdx);
+		lastLine = v.buffer.lineNumberAt(endSelIdx);
+	}
+
 	foreach (line; firstLine .. lastLine + 1)
 	{
 		int idx = v.buffer.startAtLineNumber(line);

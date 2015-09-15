@@ -148,7 +148,7 @@ class CommandControl : Widget
 	CompletionListStyler completionStyler;
 	Label questionLabel;
 
-	WidgetID resumeWidgetID;
+	WidgetID resumeWidgetID; // FIX: Should use a focus stack or something since changing shown buffer from a command with completions will first focus the resumewidget and then the new buffer which is weird.... maybe?!?
 	string[string] commandMap;
 	GUIApplication app;
 

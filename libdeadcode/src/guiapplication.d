@@ -923,7 +923,8 @@ class GUIApplication : Application
 			editors.editors[buf.id] = EditorInfo(++editors.focusOrderCounter, editorWidget);
 			editorWidget.name = "editor-buffer-" ~ buf.id.to!string;
 			editorWidget.onKeyboardFocusCallback = (Event ev, Widget w) {
-				editors.editors[buf.id].focusOrder = ++editors.focusOrderCounter;
+				EditorInfo* info = &(editors.editors[buf.id]);
+                info.focusOrder = ++editors.focusOrderCounter;
 				currentBuffer = buf;
 				return EventUsed.yes;
 			};

@@ -114,7 +114,7 @@ void fileSaveAs(BufferView buf, GUIApplication app, string filename)
 @InFiber()
 void fileOpen(GUIApplication app)
 {
-	auto p = app.yieldPrompt("Open", app.resourceURI("./", ResourceBaseLocation.currentDir).uriString,
+	auto p = app.yieldPrompt("Open", app.resourceURI("./", ResourceBaseLocation.currentDir).uriString ~ "/",
 							 (string prefix) {
 								 return filesystemCompletions(prefix);
 								 //CompletionEntry[] result;

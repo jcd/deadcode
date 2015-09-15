@@ -521,30 +521,6 @@ class CommandControl : Widget
 		if (window is null || _mode == m)
 			return;
 
-		//completionWidget.visible = b;
-		//std.stdio.writeln("show ", b, " ", id, " ", h);
-
-		//if (!app.guiRoot.timeline.hasPendingAnimation)
-		//{
-		//    //if (b)
-		//    //{
-		//    //    // style.getProperty("expand-duration", expandDuration);
-		//    //    float targetHeight = height;
-		//    //    float dura = expandDuration;
-		//    //    if (mode == Mode.oneline)
-		//    //    {
-		//    //        targetHeight = onelineHeight;
-		//    //        dura /= 10;
-		//    //    }
-		//    //    app.guiRoot.timeline.animate!"h"(this, targetHeight, dura);
-		//    //}
-		//    //else
-		//    //{
-		//    //    //style.getProperty("contract-duration", expandDuration);
-		//    //    app.guiRoot.timeline.animate!"h"(this, 0, contractDuration);
-		//    //    app.guiRoot.timeline.event(contractDuration * 0.1, (int d) { this.visible = false; mode = Mode.multiline; });
-		//    //}
-		//}
 		_mode = m;
 
 		if (m == Mode.hidden)

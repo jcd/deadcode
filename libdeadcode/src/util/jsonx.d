@@ -26,6 +26,9 @@ alias Variant JsonValue;
 
 struct JsonNull { /* empty type... */ }
 
+// Hack until proper std.data.json can replace this file
+string indent;
+
 /* Encode to a string in memory */
 R jsonEncode(R = string, T)(T obj) if(isSomeString!R) {
 	auto app = appender!R();
@@ -172,7 +175,7 @@ void jsonEncode_impl(T, A)(T val, ref A app) if((isNumeric!T || is(T == bool)) &
 }
 
 /* Encode enum */
-void jsonEncode_impl(T, A)(T val, ref A app) if(is(T == enum)) {
+void jsonEncode_impl(T, A)(T val, ref A app) if(is(T == enum) && !isSomeString!T) {
     jsonEncode_impl(to!string(val), app);
 }
 
@@ -215,6 +218,8 @@ void jsonEncode_impl(S, A)(S obj, ref A app) if((is(S == struct) || is(S == clas
     }
 
     app.put('{');
+    app.put('\n');
+    indent ~= "  ";
     bool first = true;
 
 	import std.algorithm;
@@ -233,14 +238,22 @@ void jsonEncode_impl(S, A)(S obj, ref A app) if((is(S == struct) || is(S == clas
 
 		// Check for @noserialize property set
 		if(!first)
+        {
             app.put(',');
+            app.put('\n');
+        }
         first = false;
 
+        app.put(indent);
         jsonEncode_impl(key, app);
+        app.put(' ');
         app.put(':');
+        app.put(' ');
         jsonEncode_impl(val, app);
     }
-
+    indent = indent[0..$-2];
+    app.put('\n');
+    app.put(indent);
     app.put('}');
 }
 
@@ -331,13 +344,20 @@ template hasAttribute(alias A, alias S, size_t i = size_t.max)
 /* Encode associative array */
 void jsonEncode_impl(S : T[K], T, K, A)(S arr, ref A app) {
     app.put('{');
+    app.put('\n');
+    indent ~= "  ";
+
     bool first = true;
     import std.algorithm : sort;
 
     // XXX provide a way to disable sorting
     foreach(key; sort(arr.keys)) {
+        app.put(indent);
         if(!first)
+        {
             app.put(',');
+            app.put('\n');
+        }
 
         static if(isSomeString!K) {
             /* Encoding a string key, we can do it directly */
@@ -348,11 +368,15 @@ void jsonEncode_impl(S : T[K], T, K, A)(S arr, ref A app) {
             jsonEncode_impl(to!string(key), app);
         }
 
+        app.put(' ');
         app.put(':');
+        app.put(' ');
         jsonEncode_impl(arr[key], app);
         first = false;
     }
-
+    indent = indent[0..$-2];
+    app.put('\n');
+    app.put(indent);
     app.put('}');
 }
 
@@ -544,7 +568,7 @@ T jsonDecode_impl(T, R)(ref R input) if(isInputCharRange!R && isSomeString!T) {
                     return inputSave[1 .. inputSave.length - input.length - 1];
             }
 
-            return app.data;
+            return cast(T)(app.data);
         } else if(c == '\\') {
             /* Escape sequence */
 
@@ -653,7 +677,7 @@ T jsonDecode_impl(T, R)(ref R input) if(isInputCharRange!R && isSomeString!T) {
 
 /* Decode JSON string -> char, enum */
 T jsonDecode_impl(T, R)(ref R input)
-  if(isInputCharRange!R && (isSomeChar!T || is(T == enum)))
+  if(isInputCharRange!R && (isSomeChar!T || is(T == enum)) && !isSomeString!T)
 {
     return to!T(jsonDecode_impl!string(input));
 }

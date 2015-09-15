@@ -849,7 +849,7 @@ unittest
 	// Test reversibility
 	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
 	v.copyBuffer = new CopyBuffer;
-	Action i1 = new CursorAction(TextBoundary.word, 1);
+	Action i1 = new CursorAction(TextBoundary.wordEnd, 1);
 
 	// ""01234\n67\n9ABCDEF\n""
 	v.preferredCursorColumn = 0;
@@ -872,7 +872,7 @@ unittest
 	Assert(v.cursorPoint, 2);
 	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
 
-	i1 = new CursorAction(TextBoundary.line, 1);
+	i1 = new CursorAction(TextBoundary.lineEnd, 1);
 
 	// ""01234\n67\n9ABCDEF\n""
 	v.preferredCursorColumn = 7;
@@ -885,7 +885,7 @@ unittest
 	Assert(v.cursorPoint, 4);
 	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
 
-	i1 = new CursorAction(TextBoundary.line, 2);
+	i1 = new CursorAction(TextBoundary.lineEnd, 2);
 
 	// ""01234\n67\n9ABCDEF\n""
 	v.preferredCursorColumn = 7;
@@ -898,7 +898,7 @@ unittest
 	Assert(v.cursorPoint, 4);
 	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
 
-	i1 = new CursorAction(TextBoundary.line, -2);
+	i1 = new CursorAction(TextBoundary.lineEnd, -2);
 
 	// ""01234\n67\n9ABCDEF\n""
 	v.preferredCursorColumn = 7;

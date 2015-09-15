@@ -1,3 +1,8 @@
+[*]
+trim_trailing_whitespace = true
+end_of_line = lf
+insert_final_newline = true
+
 [*.d]
 end_of_line = lf
 insert_final_newline = true
@@ -5,8 +10,3 @@ indent_size = 4
 tab_width = 4
 trim_trailing_whitespace = true
 indent_style = space
-
-[*]
-trim_trailing_whitespace = true
-end_of_line = lf
-insert_final_newline = true

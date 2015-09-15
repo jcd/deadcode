@@ -566,7 +566,7 @@ class ObjectTreeTextReader(InputRange)
 						break;
 					default:
 						assert(0, text("No such type '%s'", type));
-						break;
+						//break;
 				}
 			}
 			else if (fieldOrRef[0..2] == "O[")
@@ -597,7 +597,7 @@ class ObjectTreeTextReader(InputRange)
 						break;
 					default:
 						assert(0, text("No such type[] '%s'", type));
-						break;
+						//break;
 				}
 				lines.popFrontN(num);
 			}
@@ -788,8 +788,9 @@ unittest
 
 	writeln("Done visiting ", reader.objectMap.keys);
 
-	Object bb = new Derived();
-	bb.id = 4;
+	auto dd = new Derived();
+	dd.id = 4;
+    Object bb = dd;
 	writeln("XXX1 ", bb.classinfo.name);
 	writeln("XXX2 ", bb.tupleof);
 	writeln("XXX3 ", (new Derived()).tupleof);

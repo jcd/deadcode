@@ -77,7 +77,7 @@ void printStats(bool includeSuccessful = false)
 	foreach (rec; g_TestRecords)
 	{
 		if (includeSuccessful || !rec.success)
-			writeln("Test ", rec.file[4..$], ":", rec.line, " ", rec.msg, " ", rec.assertion, " ", rec.success ? "OK" : "FAILED");
+			writeln("Test ", rec.file[0..$], ":", rec.line, " ", rec.msg, " ", rec.assertion, " ", rec.success ? "OK" : "FAILED");
 	}
 	writeln(format("%s of %s OK", g_TestRecords.count!"a.success", g_Total));
 }
@@ -89,35 +89,85 @@ void Assert(lazy bool expMustBeTrue, string msg = "", string file = __FILE__, in
 	// writeln("Test ", file, "@", line, " ", msg, ": ", res ? "OK" : "FAILED");
 }
 
-mixin template registerUnittests(alias mod)
+mixin template registerUnittests()
 {
-	static this()
-	{
-		import std.typetuple;
-		alias tests = TypeTuple!(__traits(getUnitTests, mod));
-		import std.string;
-		import std.algorithm;
+    version(unittest)
+    {
+	    static this()
+	    {
+		    import std.typetuple;
+		    int a;
 
-		foreach (test; tests)
-		{
-			// ie. __unittestL235_52
-			//enum name = __traits(identifier, test)[11..$];
-			//enum name = __traits(identifier, test)[11..$];
-			//enum linen = name[0.. indexOf(name, "_")];
-			//writeln("FOOO " ~ name);
+            alias tests = TypeTuple!(__traits(getUnitTests, __traits(parent,__traits(parent, a))));
 
-			//if (textAnchor.number+1 == linen.to!uint)
-			//{
-			//    //writeln("FOOO " ~ line);
-			//    //	test();
-			//}
-			enum name = __traits(identifier, test);
-			g_ModuleUnitTests[name] = &test;
-			auto info = parseUnitTestName(name);
-			g_TestOrder ~= info;
-		}
-		sort!"a.testNumber < b.testNumber"(g_TestOrder);
-	}
+            import std.string;
+		    import std.algorithm;
+            import std.traits;
+            import std.typetuple;
+
+            import std.stdio;
+            //enum ii = __traits(identifier, __traits(parent,__traits(parent, a)));
+            // pragma(msg, "Capturing tests in ii);
+            // writeln("Capturing tests in " ~ ii);
+
+		    // Module level tests
+            foreach (tst; tests)
+		    {
+			    // ie. __unittestL235_52
+			    //enum name = __traits(identifier, test)[11..$];
+			    //enum name = __traits(identifier, test)[11..$];
+			    //enum linen = name[0.. indexOf(name, "_")];
+			    //import std.stdio;
+                writeln("Module Unittest: " ~ __traits(identifier, tst));
+
+			    //if (textAnchor.number+1 == linen.to!uint)
+			    //{
+			    //    //writeln("FOOO " ~ line);
+			    //    //	test();
+			    //}
+			    enum name = __traits(identifier, tst);
+			    g_ModuleUnitTests[name] = &tst;
+			    auto info = parseUnitTestName(name);
+			    g_TestOrder ~= info;
+		    }
+
+            enum allmems = TypeTuple!(__traits(allMembers, __traits(parent,__traits(parent, a))));
+            //enum aggregates = Filter!(isAggregateType, allmems);
+
+            //   writeln("All members ", allmems);
+            // Aggregate level tests
+            foreach (agg; allmems)
+            {
+                static if (is(TypeTuple!(__traits(getMember, __traits(parent,__traits(parent, a)), agg))[0] == class) ||
+                           is(TypeTuple!(__traits(getMember, __traits(parent,__traits(parent, a)), agg))[0] == struct))
+                {
+                    //alias mem = __traits(getMember, __traits(parent,__traits(parent, a)), agg);
+                    alias aggTests = TypeTuple!(__traits(getUnitTests, __traits(getMember, __traits(parent,__traits(parent, a)), agg)));
+                    foreach (tst; aggTests)
+		            {
+			            // ie. __unittestL235_52
+			            //enum name = __traits(identifier, test)[11..$];
+			            //enum name = __traits(identifier, test)[11..$];
+			            //enum linen = name[0.. indexOf(name, "_")];
+			            //import std.stdio;
+                        writeln("Aggregate Unittest: " ~ __traits(identifier, tst));
+
+			            //if (textAnchor.number+1 == linen.to!uint)
+			            //{
+			            //    //writeln("FOOO " ~ line);
+			            //    //	test();
+			            //}
+			            enum name = __traits(identifier, tst);
+			            g_ModuleUnitTests[name] = &tst;
+			            auto info = parseUnitTestName(name);
+			            g_TestOrder ~= info;
+		            }
+                }
+            }
+		    sort!"a.testNumber < b.testNumber"(g_TestOrder);
+
+	    };
+    }
 }
 
 //void Assert(alias MOD, T, V)(lazy T thisExp, lazy V isEqualToThisExp, string msg = "", string file = __FILE__, int line = __LINE__, string func = __FUNCTION__)

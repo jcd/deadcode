@@ -384,7 +384,7 @@ class CommandManager
 		return null;
 	}
 
-	Command[] lookupFuzzy(string searchString)
+	Command[] lookupFuzzyOld(string searchString)
 	{
 		Command[] result;
 		size_t len = searchString.length;
@@ -395,6 +395,43 @@ class CommandManager
 		}
 		return result;
 	}
+
+	Command[] lookupFuzzy(string searchString)
+    {
+        import std.algorithm;
+        import std.array;
+        import util.string;
+
+        return commands
+            .byKeyValue
+            .map!(a => tuple(a.key.rank(searchString), a.value))
+            .filter!(a => a[0] > 0.0)
+            .array
+            .sort!((a,b) => a[0] > b[0])
+            .map!(a => a[1])
+            .array;
+
+/*
+		static struct SortEntry
+        {
+            double rank;
+            Command cmd;
+        }
+commands.
+        SortEntry[] entries;
+		foreach (key, cmd; commands)
+		{
+            auto r = key.rank(searchString);
+            if (r != 0.0)
+                entries ~= SortEntry(r, cmd);
+        }
+
+        Command[] result;
+        return entries
+            .map!(a => a.cmd)
+            .array();
+        */
+    }
 
     int beginCompletionSession(string cmdName)
     {

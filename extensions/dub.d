@@ -164,6 +164,13 @@ class DubBuildCommand : BasicCommand
 		return true; // reschedule update callbacks
 	}
 
+	private void spawnBuildTarget(string execPath)
+	{
+		import std.process;
+		spawnProcess(execPath);
+		          
+	}
+
 	private void respawn(string newExecPath)
 	{
 		//auto hwnd = FindWindowA("SDL_app", null);
@@ -197,14 +204,51 @@ class Package : BasicExtension!Package
     // from name, to name
     mixin Signal!(string, string) onActiveConfigurationChanged;
 
+	enum TargetType
+    {
+        autodetect,
+        none,
+        executable,
+        library,
+        sourceLibrary,
+        staticLibrary,
+        dynamicLibrary
+    }
+    
+    enum BuildOption
+    {
+        debugMode,
+        releaseMode,
+        coverage,
+        debugInfo,
+        debugInfoC,
+        alwaysStackFrame,
+        stackStomping,
+        inline,
+        noBoundsCheck,
+        optimize,
+        profile,
+        unittests,
+        verbose,
+        ignoreUnknownPragmas,
+        syntaxOnly,
+        warnings,
+		warningsAsErrors,
+        ignoreDeprecations,
+        deprecationWarnings,
+        deprecationErrors,
+        property,
+    }
+
     static class BuildSettings
     {
         string[] sourceFiles;
         string[] sourcePaths;
         string mainSourceFile;
+	    TargetType targetType;
+        string targetName;
+        BuildOption[] buildOptions;
     }
-
-    BuildSettings globalBuildSettings;
 
 	static class Configuration
 	{
@@ -214,11 +258,34 @@ class Package : BasicExtension!Package
     }
 
 	string packageName;
+    BuildSettings globalBuildSettings;
 	Configuration[] configurations;
-	Configuration   activeConfiguration;
+	BuildSettings[string] buildTypes; // Build types mostly just sets build options
 
+	string activeBuildTypeName;
+    string activeBuildConfigurationName;
+
+	BuildSettings activeBuildSettings;
+    
 	string[] knownFiles;
 	string   knownFilesCommonPrefix;
+
+    @property string activeTargetName()
+    {
+        if (activeBuildSettings is null)
+	        return null;
+        version (Windows)
+	        return activeBuildSettings.targetName ~ ".exe";
+        else
+            return activeBuildSettings.targetName;
+    }
+    
+    @property bool unittestsEnabled()
+    {
+        if (activeBuildSettings is null)
+	        return false;
+        return activeBuildSettings.buildOptions.canFind(BuildOption.unittests);
+    }
 
     override void init()
 	{
@@ -229,13 +296,35 @@ class Package : BasicExtension!Package
     private void reset()
     {
         packageName = null;
-        configurations = null;
         globalBuildSettings = null;
-        activeConfiguration = null;
+        configurations = null;
+		buildTypes = typeof(buildTypes).init;
+        activeBuildTypeName = "debug";
+        activeBuildConfigurationName = null;
+        
+        activeBuildSettings = null;
+        
         knownFiles = null;
         knownFilesCommonPrefix = null;
+    
+	    static BuildSettings bs(BuildOption[] o)
+        {
+            auto b = new BuildSettings;
+            b.buildOptions = o;
+            return b;
+        }
+        buildTypes = typeof(buildTypes).init;
+        buildTypes["plain"]        = bs([]);
+	    buildTypes["debug"]        = bs([BuildOption.debugMode, BuildOption.debugInfo]);
+		buildTypes["release"]      = bs([BuildOption.releaseMode, BuildOption.optimize, BuildOption.inline]);
+		buildTypes["unittest"]     = bs([BuildOption.unittests, BuildOption.debugMode, BuildOption.debugInfo]);
+		buildTypes["docs"]         = bs([BuildOption.syntaxOnly]);
+		buildTypes["ddox"]         = bs([BuildOption.syntaxOnly]);
+		buildTypes["profile"]      = bs([BuildOption.profile, BuildOption.optimize, BuildOption.inline, BuildOption.debugInfo]);
+		buildTypes["cov"]          = bs([BuildOption.coverage, BuildOption.debugInfo]);
+		buildTypes["unittest-cov"] = bs([BuildOption.unittests, BuildOption.coverage, BuildOption.debugMode, BuildOption.debugInfo]);
     }
-
+    
     private void updateResourceBaseLocations(uint changedLocations)
     {
         if (changedLocations & ResourceBaseLocation.currentDir)
@@ -265,20 +354,60 @@ class Package : BasicExtension!Package
         setActiveConfiguration(conf);
     }
 
-    void setActiveConfiguration(Configuration conf)
+    private void setActiveConfiguration(Configuration conf)
     {
-        string oldConfigName = activeConfiguration is null ? null : activeConfiguration.name;
-        activeConfiguration = conf;
+        string oldConfigName = activeBuildConfigurationName;
+        activeBuildConfigurationName = conf.name;
 
+		rebuildActiveSettings();
+                   
+        onActiveConfigurationChanged.emit(oldConfigName, conf.name);
+    }
+    
+    private void setActiveBuildType(string buildTypeName)
+    {
+        string oldBuildTypeName = activeBuildTypeName;
+        activeBuildTypeName = buildTypeName;
+
+		rebuildActiveSettings();
+                   
+        //onActiveConfigurationChanged.emit(oldConfigName, conf.name);
+    }
+
+    private void rebuildActiveSettings()
+    {
         knownFiles.length = 0;
         knownFilesCommonPrefix.length = 0;
 
+		auto conf = lookupConfiguration(activeBuildConfigurationName);
         knownFiles = getConfigurationFiles(conf);
         knownFilesCommonPrefix = knownFiles.empty ? "" : knownFiles[0];
         foreach (name; knownFiles)
             knownFilesCommonPrefix = commonPrefix(name, knownFilesCommonPrefix);
 
-        onActiveConfigurationChanged.emit(oldConfigName, activeConfiguration.name);
+        activeBuildSettings = resolveBuildSettings(buildTypes[activeBuildTypeName], globalBuildSettings, conf.buildSettings);        
+    }
+
+	private BuildSettings resolveBuildSettings(ARGS...)(ARGS settings)
+    {
+		BuildSettings result = new BuildSettings;
+		foreach (s; settings)
+        {
+			    
+			   if (s.sourceFiles !is null)
+		            result.sourceFiles = s.sourceFiles;
+		       if (s.sourcePaths !is null)
+		            result.sourcePaths = s.sourcePaths;
+               if (s.mainSourceFile !is null)
+		            result.mainSourceFile = s.mainSourceFile;
+               if (s.targetType != TargetType.autodetect)
+		            result.targetType = s.targetType;
+		       if (s.targetName !is null)
+		            result.targetName = s.targetName;
+			   if (s.buildOptions !is null)
+		            result.buildOptions = s.buildOptions;
+        }
+        return result;
     }
 
     private Configuration lookupConfiguration(string name)
@@ -312,14 +441,15 @@ class Package : BasicExtension!Package
 
 		return result;
 	}
+    
+    
 
 	private bool readDubFile()
 	{
-		configurations = null;
-		activeConfiguration = null;
         globalBuildSettings = new BuildSettings;
-
-		string dubConf;
+		globalBuildSettings.targetType = TargetType.autodetect;
+	
+    	string dubConf;
 		if (exists("package.json"))
 			dubConf = readText("package.json");
 		else if (exists("dub.json"))
@@ -359,6 +489,18 @@ class Package : BasicExtension!Package
 					configurations ~= newConf;
 			}
 		}
+        
+        if (auto buildTyps = "buildTypes" in dubObject)
+        {
+            foreach (string key; buildTyps.object.keys)
+            {
+                auto buildTyp = buildTyps.object[key];
+                BuildSettings buildTypeBuildSettings = new BuildSettings;
+                parseBuildSettings(buildTypeBuildSettings, buildTyp);
+                buildTypes[key] = buildTypeBuildSettings;
+            }
+        }
+        
 		return true;
 	}
 
@@ -369,6 +511,9 @@ class Package : BasicExtension!Package
 
         result.isAutoConfiguration = true;
 		result.name = "library";
+
+		result.buildSettings.targetType = globalBuildSettings.targetType;
+        result.buildSettings.targetName = globalBuildSettings.targetName;
 
 		if (globalBuildSettings.sourcePaths.empty)
             addAutoSourcePaths(result.buildSettings.sourcePaths);
@@ -408,6 +553,8 @@ class Package : BasicExtension!Package
 
     private void parseBuildSettings(BuildSettings s, ref JSONValue conf)
     {
+		import std.conv;
+        
         JSONValue* srcFiles = "sourceFiles" in conf.object;
 		if (srcFiles !is null)
 		{
@@ -420,6 +567,56 @@ class Package : BasicExtension!Package
         {
 			foreach (ref p; srcPaths.array)
 				s.sourcePaths ~= p.str;
+        }
+        
+        JSONValue* targetType = "targetType" in conf.object;
+        if (targetType)
+        {
+            switch (targetType.str)
+            {
+                case "autodetect": 
+	                s.targetType = TargetType.autodetect;
+                    break;
+                case "none": 
+	                s.targetType = TargetType.none;
+                    break;
+                case "executable": 
+	                s.targetType = TargetType.executable;
+                    break;
+                case "library": 
+	                s.targetType = TargetType.library;
+                    break;
+                case "sourceLibrary": 
+	                s.targetType = TargetType.sourceLibrary;
+                    break;
+                case "staticLibrary": 
+	                s.targetType = TargetType.staticLibrary;
+                    break;
+                case "dynamicLibrary": 
+	                s.targetType = TargetType.dynamicLibrary;
+                    break;
+                default:
+	                app.addMessage("Unknown target type %s", targetType.str);
+                    break;
+            }
+        }
+        else
+        {
+            s.targetType = TargetType.autodetect;
+        }
+        
+        if (auto targetName = "targetName" in conf.object)
+            s.targetName = targetName.str;
+            
+        if (auto buildOpts = "buildOptions" in conf.object)
+        {
+            foreach (ref elm; buildOpts.array)
+            {
+                try
+	                s.buildOptions ~= elm.str.to!BuildOption();
+	            catch (ConvException e)
+	                app.addMessage("Unknown build option '%s'", elm.str);
+            }
         }
     }
 
@@ -439,12 +636,13 @@ class Package : BasicExtension!Package
     // it will fall back on auto detected source paths (according to dub format spec).
     string[] resolveSourcePaths()
     {
-        if (activeConfiguration is null)
-            return null;
-        string[] paths = globalBuildSettings.sourcePaths;
-        foreach (p; activeConfiguration.buildSettings.sourcePaths)
-            paths ~= p;
+		Configuration activeConfiguration = lookupConfiguration(activeBuildConfigurationName);
 
+        string[] paths = globalBuildSettings.sourcePaths;
+
+        if (activeConfiguration !is null && activeConfiguration.buildSettings.sourcePaths !is null)
+	        paths = activeConfiguration.buildSettings.sourcePaths;
+ 
         if (paths.empty)
         {
             // Auto detect
@@ -459,6 +657,7 @@ class Package : BasicExtension!Package
 
         if (paths.empty)
             app.addMessage("Warning: No sourcePaths specified in dub config file and no default folders source or src present for configuration " ~ activeConfiguration.name);
+
         return paths;
     }
 
@@ -508,13 +707,25 @@ class DubQuickOpenCommand : BasicCommand
 		Package p = getExtension!Package("dub.package");
 		if (p is null)
 			return null;
-		import std.typecons;
+
+        import std.array;
+        import std.typecons;
+        import util.string;
 
 		string prefix = data[0].get!string();
 		auto stripPrefix = p.knownFilesCommonPrefix.length;
-		auto r1 = p.knownFiles.map!(a => tuple(baseName(a),a))().filter!(a => a[0].startsWith(prefix))();
-		auto r2 = r1.map!(a => CompletionEntry(a[1][stripPrefix..$], a[1]))();
-		return std.array.array(r2);
+		auto r1 = p.knownFiles
+            .map!(a => tuple(baseName(a), baseName(a).rank(prefix), a, a.rank(prefix)))
+            .filter!(a => (a[1] > 0.0 || a[3] > 0.0))
+            .array;
+        auto r2 = r1
+            .sort!((a,b) => a[1] > b[1] || ( a[1] == b[1] && a[3] > b[3]))
+            .map!(a => CompletionEntry(a[2][stripPrefix..$], a[2]))
+            .array;
+
+            //.filter!(a => a[0].startsWith(prefix));
+		//auto r2 = r1.map!(a => CompletionEntry(a[1][stripPrefix..$], a[1]));
+		return r2;
 	}
 }
 

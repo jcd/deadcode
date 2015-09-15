@@ -844,12 +844,20 @@ class GUIApplication : Application
 		//Application.activeEditor.show(view);
 	}
 
-	BufferView createBuffer()
+	BufferView createBuffer(string name = null)
 	{
-		auto view = bufferViewManager.create();
+		auto view = bufferViewManager.create("", name);
 		addMessage("Create buffer %s", view.name);
 		view.bufferModified.connect(&onBufferModified);
 		return view;
+	}
+
+	BufferView getOrCreateBuffer(string name)
+	{
+        auto view = bufferViewManager[name];
+        if (view !is null)
+            return view;
+        return createBuffer(name);
 	}
 
 	private void onBufferModified(BufferView b, bool isModified)

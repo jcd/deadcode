@@ -534,7 +534,7 @@ class CommandControl : Widget
 		{
 			resumeWidgetID = window.getKeyboardFocusWidget().id;
 			commandField.setKeyboardFocusWidget();
-            show;
+            show();
 		}
 	}
 

@@ -41,6 +41,7 @@ R jsonEncode(R, T)(T obj, R range) if(isOutputRange!(R, dchar)) {
 
 T jsonDecode(T = JsonValue, R)(R input) if(isInputCharRange!R) {
     auto val = jsonDecode_impl!T(input);
+    skipWhite(input);
     enforceEx!JsonException(input.empty, "garbage at end of stream");
     return val;
 }

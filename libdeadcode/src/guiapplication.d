@@ -957,6 +957,12 @@ class GUIApplication : Application
 		return null;
 	}
 
+	BufferView getCurrentBuffer()
+    {
+        return getVisibleBuffer();
+    }
+
+	// deprecated
 	BufferView getVisibleBuffer()
 	{
 		auto e = getCurrentTextEditor();
@@ -978,6 +984,11 @@ class GUIApplication : Application
 	{
 		setBufferVisible(buf);
 	}
+
+	bool hasBuffer(string name)
+    {
+        return bufferViewManager[name] !is null;
+    }
 
 	void showBuffer(string name)
 	{

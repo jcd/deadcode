@@ -1,5 +1,6 @@
 # Compiled source #
 ###################
+*~
 *.class
 *.o
 *.so
@@ -47,6 +48,8 @@ dub.selections.json
 /bin/Release
 /bin/Unittest
 /ddox
+/dub
+/deadcode
 /*.dll
 /*.exe
 /*.exe_cv

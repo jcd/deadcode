@@ -6,6 +6,9 @@ import math.smallvector;
 import std.math : fmin, fmax, isNaN;
 import std.string : format;
 
+import test;
+mixin registerUnittests;
+
 struct Rect(T)
 {
 	Vec2!T pos;
@@ -283,28 +286,19 @@ Rectf stringToRectf(string str)
 	return Rectf(x, y, w, h);
 }
 
-version(unittest)
+
+unittest
 {
-	import test;
-	mixin registerUnittests!(math.rect);
+	Rectf r = Rectf(1, 2, 3, 4);
+	Assert(!std.math.isNaN(r.pos.x));
+	Assert(stringToRectf("1 2 3 4.5"), Rectf(1,2,3,4.5));
 }
 
 unittest
 {
-	import test;
 	Rectf r = Rectf(1, 2, 3, 4);
 	Assert(!std.math.isNaN(r.pos.x));
 	Assert(stringToRectf("1 2 3 4.5"), Rectf(1,2,3,4.5));
-	std.stdio.writeln("first");
-}
-
-unittest
-{
-	import test;
-	Rectf r = Rectf(1, 2, 3, 4);
-	Assert(!std.math.isNaN(r.pos.x));
-	Assert(stringToRectf("1 2 3 4.5"), Rectf(1,2,3,4.5));
-	std.stdio.writeln("second");
 }
 
 struct RectOffset(T)

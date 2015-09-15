@@ -13,6 +13,8 @@ import derelict.sdl2.sdl;
 import std.range;
 import core.signals;
 
+import util.profile;
+
 class GUI
 {
 	private
@@ -165,12 +167,15 @@ class GUI
         _customEventTypes ~= t;
     }
 
-	void run()
+    void run()
 	{
 		import std.datetime;
+        initProfiler();
 
 		if (!running)
+        {
 			init();
+        }
 
 		int ticks = 0;
 		SysTime t = Clock.currTime();
@@ -187,7 +192,60 @@ class GUI
 				// std.stdio.writeln(std.conv.text("FPS ", 100.0 / secs));
 			}
 		}
+
+        outputProfile(profiler);
 	}
+
+    void outputProfile(Profiler p)
+    {
+        import tharsis.prof;
+        import std.algorithm;
+        import std.container;
+        import std.range;
+
+        // Filter all instances of the "frame" zone
+        auto zones = p.profileData.zoneRange;
+        auto frames = zones.filter!(z => z.info == "frame");
+
+        // Sort the frames by duration from longest to shortest.
+        import std.container;
+        // Builds an RAII array containing zones from frames. We need an array as we need
+        // random access to sort the zones (ZoneRange generates ZoneData on-the-fly as it
+        // processes profiling data, so it has no random access).
+        auto frameArray = Array!ZoneData(frames);
+        frameArray[].sort!((a, b) => a.duration > b.duration);
+
+        static double hnsToMS(ulong hns)
+        {
+            return cast(double)hns / 10_000.0;
+        }
+
+        static double hnsToS(ulong hns)
+        {
+            return cast(double)hns / 10_000_000.0;
+        }
+
+        import std.stdio;
+        // Print the 4 longest frames.
+        foreach(frame; frameArray[].take(2000))
+        {
+            // In hectonanoseconds (tenths of microsecond)
+            writeln(cast(double) frame.duration / 10_000.0);
+        }
+
+        // Print details about all zones in the worst frame.
+        int i = 0;
+        foreach(frame; frameArray[].take(20))
+        {
+            writefln("Frame %s", i++);
+            auto worst = frame;
+            foreach(zone; zones.filter!(z => z.startTime >= worst.startTime && z.endTime <= worst.endTime))
+            {
+                writefln("    %s: %s ms from %s to %s",
+                         zone.info, hnsToMS(zone.duration), hnsToS(zone.startTime), hnsToS(zone.endTime));
+            }
+        }
+    }
 
 	void stop()
 	{
@@ -204,26 +262,51 @@ class GUI
 		assert(running);
 
 		// TODO: handle multiple windows
-		auto waitForEvents = !timeline.hasPendingAnimation;
-		handleEvents(waitForEvents);
-		onActivity.emit();
-		timeline.update();
 
-		foreach (k, v; _windows)
-		{
-			v.update();
-		}
+        auto waitForEvents = !timeline.hasPendingAnimation;
+		if (waitForEvents)
+        {
+            handleEvents(waitForEvents);
+        }
+        else
+        {
+            auto frameZone = Zone(profiler, "handleEvents");
+            handleEvents(waitForEvents);
+        }
 
-		foreach (k, v; _windows)
+        auto frameZonex = Zone(profiler, "frame");
+
 		{
-			// TODO: cull hidden windows
-			// TODO: fix double drawing of widgets because the are all drawn here and some of them
-			// as children of window as well
-			// if (v.parent is v.window)
-             //import std.stdio;
-             //writeln("draw ", _lastTick, " ", k);
-            v.draw();
-		}
+            auto frameZone = Zone(profiler, "onActivity");
+            onActivity.emit();
+        }
+		{
+            auto frameZone = Zone(profiler, "timelineUpdate");
+            timeline.update();
+        }
+
+		{
+            auto frameZone = Zone(profiler, "update");
+            foreach (k, v; _windows)
+		    {
+			    v.update();
+		    }
+        }
+
+		{
+            auto frameZone = Zone(profiler, "draw");
+
+		    foreach (k, v; _windows)
+		    {
+			    // TODO: cull hidden windows
+			    // TODO: fix double drawing of widgets because the are all drawn here and some of them
+			    // as children of window as well
+			    // if (v.parent is v.window)
+                 //import std.stdio;
+                 //writeln("draw ", _lastTick, " ", k);
+                v.draw();
+		    }
+        }
 	}
 
 	private void handleEvents(bool waitForEvents)

@@ -39,14 +39,14 @@ class NineGridRenderer : WidgetFeature
 	{
 		model.color = col;
 	}
-
+/*
 	this(string styleName = DefaultStyleName)
 	{
 		this.styleName = styleName;
 		// model = new BoxModel(Sprite(0,0,160,160), RectfOffset(6,6,6,6));
 		//model = createQuad(Rectf(0,0,1,1));
 	}
-/*
+
 	Model createQuad(Rectf worldRect, Material mat = null)
 	{
 		auto m = new Model;
@@ -78,7 +78,7 @@ class NineGridRenderer : WidgetFeature
 */
 	override void draw(Widget widget)
 	{
-		Style style = widget.style;
+		Style style = styleName is null ? widget.style : widget.window.styleSheet.getStyle(styleName);
 		auto mat = style.background;
 		if (mat is null || mat.texture is null)
 			return;

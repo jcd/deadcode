@@ -2,6 +2,8 @@ module util.queue;
 
 import std.traits: hasIndirections;
 
+import core.atomic;
+
 synchronized class GrowableCircularQueue(T)
 {
     private size_t _length;
@@ -47,21 +49,25 @@ synchronized class GrowableCircularQueue(T)
 
     void push(T item) pure nothrow @safe
     {
+        size_t l = last;
         if (length >= A.length)
         { // Double the queue.
             immutable oldALen = A.length;
             A.length *= 2;
             if (last < first)
             {
-                A[oldALen .. oldALen + last + 1] = A[0 .. last + 1];
+                A[oldALen .. oldALen + l + 1] = A[0 .. l + 1];
                 static if (hasIndirections!T)
                     A[0 .. last + 1] = T.init; // Help for the GC.
-                last += oldALen;
+                // core.atomic.atomicOp!"+="(last, oldALen);
+                last = l + oldALen;
+                l = last;
+                //last += oldALen;
             }
         }
-        last = (last + 1) & (A.length - 1);
+        last = (l + 1) & (A.length - 1);
         A[last] = item;
-        _length++;
+        _length = _length + 1;
     }
 
     T popFront() pure nothrow @safe @nogc
@@ -71,7 +77,7 @@ synchronized class GrowableCircularQueue(T)
         static if (hasIndirections!T)
             A[first] = T.init; // Help for the GC.
         first = (first + 1) & (A.length - 1);
-        _length--;
+        _length = _length - 1;
         return saved;
     }
 

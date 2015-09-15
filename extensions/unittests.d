@@ -47,8 +47,8 @@ shared static this()
 	import std.stdio;
 //	Runtime.moduleUnitTester(&defaultUnittester);
 	return;
+/*
 	Runtime.moduleUnitTester(&noopUnittester);
-
 	foreach (m; ModuleInfo)
 	{
 		//writeln("Found module ", m.name, " ", m.unitTest.stringof);
@@ -59,6 +59,7 @@ shared static this()
 		auto mii = *mi;
 		writeln(mii[0].name);
 	}
+*/
 }
 
 import gui.style;

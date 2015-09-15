@@ -15,13 +15,19 @@ auto uniquePostfixPath(R)(R names)
     {
         int index;
         string name;
-        const(char)[][] reversePathElements;
+        string[] reversePathElements;
         int pathElementsUsed;
     }
     int idx = 0;
 
+static string[] myreverse(string[] arr)
+{
+	arr.reverse();
+return arr;
+}
+
     auto r = names
-        .map!((a) => SortHelper(idx++, a, a.pathSplitter.array.reverse)).array
+        .map!((a) => SortHelper(idx++, a, myreverse(a.pathSplitter.array))).array
         .sort!"a.reversePathElements < b.reversePathElements"().array;
 
 
@@ -43,7 +49,7 @@ auto uniquePostfixPath(R)(R names)
         }
     }
 
-    return r.sort!((a,b) => a.index < b.index).map!((a) => tuple(a.reversePathElements[0..a.pathElementsUsed].reverse.buildPath, a.name));
+    return r.sort!((a,b) => a.index < b.index).map!((a) => tuple(myreverse(a.reversePathElements[0..a.pathElementsUsed]).buildPath, a.name));
 }
 
 version (unittest)

@@ -96,7 +96,7 @@ private void removeTextPrefix(BufferView v, dstring text)
 
 	int firstLine = v.buffer.lineNumberAt(r.a);
 	int lastLine = v.buffer.lineNumberAt(r.b);
-	int removeLen = text.length;
+	int removeLen = cast(int)text.length;
 	foreach (line; firstLine .. lastLine+1)
 	{
 		int idx = v.buffer.startAtLineNumber(line);

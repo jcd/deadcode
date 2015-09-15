@@ -5,22 +5,53 @@ mixin registerCommands;
 
 import controls.tree;
 
-void dbgDumpWidgetHierarchy(GUIApplication app, BufferView bv)
+import gui.widgetfeature.ninegridrenderer;
+
+import gui.style;
+
+class DebugHighlightRenderer : NineGridRenderer
+{
+	this()
+    {
+        styleName = "DebugHighlight";
+    }
+}
+
+void dbgHighlightWidget(GUIApplication app, WidgetID widgetID)
+{
+    Widget w = app.activeWindow.getWidget(widgetID);
+    if (w is null)
+    {
+        app.addMessage("Cannot get widget with id %s", widgetID);
+    }
+    else
+    {
+        if (w.hasFeature!DebugHighlightRenderer)
+            w.removeFeaturesByType!DebugHighlightRenderer();
+        else
+            w.features ~= new DebugHighlightRenderer();
+    }
+}
+
+void dbgDumpWidgetHierarchy(GUIApplication app)
 {
 	import std.conv;
 	import std.algorithm;
 	import std.range;
 	import std.string;
 
+    string hierName = "WidgetHierarchy";
+    auto h = cast(WidgetHierarchy)app.getWidget(hierName);
+    assert(h);
+
     string treeName = "WidgetHierarchyTree";
 	Tree hier = cast(Tree)app.getWidget(treeName);
     assert(hier);
-    auto owner = cast(WidgetHierarchy) hier.parent;
+    auto owner = cast(WidgetHierarchy) hier.parent.parent.parent;
     assert(owner);
     owner.visible = true;
     owner.children[0].visible = true;
 
-	bv.clear();
 	void dmp(Widget w, string indent, bool dumpText)
 	{
         string cn = w.classinfo.name;
@@ -48,12 +79,14 @@ void dbgDumpWidgetHierarchy(GUIApplication app, BufferView bv)
            // writeln(indent);
             if (w.name == treeName)
             {
-                hier.addTreeItem(indent ~ "...");
+                auto item = hier.addTreeItem(indent ~ "...");
+                item.userData = w.id;
                 return; // do not dump children of the tree itself
             }
             else
             {
-                hier.addTreeItem(indent);
+                auto item = hier.addTreeItem(indent, "dbg.highlightWidget", [ CommandParameter(w.id) ]);
+                item.userData = w.id;
             }
         }
 
@@ -68,21 +101,83 @@ void dbgDumpWidgetHierarchy(GUIApplication app, BufferView bv)
 
 class WidgetHierarchy : BasicWidget
 {
-	override void init()
+	private ScrollView _scrollView;
+
+    override void init()
 	{
         name = "WidgetHierarchy";
-        add!Button("close").onActivated.connect(&close);
-        add!Tree().name  = "WidgetHierarchyTree";
+        auto lo = add!Widget(this);
+        lo.name = "Buttons";
+        auto glo = new GridLayout(GridLayout.Direction.row, 1);
+        glo.cellHorizontalSpacing = 8;
+        lo.layout = glo;
+        lo.add!Button("close").onActivated.connect(&close);
+        lo.add!Button("foo").onActivated.connect(&close);
+
+        _scrollView = add!ScrollView(Vec2f(400, 3000));
         visible = false;
+    }
+
+    private void eventDispatched(Widget w, Event ev)
+    {
+        auto cw = cast(Tree) _scrollView.children[0].getChildByName("WidgetHierarchyTree");
+        if (cw is null)
+            return;
+
+        Tree activeItem = cw.getTreeItemByUserData(w.id);
+        if (activeItem is null)
+            return;
+
+        if (ev.type == EventType.MouseOver)
+        {
+            activeItem.features ~= new DebugHighlightRenderer();
+            auto l = cast(Label) activeItem.children[0].children[0];
+            l.text = "--" ~ l.text;
+        }
+        else if (ev.type == EventType.MouseOut)
+        {
+            activeItem.removeFeaturesByType!DebugHighlightRenderer();
+            auto l = cast(Label) activeItem.children[0].children[0];
+            l.text = l.text[2..$];
+        }
+    }
+
+    private void commandTriggered(CommandCall cc)
+    {
+        app.commandManager.execute(cc);
+    }
+
+    override @property void visible(bool v)
+    {
+        if (v == super.visible)
+            return;
+
+        super.visible = v;
+        if (v)
+            enableTree();
+        else
+            disableTree();
+    }
+
+    private void enableTree()
+    {
+        Tree tree = _scrollView.contentWidget.add!Tree();
+        tree.name  = "WidgetHierarchyTree";
+        tree.commandTriggered.connect(&commandTriggered);
+        window.onDispatchEvent.connect(&eventDispatched);
+        dbgDumpWidgetHierarchy(app);
+    }
+
+    private void disableTree()
+    {
+        foreach (c; _scrollView.contentWidget.children)
+            c.destroyRecurse();
+        window.onDispatchEvent.disconnect(&eventDispatched);
     }
 
     void close(Button b)
     {
         visible = false;
-        children[0].visible = false;
-        auto h = children[1];
-        foreach (c; h.children)
-            c.destroyRecurse();
     }
 }
 

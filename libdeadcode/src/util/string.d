@@ -2,7 +2,9 @@ module util.string;
 
 import std.typecons;
 
-version (unittest) import test;
+import test;
+mixin registerUnittests;
+
 
 // TODO: This could be optimized
 auto uniquePostfixPath(R)(R names)

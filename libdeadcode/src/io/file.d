@@ -7,6 +7,8 @@ import std.file;
 import std.path;
 import std.range;
 import std.stdio : StdFile = File;
+import test;
+mixin registerUnittests;
 
 class File : IO
 {
@@ -158,7 +160,6 @@ class FileProtocol : IOProtocol
 
 unittest
 {
-	import test;
 	auto fp = new FileProtocol;
 
 	string[] paths = [ "file:///install.ini", "file://c:/install.ini", "/install.ini" ];

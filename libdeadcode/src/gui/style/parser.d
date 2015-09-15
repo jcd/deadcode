@@ -18,7 +18,8 @@ import std.conv;
 import std.path;
 import std.range;
 
-version (unittest) import test;
+import test;
+// mixin registerUnittests;
 
 class CustomMaterialLoader : IResourceLoader!Material
 {

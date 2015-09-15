@@ -18,7 +18,9 @@ import std.typecons;
 
 version (unittest)
 {
-	import test;
+    import test;
+    mixin registerUnittests;
+
 
 	class TestStylable : Stylable
 	{

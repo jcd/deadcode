@@ -9,6 +9,9 @@ import std.typecons;
 
 import io.iomanager;
 
+import test;
+mixin registerUnittests;
+
 enum LoadState
 {
 	unknown,   // Previously declared but now removed resource or just never declared
@@ -803,7 +806,6 @@ unittest
 	//m.addSerializer(p);
 	DummyLoader loader = new DummyLoader;
 
-	import test;
 	auto r = m.declare(cast(string)null, loader);
 	Assert(m.get(r.handle) is r, "Resource from declare same as resource gotten by handle from manager");
 	//Assert(m.get(r.name) is r, "Resource from declare same as resource gotten by name from manager");

@@ -4,7 +4,9 @@ import std.exception;
 import std.range;
 import std.regex;
 
-version (unittest) import test;
+import test;
+mixin registerUnittests;
+
 
 class InvalidRuleKeyError : Exception
 {

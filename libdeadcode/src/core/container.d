@@ -1,5 +1,8 @@
 module core.container;
 
+import test;
+mixin registerUnittests;
+
 class Stack(T)
 {
 	T[] _stack;

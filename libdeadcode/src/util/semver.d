@@ -1,5 +1,8 @@
 module util.semver;
 
+import test;
+mixin registerUnittests;
+
 struct SemanticVersion
 {
     import std.algorithm;
@@ -95,7 +98,6 @@ struct SemanticVersion
     ///
     unittest
     {
-        import test;
         import std.conv;
         Assert(SemanticVersion("0.1") == SemanticVersion(0, 1, 0), SemanticVersion("0.1").to!string);
         auto s1 = SemanticVersion(0, 1, 4);
@@ -167,7 +169,6 @@ struct SemanticVersion
     ///
     unittest
     {
-        import test;
         import std.conv;
 
         Assert(SemanticVersion("0.1").precedence(SemanticVersion("0.1")) == 0);

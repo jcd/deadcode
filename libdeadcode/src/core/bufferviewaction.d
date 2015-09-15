@@ -14,7 +14,8 @@ debug import std.stdio;
 
 version(unittest)
 {
-	import test;
+    import test;
+    mixin registerUnittests;
 	import core.copybuffer;
 }
 

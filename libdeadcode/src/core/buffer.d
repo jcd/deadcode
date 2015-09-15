@@ -9,7 +9,8 @@ import core.signals;
 import std.variant;
 import math.region;
 
-version (unittest) import test;
+import test;
+mixin registerUnittests;
 
 enum InvalidIndex = int.min;
 

@@ -7,6 +7,8 @@ import libasync;
 import std.concurrency;
 
 import util.queue;
+import test;
+mixin registerUnittests;
 
 struct WatchDirResult
 {

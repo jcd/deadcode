@@ -7,6 +7,9 @@ import std.traits;
 import std.typecons;
 import std.typetuple;
 
+import test;
+mixin registerUnittests;
+
 // Part of GFM: https://github.com/d-gamedev-team/gfm
 
 // generic small non-resizeable matrix with R rows and C columns

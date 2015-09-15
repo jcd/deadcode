@@ -1,3 +1,4 @@
+#!/usr/bin/env rdmd
 import std.algorithm;
 import std.conv;
 import std.file;
@@ -9,6 +10,8 @@ import std.getopt;
 import std.array;
 import std.net.curl;
 import std.regex;
+
+string dubPath;
 
 void usage()
 {
@@ -62,6 +65,8 @@ void commandUsage(string cmd)
 
 void main(string[] args)
 {
+	dubPath = environment.get("DUB", "./dub");
+
 	if (args.length < 2)
 	{
 		usage();
@@ -122,7 +127,7 @@ void setup(string[] args, bool showUsage = false)
 		writeln("generates or updates project files from dub file");
 		return;
 	}
-	auto cmd = "dub generate visuald";
+	auto cmd = dubPath ~ " generate visuald";
 	writeln(cmd);
 	auto res = executeShell(cmd);
 	writeln(format("status %s:", res.status));
@@ -138,9 +143,9 @@ void build(string[] args, bool showUsage = false)
 		return;
 	}
 
-	auto cmd = "dub build 2>&1";
+	auto cmd = dubPath ~ " build 2>&1";
 	if (args.length > 2)
-		cmd = "dub build --config=" ~ args[2] ~ " 2>&1";
+		cmd = dubPath ~ " -q build --build=" ~ args[2] ~ " 2>&1";
 	writeln(cmd);
 	auto res = pipeShell(cmd, Redirect.stdin);
 	wait(res.pid);
@@ -158,7 +163,7 @@ void test(string[] args, bool showUsage = false)
 	}
 
 	string filt = args.length > 2 ? args[2] : "";
-	auto cmd = "dub run --config=unittest";
+	auto cmd = dubPath ~ " -q run --build=unittest";
 	writeln(cmd);
 	auto res = pipeShell(cmd, Redirect.stdin | Redirect.stderrToStdout | Redirect.stdout);
 	foreach (line; res.stdout.byLine)
@@ -246,13 +251,14 @@ void dist(string[] args, bool showUsage = false)
 	}
 
 	auto osStr = to!string(std.system.os);
-	auto outputPath = buildPath("dist", format("ded-%s_%s.zip", outputVersion, osStr));
+	auto outputPath = buildPath("dist", format("deadcode-%s_%s.zip", outputVersion, osStr));
 	auto packRoot = buildPath("dist", "files-" ~ osStr);
 
 	writeln("Packroot is ", packRoot);
 
 	// clean up
-	rmdirRecurse(packRoot);
+    if (exists(packRoot))
+	    rmdirRecurse(packRoot);
 	mkdirRecurse(packRoot);
 
 	collect(packRoot);
@@ -270,18 +276,34 @@ void dist(string[] args, bool showUsage = false)
 
 void collect(string packRoot)
 {
-	string[] files = [
-		"ded.exe",
-		"ded-debug.exe",
-        "binaries/dcd-server.exe",
-		"SDL2.dll",
-		"SDL2_image.dll",
-		"SDL2_ttf.dll",
-		"libfreetype-6.dll",
-		"libpng16-16.dll",
-		"zlib1.dll",
+	version (Windows)
+	{
+		string[] osDependentFiles = [
+			"deadcode.exe",
+			"deadcode-debug.exe",
+	        "binaries/dcd-server.exe",
+			"SDL2.dll",
+			"SDL2_image.dll",
+			"SDL2_ttf.dll",
+			"libfreetype-6.dll",
+			"libpng16-16.dll",
+			"zlib1.dll",
+		];
+	}
+	
+	version (linux)
+	{
+		string[] osDependentFiles = [
+			"deadcode",
+	        "binaries/dcd-server",
+		];
+	}
+
+    string[] commonFiles = [
 		"Changelog.txt"
 	];
+
+	auto files = osDependentFiles ~ commonFiles;
 
 	writeln("Copying");
 
@@ -289,18 +311,28 @@ void collect(string packRoot)
 
 	foreach (f; files)
 	{
+		if (!exists(f))
+        {
+            writeln("Warning: Cannot collect file ", f);
+            continue;
+        }
 		string dest = buildPath(packRoot, baseName(f));
 		std.stdio.writeln(f, " => ", dest);
 		if (exists(dest))
 			remove(dest);
-		copy(f, dest);
+		copy(f, dest, PreserveAttributes.yes);
 	}
 
 	auto r = dirEntries("resources", SpanMode.depth);
 	foreach (name; r)
 	{
 		string src = name;
-		string srcDir = isDir(name) ? name : dirName(name);
+		if (src.endsWith("~"))
+        {
+            writeln("Skipping", name);
+            continue;
+        }
+		string srcDir = isDir(src) ? src : dirName(src);
 		string dest = buildPath(packRoot, name);
 		string destDir = buildPath(packRoot, srcDir);
 
@@ -314,13 +346,16 @@ void collect(string packRoot)
 
 		if (exists(dest))
 			remove(dest);
-		copy(src, dest);
+		copy(src, dest, PreserveAttributes.yes);
 	}
 }
 
 void archive(string packRoot, string outputPath)
 {
-	string zipcmd = buildPath("external", "7zip", "7za.exe");
+	version (Windows)
+	    string zipcmd = buildPath("external", "7zip", "7za.exe");
+	version (linux)
+	    string zipcmd = "7za";
 	string srcDir = buildPath(".", packRoot, "*"); // need . prefix for 7zip to not include dir part
 
 	if (exists(outputPath))
@@ -477,7 +512,7 @@ void ddox(string[] args, bool showUsage = false)
            "skip-html-generation|s", &skipHTMLGeneration
            );
 
-    auto cmd = "dub build --config=ddox";
+    auto cmd = dubPath ~ " build --build=ddox";
 	if (!reuseJSON)
     {
         writeln(cmd);

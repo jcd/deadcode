@@ -438,10 +438,20 @@ class GUIApplication : Application
 		if (!_restartExecutable.empty)
 		{
 			import std.process;
-			spawnProcess(_restartExecutable);
-			import std.c.stdlib;
-			import core.thread;
-			Thread.sleep(dur!"seconds"(1));
+			version (Windows)
+			{
+			    spawnProcess(_restartExecutable);
+			}
+			
+            version (linux)
+			{
+    		    string[] argv;
+    		    execv(_restartExecutable, argv);
+			}
+			
+			//import std.c.stdlib;
+			//import core.thread;
+			//Thread.sleep(dur!"seconds"(1));
 		}
 	}
 

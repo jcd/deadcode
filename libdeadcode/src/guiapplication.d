@@ -424,7 +424,11 @@ class GUIApplication : Application
         loadKeyMappings();
 
 		loadSession();
-		analyticStopTiming("core", "startup");
+		
+        // Show window now that session has loaded the old size and position of the window
+        activeWindow.show();
+	
+    	analyticStopTiming("core", "startup");
 
 		guiRoot.onActivity.connect(&handleActivity);
 

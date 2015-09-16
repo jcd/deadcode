@@ -109,6 +109,14 @@ class ShaderProgram
 	private bool link()
 	{
 		assert(glProgramID > 0);
+
+		version (linux)
+		{
+			glBindAttribLocation(glProgramID, 0, "pos");		
+			glBindAttribLocation(glProgramID, 1, "texCoords");		
+			glBindAttribLocation(glProgramID, 2, "col");		
+		}
+
 		glLinkProgram(glProgramID);
 		int status, len;
 		glGetProgramiv(glProgramID, GL_LINK_STATUS, &status);

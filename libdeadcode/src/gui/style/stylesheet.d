@@ -35,7 +35,7 @@ version (unittest)
 			bool hasKeyboardFocus() const pure nothrow @safe { return false; }
 			bool isMouseOver() const pure nothrow @safe { return false; }
 			bool isMouseDown() const pure nothrow @safe { return false; }
-            bool isVisible() const pure nothrow @safe { return true; }
+            bool isVisible() const nothrow @safe { return true; }
 			Stylable parent() pure nothrow @safe { return _parent; }
 		}
 
@@ -90,7 +90,7 @@ interface Stylable
 		bool hasKeyboardFocus() const pure nothrow @safe;
 		bool isMouseOver() const pure nothrow @safe;
 		bool isMouseDown() const pure nothrow @safe;
-        bool isVisible() const pure nothrow @safe;
+        bool isVisible() const nothrow @safe;
 		Stylable parent() pure nothrow @safe;
 	}
 }
@@ -412,7 +412,7 @@ class StyleSheet : Resource!StyleSheet
                 bool hasKeyboardFocus() const pure nothrow @safe { return false; }
                 bool isMouseOver() const pure nothrow @safe { return false; }
                 bool isMouseDown() const pure nothrow @safe { return false; }
-                bool isVisible() const pure nothrow @safe { return true; }
+                bool isVisible() const nothrow @safe { return true; }
                 Stylable parent() pure nothrow @safe { return null; }
 
                 @property void styleName(string n)

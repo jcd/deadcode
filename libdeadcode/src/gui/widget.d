@@ -388,7 +388,7 @@ class Widget : Stylable
 
 	//void transition(Property*
 
-	@property bool visible() const pure nothrow @safe
+	@property bool visible() const nothrow @safe
     {
         return _visible;
     }
@@ -414,12 +414,12 @@ class Widget : Stylable
 
     void show()
     {
-        _visible = true;
+        visible = true;
     }
 
     void hide()
     {
-        _visible = false;
+        visible = false;
     }
 
 	protected
@@ -1024,7 +1024,7 @@ class Widget : Stylable
 		return window.isMouseDownWidget(this);
 	}
 
-    bool isVisible() const pure nothrow @safe
+    bool isVisible() const nothrow @safe
     {
         return visible;
     }

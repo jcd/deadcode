@@ -52,7 +52,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		bool hasKeyboardFocus() const pure nothrow @safe { return false; }
 		bool isMouseOver() const pure nothrow @safe { return false; }
 		bool isMouseDown() const pure nothrow @safe { return false; }
-        bool isVisible() const pure nothrow @safe { return true; }
+        bool isVisible() const nothrow @safe { return true; }
 		Stylable parent() pure nothrow @safe { return null; } // TODO: return widget
 	}
 

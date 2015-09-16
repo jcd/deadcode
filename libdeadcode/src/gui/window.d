@@ -16,6 +16,8 @@ import core.signals;
 import std.stdio;
 import std.typecons;
 
+import util.profile;
+
 enum MouseCursor
 {
 	arrow,
@@ -66,7 +68,9 @@ class Window : Widget
 	// emit(this)
 	mixin Signal!(Window) onUpdate;
 
-	static Window active;
+    mixin Signal!(Widget,Event) onDispatchEvent;
+
+    static Window active;
 
 	override @property Window window() pure nothrow @safe
 	{
@@ -162,7 +166,7 @@ class Window : Widget
 			return (flags & SDL_WINDOW_SHOWN) != 0;
 	    }
 	
-	    override @property void visible(bool v) nothrow
+	    override @property void visible(bool v)
 	    {
 	        if (visible && v || !visible && !v)
 	            return;
@@ -170,16 +174,16 @@ class Window : Widget
             try
             {
                 wid = _renderTarget.id;
+	            if (v)
+		            SDL_ShowWindow(SDL_GetWindowFromID(wid));
+				else
+		            SDL_HideWindow(SDL_GetWindowFromID(wid));
             }
             catch (Exception e)
             {
 				assert(0);                
             }
             
-            if (v)
-	            SDL_ShowWindow(SDL_GetWindowFromID(wid));
-			else
-	            SDL_HideWindow(SDL_GetWindowFromID(wid));
 		    super.visible = v;
         } 
 	}
@@ -365,19 +369,29 @@ class Window : Widget
 	override void update()
 	{
 		// Let gui widgets, constraints etc. update before drawing them
-		foreach (w; widgets)
+        {
+        //auto frameZonex = Zone(profiler, "windowUpdateWidgets");
+
+        foreach (w; widgets)
 		{
 			if (w !is this)
 				w.update();
 		}
+        }
 
-		onUpdate.emit(this);
-
-		if (_sizeDirty)
 		{
-			_sizeDirty = false;
-			emitResizeEvent();
-		}
+            //auto frameZonex = Zone(profiler, "windowOnUpdate");
+            onUpdate.emit(this);
+        }
+
+		{
+           // auto frameZonex = Zone(profiler, "windowEmitResize");
+            if (_sizeDirty)
+		    {
+			    _sizeDirty = false;
+			    emitResizeEvent();
+		    }
+        }
 
 		//if (_onUpdate !is null)
 		//    _onUpdate();
@@ -491,7 +505,9 @@ class Window : Widget
 		    {
 			    keyboardFocusWidget = w.id;
 			    if (ow !is null)
+                {
 				    ow.send(Event(EventType.KeyboardUnfocus));
+                }
 
 			    w.send(Event(EventType.KeyboardFocus));
 		    }
@@ -691,6 +707,7 @@ TODO:
 						{
 							event.type = EventType.MouseOut;
 							event.overWidgetID = overWidget is null ? NullWidgetID : overWidget.id;
+                            onDispatchEvent.emit(*outWidget, event);
 							outWidget.send(event);
 						}
 					}
@@ -699,7 +716,8 @@ TODO:
 					if (overWidget)
 					{
 						event.type = EventType.MouseOver;
-						overWidget.send(event);
+						onDispatchEvent.emit(*overWidget, event);
+                        overWidget.send(event);
 						event.type = EventType.MouseMove;
 						used = overWidget.send(event);
 					}
@@ -816,7 +834,10 @@ TODO:
 				break;
 			case EventType.StyleSheetChanged:
 				foreach (w; widgets)
+                {
 					w.send(event);
+                    w.recalculateStyle();
+                }
 				break;
 			default:
 				break;

@@ -237,13 +237,11 @@ class TextEditor : Widget
 		// std.stdio.writeln(d, " ", speed, " ", event.scroll.y, " ", event.msSinceLastScroll);
 		if (d < 0)
 		{
-			foreach (i; 0..speed)
-				bufferView.scrollDown();
+			bufferView.scrollDown(speed);
 		}
 		else
 		{
-			foreach (i; 0..speed)
-				bufferView.scrollUp();
+			bufferView.scrollUp(speed);
 		}
 		return EventUsed.yes;
 	}

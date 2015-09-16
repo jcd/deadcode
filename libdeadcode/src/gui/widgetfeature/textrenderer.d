@@ -282,8 +282,11 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 	void ensureLayedOut(Widget widget)
 	{
 		import std.math;
-		float szX = isNaN(_layout.bounds.w) ? 100000 : _layout.bounds.w;
-		float szY = isNaN(_layout.bounds.h) ? 100000 : _layout.bounds.h;
+        Style style = widget.style;
+        bool styleDirty = lastStyleVersion != style.currentVersion || lastStyleID != style.id;
+        bool dirtyBounds = _textDirty || styleDirty;
+		float szX = dirtyBounds || isNaN(_layout.bounds.w) ? 100000 : _layout.bounds.w;
+		float szY = dirtyBounds || isNaN(_layout.bounds.h) ? 100000 : _layout.bounds.h;
 		updateLayout(widget, Vec2f(szX, szY));
 	}
 

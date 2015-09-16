@@ -5,10 +5,12 @@ import alg = std.algorithm;
 import std.container;
 import std.exception;
 import std.typecons;
+import std.typetuple;
 
 //import core.buffer;
 
-version(unittest) import test;
+import test;
+mixin registerUnittests;
 
 template Iota(size_t i, size_t n)
 {

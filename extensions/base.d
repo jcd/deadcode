@@ -8,10 +8,12 @@ public import controls.texteditor;
 public import core.bufferview;
 public import core.command;
 public import core.commandparameter;
+public import core.thread;
 
 public import controls.button;
 public import controls.textfield;
 public import guiapplication;
+public import gui.control.scrollview;
 public import gui.widget;
 public import gui.window;
 public import gui.event;
@@ -110,10 +112,11 @@ class FunctionCommand(alias Func) : BasicCommand
 		alias p1 = Filter!(isNotType!GUIApplication, ParameterTypeTuple!Func);
 		alias p2 = Filter!(isNotType!TextEditor, p1);
 		alias p3 = Filter!(isNotType!BufferView, p2);
-		alias p4 = staticMap!(getDefaultValue, p3);
+		alias p4 = Filter!(isNotType!Fiber, p3);
+		alias p5 = staticMap!(getDefaultValue, p4);
 
 		enum names = [ParameterIdentifierTuple!Func];
-		setCommandParameterDefinitions(createParams(names, p4));
+		setCommandParameterDefinitions(createParams(names, p5));
 	}
 
 	static if (hasAttribute!(Func,MenuItem))
@@ -128,7 +131,7 @@ class FunctionCommand(alias Func) : BasicCommand
 			return getAttributes!(Func,Shortcut);
 		}
 
-	static if (hasAttribute!(Func, InFiber))
+	static if (hasAttribute!(Func, InFiber) || anySatisfy!(isType!Fiber, ParameterTypeTuple!Func))
 		override bool mustRunInFiber() const pure nothrow @safe
 		{
 			return true;
@@ -149,12 +152,14 @@ class FunctionCommand(alias Func) : BasicCommand
 	{
 		enum count = Filter!(isType!BufferView, ParameterTypeTuple!Func).length +
 			Filter!(isType!TextEditor, ParameterTypeTuple!Func).length +
-			Filter!(isType!GUIApplication, ParameterTypeTuple!Func).length;
+			Filter!(isType!GUIApplication, ParameterTypeTuple!Func).length +
+			Filter!(isType!Fiber, ParameterTypeTuple!Func).length;
 
 		alias t1 = Replace!(BufferView, currentBuffer, ParameterTypeTuple!Func);
 		alias t2 = Replace!(TextEditor, currentTextEditor, t1);
 		alias t3 = Replace!(GUIApplication, app, t2);
-		alias preparedArgs = t3[0..count];
+		alias t4 = Replace!(Fiber, Fiber.getThis, t3);
+		alias preparedArgs = t4[0..count];
 
 		enum missingArgCount = ParameterTypeTuple!Func.length - count;
 		// pragma(msg, "CommandFunction args: ", fullyQualifiedName!Func, ParameterTypeTuple!Func, missingArgCount);
@@ -188,10 +193,19 @@ class FunctionCommand(alias Func) : BasicCommand
 			alias a2 = ParameterTypeTuple!Func[$-2];
 			alias a3 = ParameterTypeTuple!Func[$-3];
 			Func(preparedArgs, v[0].get!a1, v[1].get!a2, v[2].get!a3);
-		}
+        }
+        else static if (missingArgCount == 4)
+        {
+            assert(v.length >= 3);
+            alias a1 = ParameterTypeTuple!Func[$-1];
+            alias a2 = ParameterTypeTuple!Func[$-2];
+            alias a3 = ParameterTypeTuple!Func[$-3];
+            alias a4 = ParameterTypeTuple!Func[$-4];
+            Func(preparedArgs, v[0].get!a1, v[1].get!a2, v[2].get!a3, v[2].get!a4);
+        }
 		else
 		{
-			pragma(msg, "Add support for more argments in CommandFunction. Only 3 supported now.");
+			pragma(msg, "Add support for more argments in CommandFunction. Only 4 supported now.");
 		}
 	}
 }
@@ -351,13 +365,6 @@ class BasicWidget : IBasicWidget
 	override @property PreferredLocation preferredLocation()
 	{
 		return PreferredLocation(null, RelativeLocation.bottomOf);
-	}
-
-	WT add(WT,Args...)(Args args)
-	{
-		auto w = new WT(args);
-        w.parent = this;
-        return w;
 	}
 
     WT get(WT = Widget)(int idx)

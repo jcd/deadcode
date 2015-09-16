@@ -528,7 +528,7 @@ class GUIApplication : Application
 	{
 		import std.uuid;
 		import platform.config;
-        addFileBrowserContextMenuItem("Open with DeadCode", r"C:\Projects\D\ded>ded-debug_d.exe");
+        addFileBrowserContextMenuItem("Open with DeadCode", r"C:\Projects\D\ded\ded-debug_d.exe");
         analyticsKey = getOrSetConfigField("analyticsKey", randomUUID().toString());
 	}
 
@@ -860,12 +860,20 @@ class GUIApplication : Application
 		//Application.activeEditor.show(view);
 	}
 
-	BufferView createBuffer()
+	BufferView createBuffer(string name = null)
 	{
-		auto view = bufferViewManager.create();
+		auto view = bufferViewManager.create("", name);
 		addMessage("Create buffer %s", view.name);
 		view.bufferModified.connect(&onBufferModified);
 		return view;
+	}
+
+	BufferView getOrCreateBuffer(string name)
+	{
+        auto view = bufferViewManager[name];
+        if (view !is null)
+            return view;
+        return createBuffer(name);
 	}
 
 	private void onBufferModified(BufferView b, bool isModified)
@@ -931,7 +939,8 @@ class GUIApplication : Application
 			editors.editors[buf.id] = EditorInfo(++editors.focusOrderCounter, editorWidget);
 			editorWidget.name = "editor-buffer-" ~ buf.id.to!string;
 			editorWidget.onKeyboardFocusCallback = (Event ev, Widget w) {
-				editors.editors[buf.id].focusOrder = ++editors.focusOrderCounter;
+				EditorInfo* info = &(editors.editors[buf.id]);
+                info.focusOrder = ++editors.focusOrderCounter;
 				currentBuffer = buf;
 				return EventUsed.yes;
 			};
@@ -964,6 +973,12 @@ class GUIApplication : Application
 		return null;
 	}
 
+	BufferView getCurrentBuffer()
+    {
+        return getVisibleBuffer();
+    }
+
+	// deprecated
 	BufferView getVisibleBuffer()
 	{
 		auto e = getCurrentTextEditor();
@@ -985,6 +1000,11 @@ class GUIApplication : Application
 	{
 		setBufferVisible(buf);
 	}
+
+	bool hasBuffer(string name)
+    {
+        return bufferViewManager[name] !is null;
+    }
 
 	void showBuffer(string name)
 	{

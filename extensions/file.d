@@ -6,12 +6,14 @@ mixin registerCommands;
 
 import std.algorithm;
 
- auto filesystemCompletions(string path)
+auto filesystemCompletions(string path)
 {
 	import std.array;
 	import std.file;
 	import std.path;
 	import std.string;
+    import std.typecons;
+	import util.string;
 
 	string relDirPath = path;
 	string filenamePrefix;
@@ -36,12 +38,24 @@ import std.algorithm;
         std.stdio.writeln(path, " ", relDirPath, " : ", filenamePrefix, " ", dirEntries(relDirPath, SpanMode.shallow));
     }
 
+	auto r1 = dirEntries(relDirPath, SpanMode.shallow)
+            .map!(a => tuple(filenamePrefix.empty ? 1.0 : baseName(a).rank(filenamePrefix), a.isDir ? tr(a.name, r"\", "/") ~ '/' : tr(a.name, r"\", "/")))
+            .filter!(a => a[0] > 0.0)
+            .array;
+        auto r2 = r1
+            .sort!((a,b) => a[0] > b[0])
+            .map!(a => CompletionEntry(a[1], a[1]))
+            .array;
+    return r2;
+
+
+/*
 	auto paths = dirEntries(relDirPath, SpanMode.shallow)
 		.filter!(a => a.name.baseName.startsWith(filenamePrefix))
 		.map!(a => a.isDir ? tr(a.name, r"\", "/") ~ '/' : tr(a.name, r"\", "/"));
 
 	return paths.map!(a => CompletionEntry(a,a)).array;
-
+*/
 
 	//.filter!(a => a.name.baseName.startsWith(filenamePrefix))
 	//.map!(a => a.isDir ? buildNormalizedPath(relDirPath, a.name.baseName, "") : a.name);
@@ -114,7 +128,7 @@ void fileSaveAs(BufferView buf, GUIApplication app, string filename)
 @InFiber()
 void fileOpen(GUIApplication app)
 {
-	auto p = app.yieldPrompt("Open", app.resourceURI("./", ResourceBaseLocation.currentDir).uriString,
+	auto p = app.yieldPrompt("Open", app.resourceURI("./", ResourceBaseLocation.currentDir).uriString ~ "/",
 							 (string prefix) {
 								 return filesystemCompletions(prefix);
 								 //CompletionEntry[] result;

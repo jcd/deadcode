@@ -18,6 +18,10 @@ import std.string;
 import core.signals;
 import std.math : isNaN;
 
+import test;
+//mixin registerUnittests;
+
+
 alias string StyleID;
 immutable StyleID NullStyleName = "";
 immutable StyleID DefaultStyleName = "default";
@@ -958,7 +962,6 @@ version (unittest)
 	import graphics.rendertarget;
 	import gui.window;
 	import gui.widget;
-	import test;
 
 	Window createTestWindow()
 	{

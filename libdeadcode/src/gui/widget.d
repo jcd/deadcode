@@ -85,10 +85,10 @@ class Widget : Stylable
 	Timeline.Runner backgroundSpriteAnimationRunner;
     Rectf backgroundSpriteRect;
 
+    bool _recalculateStyle = true; // True if an event occurred that may result in a change to _targeStyle
 	Style _targetStyle;         // Style found by lookup in stylesheet
 	Style _widgetSpecificStyle; // Used to set style programatically and will override anything in _targetStyle
 	Style _computedStyle;       // Used style. May also be influenced by transition animations.
-    // bool _recalcTargetStyle = true;   // True if an event occurred that may result in a change to _targeStyle
 
     uint lastStyleID;
     uint lastStyleVersion;
@@ -114,11 +114,24 @@ class Widget : Stylable
 	mixin Signal!(Event) onKeyboardUnfocusSignal;
 
 	// Move features to managers
-	auto featuresByType(T)(Widget w)
+	auto featuresByType(T)()
 	{
 		return features
 				    .map!(a => cast(T)a)
 				    .filter!(a => a !is null);
+	}
+
+    bool hasFeature(T)()
+    {
+        return !featuresByType!T.empty;
+    }
+
+	auto removeFeaturesByType(T)()
+	{
+		// TODO: do inplace remove instead
+        import std.array;
+        features = features
+            .filter!(a => cast(T)a is null).array;
 	}
 
 	@property bool hasStyleOverride()
@@ -175,6 +188,10 @@ class Widget : Stylable
 	//    features = [item] ~ features;
 	//}
 
+    void recalculateStyle() nothrow pure @safe
+    {
+        _recalculateStyle = true;
+    }
 
     /*
         A widgets style consists of three styles:
@@ -209,6 +226,11 @@ class Widget : Stylable
     */
     @property Style style()
 	{
+        if (!_recalculateStyle)
+            return _computedStyle;
+
+        _recalculateStyle = false;
+
         //if (!_recalcTarget
         //    return _computedStyle;
 
@@ -393,7 +415,7 @@ class Widget : Stylable
         return _visible;
     }
 
-    @property void visible(bool v) nothrow
+    @property void visible(bool v)
     {
         if (_visible == v)
             return;
@@ -410,6 +432,8 @@ class Widget : Stylable
         // If this widget has keyboard focus then release it.
         if (!_visible && window.getKeyboardFocusWidgetID == id)
             window.setKeyboardFocusWidget(NullWidgetID);
+
+        recalculateStyle();
     }
 
     void show()
@@ -478,6 +502,7 @@ class Widget : Stylable
 			_name = n;
 			if (window !is null)
 				window.setWidgetName(this, n);
+            recalculateStyle();
 		}
 
 		ubyte matchStylable(string stylableName) const pure nothrow @safe
@@ -769,6 +794,7 @@ class Widget : Stylable
             _widgetSpecificStyle.top = CSSScale(p.y, CSSUnit.pixels);  // ditto for top
             _widgetSpecificStyle.increaseVersion();
             lastStyleVersion = uint.max; // force style recalc
+            _recalculateStyle = true;
         }
 
 		bool sizeChanged()
@@ -883,6 +909,7 @@ class Widget : Stylable
 		{
 			newParent.addChild(this);
 		}
+        recalculateStyle();
 	}
 
     void destroyRecurse()
@@ -914,7 +941,22 @@ class Widget : Stylable
 			window.register(w);
 
 		_children ~= w;
+        w.recalculateStyle();
+    }
+
+	WT add(WT,Args...)(Args args)
+	{
+		auto w = new WT(args);
+        w.parent = this;
+        return w;
 	}
+
+    WT get(WT = Widget)(int idx)
+    {
+        if (idx >= children.length)
+            return null;
+        return cast(WT)children[idx];
+    }
 
 	void replaceChild(Widget replaceThisChild, Widget withThisWidget)
 	{
@@ -934,6 +976,8 @@ class Widget : Stylable
 		withThisWidget._parent = this;
 
 		old.parent = null;
+
+        withThisWidget.recalculateStyle();
 	}
 
 	//void moveChildBefore(Widget moveThisChild, Widget beforeThisChild)
@@ -1060,7 +1104,7 @@ class Widget : Stylable
 	{
 		//this(Rectf(x, y, x+w, y+h), _parentId);
 		manualLayout = false;
-		visible = true;
+		_visible = true;
 		zOrder = 0f;
 		//_sizeDirty = true;
 		_rect = Rectf(x, y, width, height);
@@ -1082,13 +1126,30 @@ class Widget : Stylable
 
 	final EventUsed send(Event event)
 	{
-		if (event.type == EventType.KeyboardFocus)
+		switch (event.type) with (EventType)
 		{
-			onKeyboardFocusSignal.emit(event);
-		}
-		else if (event.type == EventType.KeyboardUnfocus)
-		{
-			onKeyboardUnfocusSignal.emit(event);
+    		case KeyboardFocus:
+                onKeyboardFocusSignal.emit(event);
+                recalculateStyle();
+                break;
+    		case KeyboardUnfocus:
+                onKeyboardUnfocusSignal.emit(event);
+                recalculateStyle();
+                break;
+            case MouseOver:
+                recalculateStyle();
+                break;
+            case MouseOut:
+                recalculateStyle();
+                break;
+            case MouseDown:
+                recalculateStyle();
+                break;
+            case MouseUp:
+                recalculateStyle();
+                break;
+            default:
+                break;
 		}
 
 		//if (event.type == EventType.KeyDown)
@@ -1263,7 +1324,6 @@ class Widget : Stylable
             (st.position.isMixed && (st.position[1] == CSSPosition.relative || st.position[1] == CSSPosition.absolute)))
             positionReference = this;
 
-
         static Rectf[] origChildrenRects;
         assumeSafeAppend(origChildrenRects);
         origChildrenRects.length = children.length;
@@ -1299,6 +1359,7 @@ class Widget : Stylable
 
 	void update()
 	{
+        recalculateStyle();
 		// TODO: check for convergence
 		// TODO: only re-iterate features that asks for it e.g. constraints
 		for (int i = 0; i < 1; i++)
@@ -1319,6 +1380,7 @@ class Widget : Stylable
 		if (_sizeDirty)
 		{
 			// Send resize event to children
+            // TODO: optimize this to not always recalc _all_ widgets with anything is dirty
 			_sizeDirty = false;
 
 			if (window !is null)

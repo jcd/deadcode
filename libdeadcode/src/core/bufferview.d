@@ -343,7 +343,7 @@ class BufferView
 		auto lastLine = lineOffset + visibleLineCount - 1;
 
 		// Make sure the cursor in inside the visible area by changing the lineOffset
-		if (autoCursorInView && (lineNumber < lineOffset || lineNumber > lastLine))
+		if (autoCursorInView && (lineNumber < lineOffset || lineNumber > lastLine) && visibleLineCount != 0)
 		{
 			// Cursor outside of current view
 			viewOnLine(lineNumber);
@@ -358,7 +358,7 @@ class BufferView
 	void viewOnLine(int line)
 	{
 		auto lastLine = lineOffset + visibleLineCount - 1;
-		if (line < lineOffset)
+		if (line <= lineOffset || visibleLineCount == 0)
 			lineOffset = line;
 		else if (line > lastLine)
 			lineOffset = line - visibleLineCount + 1;
@@ -366,12 +366,12 @@ class BufferView
 
 	bool isLineInView(int line)
 	{
-		return line >= lineOffset && line < lineOffset + visibleLineCount;
+		return visibleLineCount > 0 && line >= lineOffset && line < lineOffset + visibleLineCount;
 	}
 
 	void scrollToLineInView(int line)
 	{
-		if (line < lineOffset)
+        if (line <= lineOffset || visibleLineCount == 0)
 			lineOffset = line;
 		else if (line >= lineOffset + visibleLineCount)
 			lineOffset = line - visibleLineCount + 1;
@@ -530,8 +530,17 @@ class BufferView
 		// TODO: optimize
 		void lineOffset(int o)
 		{
-			if (_lineOffset == o || o >= (buffer.lineCount - 1))
+			if (_lineOffset == o)
 				return;
+			else if (o < 0)
+				o = 0;
+
+			auto lc = buffer.lineCount;
+
+			if (o == (lc - 1))
+				return;
+			else if (o > (lc - 1))
+				o = cast(int)lc - 1;
 
 			_lineOffset = o;
 			_bufferStartOffset = buffer.startAtLineNumber(o);
@@ -1068,14 +1077,14 @@ class BufferView
     }
 
 
-	void scrollUp()
+	void scrollUp(int lines = 1)
 	{
-		lineOffset = lineOffset - 1;
+		lineOffset = lineOffset - lines;
 	}
 
-	void scrollDown()
+	void scrollDown(int lines = 1)
 	{
-		lineOffset = lineOffset + 1;
+		lineOffset = lineOffset + lines;
 	}
 
 	void cursorToBeginningOfLine()

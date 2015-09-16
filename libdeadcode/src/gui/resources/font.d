@@ -10,6 +10,9 @@ import util.jsonx;
 
 import std.path;
 
+import test;
+mixin registerUnittests;
+
 class Font : GFont, IResource!Font
 {
 	private static @property Font builtIn() { return null; } // hide
@@ -136,7 +139,6 @@ unittest
 	auto p = new JsonFontSerializer;
 	m.addSerializer(p);
 
-	import test;
 	auto r = m.declare();
 	AssertIs(m.get(r.handle), r, "Resource from declare same as resource gotten by handle from manager");
 	//auto r2 = m.declare("font1");

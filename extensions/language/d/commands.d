@@ -71,33 +71,60 @@ unittest
 }
 
 
-void dFormatBuffer(BufferView b)
+void dFormat(BufferView b)
 {
     static import extensions.language.d.dfmt;
     import std.conv;
     // extensions.language.d.dfmt.format(string source_desc, ubyte[] buffer, Output output);
-    char[] buf = b.getText().to!(char[]);
-    b.clear();
-    struct Writer
-    {
-        BufferView bv;
-        void put(string s)
-        {
-	    bv.append(s);
-        }
-    }
-    auto writer = Writer(b);
+
+    auto r = b.getRegion(RegionQuery.selection);
+	bool formatEntireBuffer = r.empty;
+	if (formatEntireBuffer)
+	{
+		r.a = 0;
+		r.b = int.max;
+	}
+	else
+	{
+		r = r.normalized();
+		r.a = b.buffer.offsetToBeginningOfLine(r.a);
+		r.b = b.buffer.offsetToEndOfLine(r.b);
+	}
+
+    char[] buf = b.getText(r).to!(char[]);
 
     extensions.language.d.dfmt.FormatterConfig cfg = {
-        indentSize : 4,
-        useTabs : false,
-        tabSize : 4,
-        columnSoftLimit: 80,
-        columnHardLimit: 120,
-        braceStyle: extensions.language.d.dfmt.BraceStyle.allman
+	indentSize : 4,
+	useTabs : false,
+	tabSize : 4,
+	columnSoftLimit: 80,
+	columnHardLimit: 120,
+	braceStyle: extensions.language.d.dfmt.BraceStyle.allman
     };
 
-    extensions.language.d.dfmt.format!Writer(b.name, cast(ubyte[]) buf, writer, &cfg);
+	if (formatEntireBuffer)
+	{
+		b.clear();
+		struct Writer
+		{
+
+			BufferView bv;
+			void put(string s)
+			{
+			bv.append(s);
+			}
+		}
+		auto writer = Writer(b);
+		extensions.language.d.dfmt.format!Writer(b.name, cast(ubyte[]) buf, writer, &cfg);
+	}
+	else
+	{
+		import std.array;
+		import std.conv;
+		auto result = appender!string();
+	    extensions.language.d.dfmt.format(b.name, cast(ubyte[]) buf, result, &cfg);
+		b.replace(result.data.to!dstring, r);
+	}
 }
 
 

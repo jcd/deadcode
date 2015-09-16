@@ -8,6 +8,9 @@ import std.range;
 import std.stdio;
 import std.traits;
 
+import test;
+mixin registerUnittests;
+
 mixin template VisitImpl(UDA)
 {
 	final void visit(T)(T i)
@@ -18,7 +21,7 @@ mixin template VisitImpl(UDA)
 			if (i is null)
 				return;
 
-			foreach(memberName; __traits(allMembers, T)) 
+			foreach(memberName; __traits(allMembers, T))
 			{
 				static if (memberName != "this")
 				{
@@ -95,7 +98,7 @@ class TestVisitor
 	}
 }
 
-// Visitor handler that writes all fields that have the @Persist set. 
+// Visitor handler that writes all fields that have the @Persist set.
 class ObjectTreeTextWriter(OutRange)
 {
 	import std.conv;
@@ -151,7 +154,7 @@ class ObjectTreeTextWriter(OutRange)
 		}
 	}
 
-	final void visitMember(AggrType, T)(Visitor v, AggrType aggr, string memberName, T[] memberValue) 
+	final void visitMember(AggrType, T)(Visitor v, AggrType aggr, string memberName, T[] memberValue)
 	{
 		output.put(memberName);
 		static if (isAggregateType!T)
@@ -200,7 +203,7 @@ class ObjectTreeTextWriter(OutRange)
 class Reflector2
 {
 	abstract @property string className() pure const nothrow @safe;
-	
+
 	T get(T)(Object o, string key)
 	{
 		auto typeInfo = typeid(T);
@@ -258,10 +261,10 @@ class ReflectorImpl(T) : Reflector
 	override void set(Object o, uint v, string key) { setImpl(o, v, key); }
 	override void set(Object o, float v, string key) { setImpl(o, v, key); }
 	override void set(Object o, double v, string key) { setImpl(o, v, key); }
-	override void set(Object o, Object v, string key) 
-	{ 
+	override void set(Object o, Object v, string key)
+	{
 		T obj = cast(T)o;
-		foreach(memberName; __traits(allMembers, T)) 
+		foreach(memberName; __traits(allMembers, T))
 		{
 			pragma(msg, memberName);
 			static if (memberName != "this" && is(typeof(__traits(getMember, obj, memberName)) == class) )
@@ -281,10 +284,10 @@ class ReflectorImpl(T) : Reflector
 	override void set(Object o, uint[] v, string key) { setImpl(o, v, key); }
 	override void set(Object o, float[] v, string key) { setImpl(o, v, key); }
 	override void set(Object o, double[] v, string key) { setImpl(o, v, key); }
-	override void set(Object o, Object[] v, string key) 
-	{ 
+	override void set(Object o, Object[] v, string key)
+	{
 		T obj = cast(T)o;
-		foreach(memberName; __traits(allMembers, T)) 
+		foreach(memberName; __traits(allMembers, T))
 		{
 			pragma(msg, memberName);
 			static if (memberName != "this" && is(isArray!(typeof(__traits(getMember, obj, memberName)))) && is(typeof(__traits(getMember, obj, memberName)) == class) )
@@ -313,7 +316,7 @@ class ReflectorImpl(T) : Reflector
 	override Object get(Object o, string key)
 	{
 		T obj = cast(T)o;
-		foreach(memberName; __traits(allMembers, T)) 
+		foreach(memberName; __traits(allMembers, T))
 		{
 			static if (memberName != "this" && is(typeof(__traits(getMember, obj, memberName)) == class) )
 			{
@@ -331,10 +334,10 @@ class ReflectorImpl(T) : Reflector
 	override uint[] get(Object o, string key) { return getImpl!(typeof(return))(o, key); }
 	override float[] get(Object o, string key) { return getImpl!(typeof(return))(o, key); }
 	override double[] get(Object o, string key) { return getImpl!(typeof(return))(o, key); }
-	override Object[] get(Object o, string key) 
-	{ 
+	override Object[] get(Object o, string key)
+	{
 		T obj = cast(T)o;
-		foreach(memberName; __traits(allMembers, T)) 
+		foreach(memberName; __traits(allMembers, T))
 		{
 			static if (memberName != "this" && is(isArray!(typeof(__traits(getMember, obj, memberName)))) && is(typeof(__traits(getMember, obj, memberName)) == class) )
 			{
@@ -354,9 +357,9 @@ class ReflectorImpl(T) : Reflector
 	}
 
 	private void setImpl(V)(Object o, V v, string key)
-	{	
+	{
 		T obj = cast(T)o;
-		foreach(memberName; __traits(allMembers, T)) 
+		foreach(memberName; __traits(allMembers, T))
 		{
 			pragma(msg, memberName);
 			static if (memberName != "this" && is(typeof(__traits(getMember, obj, memberName)) == V) )
@@ -374,7 +377,7 @@ class ReflectorImpl(T) : Reflector
 	private V getImpl(V)(Object o, string key)
 	{
 		T obj = cast(T)o;
-		foreach(memberName; __traits(allMembers, T)) 
+		foreach(memberName; __traits(allMembers, T))
 		{
 			static if (memberName != "this" && is(typeof(__traits(getMember, obj, memberName)) == V) )
 			{
@@ -388,8 +391,8 @@ class ReflectorImpl(T) : Reflector
 	}
 }
 
-static 
-{	
+static
+{
 	private Reflector[string] reflectors;
 
 	void reflectClass(T)(T t = null)
@@ -420,12 +423,12 @@ struct ReflectClass(T) if ( is( T == class ) )
 	}
 }
 
-// Visitor handler that writes all fields that have the @Persist set. 
+// Visitor handler that writes all fields that have the @Persist set.
 class ObjectTreeTextReader(InputRange)
 {
 	InputRange input;
 	Object[size_t] objectMap;
-		
+
 	struct RefPatchInfo
 	{
 		Object obj;
@@ -454,7 +457,7 @@ class ObjectTreeTextReader(InputRange)
 			}
 			readObject(lines);
 		}
-	
+
 		size_t[size_t] patchedIDs; // a set
 		foreach (pi; postPatching)
 		{
@@ -536,7 +539,7 @@ class ObjectTreeTextReader(InputRange)
 			toks.popFront;
 			string fieldType = toks.front;
 			toks.popFront;
-		
+
 			if (fieldOrRef == "O")
 			{
 				string value = toks.front;
@@ -566,7 +569,7 @@ class ObjectTreeTextReader(InputRange)
 						break;
 					default:
 						assert(0, text("No such type '%s'", type));
-						break;
+						//break;
 				}
 			}
 			else if (fieldOrRef[0..2] == "O[")
@@ -597,7 +600,7 @@ class ObjectTreeTextReader(InputRange)
 						break;
 					default:
 						assert(0, text("No such type[] '%s'", type));
-						break;
+						//break;
 				}
 				lines.popFrontN(num);
 			}
@@ -612,7 +615,7 @@ class ObjectTreeTextReader(InputRange)
 	{
 		size_t[] r;
 		r.reserve(lines.length);
-		
+
 		foreach (line; lines)
 		{
 			r ~= line.to!size_t;
@@ -624,7 +627,7 @@ class ObjectTreeTextReader(InputRange)
 	{
 		ElementType[] r;
 		r.reserve(lines.length);
-		
+
 		foreach (line; lines)
 			r ~= line.to!ElementType;
 		return r;
@@ -709,7 +712,7 @@ class Visitor
 
 version (unittest)
 {
-	class Base 
+	class Base
 	{
 		mixin Reflect;
 
@@ -725,7 +728,7 @@ version (unittest)
 		@Persist int[] persistedArr;
 	}
 
-	class Derived : Base 
+	class Derived : Base
 	{
 		//mixin Visitable;
 
@@ -737,7 +740,7 @@ version (unittest)
 
 		override void accept(Visitor v) { v.visit(this); }
 	}
-	
+
 	ReflectClass!Derived x;
 }
 
@@ -759,7 +762,7 @@ unittest
 	d.persistedChild = b;
 	d.persistedChildThroughBase = c2;
 	d.persistedArr = [1,2,3,4,5];
-	
+
 	auto visitor = new Visitor();
 	visitor.setHandler(new TestVisitor());
 	d.accept(visitor);
@@ -788,8 +791,9 @@ unittest
 
 	writeln("Done visiting ", reader.objectMap.keys);
 
-	Object bb = new Derived();
-	bb.id = 4;
+	auto dd = new Derived();
+	dd.id = 4;
+    Object bb = dd;
 	writeln("XXX1 ", bb.classinfo.name);
 	writeln("XXX2 ", bb.tupleof);
 	writeln("XXX3 ", (new Derived()).tupleof);

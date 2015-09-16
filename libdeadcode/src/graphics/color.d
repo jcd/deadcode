@@ -9,6 +9,9 @@ import std.format;
 import std.string;
 import std.typecons;
 
+import test;
+mixin registerUnittests;
+
 struct Color
 {
 	//static immutable Color black  = Color(0, 0, 0);
@@ -362,7 +365,6 @@ struct Color
 
 unittest
 {
-	import test;
 	Assert(Color.fromCSSHexString("#8800FF")[0], Color(cast(float)0x88 / 255f, 0.0, 1.0));
 	Assert(Color.fromCSSHexString("#8800FF0A")[0], Color(cast(float)0x88 / 255f, 0.0, 1.0, cast(float)0x0A / 255f));
 	Assert(Color.fromCSSString("#8800FF")[0], Color(cast(float)0x88 / 255f, 0.0, 1.0));

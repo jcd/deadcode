@@ -53,6 +53,7 @@ mixin template platformMain(alias customMain)
             try
             {
                 Runtime.initialize();
+                Runtime.moduleUnitTester()();
                 result = customMain(null);
                 Runtime.terminate();
             }

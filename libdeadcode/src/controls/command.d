@@ -148,7 +148,7 @@ class CommandControl : Widget
 	CompletionListStyler completionStyler;
 	Label questionLabel;
 
-	WidgetID resumeWidgetID;
+	WidgetID resumeWidgetID; // FIX: Should use a focus stack or something since changing shown buffer from a command with completions will first focus the resumewidget and then the new buffer which is weird.... maybe?!?
 	string[string] commandMap;
 	GUIApplication app;
 
@@ -521,30 +521,6 @@ class CommandControl : Widget
 		if (window is null || _mode == m)
 			return;
 
-		//completionWidget.visible = b;
-		//std.stdio.writeln("show ", b, " ", id, " ", h);
-
-		//if (!app.guiRoot.timeline.hasPendingAnimation)
-		//{
-		//    //if (b)
-		//    //{
-		//    //    // style.getProperty("expand-duration", expandDuration);
-		//    //    float targetHeight = height;
-		//    //    float dura = expandDuration;
-		//    //    if (mode == Mode.oneline)
-		//    //    {
-		//    //        targetHeight = onelineHeight;
-		//    //        dura /= 10;
-		//    //    }
-		//    //    app.guiRoot.timeline.animate!"h"(this, targetHeight, dura);
-		//    //}
-		//    //else
-		//    //{
-		//    //    //style.getProperty("contract-duration", expandDuration);
-		//    //    app.guiRoot.timeline.animate!"h"(this, 0, contractDuration);
-		//    //    app.guiRoot.timeline.event(contractDuration * 0.1, (int d) { this.visible = false; mode = Mode.multiline; });
-		//    //}
-		//}
 		_mode = m;
 
 		if (m == Mode.hidden)
@@ -558,7 +534,7 @@ class CommandControl : Widget
 		{
 			resumeWidgetID = window.getKeyboardFocusWidget().id;
 			commandField.setKeyboardFocusWidget();
-            show;
+            show();
 		}
 	}
 

@@ -17,20 +17,33 @@ version (Windows)
     extern (Windows) nothrow
     {
         export BOOL GetCursorInfo(LPCURSORINFO lpPoint);
+        export BOOL GetCursorPos(
+                                 LPPOINT lpPoint
+                                 );
     }
 
     bool getScreenPosition(Vec2f* result)
     {
+/*
         CURSORINFO desktopPos;
         desktopPos.cbSize = CURSORINFO.sizeof;
         if (! GetCursorInfo(&desktopPos))
         {
             std.stdio.writeln("errocode ", GetLastError());
-            return false;
         }
+        Vec2f winPos = Vec2f(desktopPos.ptScreenPos.x, desktopPos.ptScreenPos.y);
+*/
 
-        *result = Vec2f(desktopPos.ptScreenPos.x, desktopPos.ptScreenPos.y);
+        POINT p;
+        GetCursorPos(&p);
+        *result = Vec2f(p.x, p.y);
         return true;
+        /** When SDL2 2.0.4 is released the GetGlobalMouseState will be supported
+        import derelict.sdl2.sdl;
+        int x,y;
+        SDL_GetGlobalMouseState(&x, &y);
+        Vec2f winPos = Vec2f(x, y);
+*/
     }
 }
 

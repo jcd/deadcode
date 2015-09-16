@@ -3,7 +3,7 @@ module core.commandparameter;
 import std.string;
 import std.variant;
 
-alias CommandParameter = Algebraic!(int, string, float);
+alias CommandParameter = Algebraic!(uint, int, string, float);
 
 struct CommandCall
 {
@@ -19,7 +19,8 @@ CommandParameter parse(CommandParameter typeSpecifier, string input)
         import std.stdio;
         debug writeln("Input string was ", input);
     }
-	CommandParameter parsedValue = typeSpecifier.visit!( (int p) => CommandParameter(input.to!int),
+	CommandParameter parsedValue = typeSpecifier.visit!( (uint p) => CommandParameter(input.to!uint),
+                                                         (int p) => CommandParameter(input.to!int),
 														 (string p) => CommandParameter(input),
 														 (float p) => CommandParameter(input.to!int) );
 	return parsedValue;

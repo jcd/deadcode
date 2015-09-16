@@ -18,7 +18,9 @@ import std.typecons;
 
 version (unittest)
 {
-	import test;
+    import test;
+    mixin registerUnittests;
+
 
 	class TestStylable : Stylable
 	{
@@ -52,20 +54,7 @@ ubyte matchStylableImpl(S)(S styleable, string stylableName) pure nothrow @safe
 {
 	static bool matchName(string ciname, string stylableName) nothrow
 	{
-		import std.string;
-
-		try
-		{
-			auto idx = ciname.lastIndexOf('.');
-			if (idx != -1)
-				ciname = ciname[idx+1..$];
-		}
-		catch (Exception)
-		{
-			return false;
-		}
-
-		return ciname == stylableName;
+		return ciname.length > stylableName.length && ciname[$ - stylableName.length - 1] == '.' && ciname[$-stylableName.length..$] == stylableName;
 	}
 
 	auto ci = styleable.classinfo;

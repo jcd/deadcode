@@ -570,7 +570,7 @@ SmallVector!(N, T) min(size_t N, T)(const SmallVector!(N, T) a, const SmallVecto
 {
     SmallVector!(N, T) res = void;
     for(size_t i = 0; i < N; ++i)
-        res[i] = min(a[i], b[i]);
+        res[i] = std.algorithm.min(a[i], b[i]);
     return res;
 }
 

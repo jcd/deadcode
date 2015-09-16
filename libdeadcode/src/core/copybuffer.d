@@ -1,7 +1,10 @@
 module core.copybuffer;
 
 version (unittest)
-{}
+{
+    import test;
+    mixin registerUnittests;
+}
 else
     import derelict.sdl2.functions;
 

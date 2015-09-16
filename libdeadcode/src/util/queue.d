@@ -86,7 +86,7 @@ synchronized class GrowableCircularQueue(T)
 
 unittest
 {
-    auto q = GrowableCircularQueue!int;
+    auto q = new shared GrowableCircularQueue!int;
     q.push(10);
     q.push(20);
     q.push(30);

@@ -7,6 +7,7 @@ import math;
 import gui.event;
 import gui.widget;
 
+import std.algorithm;
 import std.array;
 import std.conv;
 import std.range;
@@ -14,6 +15,16 @@ import core.signals;
 
 import gui.layout.directionallayout;
 import gui.widgetfeature.textrenderer;
+
+int _countUntil(T)(T[] arr, T elm) pure @safe nothrow
+{
+    foreach (i, t; arr)
+    {
+        if (t is elm)
+            return cast(int)i;
+    }
+    return -1;
+}
 
 class Tree : Widget
 {
@@ -44,8 +55,14 @@ class Tree : Widget
 			return true;
 		}
 
+        @property bool isRoot() const pure nothrow @safe
+        {
+            return root is this;
+        }
+
 		Tree root;
-		bool _hidden = false;
+	    Tree[] _selection;
+        bool _hidden = false;
 	}
 
 	@property bool hidden() const pure nothrow @safe
@@ -61,10 +78,13 @@ class Tree : Widget
 			setKeyboardFocusWidget();
 	}
 
+    uint userData;
+
 	mixin Signal!(Tree) treeClicked;
 	mixin Signal!(CommandCall) commandTriggered;
 
 	enum _leafClasses = [ "leaf" ];
+	enum _selectedLeafClasses = [ "leaf", "selected" ];
 	enum _treeClasses = [ "internal" ];
 	enum _nodeClasses = [ "node" ];
 	enum _rootClasses = [ "root" ];
@@ -75,11 +95,16 @@ class Tree : Widget
 
 		if (hidden)
 			return _hiddenClasses;
-		else if (root is this)
+		else if (isRoot)
 	        return _rootClasses;
 	    else if (isLeaf)
 		{
-            return _leafClasses;
+            int idx = root._selection._countUntil(this);
+            if (idx != -1)
+                return _selectedLeafClasses;
+            else
+                return _leafClasses;
+
             //bool nodeWithSubtrees = this !is root && parentTree._children.length != 1;
             //if (nodeWithSubtrees)
             //    return _nodeClasses;
@@ -113,7 +138,6 @@ class Tree : Widget
 		return cast(const(Tree)) _parent;
 	}
 
-
 	alias parent = Widget.parent;
 
 	@property override void parent(Widget newParent) nothrow
@@ -126,7 +150,23 @@ class Tree : Widget
 			root = p.root;
 	}
 
-    this()
+    Tree getTreeItemByUserData(uint d)
+    {
+        foreach (c; children)
+        {
+            if (auto t = cast(Tree) c)
+            {
+                if (t.userData == d)
+                    return t;
+                auto t2 = t.getTreeItemByUserData(d);
+                if (t2 !is null)
+                    return t2;
+            }
+        }
+        return null;
+    }
+
+    this() nothrow
 	{
 		super();
 		root = this;
@@ -160,6 +200,12 @@ class Tree : Widget
 		leaf.onMouseClickCallback = (Event, Widget) {
 			// Need indirection through leaf in case leaf is being reparented at some point
 			leaf.root.treeClicked.emit(leaf);
+            int idx = leaf.root._selection._countUntil(leaf);
+            if (idx != -1)
+                leaf.root._selection = leaf.root._selection.remove(idx);
+            else
+                leaf.root._selection ~= leaf;
+
 			if (leaf.commandCall.name !is null)
 			{
 				leaf.root.commandTriggered.emit(leaf.commandCall);
@@ -197,23 +243,30 @@ class Tree : Widget
 			}
 		}
 	}
-
+/*
 	override void draw()
 	{
 		if (!visible)
 			return;
 
-		import derelict.opengl3.gl3;
+        if (isRoot)
+        {
+		    import derelict.opengl3.gl3;
 
-		Rectf r = rect;
-		r.y = window.size.y - (r.h + r.y);
+		    Rectf r = rect;
+		    r.y = window.size.y - (r.h + r.y);
 
-		glScissor( cast(int)r.x, cast(int)r.y, cast(int)r.w, cast(int)r.h);
-		glEnable(GL_SCISSOR_TEST);
-		super.draw();
-		glDisable(GL_SCISSOR_TEST);
+		    glScissor( cast(int)r.x, cast(int)r.y, cast(int)r.w, cast(int)r.h);
+		    glEnable(GL_SCISSOR_TEST);
+		    super.draw();
+		    glDisable(GL_SCISSOR_TEST);
+        }
+        else
+        {
+            super.draw();
+        }
 	}
-
+*/
 	//override EventUsed onMouseOut(Event event)
 	//{
 	//    // Look if any ancestor is the root of the tree for the new "over" widget

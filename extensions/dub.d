@@ -34,12 +34,16 @@ class DubBuildCommand : BasicCommand
 
 	private Tid tid;
 	private string newExecPath;
-
+    private string thisExecNormalizedPath; // special handling for building deadcode itself
+    private int buildStatus;
+    
 	void run()
 	{
 		clearLog();
 		showBuildWidget();
 		newExecPath = null;
+		buildStatus = -1;
+		thisExecNormalizedPath = buildNormalizedPath(thisExePath());
 		tid = spawn(&build, thisTid);
 		app.guiRoot.timeout(dur!"msecs"(200), &buildUpdate);
 	}
@@ -77,7 +81,7 @@ class DubBuildCommand : BasicCommand
 		if (w is null)
 			return;
 
-		auto re = regex(r"Copying target from (.+?\.exe) to .+");
+		auto re = regex(r"Copying target from (.+?) to .+");
 		auto res = matchFirst(msg, re);
 		if (!res.empty)
 		{
@@ -106,7 +110,7 @@ class DubBuildCommand : BasicCommand
 	{
 		// TODO: Get build configuration from package settings
 		string configuration = "debug";
-		string cmd = "dub build -v --config=" ~ configuration;
+		string cmd = "./dub build -v --build=" ~ configuration;
 
 		auto pipes = pipeShell(cmd, Redirect.stdout | Redirect.stderr);
 
@@ -143,23 +147,28 @@ class DubBuildCommand : BasicCommand
 		if (tid == Tid.init)
 		{
 			showProgress(false);
+            import std.conv;
+		    log("Build done at " ~ newExecPath ~ " " ~ buildStatus.to!string);
+
+		    // TODO: newExecPath snatches all target build (ie. also lib deps)
+		    //       which is wrong!!!
+		    if (!newExecPath.empty && buildStatus == 0)
+		    {
+			    showProgress(false);
+			    scope (exit) newExecPath = null;
+			    log("Restarting " ~ newExecPath);
+			    app.saveSession();
+			    respawn(newExecPath);
+			    return false;
+		    }
+
 			return false;
 		}
 
 		import std.datetime;
 		while (receiveTimeout(dur!"seconds"(0),
 					   (string s) { log(s); return true; },
-					   (int status) { tid = Tid.init; return true; })) {}
-
-		if (!newExecPath.empty)
-		{
-			showProgress(false);
-			scope (exit) newExecPath = null;
-			log("Restarting " ~ newExecPath);
-			app.saveSession();
-			respawn(newExecPath);
-			return false;
-		}
+					   (int status) { tid = Tid.init; buildStatus = status; return true; })) {}
 
 		return true; // reschedule update callbacks
 	}
@@ -170,19 +179,22 @@ class DubBuildCommand : BasicCommand
 		//writeln("existing is ", hwnd);
 
 		//return;
-		import std.file;
-		import std.path;
-		import std.string;
-		auto p = buildNormalizedPath(thisExePath());
-		auto ext = std.path.extension(p);
-		auto np = stripExtension(p);
-
-		// Special case when started using visual D and then compiled using dub
-		if (np.endsWith("_d"))
-			np = np[0..$-2];
-
-		rename(p, setExtension(np ~ "-old", ext));
-		rename(newExecPath, p);
+		auto p = thisExecNormalizedPath;
+		version (Windows)
+        {
+	        import std.file;
+			import std.path;
+			import std.string;
+			auto ext = std.path.extension(p);
+			auto np = stripExtension(p);
+	
+			// Special case when started using visual D and then compiled using dub
+			if (np.endsWith("_d"))
+				np = np[0..$-2];
+	
+			rename(p, setExtension(np ~ "-old", ext));
+			rename(newExecPath, p);           
+        }
 		app.scheduleRestart(p);
 	}
 }

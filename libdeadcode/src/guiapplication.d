@@ -1210,6 +1210,7 @@ class GUIApplication : Application
 		SessionBuffer[] buffers;
 		SessionCopyBuffer copyBuffer;
 		Layout windowLayout;
+		Rectf windowRect;
 	}
 
 	void saveSession()
@@ -1237,7 +1238,7 @@ class GUIApplication : Application
 			scb.entries ~= entry.txt.to!string;
 		}
 		s.copyBuffer = scb;
-
+		s.windowRect = Rectf(activeWindow.position, activeWindow.size);
 		sessionData.save();
 	}
 
@@ -1287,6 +1288,9 @@ class GUIApplication : Application
 				cb.entries ~= new CopyBuffer.Entry(data.to!dstring);
 			}
 		}
+        
+        activeWindow.position = s.windowRect.pos;
+        activeWindow.size = s.windowRect.size;
 	}
 
     void loadKeyMappings()

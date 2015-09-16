@@ -47,6 +47,12 @@ class RenderWindow : RenderTarget
 		}
 
 		context = SDL_GL_CreateContext(win);
+		if (context is null)
+		{
+			import std.stdio;
+            writeln("Error creating SDL GL context");
+			SDL_Quit();		
+		}
 
 		SDL_GL_SetSwapInterval(1);
 		glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -63,8 +69,9 @@ class RenderWindow : RenderTarget
 		   -near_height,
 		   near_height, zNear, zFar );
 */
-
-		DerelictGL3.reload();
+		import std.stdio;
+		writeln("GL Context ", context);
+		writeln("Using OpenGL version ", DerelictGL3.reload());
 
 		Mat4f proj = Mat4f.orthographic(-1,1,-1,1,1,100);
 		Mat4f view = Mat4f.makeTranslate(Vec3f(0.0,0.0,10.0f));

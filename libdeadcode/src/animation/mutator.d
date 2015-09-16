@@ -299,7 +299,7 @@ class FieldProxy(string field, _OwnerType)
 struct Bindable {}
 struct NonBindable {}
 
-bool hasUDA(UDA, T, string _field)()
+bool hasUDAOld(UDA, T, string _field)()
 {
 	foreach (attr;  __traits(getAttributes, mixin("T." ~ _field)))
 	{
@@ -365,10 +365,10 @@ private string getProxyFields(T, alias prefix = "")()
 		else static if ( isAggregateType!( typeof(mixin("T." ~ _field))) && !__traits(isVirtualMethod, mixin("T." ~ _field)) && !hasFuncAttrib!("@property", T, _field))
 		{
 
-			static if (!hasUDA!(NonBindable, T, _field)() )
+			static if (!hasUDAOld!(NonBindable, T, _field)() )
 			{
 
-				static if (hasUDA!(Bindable, T, _field)() )
+				static if (hasUDAOld!(Bindable, T, _field)() )
 				{
 					if (result.length)
 						result ~= ",";
@@ -392,7 +392,7 @@ private string getProxyFields(T, alias prefix = "")()
 		}
 		else
 		{
-			static if (hasUDA!(Bindable, T, _field)() )
+			static if (hasUDAOld!(Bindable, T, _field)() )
 			{
 				if (result.length)
 					result ~= ",";

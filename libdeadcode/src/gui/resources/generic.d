@@ -199,6 +199,12 @@ class GenericResource : Resource!GenericResource
 		return cast(int)idx;
 	}
 
+    void clear()
+    {
+        helpers.length = 0;
+        index = typeof(index).init;
+    }
+
 	void serialize(Appender!string output)
 	{
 		import std.conv;

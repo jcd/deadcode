@@ -7,6 +7,8 @@ import std.exception;
 
 final class Shader 
 {
+version (Windows)
+{
 	enum builtInVertexShaderSource = " 
    	#version 330 
    	layout(location = 0) in vec3 pos; 
@@ -45,6 +47,50 @@ final class Shader
       // color = vec3(1.0, 0.0,0.0);
 	} 
    	"; 
+}
+version (linux)
+{
+	enum builtInVertexShaderSource = " 
+   	#version 120
+    attribute vec3 pos; 
+   	attribute vec2 texCoords;
+   	//layout(location = 2) in vec3 col; 
+
+   	//out vec2 coords; 
+	//out vec3 cols;
+	uniform mat4 MVP;
+	
+   	void main(void) 
+   	{ 
+
+       gl_Position = MVP * vec4(pos,1.0);
+       gl_TexCoord[0] = vec4(texCoords,texCoords);
+       gl_FrontColor = gl_Color;
+ //      gl_Position = vec4(pos, 1.0); 
+       //gl_FragCoord = texCoords.st; 
+	 // gl_FragColor = col;
+   	} 
+   	"; 
+	
+	enum builtInFragmentShaderSource = " 
+   	#version 120
+	
+   	uniform sampler2D colMap; 
+	
+	//in vec2 coords; 
+	//in vec3 cols; 
+	//out vec3 color;
+
+   	void main(void) 
+   	{ 
+      //vec3 coltmp = texture2D(colMap, gl_FragCoord.st).xyz; 
+gl_FragColor = texture2D(colMap, gl_TexCoord[0].st);
+//      color = vec3(coords.yyx + coltmp); 
+      //gl_FragColor = vec4(coltmp, 1.0); // * cols; 
+      // color = vec3(1.0, 0.0,0.0);
+	} 
+   	"; 
+}
 	
 	private static Shader builtInVertexShader_;
 	private static Shader builtInFragmentShader_;
@@ -91,9 +137,12 @@ final class Shader
 		int fshad = glCreateShader(shaderType); 
 		const char * fptr = toStringz(source); 
 		
+		enforce(fshad != 0, "Couldn't create shader for : " ~ source);
+		
 		glShaderSource(fshad, 1, &fptr, null);
 		int err = glGetError();
-		enforce(err == GL_NO_ERROR, "Error setting shader source");
+		import std.conv;
+		enforce(err == GL_NO_ERROR, "Error setting shader source :" ~ err.to!string ~ " " ~ fshad.to!string ~ " " ~ source);
 
 		glCompileShader(fshad);
 		

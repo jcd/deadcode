@@ -567,9 +567,10 @@ class GUIApplication : Application
 	private void setupMainWindow()
 	{
         import platform.display : getExistingWindowRect;
-		auto existingRect = getExistingWindowRect();
+		Rectf existingRect;
+		bool gotRect = getExistingWindowRect(&existingRect);
 		auto win = createWindow("Deadcode");
-		if (!existingRect.empty)
+		if (gotRect)
 		{
             import std.stdio;
 			win.position = existingRect.pos;

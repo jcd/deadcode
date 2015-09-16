@@ -261,6 +261,7 @@ class GenericResource : Resource!GenericResource
 
 	void deserialize(string str)
 	{
+		import std.string;
 
 		if (includeHeader)
 		{
@@ -272,17 +273,13 @@ class GenericResource : Resource!GenericResource
 		// This can be used to lookup type deserializer helper
 		import std.algorithm;
 
-		auto result = str.splitter("\r\n");
+		auto result = str.splitter("\n");
 		if (result.empty)
-		{
-			result = str.splitter("\n");
-			if (result.empty)
-				throw new Exception("Error deserializing type of GenericResource");
-		}
+			throw new Exception("Error deserializing type of GenericResource");
 
-		auto magic = result.front;
+		string magic = result.front.chomp;
 		result.popFront();
-		auto contentType = result.front;
+		auto contentType = result.front.chomp;
 		result.popFront();
 
 		if (magic[0..8] != "Deadcode")
@@ -295,7 +292,7 @@ class GenericResource : Resource!GenericResource
 		int objectCount;
 		int indexCount;
 
-		string data = result.front;
+		string data = result.front.chomp;
 		if (std.format.formattedRead(data, "%s,%s", &objectCount, &indexCount) != 2)
 			throw new Exception("Cannot read index entry " ~ data);
 		result.popFront();
@@ -318,7 +315,7 @@ class GenericResource : Resource!GenericResource
 			string typeName;
 			int offset;
 			int length;
-			data = result.front;
+			data = result.front.chomp;
 			if (std.format.formattedRead(data, "%s,%s,%s,%s", &key, &typeName, &offset, &length) != 4)
 				throw new Exception("Cannot read index entry " ~ data);
 			result.popFront();

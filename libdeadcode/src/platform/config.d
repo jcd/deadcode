@@ -136,26 +136,16 @@ version (linux)
     {
         import std.file;
 
-        auto u = resourceURI("analyticsKey");
+        auto u = resourceURI(key);
 
         mkdirRecurse(u.dirName.uriString);
 
         if (exists(u.uriString))
-            analyticsKey = readText(u.uriString);
+            value = readText(u.uriString);
         else
-        {
-            analyticsKey = randomUUID().toString();
-            std.file.write(u.uriString, analyticsKey);
-        }
-
-        return setupRegistryEntry(format(r"Software\SteamWinter\DeadCode\%s", key), value);
-    }
-
-	private string setupRegistryEntry(string keyPath, string value)
-	{
-            pragma(msg, "Warning: setupRegistryEntry not implemented on linux");
-            return "DUMMY-REGISTRY-KEY";
-        }
+            std.file.write(u.uriString, value);
+	return value;    
+	}
 }
 
 

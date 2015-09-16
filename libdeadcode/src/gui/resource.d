@@ -18,6 +18,7 @@ enum LoadState
 	loaded,    // Done loading the resource from disk, net, whatever
 	preparing, // Processing, generating, converting resource before it is ready for use
 	prepared,  // Ready to be used
+	error,     // Could not be loaded	
 	unloading  // Unloading from system. Will result in resource going to unloaded state
 }
 
@@ -356,7 +357,10 @@ public:
 		}
 		catch (Exception e)
 		{
-			state.state = preState;
+			// state.state = preState;
+			import std.stdio;
+			writeln("resource exception: ", e);
+			state.state = LoadState.error;
 			ok = false;
 			setLastExceptionForHandle(state.resource.handle, e);
 		}
@@ -426,6 +430,8 @@ public:
 		enforceEx!ResourceException(rs, "Cannot load " ~ T.stringof ~ " resource from unknown handle");
 		if (rs.state >= LoadState.loading && rs.state <= LoadState.prepared)
 			return true; // already loaded => noop
+		if (rs.state == LoadState.error)
+			return false;		
 		return load(*rs);
 	}
 
@@ -470,6 +476,7 @@ public:
 				rs.state = LoadState.unloaded;
 				success = true;
 				break;
+			case LoadState.error:
 			case LoadState.unloading:
 				success = true;
 				break;
@@ -554,6 +561,7 @@ public:
 			case LoadState.preparing:
 			case LoadState.prepared:
 				break;
+			case LoadState.error:
 			case LoadState.unloading:
 				success = false;
 				break;

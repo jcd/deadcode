@@ -1,5 +1,6 @@
 module platform.dialog;
 
+
 version (Windows)
 {
     import std.c.windows.windows;
@@ -155,4 +156,51 @@ version (Windows)
         return hr;
     }
 +/
+}
+
+
+version (linux)
+{
+
+    enum MessageBoxStyle
+    {
+        none,
+        error = 1,
+        yesNo = 2,
+	modal = 4,       
+	}
+
+    int messageBox(string title, string message, MessageBoxStyle t)
+    {
+        string result = null;
+   import std.process;
+    import std.regex;
+
+	string mode = t & MessageBoxStyle.yesNo ? "--question" : "--info";
+	string prefix = t & MessageBoxStyle.error ? "Error: " : "";
+
+    auto res = pipeShell("zenity " ~ mode ~ " --text=\"" ~ prefix ~ message ~ "\"");
+
+    return wait(res.pid) == 0;
+}
+
+    string showSelectFolderDialogBasic(string startDir)
+    {
+
+        string result = null;
+   import std.process;
+    import std.regex;
+
+    auto res = pipeShell("zenity --file-selection --directory", Redirect.stdin | Redirect.stderrToStdout | Redirect.stdout);
+
+    foreach (line; res.stdout.byLine)
+    {
+	result = line.idup;
+	break;
+    }
+    if ( wait(res.pid) != 0)
+	result = "";
+
+	return result;
+}
 }

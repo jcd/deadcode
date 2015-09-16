@@ -33,7 +33,7 @@ class RenderWindow : RenderTarget
 		SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
 		// SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 
-		int flags = SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | SDL_WINDOW_SHOWN;// |
+		int flags = SDL_WINDOW_OPENGL |SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN;// |
 		/*SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE; */
 		win = SDL_CreateWindow(name.ptr, 0, 0, width, height, flags);
 		//	   	win = SDL_CreateWindow(name.ptr, SDL_WINDOWPOS_CENTERED,

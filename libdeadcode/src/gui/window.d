@@ -141,6 +141,47 @@ class Window : Widget
 		{
 			return cast(MouseCursor) SDL_GetCursor();
 		}
+        
+        private Uint32 windowFlags() const nothrow @trusted
+        {
+            uint wid = 0;
+            try
+            {
+                wid = _renderTarget.id;
+            }
+            catch (Exception e)
+            {
+				assert(0);                
+            }
+            return SDL_GetWindowFlags(SDL_GetWindowFromID(wid));
+        }
+        
+		override @property bool visible() const nothrow @safe
+	    {
+	        Uint32 flags = windowFlags(); 
+			return (flags & SDL_WINDOW_SHOWN) != 0;
+	    }
+	
+	    override @property void visible(bool v) nothrow
+	    {
+	        if (visible && v || !visible && !v)
+	            return;
+			uint wid = 0;
+            try
+            {
+                wid = _renderTarget.id;
+            }
+            catch (Exception e)
+            {
+				assert(0);                
+            }
+            
+            if (v)
+	            SDL_ShowWindow(SDL_GetWindowFromID(wid));
+			else
+	            SDL_HideWindow(SDL_GetWindowFromID(wid));
+		    super.visible = v;
+        } 
 	}
 
 	void repaint()
@@ -272,9 +313,9 @@ class Window : Widget
 
 	this(const(char)[] _name, int width, int height, RenderTarget _renderTarget)
 	{
+		this._renderTarget = _renderTarget;
 		super(0f,0f,width,height);
 		setWidgetName(this, _name.idup);
-		this._renderTarget = _renderTarget;
 		id = _renderTarget.id;
 		register(this);
 		keyboardFocusWidget = this.id;
@@ -466,6 +507,17 @@ class Window : Widget
             // app.addMessage("While trying to se keyboard widget focus %s", e);
         }
 	}
+
+    Vec2f getCursorScreenPosition()
+    {
+        // TODO: move this to graphics or input abstraction
+        import platform.cursor;
+        Vec2f result;
+        if (getScreenPosition(&result))
+            return result;
+
+        return Vec2f(0,0);
+    }
 
 	bool hasKeyboardFocus(const(Widget) w) const pure nothrow @safe
 	{

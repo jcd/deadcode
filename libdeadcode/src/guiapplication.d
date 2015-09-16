@@ -215,7 +215,7 @@ class GUIApplication : Application
         string behavior; // emacs, vs, vim
     }
 
-    void loadKeyBindings(string fileName)
+    void loadKeyBindings(string fileName, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
     {
         static class Rule
         {
@@ -241,11 +241,12 @@ class GUIApplication : Application
 
         static import gui.ruleset;
 
-        GenericResource keyMappingsResource = getUpdated(fileName);
+        GenericResource keyMappingsResource = getUpdated(fileName, base);
 
         KeyMappings mappings = keyMappingsResource.get!KeyMappings();
         if (mappings is null)
         {
+            
             KeyMappings m = new KeyMappings;
             KeyMapping mp = new KeyMapping;
             mp.keys = "<ctrl> + i";
@@ -1305,6 +1306,9 @@ class GUIApplication : Application
         // Re-register command extension shortcuts as defined by @Shortcut attribute
         import extensions.base;
         registerCommandKeyBindings(this);
+
+        // Load global key mappings
+        loadKeyBindings("key-mappings/key-mappings-global", ResourceBaseLocation.resourceDir);
 
         // Load config
         GenericResource configResource = getUpdated("config");

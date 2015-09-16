@@ -1,0 +1,133 @@
+Deadcode 1
+json 1
+1,1
+,guiapplication.GUIApplication.loadKeyBindings.KeyMappings,0,181
+{ "mappings": [
+	
+	{"keys":"<ctrl> + t", "command":"proc.filter"},
+	{"keys":"<ctrl> + <shift> + t", "command":"proc.runCommands"},
+
+	{"keys":"<ctrl> + <space>", "command":"d.completeCycling", "argument":"1", "rules": [
+		{"key":"focusWidgetBranchNames","operator":"containsRegex","value":"dcompletionpopup","type":"string","negated":false}
+	]},
+
+	{"keys":"<down>", "command":"d.completeCycling", "argument":"1", "rules": [
+		{"key":"focusWidgetBranchNames","operator":"containsRegex","value":"dcompletionpopup","type":"string","negated":false}
+	]},
+
+	{"keys":"<up>", "command":"d.completeCycling", "argument":"-1", "rules": [
+		{"key":"focusWidgetBranchNames","operator":"containsRegex","value":"dcompletionpopup","type":"string","negated":false}
+	]},
+	
+	{"keys":"<tab>", "command":"d.completeAccept", "rules": [
+		{"key":"focusWidgetBranchNames","operator":"containsRegex","value":"dcompletionpopup","type":"string","negated":false}
+	]},
+	
+	{"keys":"<return>", "command":"d.completeAccept", "rules": [
+		{"key":"focusWidgetBranchNames","operator":"containsRegex","value":"dcompletionpopup","type":"string","negated":false}
+	]},
+
+	{"keys":"<escape>", "command":"d.completeAbort", "rules": [
+		{"key":"focusWidgetBranchNames","operator":"containsRegex","value":"dcompletionpopup","type":"string","negated":false}
+	]},
+	
+	{"keys":"<ctrl> + <space>", "command":"d.complete"},
+	{"keys":"<ctrl> + <shift> + g", "command":"d.gotoDefinition"},
+	{"keys":"<ctrl> + <shift> + f", "command":"d.findSymbol"},
+	
+	{"keys":"<alt> + v", "command":"edit.scrollPageUp"},
+	{"keys":"<pagedown>", "command":"edit.scrollPageDown"},
+	{"keys":"<pageup>", "command":"edit.scrollPageUp"},
+	{"keys":"<ctrl> + a", "command":"edit.cursorToBeginningOfLine"},
+	{"keys":"<ctrl> + e", "command":"edit.cursorToEndOfLine"},
+	{"keys":"<ctrl> + <shift> + a", "command":"edit.selectToBeginningOfLine"},
+	{"keys":"<ctrl> + <shift> + e", "command":"edit.selectToEndOfLine"},
+	{"keys":"<ctrl> + <shift> + <left>", "command":"edit.selectToWordBefore"},
+	{"keys":"<ctrl> + <shift> + <right>", "command":"edit.selectToWordAfter"},
+	{"keys":"<ctrl> + <backspace>", "command":"edit.deleteToWordBefore"},
+	{"keys":"<ctrl> + <delete>", "command":"edit.deleteToWordAfter"},
+	{"keys":"<ctrl> + <left>", "command":"edit.cursorToWordBefore"},
+	{"keys":"<ctrl> + <right>", "command":"edit.cursorToWordAfter"},
+	{"keys":"<left>", "command":"navigate.left"},
+	{"keys":"<right>", "command":"navigate.right"},
+	{"keys":"<up>", "command":"navigate.up"},
+	{"keys":"<down>", "command":"navigate.down"},
+	{"keys":"<shift> + <left>", "command":"edit.selectToCharBefore"},
+	{"keys":"<shift> + <right>", "command":"edit.selectToCharAfter"},
+	{"keys":"<shift> + <up>", "command":"edit.selectToCharAbove"},
+	{"keys":"<shift> + <down>", "command":"edit.selectToCharBelow"},
+	{"keys":"<shift> + <pagedown>", "command":"edit.selectPageDown"},
+	{"keys":"<shift> + <pageup>", "command":"edit.selectPageUp"},
+	{"keys":"<ctrl> + k", "command":"edit.deleteToEndOfLine"},
+	{"keys":"<backspace>", "command":"edit.deleteCharBefore"},
+
+	{"keys":"<return>", "command":"edit.commitCompletion", "rules": [
+		{"key":"currentBufferName","operator":"equals","value":"*CommandInput*","type":"string","negated":false}
+	]},
+	{"keys":"<tab>", "command":"edit.complete", "rules": [
+		{"key":"currentBufferName","operator":"equals","value":"*CommandInput*","type":"string","negated":false}
+	]},
+	{"keys":"<ctrl> + p", "command":"app.toggleCommandArea", "argument":"", "rules": [
+		{"key":"currentBufferName","operator":"equals","value":"*CommandInput*","type":"string","negated":false}
+	]},
+
+
+	{"keys":"<tab>", "command":"text.increaseIndent", "rules": [
+		{"key":"languageName","operator":"equals","value":"D","type":"string","negated":false}
+	]},
+
+	{"keys":"<shift> + <tab>", "command":"text.decreaseIndent", "rules": [
+		{"key":"languageName","operator":"equals","value":"D","type":"string","negated":false}
+	]},
+
+	{"keys":"<alt> + /", "command":"text.commentSelection", "rules": [
+		{"key":"languageName","operator":"equals","value":"D","type":"string","negated":false}
+	]},
+
+	{"keys":"<alt> + <shift> + /", "command":"text.uncommentSelection", "rules": [
+		{"key":"languageName","operator":"equals","value":"D","type":"string","negated":false}
+	]},
+	
+	{"keys":"<shift> + [", "command":"d.insertScopeBegin", "rules": [
+		{"key":"languageName","operator":"equals","value":"D","type":"string","negated":false}
+	]},
+
+	{"keys":"<return>", "command":"d.insertNewline", "rules": [
+		{"key":"languageName","operator":"equals","value":"D","type":"string","negated":false}
+	]},
+
+	{"keys":"<return>", "command":"edit.insert", "argument":"\n"},
+	{"keys":"<tab>", "command":"edit.insert", "argument":"\t"},
+	{"keys":"<ctrl> + d", "command":"edit.deleteCharAfter"},
+	{"keys":"<delete>", "command":"edit.deleteCharAfter"},
+	{"keys":"<ctrl> + x <ctrl> + p", "command":"edit.clear"},
+
+	{"keys":"<ctrl> + <tab>", "command":"app.cycleBuffers", "argument":"1"},
+
+	{"keys":"<ctrl> + <shift> + <tab>", "command":"app.cycleBuffers", "argument":"-1"},
+
+	{"keys":"<ctrl> + x <ctrl> + f", "command":"file.open"},
+	{"keys":"<ctrl> + x b", "command":"edit.showBuffer"},
+	{"keys":"<ctrl> + x <ctrl> + s", "command":"file.save"},
+	{"keys":"<ctrl> + x <ctrl> + w", "command":"file.saveAs"},
+
+	{"keys":"<ctrl> + /", "command":"edit.undo"},
+	{"keys":"<ctrl> + _", "command":"edit.undo"},
+	{"keys":"<ctrl> + x u", "command":"edit.undo"},
+	{"keys":"<ctrl> + <shift> + z", "command":"edit.redo"},
+	{"keys":"<ctrl> + z", "command":"edit.undo"},
+	{"keys":"<ctrl> + c", "command":"edit.copy"},
+	{"keys":"<ctrl> + v", "command":"edit.paste"},
+	{"keys":"<ctrl> + <shift> + v", "command":"edit.pasteCycle"},
+	{"keys":"<ctrl> + w", "command":"edit.cut"},
+
+	{"keys":"<ctrl> + p", "command":"app.toggleCommandArea", "argument":""},
+
+	{"keys":"<f7>", "command":"dub.build"},
+	{"keys":"<ctrl> + ,", "command":"dub.quickOpen"},
+	{"keys":"<ctrl> + i", "command":"search"},
+
+	{"keys":"<alt> + /", "command":"edit.undo"},
+	{"keys":"<ctrl> + g", "command":"edit.cursorToLine"}
+
+]}

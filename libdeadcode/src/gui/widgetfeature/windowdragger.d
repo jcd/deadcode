@@ -42,7 +42,7 @@ class WindowDragger : WidgetFeature
 		if (widget.isGrabbingMouse())
 		{
 			import platform.cursor;
-            Vec2f winPos = getScreenPosition();
+            Vec2f winPos = widget.window.getCursorScreenPosition();
 			widget.window.position = winPos - startDragPos;
 		}
 	}

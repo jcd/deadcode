@@ -30,7 +30,7 @@ class WindowResizer : WidgetFeature
 			startSize = widget.window.size;
 			widget.grabMouse();
             import platform.cursor;
-            startDragPos = getScreenPosition();
+            startDragPos = widget.window.getCursorScreenPosition();
 			//widget.window.waitForEvents = false;
 			return EventUsed.yes;
 		}
@@ -49,7 +49,7 @@ class WindowResizer : WidgetFeature
 		if (widget.isGrabbingMouse() && startDragPos.x > -1000)
 		{
 			import platform.cursor;
-            Vec2f screenPos = getScreenPosition();
+            Vec2f screenPos = widget.window.getCursorScreenPosition();
 			widget.window.size = startSize + (screenPos - startDragPos);
 		}
 	}

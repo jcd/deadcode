@@ -18,7 +18,7 @@ class RenderTarget
 		{
 			_onRender = callback;
 		}
-		abstract uint id();
+		abstract uint id() const;
 		abstract Mat4f MVP() const;
 		abstract Vec2i size() const;
 		abstract void size(Vec2f s);
@@ -129,7 +129,7 @@ class NullRenderTarget : RenderTarget
     }
         @property
             {
-                override uint id() { return _id; }
+                override uint id() const { return _id; }
                 override Mat4f MVP() const { return _MVP; }
                 override Vec2i size() const { return _size; }
                 override void size(Vec2i s) { _size = s; }

@@ -17,9 +17,9 @@ class RenderWindow : RenderTarget
 		Mat4f _MVP;
 	}
 
-	override @property uint id()
+	override @property uint id() const
 	{
-		return SDL_GetWindowID(win);
+		return SDL_GetWindowID(cast(SDL_Window*)win);
 	}
 
 	this(const(char)[] name, Vec2i sz)

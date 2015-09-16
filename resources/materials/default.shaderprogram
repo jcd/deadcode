@@ -1,5 +1,5 @@
 {
-	"vertexShader" : "#version 330
+	"win_vertexShader" : "#version 330
       layout(location = 0) in vec3 pos; 
    	layout(location = 1) in vec2 texCoords; 
    	layout(location = 2) in vec3 col; 
@@ -17,9 +17,7 @@
       coords = texCoords.st; 
 	  cols = col;
    	}",
-	
-
-	"fragmentShader" : "#version 330 
+	"win_fragmentShader" : "#version 330 
 	
    	uniform sampler2D colMap; 
 	
@@ -35,5 +33,43 @@
      color = vec4(coltmp.xyz * cols,coltmp.a); 
    //  color = coltmp; 
       // color = vec4(1.0, 0.0,0.0,0.5);
+	}",
+	"vertexShader" : "#version 120
+     attribute vec3 pos; 
+   	 attribute vec2 texCoords; 
+   	 attribute vec3 col; 
+
+   	//out vec2 coords; 
+	varying vec3 cols;
+	uniform mat4 MVP;
+   // uniform vec4 
+
+   	void main(void) 
+   	{ 
+       gl_Position = MVP * vec4(pos,1.0);
+       gl_TexCoord[0] = vec4(texCoords,texCoords);
+       gl_FrontColor = gl_Color;
+ //      gl_Position = vec4(pos, 1.0); 
+      // coords = texCoords.st; 
+	  cols = col;
+   	}",
+	"fragmentShader" : "#version 120 
+	
+   	uniform sampler2D colMap; 
+	
+	//in vec2 coords; 
+	varying vec3 cols; 
+	//out vec4 color;
+
+   	void main(void) 
+   	{ 
+      gl_FragColor = texture2D(colMap, gl_TexCoord[0].st) * vec4(cols,1.0); // * gl_Color;
+      
+//gl_FragColor = vec4(coltmp, 1.0); // * cols; 
+	//      color = vec3(coords.yyx + coltmp); 
+     //color = vec4(coltmp.xyz * cols,coltmp.a); 
+   //  color = coltmp;
+   // gl_FragColor = gl_Color; 
+       //gl_FragColor = vec4(1.0, 0.0,0.0,0.5);
 	}"
 }

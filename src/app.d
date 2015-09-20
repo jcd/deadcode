@@ -25,7 +25,7 @@ private int myMain(string[] args)
 		import test;
 		printStats(true);
 	}
-	// else
+	else
 	{
 
 		GUIApplication app;
@@ -58,5 +58,7 @@ private int myMain(string[] args)
             return 1;
 		}
 	}
+	import libasync.threads;
+	destroyAsyncThreads();
 	return 0;
 }

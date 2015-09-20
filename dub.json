@@ -14,7 +14,7 @@
 		"libdparse": "0.2.1",
 		"msgpack-d": "~>0.9.5",
 		"libasync": "~>0.7.1",
-		"tharsis-prof": "0.5.3"
+		"tharsis-prof": "0.5.4"
 	},
 	"dependencies-posix": {
 	    "x11": "~>1.0.8"

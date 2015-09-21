@@ -67,6 +67,9 @@ void main(string[] args)
 {
 	dubPath = environment.get("DUB", "./dub");
 
+    if (!exists(dubPath))
+        dubPath = "dub"; // Maybe it is in PATH
+
 	if (args.length < 2)
 	{
 		usage();

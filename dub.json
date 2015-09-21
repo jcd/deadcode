@@ -34,18 +34,21 @@
 	"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
 	"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
 	"buildTypes" : {
+        "debug" : {
+		     "sourceFiles-windows": [ "src/win.def", "src/win.res" ],
+        },
         "profile" : {
              "buildOptions" : [ "profile", "optimize", "inline", "debugInfo" ],
 		     "preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources resources.pack",
 							     		    "tool.bat generate-resource-pack binaries binaries.pack" ],
-		     "sourceFiles": [ "src/win.def" ],
+		     "sourceFiles-windows": [ "src/win.def", "src/win.res" ],
      		 "versions" : ["portable", "release"]
         },
         "release" : {
              "buildOptions" : [ "releaseMode", "optimize", "inline" ],
 		     "preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources resources.pack",
 							     		   "tool.bat generate-resource-pack binaries binaries.pack" ],
-		     "sourceFiles": [ "src/win.def" ],
+		     "sourceFiles-windows": [ "src/win.def", "src/win.res" ],
      		 "versions" : ["portable", "release"]
         }
     }

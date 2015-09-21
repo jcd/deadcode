@@ -162,19 +162,23 @@ unittest
 {
 	auto fp = new FileProtocol;
 
-	string[] paths = [ "file:///install.ini", "file://c:/install.ini", "/install.ini" ];
-
-	// Convenience protocol method for reading all text in a file
-	foreach (p; paths)
+    // TODO: test on linux also
+	version (Windows)
 	{
-		Assert(fp.readText(new URI(p)).startsWith("[Setup]"));
-	}
+	    string[] paths = [ "file:///install.ini", "file://c:/install.ini", "/install.ini" ];
 
-	// ditto but through allocated File
-	foreach (p; paths)
-	{
-		auto f = fp.open(new URI(p), IOMode.read);
-		Assert(f.readText().startsWith("[Setup]"));
-	}
+	    // Convenience protocol method for reading all text in a file
+	    foreach (p; paths)
+	    {
+		    Assert(fp.readText(new URI(p)).startsWith("[Setup]"));
+	    }
+
+	    // ditto but through allocated File
+	    foreach (p; paths)
+	    {
+		    auto f = fp.open(new URI(p), IOMode.read);
+		    Assert(f.readText().startsWith("[Setup]"));
+	    }
+    }
 }
 

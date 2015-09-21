@@ -148,21 +148,23 @@ struct Region
 	{
 		struct IntersectResult
 		{
+			pure nothrow @safe:
+			
 			Region before;
 			Region at;
 			Region after;
 
-			@property int max() const pure nothrow
+			@property int max() const
 			{
 				return before.b > at.b ? (before.b > after.b ? before.b : after.b) : (at.b > after.b ? at.b : after.b);
 			}
 
-			@property size_t length() const pure nothrow
+			@property size_t length() const
 			{
 				return (before.empty ? 0 : 1) + (at.empty ? 0 : 1) + (after.empty ? 0 : 1);
 			}
 
-			@property bool empty() const pure nothrow
+			@property bool empty() const
 			{
 				return before.empty && at.empty && after.empty;
 			}
@@ -172,7 +174,12 @@ struct Region
 				return before.empty ? (at.empty ? after : at) : before;
 			}
 
-			void popFront() pure nothrow
+            IntersectResult save() const 
+            {
+                return IntersectResult(before, at, after);
+            }
+
+			void popFront()
 			{
 				if (!before.empty)
 					before.a = before.b;

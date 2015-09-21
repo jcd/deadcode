@@ -29,7 +29,7 @@ mixin template VisitImpl(UDA)
 
 					static if (!isSomeFunction!mem && hasAttribute!(mem, UDA))
 					{
-						pragma (msg, "Checking " ~ T.stringof ~ "." ~ memberName);
+						//pragma (msg, "Checking " ~ T.stringof ~ "." ~ memberName);
 						visitMember!T(i, memberName, __traits(getMember, i, memberName));
 						//static if (isAggregateType!(typeof(__traits(getMember, i, memberName))))
 						//{
@@ -266,7 +266,7 @@ class ReflectorImpl(T) : Reflector
 		T obj = cast(T)o;
 		foreach(memberName; __traits(allMembers, T))
 		{
-			pragma(msg, memberName);
+			//pragma(msg, memberName);
 			static if (memberName != "this" && is(typeof(__traits(getMember, obj, memberName)) == class) )
 			{
 				if (memberName == key)
@@ -289,7 +289,7 @@ class ReflectorImpl(T) : Reflector
 		T obj = cast(T)o;
 		foreach(memberName; __traits(allMembers, T))
 		{
-			pragma(msg, memberName);
+			//pragma(msg, memberName);
 			static if (memberName != "this" && is(isArray!(typeof(__traits(getMember, obj, memberName)))) && is(typeof(__traits(getMember, obj, memberName)) == class) )
 			{
 				if (memberName == key)
@@ -361,7 +361,7 @@ class ReflectorImpl(T) : Reflector
 		T obj = cast(T)o;
 		foreach(memberName; __traits(allMembers, T))
 		{
-			pragma(msg, memberName);
+			//pragma(msg, memberName);
 			static if (memberName != "this" && is(typeof(__traits(getMember, obj, memberName)) == V) )
 			{
 				if (memberName == key)

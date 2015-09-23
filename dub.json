@@ -29,27 +29,26 @@
 		"external/d-libraries", "."
     ],
     "targetType": "executable",
-	"dflags" : ["-vcolumns"],	
+	"dflags" : ["-vcolumns"],
     "targetName" : "deadcode",
 	"excludedSourceFiles" : [ "libdeadcode/src/app.d" ],
-	"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
+    "sourceFiles-windows": [ "src/win.def", "src/win.res" ],
 	"buildTypes" : {
         "debug" : {
-		     "sourceFiles-windows": [ "src/win.def", "src/win.res" ],
+        	"buildOptions" : [ "debugMode", "debugInfo" ],
+		    "sourceFiles-posix": [ "src/win.def", "src/win.res" ]
         },
         "profile" : {
-             "buildOptions" : [ "profile", "optimize", "inline", "debugInfo" ],
-		     "preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources resources.pack",
-							     		    "tool.bat generate-resource-pack binaries binaries.pack" ],
-		     "sourceFiles-windows": [ "src/win.def", "src/win.res" ],
-     		 "versions" : ["portable", "release"]
+            "buildOptions" : [ "profile", "optimize", "inline", "debugInfo" ],
+		    "preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources resources.pack",
+							     		   "tool.bat generate-resource-pack binaries binaries.pack" ],
+     		"versions" : ["portable", "release"]
         },
         "release" : {
-             "buildOptions" : [ "releaseMode", "optimize", "inline" ],
-		     "preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources resources.pack",
+            "buildOptions" : [ "releaseMode", "optimize", "inline" ],
+		    "preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources resources.pack",
 							     		   "tool.bat generate-resource-pack binaries binaries.pack" ],
-		     "sourceFiles-windows": [ "src/win.def", "src/win.res" ],
-     		 "versions" : ["portable", "release"]
+     		"versions" : ["portable", "release"]
         }
     }
 }

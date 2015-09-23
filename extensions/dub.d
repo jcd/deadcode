@@ -336,7 +336,7 @@ class Package : BasicExtension!Package
 		buildTypes["cov"]          = bs([BuildOption.coverage, BuildOption.debugInfo]);
 		buildTypes["unittest-cov"] = bs([BuildOption.unittests, BuildOption.coverage, BuildOption.debugMode, BuildOption.debugInfo]);
     }
-    
+
     private void updateResourceBaseLocations(uint changedLocations)
     {
         if (changedLocations & ResourceBaseLocation.currentDir)
@@ -347,11 +347,18 @@ class Package : BasicExtension!Package
     {
         reset();
 
-        if (readDubFile())
-		{
-            if (configurations.length)
-                setActiveConfiguration(configurations[0].name);
-		}
+        try
+        {
+            if (readDubFile())
+		    {
+                if (configurations.length)
+                    setActiveConfiguration(configurations[0].name);
+		    }
+        }
+        catch (JSONException e)
+        {
+            app.addMessage("Error parsing dub.json: " ~ e.toString());
+        }
 	}
 
     void setActiveConfiguration(string name)

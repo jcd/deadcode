@@ -267,11 +267,20 @@ void dist(string[] args, bool showUsage = false)
 	collect(packRoot);
 	std.file.write(buildPath(packRoot, "version"), outputVersion);
 	archive(packRoot, outputPath);
+
+    auto outputPathMSI = buildPath("dist", format("DeadcodeSetup-%s.msi", outputVersion));
+    version (Windows)
+    {
+        buildMSI(packRoot);
+        std.file.rename(buildPath("dist", "Wix", "deadcode.msi"), outputPathMSI);
+    }
+
 	if (!skipUpload)
 	{
 		upload(outputPath, uploadPath);
 		upload("Changelog.txt", uploadPath);
-
+        version (Windows)
+            upload(outputPathMSI, uploadPath);
 		writeln("On server:");
 		listPublished();
 	}
@@ -283,7 +292,7 @@ void collect(string packRoot)
 	{
 		string[] osDependentFiles = [
 			"deadcode.exe",
-			"deadcode-debug.exe",
+			//"deadcode-debug.exe",
 	        "binaries/dcd-server.exe",
 			"SDL2.dll",
 			"SDL2_image.dll",
@@ -293,7 +302,7 @@ void collect(string packRoot)
 			"zlib1.dll",
 		];
 	}
-	
+
 	version (linux)
 	{
 		string[] osDependentFiles = [
@@ -382,6 +391,71 @@ void archive(string packRoot, string outputPath)
 	}
 }
 
+void buildMSI(string packRoot)
+{
+    // Generate Wix installer file
+    auto r = dirEntries(packRoot, SpanMode.breadth);
+    string componentTmpl = """
+        <Component Id=\"ApplicationFiles%s\" Guid=\"*\">
+        <File Id=\"ApplicationFile%s\" Source=\"..\\..\\%s\" %s/>
+        </Component>
+        """;
+    string componentRefTmpl = "         <ComponentRef Id=\"ApplicationFiles%s\"/>\n";
+	string componentsText = "";
+    string componentsRefText = "";
+    string[] dirDepth = pathSplitter(packRoot).array;
+    int dirID = 10;
+    int i = 0;
+    foreach (name; r)
+	{
+		string src = name;
+        string[] curDirDepth = pathSplitter(src).array;
+        if (!name.isDir)
+            curDirDepth = curDirDepth[0..$-1];
+
+        auto prefix = commonPrefix(curDirDepth, dirDepth).array;
+        //writeln(curDirDepth, " ", dirDepth, prefix);
+
+        auto ddlen = dirDepth.length;
+        for (int j = 0; j != (ddlen - prefix.length); ++j)
+        {
+            // writeln("</Directory>");
+            componentsText ~= "</Directory>\n";
+            dirDepth = dirDepth[0..$-1];
+        }
+
+        for (int j = 0; j != (curDirDepth.length - prefix.length); ++j)
+        {
+            // writeln("<Directory Id=\"Deadcode%s\" Name=\"%s\">".format(dirID, curDirDepth[$-1]));
+            componentsText ~= "<Directory Id=\"Deadcode%s\" Name=\"%s\">\n".format(dirID++, curDirDepth[$-1]);
+            dirDepth = curDirDepth[0..prefix.length + j + 1];
+        }
+
+        if (!name.isDir)
+        {
+            string keyPath = src.endsWith("deadcode.exe") ? "KeyPath=\"yes\"" : "";
+            // writeln(componentTmpl.format(i+2, i+2, src, keyPath));
+            componentsText ~= componentTmpl.format(i+2, i+2, src, keyPath);
+            componentsRefText ~= componentRefTmpl.format(i+2);
+            i++;
+        }
+    }
+
+    auto wxsText = readText(buildPath("dist", "Wix", "deadcode.wxs.template"));
+
+    // writeln(wxsText.format(componentsText, componentsRefText));
+
+    std.file.write(buildPath("dist", "Wix", "deadcode.wxs"), wxsText.format(componentsText, componentsRefText));
+
+    auto res = executeShell("make_installer.bat", null, Config.none, size_t.max, buildPath("dist", "Wix"));
+    if (res.status != 0)
+    {
+        writeln("Error creating MSI installer");
+        writeln(res.output);
+        exit(0);
+    }
+    writeln(res.output);
+}
 
 void upload(string from, string to, bool recursive = false)
 {

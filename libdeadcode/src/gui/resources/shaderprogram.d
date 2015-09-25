@@ -116,11 +116,22 @@ class ShaderProgramSerializer : ResourceSerializer!ShaderProgram
 
 	override void deserialize(ShaderProgram res, string str)
 	{
-		struct ShaderProgramSpec
-		{
-			string fragmentShader;
-			string vertexShader;
-		}
+        version (Windows)
+        {
+		    struct ShaderProgramSpec
+		    {
+			    string win_fragmentShader;
+			    string win_vertexShader;
+		    }
+        }
+        version (linux)
+        {
+		    struct ShaderProgramSpec
+		    {
+			    string linux_fragmentShader;
+			    string linux_vertexShader;
+		    }
+        }
 		import std.string;
 		string[dchar] transTable;
 		transTable['\n'] = "\\n";
@@ -130,11 +141,22 @@ class ShaderProgramSerializer : ResourceSerializer!ShaderProgram
 		auto spec = jsonDecode!ShaderProgramSpec(str);
 
 		// TODO: Make explicit attach and link here!
-		if (ShaderProgram.create(spec.vertexShader, spec.fragmentShader, res) !is null)
-		{
-			// Only signal resource loaded on success
-			res.manager.onResourceLoaded(res, this);
-		}
+        version (Windows)
+        {
+		    if (ShaderProgram.create(spec.win_vertexShader, spec.win_fragmentShader, res) !is null)
+            {
+			    // Only signal resource loaded on success
+			    res.manager.onResourceLoaded(res, this);
+		    }
+        }
+        version (linux)
+        {
+		    if (ShaderProgram.create(spec.linux_vertexShader, spec.linux_fragmentShader, res) !is null)
+            {
+			    // Only signal resource loaded on success
+			    res.manager.onResourceLoaded(res, this);
+		    }
+        }
 	}
 }
 

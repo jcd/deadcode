@@ -126,8 +126,15 @@ class RenderWindow : RenderTarget
 			0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff,
 			0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff
 		];
-		surface = SDL_CreateRGBSurfaceFrom(pixels.ptr,16,16,16,16*2,0x0f00,0x00f0,0x000f,0xf000);
-		SDL_SetWindowIcon(win, surface);
+		//surface = SDL_CreateRGBSurfaceFrom(pixels.ptr,16,16,16,16*2,0x0f00,0x00f0,0x000f,0xf000);
+
+        import platform.config;
+        import derelict.sdl2.image;
+        import std.string;
+
+        surface = IMG_Load(resourceURI("icon.png", ResourceBaseLocation.resourceDir).toString().toStringz());
+
+        SDL_SetWindowIcon(win, surface);
 		// The icon is attached to the window pointer
 
 		// ...and the surface containing the icon pixel data is no longer required.

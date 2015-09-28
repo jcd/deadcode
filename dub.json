@@ -35,7 +35,7 @@
     "sourceFiles-windows": [ "src/win.def", "src/win.res" ],
 	"buildTypes" : {
         "debug" : {
-        	"buildOptions" : [ "debugMode", "debugInfo" ],
+        	"buildOptions" : [ "debugMode", "debugInfo" ]
         },
         "profile" : {
             "buildOptions" : [ "profile", "optimize", "inline", "debugInfo" ],

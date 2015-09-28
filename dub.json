@@ -36,7 +36,6 @@
 	"buildTypes" : {
         "debug" : {
         	"buildOptions" : [ "debugMode", "debugInfo" ],
-		    "sourceFiles-posix": [ "src/win.def", "src/win.res" ]
         },
         "profile" : {
             "buildOptions" : [ "profile", "optimize", "inline", "debugInfo" ],

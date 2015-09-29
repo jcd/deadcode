@@ -675,8 +675,12 @@ class Package : BasicExtension!Package
         }
 
         if (paths.empty)
-            app.addMessage("Warning: No sourcePaths specified in dub config file and no default folders source or src present for configuration " ~ activeConfiguration.name);
-
+        {
+            if (activeConfiguration is null)
+                app.addMessage("Warning: No sourcePaths specified in dub config file and no default folders source or src present");
+            else
+                app.addMessage("Warning: No sourcePaths specified in dub config file and no default folders source or src present for configuration " ~ activeConfiguration.name);
+        }
         return paths;
     }
 

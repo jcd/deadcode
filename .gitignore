@@ -42,7 +42,8 @@ dub.selections.json
 /external/putty
 /external/7zip
 /external/dfmt
-/dist
+/dist/files-win32
+/dist/deadcode-*_win32.zip
 /packaging
 /bin/Debug
 /bin/Release

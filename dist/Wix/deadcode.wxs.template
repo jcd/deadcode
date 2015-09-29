@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<?define ProductVersion = "0.0.3"?>
+<?define ProductUpgradeCode = "12345678-1234-1234-1234-111111111111"?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+   <Product Id="CEBEBE67-62B9-42D4-96FA-85AC01D8624A" UpgradeCode="$(var.ProductUpgradeCode)" 
+            Name="Deadcode Code Editor" Version="$(var.ProductVersion)" Manufacturer="Steamwinter" Language="1033">
+      
+      <Package InstallerVersion="200" Compressed="yes" Comments="Windows Installer Package"/>
+      
+      <Media Id="1" Cabinet="product.cab" EmbedCab="yes"/>
+ 
+      <Icon Id="ProductIcon" SourceFile="..\..\resources\icon.ico"/>
+      <Property Id="ARPPRODUCTICON" Value="ProductIcon"/>
+      <Property Id="ARPHELPLINK" Value="http://deadcode.steamwinter.com"/>
+      <Property Id="ARPURLINFOABOUT" Value="http://deadcode.steamwinter.com"/>
+      <Property Id="ARPNOREPAIR" Value="1"/>
+      <Property Id="ARPNOMODIFY" Value="1"/>
+
+      <Upgrade Id="$(var.ProductUpgradeCode)">
+         <UpgradeVersion Minimum="$(var.ProductVersion)" OnlyDetect="yes" Property="NEWERVERSIONDETECTED"/>
+         <UpgradeVersion Minimum="0.0.0" Maximum="$(var.ProductVersion)" IncludeMinimum="yes" IncludeMaximum="no" 
+                         Property="OLDERVERSIONBEINGUPGRADED"/>     
+      </Upgrade>
+      <Condition Message="A newer version of this software is already installed.">NOT NEWERVERSIONDETECTED</Condition>
+
+      <Directory Id="TARGETDIR" Name="SourceDir">
+         <Directory Id="ProgramFilesFolder">
+            <Directory Id="INSTALLDIR" Name="Deadcode">
+               %s
+            </Directory>
+         </Directory>
+
+         <Directory Id="ProgramMenuFolder">
+            <Directory Id="ProgramMenuSubfolder" Name="Deadcode">
+               <Component Id="ApplicationShortcuts" Guid="F00F7996-8E9E-47E3-B2E6-E8A6D83A9AC7">
+                  <Shortcut Id="ApplicationShortcut1" Name="Deadcode Editor" Description="Deadcode Code Editor" 
+                            Target="[INSTALLDIR]deadcode.exe" WorkingDirectory="INSTALLDIR"/>
+                  <RegistryValue Root="HKCU" Key="Software\Steamwinter\Deadcode" 
+                            Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                  <RemoveFolder Id="ProgramMenuSubfolder" On="uninstall"/>
+               </Component>
+            </Directory>
+         </Directory>
+
+      </Directory>
+ 
+      <InstallExecuteSequence>
+         <RemoveExistingProducts After="InstallValidate"/>
+      </InstallExecuteSequence>
+
+      <Feature Id="DefaultFeature" Level="1">
+         %s
+         <ComponentRef Id="ApplicationShortcuts"/>
+      </Feature>
+   </Product>
+</Wix>

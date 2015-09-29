@@ -44,19 +44,36 @@ mixin template platformMain(alias customMain)
     import core.sys.windows.windows;
     import std.string;
 
+    //import std.c.windows.windows;
+    import std.c.wcharh;
+    import std.conv;
+
     extern (Windows)
         int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                     LPSTR lpCmdLine, int nCmdShow)
         {
             int result;
 
+
             try
             {
                 Runtime.initialize();
+
+                int argc;
+                wchar** args = CommandLineToArgvW(GetCommandLineW(), &argc);
+                string[] argv;
+                if (args) {
+                    argv.length = argc;
+                    foreach (i; 0..argc)
+                        argv[i] = to!wstring(args[i][0 .. wcslen(args[i])]).to!string;
+                    LocalFree(args);
+                }
+
+
                 auto ut = Runtime.moduleUnitTester();
                 if (ut !is null)
                     ut();
-                result = customMain(null);
+                result = customMain(argv);
                 Runtime.terminate();
             }
             catch (Throwable e)

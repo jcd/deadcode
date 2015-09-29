@@ -1263,7 +1263,21 @@ class GUIApplication : Application
 			scb.entries ~= entry.txt.to!string;
 		}
 		s.copyBuffer = scb;
-		s.windowRect = Rectf(activeWindow.position, activeWindow.size);
+        
+		auto winRect = Rectf(activeWindow.position, activeWindow.size);
+
+		import derelict.sdl2.functions;
+		import derelict.sdl2.types;
+		SDL_DisplayMode dm;
+		if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
+		    addMessage("SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
+		}
+        else
+        {
+            winRect = Rectf(0, 0, dm.w, dm.h).clip(winRect);
+        }
+        
+		s.windowRect = winRect;
 		sessionData.save();
 	}
 

@@ -254,8 +254,18 @@ void dist(string[] args, bool showUsage = false)
 	}
 
 	auto osStr = to!string(std.system.os);
-	auto outputPath = buildPath("dist", format("deadcode-%s_%s.zip", outputVersion, osStr));
-	auto packRoot = buildPath("dist", "files-" ~ osStr);
+	version (Windows)
+    {
+		auto outputPath = buildPath("dist", format("deadcode-%s_%s.zip", outputVersion, osStr));
+		auto packRoot = buildPath("dist", "files-" ~ osStr);
+    }
+	else
+    {
+        import core.cpuid;
+	    auto outputPath = buildPath("dist", format("deadcode_%s_%s.tar.gz", outputVersion, isX86_64() ? "amd64" : "i386"));
+		auto packRoot = buildPath("dist", "deadcode");
+    }
+	
 
 	writeln("Packroot is ", packRoot);
 
@@ -307,7 +317,7 @@ void collect(string packRoot)
 	{
 		string[] osDependentFiles = [
 			"deadcode",
-	        "binaries/dcd-server",
+//	        "binaries/dcd-server",
 		];
 	}
 
@@ -341,7 +351,7 @@ void collect(string packRoot)
 		string src = name;
 		if (src.endsWith("~"))
         {
-            writeln("Skipping", name);
+            writeln("Skipping ", name);
             continue;
         }
 		string srcDir = isDir(src) ? src : dirName(src);
@@ -365,10 +375,16 @@ void collect(string packRoot)
 void archive(string packRoot, string outputPath)
 {
 	version (Windows)
+    {
+		string srcDir = buildPath(".", packRoot, "*"); // need . prefix for 7zip to not include dir part
 	    string zipcmd = buildPath("external", "7zip", "7za.exe");
+		auto cmd = format("%s a -r %s %s", zipcmd, outputPath, srcDir);       
+    }
 	version (linux)
-	    string zipcmd = "7za";
-	string srcDir = buildPath(".", packRoot, "*"); // need . prefix for 7zip to not include dir part
+    {
+		string srcDir = buildPath(".", dirName(packRoot)); // need . prefix for 7zip to not include dir part
+		auto cmd = format("tar -cvzf %s -C %s deadcode", outputPath, srcDir);        
+    }
 
 	if (exists(outputPath))
 	{
@@ -376,7 +392,6 @@ void archive(string packRoot, string outputPath)
 		remove(outputPath);
 	}
 
-	auto cmd = format("%s a -r %s %s", zipcmd, outputPath, srcDir);
 	writeln(cmd);
 	auto res = pipeShell(cmd, Redirect.stdin);
 	int status = wait(res.pid);

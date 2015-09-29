@@ -528,7 +528,7 @@ class GUIApplication : Application
 	{
 		import std.uuid;
 		import platform.config;
-        addFileBrowserContextMenuItem("Open with DeadCode", r"C:\Projects\D\ded\ded-debug_d.exe");
+        // addFileBrowserContextMenuItem("Open with DeadCode", r"C:\Projects\D\ded\ded-debug_d.exe");
         analyticsKey = getOrSetConfigField("analyticsKey", randomUUID().toString());
 	}
 

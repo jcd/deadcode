@@ -27,7 +27,6 @@ private int myMain(string[] args)
 	}
 	else
 	{
-
 		GUIApplication app;
 		try
 		{
@@ -35,6 +34,10 @@ private int myMain(string[] args)
 			// Create a text buffer and add show it in the mainWidget
 			//auto fileName = "testmath.d";
 			//app.mainWidget.content = std.file.readText(fileName);
+			app.pushMainFiberWork(() {
+               if (args.length > 1)
+               	app.openFile(args[1]);
+            });
 
 			app.run();
 		}

@@ -43,6 +43,18 @@
             </Directory>
          </Directory>
 
+         <Component Id="RegistryEntries" Guid="9B0642F9-77BC-4093-9872-4F96CFEB1090">
+            <RegistryKey Root="HKCU"
+                     Key="Software\Classes\*\shell\Open with Deadcode"
+              ForceDeleteOnUninstall="yes">
+               <RegistryValue Type="string" Name="Icon" Value="[INSTALLDIR]deadcode.exe,0"/>
+            </RegistryKey>
+            <RegistryKey Root="HKCU"
+                     Key="Software\Classes\*\shell\Open with Deadcode\command">
+               <RegistryValue Type="string" Value="&quot;[INSTALLDIR]deadcode.exe&quot; &quot;%%1&quot;"  KeyPath="yes"/>
+            </RegistryKey>
+         </Component>
+
       </Directory>
  
       <InstallExecuteSequence>
@@ -52,6 +64,7 @@
       <Feature Id="DefaultFeature" Level="1">
          %s
          <ComponentRef Id="ApplicationShortcuts"/>
+         <ComponentRef Id="RegistryEntries"/>
       </Feature>
    </Product>
 </Wix>

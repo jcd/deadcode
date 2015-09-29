@@ -12,6 +12,7 @@
 *.iso
 *.jar
 *.rar
+*.msi
 
 # Logs and databases #
 ######################
@@ -44,6 +45,7 @@ dub.selections.json
 /external/dfmt
 /dist/files-win32
 /dist/deadcode-*_win32.zip
+/dist/ded-*_win32*
 /packaging
 /bin/Debug
 /bin/Release

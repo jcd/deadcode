@@ -28,6 +28,7 @@
 	"importPaths": [
 		"external/d-libraries", "."
     ],
+    "stringImportPaths" : [ "." ],
     "targetType": "executable",
 	"dflags" : ["-vcolumns"],
     "targetName" : "deadcode",
@@ -41,13 +42,13 @@
             "buildOptions" : [ "profile", "optimize", "inline", "debugInfo" ],
 		    "preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources resources.pack",
 							     		   "tool.bat generate-resource-pack binaries binaries.pack" ],
-     		"versions" : ["portable", "release"]
+     		"versions" : [	"release"]
         },
         "release" : {
             "buildOptions" : [ "releaseMode", "optimize", "inline" ],
 		    "preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources resources.pack",
 							     		   "tool.bat generate-resource-pack binaries binaries.pack" ],
-     		"versions" : ["portable", "release"]
+     		"versions" : ["release"]
         }
     }
 }

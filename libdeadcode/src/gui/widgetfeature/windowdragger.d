@@ -22,16 +22,20 @@ class WindowDragger : WidgetFeature
 		//if (event.type == EventType.MouseDown && widget.rectStyled.contains(event.mousePos))
 		if (event.type == EventType.MouseDown && widget.rect.contains(event.mousePos))
 		{
-			widget.grabMouse();
-			startDragPos = event.mousePos;
+			//widget.grabMouse();
+            import graphics.renderwindow;
+            isGrabbing = true;
+			//startDragPos = event.mousePos;
 		//	widget.window.waitForEvents = false;
 			return EventUsed.yes;
 		}
 		if (event.type == EventType.MouseUp)
 		{
 			startDragPos = Vec2f(-1000000, -1000000);
-			widget.releaseMouse();
-		//	widget.window.waitForEvents = true;
+			//widget.releaseMouse();
+            import graphics.renderwindow;
+            isGrabbing = false;
+            //	widget.window.waitForEvents = true;
 			return EventUsed.yes;
 		}
 		return EventUsed.no;

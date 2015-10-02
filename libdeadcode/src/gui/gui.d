@@ -95,14 +95,14 @@ class GUI
 		return _the;
 	}
 */
-
+    static GUI the;
 	static GUI create(GraphicsSystem gs = null)
 	{
         static import io.file;
 		import platform.system;
 		import gui.resources;
 		auto g = new GUI(gs is null ? new graphics.graphicssystem.OpenGLSystem() : gs);
-
+        the = g;
 		g.ioManager = new io.iomanager.IOManager;
 		// g.ioManager.add(new io.iomanager.ScanProtocol);
 		g.ioManager.add(new io.file.FileProtocol);

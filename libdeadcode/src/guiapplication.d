@@ -1327,9 +1327,22 @@ class GUIApplication : Application
 				cb.entries ~= new CopyBuffer.Entry(data.to!dstring);
 			}
 		}
-        
-        activeWindow.position = s.windowRect.pos;
-        activeWindow.size = s.windowRect.size;
+
+		auto winRect = Rectf(s.windowRect.pos, s.windowRect.size);
+
+		import derelict.sdl2.functions;
+		import derelict.sdl2.types;
+		SDL_DisplayMode dm;
+		if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
+		    addMessage("SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
+		}
+        else
+        {
+            winRect = Rectf(0, 0, dm.w, dm.h).clip(winRect);
+        }
+
+        activeWindow.position = winRect.pos;
+        activeWindow.size = winRect.size;
 	}
 
     void loadKeyMappings()

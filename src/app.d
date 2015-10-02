@@ -16,6 +16,7 @@ mixin platformMain!myMain;
  * and for the last category some constraints on the widget types
  * it will act on. (need some kind of tagging of widgets?)
  */
+
 private int myMain(string[] args)
 {
 	import core.attr;
@@ -27,19 +28,19 @@ private int myMain(string[] args)
 	}
 	else
 	{
-		GUIApplication app;
+        GUIApplication appl;
 		try
 		{
-			app = GUIApplication.create();
+			appl = GUIApplication.create();
 			// Create a text buffer and add show it in the mainWidget
 			//auto fileName = "testmath.d";
 			//app.mainWidget.content = std.file.readText(fileName);
-			app.pushMainFiberWork(() {
+			appl.pushMainFiberWork(() {
                if (args.length > 1)
-               	app.openFile(args[1]);
+               	appl.openFile(args[1]);
             });
 
-			app.run();
+			appl.run();
 		}
 		catch (Exception e)
 		{
@@ -55,7 +56,7 @@ private int myMain(string[] args)
                                  MessageBoxStyle.error | MessageBoxStyle.yesNo | MessageBoxStyle.modal);
 			if (res)
 			{
-				app.analyticException(e.toString()[0..700], true);
+				appl.analyticException(e.toString()[0..700], true);
 			}
 
             return 1;

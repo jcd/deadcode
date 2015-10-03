@@ -1,3 +1,171 @@
+Release 0.15 - 03 October 2015 
+
+Overview:
+
+    * Linux support
+    * Window .msi installer
+    * Use text ranking for completions
+    * Support for .editorconfig
+    * Performce improvements for styling and animation
+    
+Changes:
+
+    28c071b Add verbose travis emails
+    c1daba1 Merge branch 'master' of https://github.com/jcd/deadcode
+    40be10b Do not register explorer context menu item on startup
+    17f148a Register explorer context menu item on install
+    5eec4d0 Do not crash when cwd is not a dub projects
+    8737ad3 Support for opening files from cmdline
+    52d3284 Support for cmdline args on windows
+    ca75c9b Add to gitignore
+    f6f3220 Wix files
+    6c0eb2b Ignore more files in dist
+    1dc5686 Clamp deserialized window rect to screen
+    4ed1587 make dub json valid
+    acf6e9f Build tar.gz file for linux dist
+    4a841b0 Fix dub file for linux
+    cd52694 Remove redundant status badge
+    362317a Add appveyor build status
+    83ad687 Proper loading of platform specific shaders
+    195ba05 Prefix linux shader with linux_
+    2ae5ef8 Add .icon file
+    853be79 Add .rc file for windows to show icon in task bar
+    8e980ce Add window icon
+    0b14f56 Support for building .msi installer
+    194b2dd Make sure not to run unittests when no unittester is specified
+    5655249 Catch dub.json parse exceptions early
+    a7ed953 Clean up dub file
+    08e67b7 Fallback dub in PATH if not specified or in local dir
+    436637e Merge branch 'master' of https://github.com/jcd/deadcode
+    6b630c8 Add windows resources to enable taskbar and explorer icon
+    d3d5968 Add travis status image to readme markdown
+    df0a9e8 Made region intersect3 result a forward range instead of just an input range.
+    d8e9520 Shutdown libasync correctly
+    d1b67a5 Fix up int/ulong mess
+    c4afc88 Put version around windows only unittests
+    e1d60be Remove dbg compile time messages
+    661d274 Update tharsis prof
+    a98de2a Merge
+    b609443 Writeout info about graphics backend and on gl context error
+    f19c302 Show main window after the session has been loaded and any session rect has been set on the window
+    1cbd37e Default windows to hidden
+    013cadd Load new global key mappings before use defined ones
+    381b8ef Save window rect in session
+    84e344a Make restart work on linux
+    521adaa Use new getExistingWindowRect signature
+    4d3cc54 Use new getCursorScreenPosition
+    fbacf8d Fix getOrSetConfigField for linux
+    e4a7c70 getScreenPosition implementation for linux
+    8986fcb messageBox and showSelectFolderDialogBasic implementation for linux
+    7283c89 getExistingWindowRect implementation for linux
+    fe35363 Make default shader use glsl 1.2 on linux
+    6c4e7aa Special handing for visible() on a window to use system hide/show of window
+    470302d Make Stylable.isVisible and Widget.visible non pure
+    3bbf9a4 Fix handling of newlines on linux in generic resource
+    6e62278 Support for clearing a generic resource
+    daf6ac3 Support for error state in a resource
+    9eb8ad7 Explicit glsl attribute binding on linux because of glsl 1.2 downgrade
+    fbbb25c Make RenderTarget.id non const
+    4de4f07 Specialize builtin shader on linux to a glsl 1.2 one.
+    3163179 Set GL version to 2.1 for linux in order to run in a vm
+    57f153e Add tharsis-prof as dependency
+    183780c Make compile with newer phobos that itself has a hasUDA()
+    9fd185c Make self build using dub.d work on linux
+    9b1f87e Optimize reuse of style calculations. Added bunch of convenience methods to Widget.
+    7d56e05 Add editorconfig parsing and resolving.
+    7c726af Add basic .ini parsing
+    01ccbcf Add scrollview
+    2f018a6 Add initialization of profiler
+    eb6420f Register a bunch of unittests
+    81d16fb Add userData to Tree. 
+            Add selectioning to Tree. 
+            Remove scissoring from Tree.
+    432f4a6 Improve scroll performance
+    7b9a78f Use string ranking for command fuzzy lookup
+    a9fa362 Fix BufferViewAction unittests
+    ac50951 Fix line offsetting and scroll for BufferView.
+    69c445a Polish function call.
+    eed7a29 Add fix comment
+    8fa9309 Removed of dead code
+    52803ea Support for formatting only selected d code
+    1223720 Correct file completion
+    7611ff0 Default file open to directory with slash
+    412b596 Rendering part of debugging widgethierarchy
+    da1c1fd More profiling support
+    41589d2 Add primitive string ranking
+    20e7909 Fix unittest for queue.d
+    648c49d Decent indenting when writing out json files
+    9ecff8f Remember to run moduleUnitTester
+    3fc7a95 use GetCursorPos() instead of GetCursorInfo()
+    2a7737f add Rectf.offset()
+    584a7e0 Add getCurrentBuffer() and hasBuffer()
+    c4b9641 minor refactor
+    d592c39 Fix open-with registered path on windows.
+    c58f023 Add convenience getOrCreateBuffer(name).
+    f586003 Correct and optimize style name matching
+    698174c Fix addTextPrefix
+    dfed74a Add uint as commandparamter type
+    d752fc4 Debug rendering of tree hierarchy
+    b53a11b Editor help command
+    596dcd3 Better dub parsing.
+    f7e3737 Support for fiber injection in extensions. 
+            Default import of scrollview for extensions.
+    7dde5be Get rid of warnings and fix test.
+    0d568ae Styling changes
+    43e2505 Fix test registering to support aggregate test blocks
+    b0b4740 Use std.algorithm.min.
+    49b0853 Register unitests in rect.d
+    d0dd946 Disable unittest because of initialization errors
+    3541cf5 Add profiling to window. Add onEventDispatch to window.
+    22c0923 Better dirty tracking on textrenderer
+    98afa3d Use explicit style on ninerenderer if present
+    ed3f5dc Correct editorconfig
+    2bce24f Merge branch 'master' of https://github.com/jcd/deadcode
+    84132e3 Trying out travis
+    b40b7db Support for proper line numbers on stacktrace on Linux
+    c6f5ce1 Graceful handling of extract whitespace at end of json text
+    ab125b2 Correctly detect nonexisting shell command on Linux
+    1ad7b43 Make build tool work on linux
+    22b7acd Get rid of some warnings
+    739c623 Silence registration of extension during builds
+    b1e355a Correct dub.json to use build settings instead of configuration settings.        Add libX11 to libs on posix.
+    03d7a51 Update gitignore
+    8a7c029 Update README.md
+    a6785c5 Refactor animation classes into modules
+    a65cc95 Make it possible to get a style from stylesheet by stylableName directly
+    8c8a425 Remove dead code
+    d5eddeb Correct platform.system module import
+    6f5bce3 Remove double windows module import
+    4e167b8 Add font license info
+    652c568 Update gitignore
+    0a18b95 Remove dead file
+    717049f Remove files added by mistake
+    94c42eb Remove dead code
+    07bbf61 Changes to unbreak api change for setCurrentDirectory.
+    a40d6c0 Use new platform function to get homedir
+    2ec8391 Correct import of moved modules
+    e8c0bce Clean ups
+    4e49e7a Use std chdir
+    e11c108 Remove dead code
+    a9526c0 Get rid of win version specific stuff in file protocol
+    37d5f22 Support for homedir as resource base
+    1009717 Refactor main to platform
+    1954605 Refactor default font path to platform
+    fde0f9d Refactor message box to platform
+    5b113be First pass on refactoring to platform folder
+    1160696 Disable old dir watcher code
+    ba926a5 Support for focus lost event
+    4abd8c0 Use new libasync based dir watcher for resources reloads.
+    c6a7dad New growable queue impl
+    1f2cb74 Support for async jobs with multiple results. 
+            Support for watching dir changes.
+    4a0e843 Clean up dub.json a bit
+    36b641b Support for AsyncCompletion event.
+    73f0d3b Support for registering custom events in GUI
+    61fcc75 Include dcd-server binary from the new binaries folder when making dist package
+    abfca16 Update changelog for release 0.14
+
+
 Release 0.14 - 06 April 2015 
 
 Overview:

@@ -44,10 +44,10 @@
      		"versions" : ["portable", "release"]
         },
         "release" : {
-            "buildOptions" : [ "releaseMode", "optimize", "inline" ],
+            "buildOptions" : [ "releaseMode", "optimize" ],
 		    "preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources resources.pack",
 							     		   "tool.bat generate-resource-pack binaries binaries.pack" ],
-     		"versions" : ["portable", "release"]
+     		"versions" : ["release"]
         }
     }
 }

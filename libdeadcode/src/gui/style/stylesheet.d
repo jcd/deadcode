@@ -189,9 +189,9 @@ unittest
 	// Name match
 	auto w2 = new TestStylable(testWin);
 	auto sel2 = new StylableSelector(null, "testStylable");
-	AssertIsNot(sel2.match(w2)[0], w2, "TypeWildcard StylableSelector does not match unnamed");
+	Assert(sel2.match(w2)[1], 0, "TypeWildcard StylableSelector does not match unnamed");
 	w2.name = "testStylablexx";
-	AssertIsNot(sel2.match(w2)[0], w2, "TypeWildcard StylableSelector does not match mismatching name");
+	Assert(sel2.match(w2)[1], 0, "TypeWildcard StylableSelector does not match mismatching name");
 	w2.name = "testStylable";
 	AssertIs(sel2.match(w2)[0], w2, "TypeWildcard StylableSelector matches name");
 
@@ -200,7 +200,7 @@ unittest
 	auto sel3 = new StylableSelector("TestStylable",null);
 	AssertIs(sel3.match(w3)[0], w3, "NameWildcard StylableSelector matches direct Stylable");
 	auto sel4 = new StylableSelector("StylableX",null);
-	AssertIsNot(sel4.match(w3)[0], w3, "NameWildcard StylableSelector does not match direct StylableX");
+	Assert(sel4.match(w3)[1], 0, "NameWildcard StylableSelector does not match direct StylableX");
 
 	class TestStylable1 : TestStylable { this(Stylable w) { super(w); } }
 	class TestStylable2 : TestStylable1 { this(Stylable w) { super(w); } }
@@ -242,9 +242,9 @@ unittest
 	w3.name = "testGrandChild";
 
 	auto sel = new ChildSelector(null,"testParent");
-	AssertIsNot(sel.match(w1)[0], win, "Root Stylable does not match ChildSelector");
+	Assert(sel.match(w1)[1], 0, "Root Stylable does not match ChildSelector");
 	AssertIs(sel.match(w2)[0], w1, "Child of root Stylable matches ChildSelector");
-	AssertIsNot(sel.match(w3)[0], w2, "Grandchild of root Stylable does not match ChildSelector");
+	Assert(sel.match(w3)[1], 0, "Grandchild of root Stylable does not match ChildSelector");
 }
 
 class DescendantSelector : StylableSelector
@@ -280,7 +280,7 @@ unittest
 	w3.name = "testGrandChild";
 
 	auto sel = new DescendantSelector(null,"testParent");
-	AssertIsNot(sel.match(w1)[0], win, "Root Stylable does not match DescendantSelector");
+	Assert(sel.match(w1)[1], 0, "Root Stylable does not match DescendantSelector");
 	AssertIs(sel.match(w2)[0], w1, "Child of root Stylable matches DescendantSelector");
 	AssertIs(sel.match(w3)[0], w1, "Grandchild of root Stylable matches DescendantSelector");
 }

@@ -56,8 +56,8 @@ version (Windows)
 
     unittest
     {
-        import std.stdio;
-        writeln(showSelectFolderDialogBasic("c:\\"));
+        //import std.stdio;
+        //writeln(showSelectFolderDialogBasic("c:\\"));
     }
 
 

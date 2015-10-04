@@ -906,8 +906,8 @@ unittest
 	v.setSelectRegion(7);
 	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");
 	i1.redo(v);
-	Assert(v.cursorPoint, 0);
-	Assert(v.preferredCursorColumn, 0, "preferred colum is 0");
+	Assert(v.cursorPoint, 4);
+	Assert(v.preferredCursorColumn, 4, "preferred colum is 0");
 	i1.undo(v);
 	Assert(v.cursorPoint, 7);
 	Assert(v.preferredCursorColumn, 7, "preferred colum is 0");

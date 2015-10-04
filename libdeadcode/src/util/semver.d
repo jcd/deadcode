@@ -180,6 +180,5 @@ struct SemanticVersion
         Assert(SemanticVersion("0.1-alpha+24.12").precedence(SemanticVersion("0.1-alpha")) == 0, SemanticVersion("0.1-alpha+24.12").to!string ~ SemanticVersion("0.1-alpha").to!string);
         Assert(SemanticVersion("0.1-1.2").precedence(SemanticVersion("0.1-1")) == 1);
         Assert(SemanticVersion("0.1-1a").precedence(SemanticVersion("0.1-1")) == 1);
-        printStats(true);
     }
 }

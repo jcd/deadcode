@@ -28,10 +28,26 @@ static string[] myreverse(string[] arr)
 return arr;
 }
 
-    auto r = names
-        .map!((a) => SortHelper(idx++, a, myreverse(a.pathSplitter.array))).array
-        .sort!"a.reversePathElements < b.reversePathElements"().array;
+    version (unittest)
+    {
+        version (linux)
+        {
+            import std.array;
+            auto ns = names.map!(a => a.replace("\\", "/"));
+        }
+        else
+        {
+            auto ns = names;
+        }
+    }
+    else
+    {
+        auto ns = names;
+    }
 
+    auto r = ns
+     .map!((a) => SortHelper(idx++, a, myreverse(a.pathSplitter.array))).array
+     .sort!"a.reversePathElements < b.reversePathElements"().array;
 
     foreach (index, ref item; r)
     {
@@ -59,13 +75,16 @@ private string[] toarr(R)(R e)
 {
     import std.algorithm;
     import std.array;
-    return e.map!"a[0]".array;
+    version (Windows)
+        return e.map!"a[0]".array;
+    else
+        return e.map!(a => a[0].replace("/", "\\")).array;
+        
 }
 
 unittest
 {
     auto a = [ "a1", "a2", "b" ];
-
 
     a = [ "b", "a", "b"];
     Assert(uniquePostfixPath(a).toarr, a, "One level uniquePostfixPath");

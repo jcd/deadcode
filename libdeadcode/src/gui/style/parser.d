@@ -1122,11 +1122,12 @@ unittest
 
 	parse = new StyleSheetParser("Widget { color: #FF0000;\n padding : 1 2 3 4;\n wordWrap: true;\n }", sheet, new URI(""), null, null);
 	parse.parse();
+    Rule r = sheet.rules[3];
 	Assert(sheet.rules.length == 4 &&
 		   sheet.rules[3].selectors.length == 1 &&
 		   sheet.rules[3].selectors[0].stylableTypeName == "Widget" &&
 		   sheet.rules[3].style.color == Color.red &&
 		   sheet.rules[3].style.wordWrap &&
-		   sheet.rules[3].style.padding == RectfOffset(1,2,3,4),
+		   sheet.rules[3].style.padding == RectfOffset(4,1,2,3),
 		   "Simple selector and red color and rect and wordWrap	");
 }

@@ -31,7 +31,8 @@ private bool defaultUnittester()
 		}
 	}
 
-	printStats(true);
+	import std.stdio;
+    printStats(stdout, true);
 
 	return true;
 }

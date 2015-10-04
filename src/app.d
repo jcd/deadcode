@@ -20,10 +20,16 @@ private int myMain(string[] args)
 {
 	import core.attr;
 
+    int result = 0;
+
 	version (unittest)
 	{
 		import test;
-		printStats(true);
+        import std.stdio;
+
+        File f = args.length > 1 ? File(args[1], "w") : stdout;
+        result = printStats(f, true) ? 0 : 1;
+        f.flush();
 	}
 	else
 	{
@@ -51,17 +57,17 @@ private int myMain(string[] args)
 
 			string s = e.toString();
 			s ~= "\n" ~ "Help improve the editor by uploading this backtrace?";
-			int res = messageBox(e.toString(), "Caught Exception",
+			int res = messageBox("Caught Exception", e.toString(),
                                  MessageBoxStyle.error | MessageBoxStyle.yesNo | MessageBoxStyle.modal);
 			if (res)
 			{
 				app.analyticException(e.toString()[0..700], true);
 			}
 
-            return 1;
+            result = 1;
 		}
 	}
 	import libasync.threads;
 	destroyAsyncThreads();
-	return 0;
+	return result;
 }

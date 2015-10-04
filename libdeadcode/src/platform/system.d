@@ -53,7 +53,7 @@ mixin template platformMain(alias customMain)
                     LPSTR lpCmdLine, int nCmdShow)
         {
             int result;
-
+            size_t failed = 0;
 
             try
             {
@@ -71,8 +71,33 @@ mixin template platformMain(alias customMain)
 
 
                 auto ut = Runtime.moduleUnitTester();
-                if (ut !is null)
+                if (ut is null)
+                {
+
+                    foreach( m; ModuleInfo )
+                    {
+                        if( m )
+                        {
+                            auto fp = m.unitTest;
+
+                            if( fp )
+                            {
+                                try
+                                {
+                                    fp();
+                                }
+                                catch( Throwable e )
+                                {
+                                    failed++;
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
                     ut();
+                }
                 result = customMain(argv);
                 Runtime.terminate();
             }
@@ -83,7 +108,7 @@ mixin template platformMain(alias customMain)
                 result = 1;     // failed
             }
 
-            return result;
+            return result == 0 ? (failed == 0 ? 0 : 1) : result;
         }
 }
 

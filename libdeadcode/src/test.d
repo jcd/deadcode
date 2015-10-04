@@ -71,15 +71,28 @@ TestRecord getTestResult(string filename, int unittestStartLine)
 	return TestRecord();
 }
 
-void printStats(bool includeSuccessful = false)
+bool printStats(File output, bool includeSuccessful = false)
 {
 	import std.algorithm;
 	foreach (rec; g_TestRecords)
 	{
 		if (includeSuccessful || !rec.success)
-			writeln("Test ", rec.file[0..$], ":", rec.line, " ", rec.msg, " ", rec.assertion, " ", rec.success ? "OK" : "FAILED");
+			output.writeln(text("Test ", rec.file[0..$], ":", rec.line, " ", rec.msg, " ", rec.assertion, " ", rec.success ? "OK" : "FAILED"));
 	}
-	writeln(format("%s of %s OK", g_TestRecords.count!"a.success", g_Total));
+
+    if (includeSuccessful)
+    {
+	    output.writeln("\n************* Failing unittest subset extract from above listing:");
+        foreach (rec; g_TestRecords)
+	    {
+		    if (!rec.success)
+			    output.writeln(text("Test ", rec.file[0..$], ":", rec.line, " ", rec.msg, " ", rec.assertion, " ", rec.success ? "OK" : "FAILED"));
+	    }
+    }
+
+    auto c = g_TestRecords.count!"a.success";
+	output.writefln("%s of %s OK", c, g_Total);
+    return c == g_Total;
 }
 
 void Assert(lazy bool expMustBeTrue, string msg = "", string file = __FILE__, int line = __LINE__, string func = __FUNCTION__)
@@ -118,7 +131,7 @@ mixin template registerUnittests()
 			    //enum name = __traits(identifier, test)[11..$];
 			    //enum linen = name[0.. indexOf(name, "_")];
 			    //import std.stdio;
-                writeln("Module Unittest: " ~ __traits(identifier, tst));
+                //writeln("Module Unittest: " ~ __traits(identifier, tst));
 
 			    //if (textAnchor.number+1 == linen.to!uint)
 			    //{

@@ -34,7 +34,7 @@ Label {
 	color: #ffffff;
 	height: 20px;
 	min-height: 20px;
-	padding: 1 4 4 1;
+	padding: 1 4 1 4;
 	width: 100%;
 	min-width: 100%;
 }
@@ -49,7 +49,7 @@ Button {
 	width: 100%;
 	height: 20px;
 	min-height: 20px;
-	padding: 1 10 10 1;
+	padding: 1 10 1 10;
 }
 
 Button:hover {
@@ -78,7 +78,7 @@ PopupList {
 PopupList > Button {
 	max-height: 20px;
 	font : url(fonts/cour.ttf) 13;
-	padding: 1 8 10 1;
+	padding: 1 10 1 8;
 }
 
 PopupList > Button:focus {
@@ -121,7 +121,7 @@ Testing {
 TextEditor {
 	color: #f8f8f2;
 	font : url(fonts/cour.ttf) 13;
-	padding: 0 4 0 0;
+	padding: 0 0 0 4;
 }
 
 StatusPanel {
@@ -179,7 +179,7 @@ ToggleButton {
 	font : url(fonts/RobotoCondensed-Light.ttf) 14;
 	color: #ffffff;
 	width: 20%;
-	padding: 0 0 4 0;
+	padding: 0 4 0 0;
 }
 
 ToggleButton.on {
@@ -334,7 +334,7 @@ TextHighlighter {
 	color: #ffff00;
 	padding: 0 0 0 0;
 	background-sprite: 6 6 8 10;
-	background-sprite-border: 0 0 6 6;
+	background-sprite-border: 0 6 0 6;
 }
 
 .lineHighlight {
@@ -488,7 +488,7 @@ CommandControl > Label
 {
 	position: relative;
 	font : url(fonts/RobotoCondensed-Light.ttf) 19;
-	padding: -2 5 3 0;
+	padding: -2 3 0 5;
 	width: fit;
 }
 
@@ -513,7 +513,7 @@ CommandControl > TextField#commandEntryField
 	font : url(fonts/RobotoCondensed-Light.ttf) 19;
 	width: 100%;
 	height: 0px;	
-	padding: -2 6 3 0;
+	padding: -2 3 0 6;
 	transition: height 0.3s;
 }
 
@@ -555,7 +555,7 @@ CommandControl.hidden > TextEditor#commandCompletion
 {
 	height: 0px;
 	min-height: 0px;
-	padding: 0 2 0 0;
+	padding: 0 0 0 2;
 }
 
 #drafgger {
@@ -590,7 +590,7 @@ TextEditor#commandCompletion.selection {
 TextEditor#commandCompletion {
 	background: url(materials/white-small-nine-patch.png);
 	color: #a8a8a2;
-	padding : 6 6 6 0;
+	padding : 6 6 0 6;
 	background-color: #314447;
 
 	background-sprite: 0 0 16 16;
@@ -618,7 +618,7 @@ Tree#Menu {
 	background-color: #314447;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
-	padding : 5 0 20 10;
+	padding : 5 20 10 0;
 	width: 160px;
 	height: 370px;
 	right: 160px;
@@ -630,7 +630,7 @@ Tree#Menu {
 Tree#Menu.hidden {
 	height: 0px;
 	transition: height 0.1s, background-color 0.3s;
-	background-sprite-border: 0 6 6 0;
+	background-sprite-border: 0 6 0 6;
 }
 
 Tree#Menu Tree.leaf
@@ -644,7 +644,7 @@ Tree#Menu Tree.leaf
 Tree > Label {
 	font : url(fonts/RobotoCondensed-Light.ttf) 14;
 	color: #d8d8d2;
-	padding: 0 10 0 0;
+	padding: 0 0 0 10;
 }
 
 Tree#Menu Tree.leaf:hover
@@ -661,7 +661,7 @@ Tree#Menu Tree.leaf:active {
 Tree#Menu > Tree > Tree > Label {
 	color: #2a9eb9;	
 	font : url(fonts/RobotoCondensed-Bold.ttf) 18;
-	padding: 0 10 0 0;
+	padding: 0 0 0 10;
 }
 
 Tree#WidgetHierarchyTree
@@ -691,7 +691,7 @@ Tree#WidgetHierarchyTree Tree.leaf
 	background-sprite: 4 4 6 6;
 	background-sprite-border: 0 0 0 0;
 	width: 100%;
-	padding: 2 0 0 2;
+	padding: 2 0 2 0;
 }
 
 Tree#WidgetHierarchyTree Tree.leaf.selected
@@ -735,7 +735,7 @@ Tree#WidgetHierarchyTree Tree.leaf:active {
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	font : url(fonts/RobotoCondensed-Bold.ttf) 20;
-	padding: -2 10 0 12;
+	padding: -2 0 12 10;
 	width: 100px;
 	right: 100px;
 	height: 24px;
@@ -752,7 +752,7 @@ Tree#WidgetHierarchyTree Tree.leaf:active {
 #foo {
 	background: url(materials/white-small-nine-patch.png);
 	color: #08a8a2;
-	padding : 0 4 0 0;
+	padding : 0 0 0 4;
 	background-color: #0a272d;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
@@ -764,7 +764,7 @@ Tree#WidgetHierarchyTree Tree.leaf:active {
 #foo > Widget#fooa {
 	background: url(materials/white-small-nine-patch.png);
 	color: #f8a8a2;
-	padding : 0 4 0 0;
+	padding : 0 0 0 4;
 	background-color: #7a272d;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
@@ -775,7 +775,7 @@ Tree#WidgetHierarchyTree Tree.leaf:active {
 #foo > Widget#foob {
 	background: url(materials/white-small-nine-patch.png);
 	color: #08a8a2;
-	padding : 0 4 0 0;
+	padding : 0 0 0 4;
 	background-color: #fa272d;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
@@ -810,7 +810,7 @@ FieldContainer
 }
 
 FieldContainer > TextField {
-	padding: 2 4 4 2;
+	padding: 2 4 2 4;
 	font : url(fonts/RobotoCondensed-Light.ttf) 16;
 	background-color: #011017;
 	background: url(materials/white-small-nine-patch.png);
@@ -842,7 +842,7 @@ Notice {
 	bottom: 70%;
 	width: 300px;
 	height: 90px;
-	padding: 28 25 10 0;
+	padding: 28 10 0 25;
 	transition: bottom 0.5s, top 0.5s, width 0.5s, right 0.5s, left 0.5s, bottom 0.5s;
 }
 
@@ -858,7 +858,7 @@ Notice.small {
 	right: 270px;
 	width: 245px;
 	height: 40px; 
-	padding: 12 15 10 0;
+	padding: 12 10 0 15;
 	transition: bottom 0.5s, top 0.5s, width 0.5s, right 0.5s, left 0.5s, bottom 0.5s;	
 }
 
@@ -867,7 +867,7 @@ Notice > Widget#notice-buttons
 {
 	top: 5px;
 	min-height: 30px;
-	padding: 5 95 10 15;
+	padding: 5 10 15 95;
 }
 
 Noticde:hover > Widget#notice-buttons
@@ -893,12 +893,12 @@ Notice.xdefault > Widget > Button
 
 Notice.xdefault > Widget
 {
-	padding: 5 95 0 0;
+	padding: 5 0 0 95;
 }
 
 Notice > Label
 {
-	padding: -1 10 0 0;
+	padding: -1 0 0 10;
 }
 
 Notice:visible > Widget#notice-icon

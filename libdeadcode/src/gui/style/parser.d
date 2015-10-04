@@ -638,10 +638,15 @@ class StyleSheetParser
 
 	void parseRectOffset(ref RectfOffset r)
 	{
-		r.top = requireNextOptionalNumber();
-		r.left = requireNextOptionalNumber();
+        //r.top = requireNextOptionalNumber();
+        //r.left = requireNextOptionalNumber();
+        //r.right = requireNextOptionalNumber();
+        //r.bottom = requireNextOptionalNumber();
+
+        r.top = requireNextOptionalNumber();
 		r.right = requireNextOptionalNumber();
 		r.bottom = requireNextOptionalNumber();
+		r.left = requireNextOptionalNumber();
 	}
 
     void parseZIndex(ref int i)

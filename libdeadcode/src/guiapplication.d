@@ -1327,9 +1327,40 @@ class GUIApplication : Application
 				cb.entries ~= new CopyBuffer.Entry(data.to!dstring);
 			}
 		}
-        
-        activeWindow.position = s.windowRect.pos;
-        activeWindow.size = s.windowRect.size;
+
+        auto winRect = Rectf(s.windowRect.pos, s.windowRect.size);
+
+        import derelict.sdl2.functions;
+        import derelict.sdl2.types;
+
+        SDL_DisplayMode dm;
+        if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
+                addMessage("SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
+        }
+        else
+        {
+            winRect = Rectf(0, 0, dm.w, dm.h).clip(winRect);
+
+            if (winRect.w == 0)
+            {
+                winRect.x = 0;
+                winRect.w = 300;
+            }
+
+            if (winRect.h == 0)
+            {
+                winRect.y = 0;
+                winRect.h = 500;
+            }
+
+            if (winRect.w < 50)
+                winRect.w = 50;
+            if (winRect.h < 50)
+                winRect.h = 50;
+        }
+
+        activeWindow.position = winRect.pos;
+        activeWindow.size = winRect.size;
 	}
 
     void loadKeyMappings()

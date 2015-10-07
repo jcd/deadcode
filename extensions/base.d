@@ -210,9 +210,11 @@ class FunctionCommand(alias Func) : BasicCommand
 	}
 }
 
-void init(GUIApplication app)
+Exception[] init(GUIApplication app)
 {
 	import std.range;
+
+    Exception[] exceptions;
 
     // Two step initialization of extensions because they might be depending on each other
     // and we have to ensure that initialization of one can rely on another valid extension.
@@ -221,48 +223,63 @@ void init(GUIApplication app)
 
     foreach (e; g_Extensions)
     {
-		e.makeInstance(); // will call init() and make it initialized
+		try
+            e.makeInstance(); // will call init() and make it initialized
+        catch (Exception e)
+            exceptions ~= e;
     }
 
 	foreach (c; g_Commands)
 	{
-		c.app = app;
-		c.init();
-		app.commandManager.add(c);
-		if (!c.menuItem.path.empty)
+		try
         {
-		    if (c.menuItem.argument is null)
+            c.app = app;
+		    c.init();
+		    app.commandManager.add(c);
+		    if (!c.menuItem.path.empty)
             {
-                app.menu.addTreeItem(c.menuItem.path, c.name);
+		        if (c.menuItem.argument is null)
+                {
+                    app.menu.addTreeItem(c.menuItem.path, c.name);
+                }
+                else
+                {
+                    auto args = app.commandManager.parseCommandArguments(c.name, c.menuItem.argument);
+                    app.menu.addTreeItem(c.menuItem.path, c.name, args);
+                }
             }
-            else
-            {
-                auto args = app.commandManager.parseCommandArguments(c.name, c.menuItem.argument);
-                app.menu.addTreeItem(c.menuItem.path, c.name, args);
-            }
-        }
 
-		import std.stdio;
-		//writeln(c.name);
-		foreach (sc; c.shortcuts)
-		{
-			if (sc.argument is null)
-				app.editorBehavior.keyBindings.setKeyBinding(sc.keySequence, c.name);
-			else
-				app.editorBehavior.keyBindings.setKeyBinding(sc.keySequence, c.name, sc.argument);
-		}
+		    import std.stdio;
+		    //writeln(c.name);
+		    foreach (sc; c.shortcuts)
+		    {
+			    if (sc.argument is null)
+				    app.editorBehavior.keyBindings.setKeyBinding(sc.keySequence, c.name);
+			    else
+				    app.editorBehavior.keyBindings.setKeyBinding(sc.keySequence, c.name, sc.argument);
+		    }
+        }
+        catch (Exception e)
+            exceptions ~= e;
+
 	}
 
 	foreach (wi; g_Widgets)
 	{
-		auto w = cast(IBasicWidget)(wi.create());
-		g_BasicWidgets ~= w;
-		w.app = app;
-		// app.guiRoot.activeWindow.register(w);
-		w.parent = app.guiRoot.activeWindow;
-		w.layout = new GridLayout(GridLayout.Direction.column, 1);
-        w.init();
+		try
+        {
+            auto w = cast(IBasicWidget)(wi.create());
+		    g_BasicWidgets ~= w;
+		    w.app = app;
+		    // app.guiRoot.activeWindow.register(w);
+		    w.parent = app.guiRoot.activeWindow;
+		    w.layout = new GridLayout(GridLayout.Direction.column, 1);
+            w.init();
+        }
+        catch (Exception e)
+            exceptions ~= e;
 	}
+    return exceptions;
 }
 
 void registerCommandKeyBindings(GUIApplication app)

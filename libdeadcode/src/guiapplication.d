@@ -246,7 +246,7 @@ class GUIApplication : Application
         KeyMappings mappings = keyMappingsResource.get!KeyMappings();
         if (mappings is null)
         {
-            
+
             KeyMappings m = new KeyMappings;
             KeyMapping mp = new KeyMapping;
             mp.keys = "<ctrl> + i";
@@ -419,15 +419,17 @@ class GUIApplication : Application
 		setupMainWindow();
 
 		static import extensions.base;
-		extensions.base.init(this);
+		auto exceptions = extensions.base.init(this);
+        foreach (e; exceptions)
+            addMessage(e.toString());
 
         loadKeyMappings();
 
 		loadSession();
-		
+
         // Show window now that session has loaded the old size and position of the window
         activeWindow.show();
-	
+
     	analyticStopTiming("core", "startup");
 
 		guiRoot.onActivity.connect(&handleActivity);
@@ -447,13 +449,13 @@ class GUIApplication : Application
 			{
 			    spawnProcess(_restartExecutable);
 			}
-			
+
             version (linux)
 			{
     		    string[] argv;
     		    execv(_restartExecutable, argv);
 			}
-			
+
 			//import std.c.stdlib;
 			//import core.thread;
 			//Thread.sleep(dur!"seconds"(1));
@@ -1263,7 +1265,7 @@ class GUIApplication : Application
 			scb.entries ~= entry.txt.to!string;
 		}
 		s.copyBuffer = scb;
-        
+
 		auto winRect = Rectf(activeWindow.position, activeWindow.size);
 
 		import derelict.sdl2.functions;
@@ -1276,7 +1278,7 @@ class GUIApplication : Application
         {
             winRect = Rectf(0, 0, dm.w, dm.h).clip(winRect);
         }
-        
+
 		s.windowRect = winRect;
 		sessionData.save();
 	}

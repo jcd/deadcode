@@ -293,7 +293,8 @@ class DCompletionExtension : BasicExtension!DCompletionExtension
                 cmdLine ~= "-I";
                 cmdLine ~= p;
             }
-            _serverPID = spawnProcess(cmdLine);
+            import std.stdio;
+            _serverPID = spawnProcess(cmdLine, stdin, stdout, stderr, null, Config.suppressConsole);
             app.addMessage("dcd spawned: %s", cmdLine);
         }
         catch (ProcessException e)

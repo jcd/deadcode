@@ -70,33 +70,36 @@ mixin template platformMain(alias customMain)
                 }
 
 
-                auto ut = Runtime.moduleUnitTester();
-                if (ut is null)
+                version (unittest)
                 {
-
-                    foreach( m; ModuleInfo )
+                    auto ut = Runtime.moduleUnitTester();
+                    if (ut is null)
                     {
-                        if( m )
-                        {
-                            auto fp = m.unitTest;
 
-                            if( fp )
+                        foreach( m; ModuleInfo )
+                        {
+                            if( m )
                             {
-                                try
+                                auto fp = m.unitTest;
+
+                                if( fp )
                                 {
-                                    fp();
-                                }
-                                catch( Throwable e )
-                                {
-                                    failed++;
+                                    try
+                                    {
+                                        fp();
+                                    }
+                                    catch( Throwable e )
+                                    {
+                                        failed++;
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                else
-                {
-                    ut();
+                    else
+                    {
+                        ut();
+                    }
                 }
                 result = customMain(argv);
                 Runtime.terminate();

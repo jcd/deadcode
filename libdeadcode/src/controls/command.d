@@ -532,7 +532,9 @@ class CommandControl : Widget
 		}
 		else
 		{
-			resumeWidgetID = window.getKeyboardFocusWidget().id;
+			// TODO: maybe just check if keyboard focus widget is not command control input widget?
+            if (prevMode == Mode.hidden)
+                resumeWidgetID = window.getKeyboardFocusWidget().id;
 			commandField.setKeyboardFocusWidget();
             show();
 		}

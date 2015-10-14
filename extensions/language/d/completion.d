@@ -380,6 +380,14 @@ class DCompletionExtension : BasicExtension!DCompletionExtension
 					app.addMessage("%s %s", response.completions[i], response.completionKinds[i]);
 				}
 			}
+            else if (response.completionType == CompletionType.calltips)
+			{
+				foreach(i; 0 .. response.completions.length)
+				{
+					result[i].completion = response.completions[i];
+					app.addMessage("%s", response.completions[i]);
+				}
+			}
 			else
 			{
 				foreach (completion; response.completions)

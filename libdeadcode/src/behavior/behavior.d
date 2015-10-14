@@ -41,7 +41,8 @@ class NullBehavior : EditorBehavior
 	override EventUsed onEvent(ref Event event)
 	{
         import std.stdio;
-		writeln("NullBehavior got event ", event, " Window ID: ", event.windowID);
+		version (linux)
+            writeln("NullBehavior got event ", event, " Window ID: ", event.windowID);
 		return EventUsed.no;
 	}
 }

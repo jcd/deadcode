@@ -76,7 +76,8 @@ class Menu : Tree
 
 	private void onMenuClicked(Tree t)
 	{
-		std.stdio.writeln("Hello from " ~ t.name);
+		version (linux)
+            std.stdio.writeln("Hello from " ~ t.name);
 	}
 
 	private void onCommandCall(CommandCall cc)

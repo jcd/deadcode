@@ -521,7 +521,7 @@ class BasicCommands : BasicExtension!BasicCommands
 
 			    if (b.name == "*CommandInput*")
 			    {
-				    writeln("got " ~ data[0].get!string());
+				    app.addMessage("got " ~ data[0].get!string());
 			    }
 			    else
 			    {

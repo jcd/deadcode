@@ -23,7 +23,8 @@ private bool defaultUnittester()
 		auto func = tname.fullName in g_ModuleUnitTests;
 		if (func is null)
 		{
-			writeln("Couldn't look up unittest ", tname);
+			assert(0);
+            // writeln("Couldn't look up unittest ", tname);
 		}
 		else
 		{
@@ -108,14 +109,17 @@ class UnittestAnchor : TextEditorAnchor
 		auto bufferName = textEditor.bufferView.name;
 		TestRecord rec = getTestResult(bufferName, textAnchor.number+1);
 
-		if (rec.file.empty)
-		{
-			writeln("No result");
-		}
-		else
-		{
-			writeln("Result : ", rec.success);
-		}
+		version (linux)
+        {
+            if (rec.file.empty)
+		    {
+			    writeln("No result");
+		    }
+		    else
+		    {
+			    writeln("Result : ", rec.success);
+		    }
+        }
 		return EventUsed.yes;
 	}
 
@@ -138,7 +142,7 @@ class UnittestAnchor : TextEditorAnchor
 
 			if (textAnchor.number+1 == line.to!int)
 			{
-				writeln("Running ", line, " ", testName);
+				version (linux) writeln("Running ", line, " ", testName);
 				atest();
 
 				//TestRecord rec = getTestResult(textAnchor.number+1);

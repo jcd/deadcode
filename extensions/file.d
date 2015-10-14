@@ -35,7 +35,8 @@ auto filesystemCompletions(string path)
 
     debug {
         static import std.stdio;
-        std.stdio.writeln(path, " ", relDirPath, " : ", filenamePrefix, " ", dirEntries(relDirPath, SpanMode.shallow));
+        version (linux)
+            std.stdio.writeln(path, " ", relDirPath, " : ", filenamePrefix, " ", dirEntries(relDirPath, SpanMode.shallow));
     }
 
 	auto r1 = dirEntries(relDirPath, SpanMode.shallow)

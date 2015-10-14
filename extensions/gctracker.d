@@ -135,7 +135,7 @@ class GCTracker : BasicExtension!GCTracker, TextEditorAnchorOwner
 	void onClear(ErrorListWidget w)
 	{
 		allocForFiles = null;
-		writeln("FOO: CLEAR");
+		//writeln("FOO: CLEAR");
 	}
 }
 

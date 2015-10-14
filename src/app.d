@@ -53,7 +53,8 @@ private int myMain(string[] args)
             import std.string;
 			import platform.dialog;
 
-			std.stdio.writeln("Caught Exception: ", e);
+			version (linux)
+                std.stdio.writeln("Caught Exception: ", e);
 
 			string s = e.toString();
 			s ~= "\n" ~ "Help improve the editor by uploading this backtrace?";

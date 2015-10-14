@@ -45,7 +45,7 @@ void dCheckIfElse(TextEditor editor)
     foreach (msg; c1.messages)
     {
         anchorManager.ensureLineAnchor(editor, cast(int)msg.line - 1, msg);
-        writeln(msg.key, " ", msg.message);
+        //writeln(msg.key, " ", msg.message);
     }
 
 	auto c2 = new CommaExpressionCheck(v.name);
@@ -55,7 +55,7 @@ void dCheckIfElse(TextEditor editor)
     foreach (msg; c2.messages)
     {
         anchorManager.ensureLineAnchor(editor, cast(int)msg.line - 1, msg);
-        writeln(msg.key, " ", msg.message);
+        //writeln(msg.key, " ", msg.message);
     }
 	// Analysis.the.setMessages(v, c.messages);
 }

@@ -31,7 +31,8 @@ void findInFiles(string needle)
 		catch (UTFException)
 		{
 			// TODO: Remember these files and skip on next find
-			writeln("Cannot find in file ", d.name);
+			version (linux)
+                writeln("Cannot find in file ", d.name);
 			continue;
 		}
 		ptrdiff_t idx = haystack.indexOf(needle);
@@ -46,6 +47,9 @@ void findInFiles(string needle)
 		}
 	}
 
-	foreach (i; foundItems)
-	writeln(i.filePath, " ", i.index);
+	version (linux)
+    {
+        foreach (i; foundItems)
+	        writeln(i.filePath, " ", i.index);
+    }
 }

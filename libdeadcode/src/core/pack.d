@@ -22,7 +22,8 @@ struct FilePack(string path)
                 import std.conv;
 
                 depacked = buildPath(tempDir(), path);
-                writeln("Unpacking ", path ," to dir ", depacked);
+                version (linux)
+                    writeln("Unpacking ", path ," to dir ", depacked);
 
                 uint offset;
 
@@ -66,7 +67,8 @@ struct FilePack(string path)
             }
             catch(Exception e)
             {
-                writeln("Error loading ", path, " pack ", e);
+                version (linux)
+                    writeln("Error loading ", path, " pack ", e);
                 return null;
             }
             return depacked;

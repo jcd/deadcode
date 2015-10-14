@@ -17,7 +17,8 @@ CommandParameter parse(CommandParameter typeSpecifier, string input)
     scope (failure)
     {
         import std.stdio;
-        debug writeln("Input string was ", input);
+        version (linux)
+            debug writeln("Input string was ", input);
     }
 	CommandParameter parsedValue = typeSpecifier.visit!( (uint p) => CommandParameter(input.to!uint),
                                                          (int p) => CommandParameter(input.to!int),

@@ -256,7 +256,6 @@ class Texture
 		if (clearSurface is null)
 		{
 			clearSurface = SDL_CreateRGBSurface(0, cast(int)width, cast(int)height, 32,0,0,0,0);
-			writeln("new clear");
 		}
 		assert(clearSurface);
 		blitSDLSurface(Rectf(0, 750, width, height), clearSurface);

@@ -54,7 +54,8 @@ class Application
 		import std.conv;
         static import std.stdio;
 		auto view = bufferViewManager["*Messages*"];
-		std.stdio.writeln("*Messages* " ~ format(msgs));
+		version (linux)
+            std.stdio.writeln("*Messages* " ~ format(msgs));
         auto fmtmsg = format(msgs);
         if (_logFile.getFP() !is null)
         {

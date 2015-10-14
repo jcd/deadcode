@@ -70,7 +70,8 @@ void dbgDumpWidgetHierarchy(GUIApplication app)
         {
             import std.stdio;
 			// bv.insert(dtext(indent, cn, "(", w.id, "): ", w.name, "\n"));
-			writeln(text(indent, cn, "(", w.id, "): ", w.name));
+			version (linux)
+                writeln(text(indent, cn, "(", w.id, "): ", w.name));
             indent = indent ~ "  ";
         }
         else

@@ -205,7 +205,8 @@ bool gitClone(string dir)
     auto res = pipeShell(cmd, Redirect.stdin | Redirect.stderrToStdout | Redirect.stdout);
     foreach (line; res.stdout.byLine)
     {
-        writeln(line);
+        version (linux)
+            writeln(line);
     }
     return wait(res.pid) == 0;
 }

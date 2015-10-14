@@ -88,7 +88,8 @@ class DubBuildCommand : BasicCommand
 			newExecPath = res[1].idup;
 		}
 		w.append(msg);
-		writeln(msg);
+		version (linux)
+            writeln(msg);
 	}
 
 	static void sendLog(Tid pTid, string msg)

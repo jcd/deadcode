@@ -220,7 +220,8 @@ class CommandHello : Command
 	override void execute(CommandParameter[] data)
 	{
         import std.stdio;
-		writeln("Hello");
+		version (linux)
+            writeln("Hello");
 	}
 }
 

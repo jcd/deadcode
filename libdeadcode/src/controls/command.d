@@ -303,8 +303,10 @@ class CommandControl : Widget
 		}
 		else if (ev.mod == 0 && isBufferCycleMode)
 		{
-			endCycleBufferMode();
-			hide();
+			// TODO: Fix hide jumping back to last focus widget since executeCommand may want to change that
+            //       and end cycle buffer mode is changing that.
+            endCycleBufferMode();
+			// hide();
 		}
 		else
 		{
@@ -321,7 +323,7 @@ class CommandControl : Widget
 		if (ev.mod == 0 && isBufferCycleMode)
 		{
 			endCycleBufferMode();
-			hide();
+			// hide();
 		}
 		else
 		{
@@ -509,7 +511,8 @@ class CommandControl : Widget
 
 	void endCycleBufferMode()
 	{
-		app.showBuffer(completions[cycleBufferStartOffset].data);
+		resumeWidgetID = NullWidgetID;
+        app.showBuffer(completions[cycleBufferStartOffset].data);
 		completions = null;
 		cycleBufferStartOffset = -1;
 	}
@@ -527,7 +530,8 @@ class CommandControl : Widget
 		{
             clearCompletions();
             endCompletionSession();
-			window.setKeyboardFocusWidget(resumeWidgetID);
+			if (resumeWidgetID != NullWidgetID)
+                window.setKeyboardFocusWidget(resumeWidgetID);
             super.hide();
 		}
 		else

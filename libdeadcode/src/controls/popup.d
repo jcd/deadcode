@@ -30,7 +30,7 @@ class PopupList : Widget
 	{
         if (visible == v)
             return;
-        visible = v;
+        super.visible = v;
 
         // If this widget has keyboard focus then release it.
         if (!visible)

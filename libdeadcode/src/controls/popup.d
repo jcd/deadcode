@@ -182,8 +182,13 @@ class PopupList : Widget
     private void itemActivated(Button b)
     {
         foreach (idx, c; children)
+        {
             if (b is c)
+            {
                 onItemActivated.emit(this, cast(int)idx);
+                return;
+            }
+        }
         assert(0);
     }
 }

@@ -36,7 +36,28 @@ class RenderWindow : RenderTarget
 		int flags = SDL_WINDOW_OPENGL |SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN;// |
 		/*SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE; */
 		win = SDL_CreateWindow(name.ptr, 0, 0, width, height, flags);
-		//	   	win = SDL_CreateWindow(name.ptr, SDL_WINDOWPOS_CENTERED,
+
+        version (Windows)
+        {
+            import derelict.sdl2.sdl;
+            import derelict.sdl2.functions;
+            //import core.sys.windows.windows;
+            import win32.winuser;
+            import win32.windef;
+
+            SDL_SysWMinfo info;
+
+            SDL_GetVersion(&info.version_); // this is important!
+            if (SDL_GetWindowWMInfo(win, &info))
+            {
+               DWORD style = GetWindowLongA(info.info.win.window, GWL_STYLE);
+               style = style | WS_BORDER | WS_GROUP;
+               style = style & ~WS_THICKFRAME;
+               SetWindowLongA(info.info.win.window, GWL_STYLE, style);
+            }
+        }
+
+        //	   	win = SDL_CreateWindow(name.ptr, SDL_WINDOWPOS_CENTERED,
 		//SDL_WINDOWPOS_CENTERED, width, height, flags);
 
 		if(!win)

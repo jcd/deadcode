@@ -524,7 +524,8 @@ class CommandControl : Widget
 		if (window is null || _mode == m)
 			return;
 
-		_mode = m;
+		auto prevMode = _mode;
+        _mode = m;
 
 		if (m == Mode.hidden)
 		{

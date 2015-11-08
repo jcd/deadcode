@@ -58,6 +58,13 @@ void recordTestResult(bool success, string assertion, string msg, string file, i
 	import std.stdio;
 	auto info = parseUnitTestName(func);
 	g_TestRecords ~= TestRecord( success, assertion, msg, file, line, info);
+	version (TestingByDeadcode)
+    {
+		static import core.exception;
+        import std.range;
+		if (!success)
+	        core.exception.onAssertErrorMsg(file, line, (assertion.empty ? "" : assertion ~ ": ") ~ msg);
+    }
 }
 
 TestRecord getTestResult(string filename, int unittestStartLine)

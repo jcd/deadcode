@@ -23,7 +23,8 @@ DCodeModel dCodeModel(BufferView bv)
 
 void dCheckIfElse(TextEditor editor)
 {
-	BufferView v = editor.bufferView;
+    anchorManager.removeLineAnchors(editor);
+    BufferView v = editor.bufferView;
 
     import extensions.language.d.analysis.ifelsesame;
 	import extensions.language.d.analysis.comma_expression;

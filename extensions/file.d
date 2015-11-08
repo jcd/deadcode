@@ -100,6 +100,10 @@ void fileSave(BufferView buf, Application app)
 
 
 		auto p = app.yieldPrompt("Save as", defaultPath,
+                                 (string prefix) {
+                                    import std.file;
+                                    return !exists(prefix);
+                                 },
 								 (string prefix) {
 									 return filesystemCompletions(prefix);
 									//CompletionEntry[] result;
@@ -140,6 +144,10 @@ void fileOpen(Application app)
 {
 	auto p = app.yieldPrompt("Open", app.resourceURI("./", ResourceBaseLocation.currentDir).uriString ~ "/",
 							 (string prefix) {
+                                 import std.file;
+                                 return exists(prefix) &&  isFile(prefix);
+                             },
+                             (string prefix) {
 								 return filesystemCompletions(prefix);
 								 //CompletionEntry[] result;
 								 // result ~= CompletionEntry("foo1", "bar1");

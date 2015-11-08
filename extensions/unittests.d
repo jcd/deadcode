@@ -93,7 +93,7 @@ class UnittestAnchor : TextEditorAnchor
 		super();
 		this.timeline = timeline;
 		this.app = app;
-	}
+    }
 
 	override EventUsed onMouseOver(Event ev)
 	{
@@ -130,6 +130,12 @@ class UnittestAnchor : TextEditorAnchor
 	}
 
 	override EventUsed onMouseClick(Event ev)
+	{
+		app.pushCommandCall(CommandCall("dub.runModuleUnittests"));
+	    return EventUsed.yes;
+    }
+
+    /*override*/ EventUsed ddonMouseClick(Event ev)
 	{
 		import std.typetuple;
 		import std.stdio;
@@ -169,13 +175,15 @@ class UnittestAnchor : TextEditorAnchor
 /**
 	Tools and GUI for the builtin dlang unittests
 */
-class Unittests : BasicExtension!Unittests, TextEditorAnchorOwner
+class Unittests : Extension, ITextEditorAnchorOwner
 {
-	override @property string name() { return "unittests"; }
+	import core.buffer;
+
+    override @property string name() { return "unittests"; }
 
 	TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor, TextEditor editor)
 	{
-		return new UnittestAnchor(app.guiRoot.timeline);
+		return new UnittestAnchor(app.guiRoot.timeline, app);
 	}
 
 	override void init()
@@ -197,30 +205,37 @@ class Unittests : BasicExtension!Unittests, TextEditorAnchorOwner
 	private void onBufferViewCreated(BufferView bv)
 	{
 		// TODO: maybe make a single onLinesChanged that can be used instead of the two below
-		bv.buffer.lbuffer.onLineModified.connect(&onLineModified);
-		bv.buffer.lbuffer.onLinesInserted.connect(&onLinesInserted);
+		bv.buffer.lbuffer.onLineModified.connectTo((int l) {
+	         onLineModified(l, bv.buffer);
+        });
+		bv.buffer.lbuffer.onLinesInserted.connectTo((int l, int lc) {
+	         onLinesInserted(l, lc, bv.buffer);
+        });
 	}
 
 	// Next three handler is in charge of detecting unittest lines and adding/removing anchors
 	// for them.
-	void onLineModified(int lineNumber)
+	void onLineModified(int lineNumber, TextBuffer buf)
 	{
-		auto editor = currentTextEditor;
-		auto line = editor.bufferView.buffer.lineString(lineNumber);
+		import std.uni;
 
-		if (line.startsWith("unittest"))
+		// auto editor = currentTextEditor;
+		auto line = buf.lineString(lineNumber).stripLeft;
+
+
+		if (line.startsWith("unittest") && (line[8..$].empty || line[8..$][0].isWhite() || line[8..$][0] == '{'))
 		{
-			editor.bufferView.buffer.ensureLineAnchor(lineNumber, this);
+			buf.ensureLineAnchor(lineNumber, this);
 		}
 		else
 		{
-			editor.bufferView.buffer.removeLineAnchorByLine(lineNumber, this);
+			buf.removeLineAnchorByLine(lineNumber, this);
 		}
 	}
 
-	void onLinesInserted(int lineNumber, int lineCount)
+	void onLinesInserted(int lineNumber, int lineCount, TextBuffer buf)
 	{
 		foreach (i; lineNumber..lineNumber+lineCount)
-			onLineModified(i);
+			onLineModified(i, buf);
 	}
 }

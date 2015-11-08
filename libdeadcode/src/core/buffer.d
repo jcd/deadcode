@@ -14,7 +14,7 @@ mixin registerUnittests;
 
 enum InvalidIndex = int.min;
 
-class GapBuffer(T = dchar)
+class GapBuffer(T)
 {
 	alias T CharType;
 	private
@@ -36,7 +36,10 @@ class GapBuffer(T = dchar)
 		gapEnd = gapSize;
 		gapDefaultSize = gapSize;
 		buffer.length = txt.length + gapDefaultSize;
-		copy(txt[], buffer[gapEnd..$]);
+		static if (T.sizeof == 1)
+            copy(cast(ubyte[])(txt)[], cast(ubyte[])(buffer)[gapEnd..$]);
+        else
+            copy(txt[], buffer[gapEnd..$]);
 	}
 
 	@property int editPoint() const pure nothrow
@@ -85,11 +88,18 @@ class GapBuffer(T = dchar)
 			auto gapSize = gapEnd - gapStart;
 			auto deltaCount =  gapSize < count ? gapSize : count;
 
-			copy(retro(buffer[index..gapStart]), retro(buffer[gapEnd-count..gapEnd]));
-			gapStart = index;
+			static if ( T.sizeof == 1 )
+            {
+                copy(retro(cast(ubyte[])(buffer)[index..gapStart]), retro(cast(ubyte[])(buffer)[gapEnd-count..gapEnd]));
+			}
+            else
+            {
+                copy(retro(buffer[index..gapStart]), retro(buffer[gapEnd-count..gapEnd]));
+            }
+            gapStart = index;
 			gapEnd -= count;
 			// Clear gap
-			fill(buffer[index..index+deltaCount], T.init);
+			buffer[index..index+deltaCount] = T.init;
 		}
 		else
 		{
@@ -97,21 +107,28 @@ class GapBuffer(T = dchar)
 			auto count = index - gapStart;
 			auto gapSize = gapEnd - gapStart;
 			auto deltaIndex =  index > gapEnd ? index : gapEnd;
-			copy(buffer[gapEnd..gapEnd+count], buffer[gapStart..gapStart+count]);
-			gapStart += count;
+			static if ( T.sizeof == 1 )
+            {
+                copy(cast(ubyte[])(buffer)[gapEnd..gapEnd+count], cast(ubyte[])(buffer)[gapStart..gapStart+count]);
+			}
+            else
+            {
+                copy(buffer[gapEnd..gapEnd+count], buffer[gapStart..gapStart+count]);
+            }
+            gapStart += count;
 			gapEnd += count;
 
-			fill(buffer[deltaIndex..gapEnd], T.init);
+			buffer[deltaIndex..gapEnd] = T.init;
 		}
 	}
 
 	unittest
 	{
 		/*
-		auto b = new GapBuffer("12345"d, 3);
+		auto b = new GapBuffer("12345", 3);
 		dchar[8] a;
 		std.algorithm.fill(a, dchar.init);
-		a[3..$] = "12345"d;
+		a[3..$] = "12345";
 		assert(std.algorithm.equal(b.buffer, a));
 
 		b.placeGapStart(1);
@@ -132,7 +149,10 @@ class GapBuffer(T = dchar)
 		// functionallity
 		size_t deltaSize = size - gapSize;
 		buffer.length = buffer.length + deltaSize; // make roomfd
-		copy(retro(buffer[gapEnd..$-deltaSize]), retro(buffer[gapEnd+deltaSize..$]));
+		static if (T.sizeof == 1)
+            copy(retro(cast(ubyte[])(buffer)[gapEnd..$-deltaSize]), retro(cast(ubyte[])(buffer)[gapEnd+deltaSize..$]));
+        else
+            copy(retro(buffer[gapEnd..$-deltaSize]), retro(buffer[gapEnd+deltaSize..$]));
 		gapEnd += deltaSize;
 	}
 
@@ -227,7 +247,11 @@ class GapBuffer(T = dchar)
 
 			this(const(GapBuffer!T) gbuf, size_t f, size_t t) pure nothrow
 			{
-				assert(t <= gbuf.length, text(t, " <= ", gbuf.length));
+                //if (t > gbuf.length)
+                //{
+                //    f = t;
+                //}
+                assert(t <= gbuf.length, text(t, " <= ", gbuf.length));
 				assert(f <= t);
 				this.gbuf = gbuf;
 				this.from = f;
@@ -264,6 +288,11 @@ class GapBuffer(T = dchar)
 				from++;
 			}
 
+            void popFrontN(int n)
+            {
+                from += n;
+            }
+
 			@property T back()
 			{
 				return gbuf[to - 1];
@@ -273,6 +302,11 @@ class GapBuffer(T = dchar)
 			{
 				to--;
 			}
+
+            Range save() const pure nothrow
+            {
+                return this;
+            }
 
 			T opIndex(size_t index) const pure
 			{
@@ -284,7 +318,7 @@ class GapBuffer(T = dchar)
 				return Range(gbuf, from + _from, from + _to);
 			}
 		}
-		enforceEx!Exception(from <= to, text("From index > to index ", from, " ", to));
+        enforceEx!Exception(from <= to, text("From index > to index ", from, " ", to));
 		auto r = Range(this, from, to);
 		return r;
 	}
@@ -475,7 +509,7 @@ class LineBuffer(T, Text) : GapBuffer!int
 		static class SignalRecorder
 		{
 			string result;
-			LineBuffer!(dchar,dstring) lb;
+			LineBuffer!(char,string) lb;
 			void onLineModified(int lineNum)
 			{
 				result ~= "m" ~ text(lineNum);
@@ -494,8 +528,8 @@ class LineBuffer(T, Text) : GapBuffer!int
 
 		static auto createTestRunner(string baseString)
 		{
-			auto bs = dtext(baseString);
-			auto lb = new LineBuffer!(dchar,dstring)(bs, 40);
+			auto bs = text(baseString);
+			auto lb = new LineBuffer!(char,string)(bs, 40);
 			lb.textInserted(bs, 0);
 			auto rec = new SignalRecorder();
 			rec.lb = lb;
@@ -520,7 +554,7 @@ line3)";
 		line3
 		*/
 		auto tr = createTestRunner("");
-		tr.lb.textInserted(dtext(base), 0);
+		tr.lb.textInserted(text(base), 0);
 		Assert(tr.result, "m0i1:2", "LineBuffer initial lines");
 
 		/*
@@ -529,7 +563,7 @@ line3)";
 		line3
 		*/
 		tr = createTestRunner(base);
-		tr.lb.textInserted("insert"d, 0);
+		tr.lb.textInserted("insert", 0);
 		Assert(tr.result, "m0", "LineBuffer insert at front");
 
 		/*
@@ -538,7 +572,7 @@ line3)";
 		line3
 		*/
 		tr = createTestRunner(base);
-		tr.lb.textInserted("insert"d, 2);
+		tr.lb.textInserted("insert", 2);
 		Assert(tr.result, "m0", "LineBuffer insert at front + 2 chars");
 
 		/*
@@ -547,7 +581,7 @@ line3)";
 		line3
 		*/
 		tr = createTestRunner(base);
-		tr.lb.textInserted("insert"d, 5);
+		tr.lb.textInserted("insert", 5);
 		Assert(tr.result, "m0", "LineBuffer insert at first eol");
 
 		/*
@@ -557,7 +591,7 @@ line3)";
 		line3
 		*/
 		tr = createTestRunner(base);
-		tr.lb.textInserted("\n"d, 0);
+		tr.lb.textInserted("\n", 0);
 		Assert(tr.result, "i0:1", "LineBuffer insert blank newline at front");
 
 		/*
@@ -567,11 +601,11 @@ line3)";
 		line3
 		*/
 		tr = createTestRunner(base);
-		tr.lb.textInserted("\ninsert"d, 5);
+		tr.lb.textInserted("\ninsert", 5);
 		Assert(tr.result, "i1:1", "LineBuffer insert newline at end and then insert");
 
 		tr = createTestRunner(base);
-		tr.lb.textInserted("insert\n"d, 6);
+		tr.lb.textInserted("insert\n", 6);
 		Assert(tr.result, "m1i2:1", "LineBuffer insert at start of line 1 and then newline");
 
 		/*
@@ -581,7 +615,7 @@ line3)";
 		line3
 		*/
 		tr = createTestRunner(base);
-		tr.lb.textInserted("insert\n"d, 0);
+		tr.lb.textInserted("insert\n", 0);
 		Assert(tr.result, "m0i1:1", "LineBuffer insert at start of line 0 and then newline");
 
 		/*
@@ -591,7 +625,7 @@ line3)";
 		line3
 		*/
 		tr = createTestRunner(base);
-		tr.lb.textInserted("ins\nert"d, 0);
+		tr.lb.textInserted("ins\nert", 0);
 		Assert(tr.result, "m0i1:1", "LineBuffer insert 'ins\\nert' at start of line 0");
 
 		/*
@@ -601,7 +635,7 @@ line3)";
 		line3
 		*/
 		tr = createTestRunner(base);
-		tr.lb.textInserted("ins\nert"d, 2);
+		tr.lb.textInserted("ins\nert", 2);
 		Assert(tr.result, "m0i1:1", "LineBuffer insert 'ins\\nert' at mid of line 0");
 
 		/*
@@ -611,7 +645,7 @@ line3)";
 		ne3
 		*/
 		tr = createTestRunner(base);
-		tr.lb.textInserted("insert\n"d, 14);
+		tr.lb.textInserted("insert\n", 14);
 		Assert(tr.result, "m2i3:1", "LineBuffer insert 'insert\\n' at mid of line 2");
 
 		/*
@@ -620,7 +654,7 @@ line3)";
 		line3insert
 		*/
 		tr = createTestRunner(base);
-		tr.lb.textInserted("insert"d, 17);
+		tr.lb.textInserted("insert", 17);
 		Assert(tr.result, "m2", "LineBuffer insert 'insert' at end of buffer");
 
 		/*
@@ -630,7 +664,7 @@ line3)";
 		test
 		*/
 		tr = createTestRunner(base);
-		tr.lb.textInserted("insert\ntest"d, 17);
+		tr.lb.textInserted("insert\ntest", 17);
 		Assert(tr.result, "m2i3:1", "LineBuffer insert 'insert\\ntest' at end of buffer");
 	}
 
@@ -778,7 +812,7 @@ enum TextBufferAnchorType : byte
 	line,
 }
 
-interface TextBufferAnchorOwner
+interface ITextBufferAnchorOwner
 {
 }
 
@@ -790,7 +824,7 @@ struct TextBufferAnchor
 	TextBufferAnchorType type;
 	int id;
 	int number; // zero indexed
-	TextBufferAnchorOwner owner;
+	ITextBufferAnchorOwner owner;
 }
 
 class TextBuffer
@@ -798,7 +832,7 @@ class TextBuffer
 	private int _id;
     private static int _nextID = 1;
 
-    alias dchar CharType;
+    alias char CharType;
 	GapBuffer!CharType gbuffer;
 
 	Variant[string] userData;
@@ -814,6 +848,9 @@ class TextBuffer
 	mixin Signal!(TextBuffer, TextBufferAnchor) onAnchorAdded;
 
 	mixin Signal!(TextBuffer, TextBufferAnchor) onAnchorRemoved;
+
+    // onInsert.emit(buffer, index, count, inserted == true | deleted == false)
+    mixin Signal!(TextBuffer, int, int, bool) onChanged;
 
 final:
 
@@ -849,7 +886,7 @@ final:
 		return gbuffer.buffer[gbuffer.gapEnd..$];
 	}
 
-	@property const(dchar)[] lastLine() const
+	@property const(CharType)[] lastLine() const
 	{
             return gbuffer.toArray(offsetToBeginningOfLine(length), length);
 	}
@@ -917,16 +954,31 @@ final:
 
 	int prev(int index, bool clamp = true) const
 	{
-            int len = gbuffer.length;
+        import std.utf;
+
+        int len = gbuffer.length;
         assert(index <= len);
 		if (index > len)
             return clamp ? len : InvalidIndex;
-
-        index--;
-		if (index < 0)
+        else if (index == 0)
             return clamp ? 0 : InvalidIndex;
 
-		dchar c = gbuffer[index];
+        // index--;
+        import std.traits;
+        try
+        {
+		    index -= strideBack(gbuffer[0..index]);
+        }
+        catch (UTFException e)
+        {
+            index = index;
+            throw e;
+        }
+
+        if (index < 0)
+            return clamp ? 0 : InvalidIndex;
+
+		CharType c = gbuffer[index];
 
 		// Magic to handle \r\n newlines
 		// If we landed on a \n and a \r is preceeding the do one more
@@ -934,24 +986,33 @@ final:
         // probably on a \n
 		if (index > 0 &&
 			( (c == '\n' && gbuffer[index-1] == '\r') || c == '\r') )
-			index--; // \r\n. eat both
+			index -= strideBack(gbuffer[0..index]); // \r\n. eat both
 		return index;
 	}
 
 	int next(int index, bool clamp = true) const
 	{
+        import std.utf;
         assert(index >= 0);
 		if (index < 0)
             return clamp ? 0 : InvalidIndex;
 
-		if (index >= gbuffer.length)
-                    return clamp ? gbuffer.length : InvalidIndex;
+        auto len = gbuffer.length;
+		if (index >= len)
+            return clamp ? len : InvalidIndex;
 
 		if (gbuffer[index] == '\r')
+        {
 			index++; // \r\n assumed. eat both. TODO: fix assumption
-		index++;
-		if (index > gbuffer.length)
-                    return clamp ? gbuffer.length : InvalidIndex;
+            if (index == len)
+                return len;
+        }
+
+		// index++;
+        index += stride(gbuffer[index..len]);
+
+        if (index > len)
+             return clamp ? len : InvalidIndex;
 		return index;
 	}
 
@@ -1045,7 +1106,7 @@ final:
 
 	unittest
 	{
-		auto b = new TextBuffer("Hello"d, 3);
+		auto b = new TextBuffer("Hello", 3);
 
 		Assert(0, b.offsetByUnit(0,0));
 		Assert(1, b.offsetByUnit(0,1));
@@ -1083,7 +1144,7 @@ final:
 
 	unittest
 	{
-		auto b = new TextBuffer("Hello world\r\nHow are you\r\ntoday\nwell"d, 3);
+		auto b = new TextBuffer("Hello world\r\nHow are you\r\ntoday\nwell", 3);
 
 		Assert(0, b.offsetByChar(0,0));
 		Assert(1, b.offsetByChar(0,1));
@@ -1240,7 +1301,7 @@ version (OFF)
 
 	unittest
 	{
-		auto b = new TextBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell"d, 3);
+		auto b = new TextBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell", 3);
 
 		Assert(7, b.offsetByWord(2,1));
 		Assert(0, b.offsetByWord(2,-1));
@@ -1295,7 +1356,7 @@ version (OFF)
 
 	unittest
 	{
-		auto b = new TextBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell\ndd\nfdsas"d, 3);
+		auto b = new TextBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell\ndd\nfdsas", 3);
 
 		Assert(14, b.offsetByLine(0,1));
 		Assert(27, b.offsetByLine(14,1));
@@ -1352,13 +1413,13 @@ version (OFF)
 
 	unittest
 	{
-		auto b = new TextBuffer("  Hello woerld\r\nHow are you\r\n\nwell\ndd\nfdsas"d, 3);
+		auto b = new TextBuffer("  Hello woerld\r\nHow are you\r\n\nwell\ndd\nfdsas", 3);
 		Assert(30, b.offsetVertically(0, 3));
 	}
 
 	//unittest
 	//{
-	//    auto b = new TextGapBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell\ndd\nfdsas"d, 3);
+	//    auto b = new TextGapBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell\ndd\nfdsas", 3);
 	//
 	//    Assert(3, b.offsetByLine(21,1));
 	//    Assert(34, b.offsetByLine(21,-1));
@@ -1398,7 +1459,7 @@ version (OFF)
 
 	//unittest
 	//{
-	//    auto b = new TextBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell"d, 3);
+	//    auto b = new TextBuffer("  Hello woerld\r\nHow are you\r\ntoday\nwell", 3);
 	//
 	//    Assert(2, b.offsetToWord(0, false));
 	//    Assert(6, b.offsetToWord(2, false));
@@ -1801,12 +1862,12 @@ version (OFF)
     auto findRegex(int index, const(char)[] re, const(char)[] flags = "")
     {
         import std.regex;
-        dstring dre = re.to!dstring;
-        auto _re = regex(dre, flags);
+
+        auto _re = regex(re, flags);
 
         static struct FindMatch
         {
-            typeof(RegexMatch!(dchar[])().front) captures;
+            typeof(RegexMatch!(char[])().front) captures;
 
             @property int a()
             {
@@ -1830,7 +1891,8 @@ version (OFF)
 
 	int find(int index, const(char)[] needle) const
 	{
-		size_t needleSize = needle.length;
+		// TODO: consider placing gap at 0 and find directly in gbuffer.buffer
+        size_t needleSize = needle.length;
 		size_t curEnd = needleSize + index;
 		size_t len = length;
 		assert(gbuffer.length >= index && curEnd <= gbuffer.length);
@@ -1991,13 +2053,13 @@ version (OFF)
 		return tuple(start, offsetToEndOfLine(start));
 	}
 
-	const(dchar)[] lineContaining(int index) const
+	const(CharType)[] lineContaining(int index) const
 	{
 		auto ends = lineEndsAt(index);
 		return gbuffer.toArray(ends[0], ends[1]);
 	}
 
-	const(dchar)[] lineString(int lineNumber) const
+	const(CharType)[] lineString(int lineNumber) const
 	{
 		return gbuffer.toArray(startAtLineNumber(lineNumber),
 							   endAtLineNumber(lineNumber));
@@ -2009,9 +2071,10 @@ version (OFF)
 
 	void insert(const(CharType)[] items, int index = InvalidIndex)
 	{
-            index = index == InvalidIndex ? gbuffer.editPoint : index;
+        index = index == InvalidIndex ? gbuffer.editPoint : index;
 		gbuffer.insert(items, index);
 		lbuffer.textInserted(items, index);
+        onChanged.emit(this, index, items.length, true);
 	}
 
 	unittest
@@ -2040,7 +2103,7 @@ version (OFF)
 			7, 3,
 		];
 
-		TextBuffer b1 = new TextBuffer(""d, 40);
+		TextBuffer b1 = new TextBuffer("", 40);
 		b1.lbuffer.onLinesInserted.connect(&ll.onLinesInserted);
 
 		Assert(b1.lbuffer.editPoint, 1, "Line editpoint is initially 1");
@@ -2076,7 +2139,7 @@ version (OFF)
 		Assert(b1.lbuffer.length, 10, "Line len is 10");
 
 
-		TextBuffer b = new TextBuffer(""d, 40);
+		TextBuffer b = new TextBuffer("", 40);
 		b.insert("one");
 		Assert(b.lbuffer.editPoint, 1, "Line editpoint is 0 after non-lf string");
 		// Assert(b.lbuffer[b.lbuffer.editPoint], 0, "Line editpoint value is 0 after non-lf string");
@@ -2091,9 +2154,11 @@ version (OFF)
 	{
 		enforceEx!Exception(index >= 0 && index <= length, text("Index out of bounds 0 <= ", index , " < ", length));
 
+        int removed = 0;
+
 		if (count > 0)
 		{
-			while (count--)
+            while (count--)
 			{
 				int idx = next(index);
 
@@ -2102,27 +2167,30 @@ version (OFF)
 					break;
 
 				lbuffer.textRemoved(index, index + diff);
+			    removed += diff;
 
 				while (diff--)
 					gbuffer.remove(index);
-			}
+            }
 		}
 		else if (count < 0)
 		{
-			while (count++)
+            while (count++)
 			{
 				int idx = prev(index);
 				int diff = index - idx;
 				if (diff == 0)
 					break;
 				index -= diff;
+                removed += diff;
 
 				lbuffer.textRemoved(index, index + diff);
 
 				while (diff--)
 					gbuffer.remove(index);
 			}
-		}
+        }
+        onChanged.emit(this, index, removed, false);
 	}
 
 	void removeRange(int start, int end)
@@ -2132,6 +2200,7 @@ version (OFF)
 		while (idx++ < end)
 			gbuffer.remove(start);
 		lbuffer.textRemoved(start, end);
+        onChanged.emit(this, start, end - start, false);
 	}
 
 	unittest
@@ -2156,7 +2225,7 @@ version (OFF)
 			2, 2,
 		];
 
-		TextBuffer b1 = new TextBuffer(""d, 40);
+		TextBuffer b1 = new TextBuffer("", 40);
 		b1.lbuffer.onLinesRemoved.connect(&ll.onLinesRemoved);
 
 		b1.insert("\nSecond line\nThird line\nFourth line\n");
@@ -2192,7 +2261,7 @@ version (OFF)
 	}
 
 	// TODO: Use more performant container for line info supporting quick lookups etc.
-	auto getLineAnchor(int lineNumber, TextBufferAnchorOwner owner = null)
+	auto getLineAnchor(int lineNumber, ITextBufferAnchorOwner owner = null)
 	{
 		bool ownerIsNull = owner is null;
 		foreach (ref info; _anchors)
@@ -2205,7 +2274,32 @@ version (OFF)
 		return TextBufferAnchor(TextBufferAnchorType.none, InvalidAnchorID);
 	}
 
-	auto createLineAnchor(int lineNumber, TextBufferAnchorOwner owner = null)
+    /*
+    auto getLineAnchors(Anchor)(ITextBufferAnchorOwner owner = null)
+    {
+		bool ownerIsNull = owner is null;
+		Anchor[] result;
+        foreach (ref info; _anchors)
+		{
+			if ((ownerIsNull || owner is info.owner) && cast(Anchor) !is null)
+				result ~= info;
+		}
+		return TextBufferAnchor(TextBufferAnchorType.none, InvalidAnchorID);
+    }
+    */
+
+    auto getLineAnchors(ITextBufferAnchorOwner owner)
+    {
+        TextBufferAnchor[] result;
+        foreach (ref info; _anchors)
+        {
+            if (owner is info.owner)
+                result ~= info;
+        }
+        return result;
+    }
+
+	auto createLineAnchor(int lineNumber, ITextBufferAnchorOwner owner = null)
 	{
 		auto id = TextBufferAnchor.nextID++;
 		auto a = TextBufferAnchor(TextBufferAnchorType.line, id, lineNumber, owner);
@@ -2214,7 +2308,7 @@ version (OFF)
 		return a;
 	}
 
-	auto ensureLineAnchor(int lineNumber, TextBufferAnchorOwner owner = null)
+	auto ensureLineAnchor(int lineNumber, ITextBufferAnchorOwner owner = null)
 	{
 		auto la = getLineAnchor(lineNumber, owner);
 		if (la.id != InvalidAnchorID)
@@ -2236,7 +2330,7 @@ version (OFF)
 		}
 	}
 
-	void removeLineAnchorByLine(int lineNumber, TextBufferAnchorOwner owner = null)
+	void removeLineAnchorByLine(int lineNumber, ITextBufferAnchorOwner owner = null)
 	{
 		bool ownerIsNull = owner is null;
         auto toDelete = appender!(size_t[]);
@@ -2254,7 +2348,7 @@ version (OFF)
          removeAnchorsByIndex(toDelete.data());
 	}
 
-	TextBufferAnchor[] getAnchorsForLines(int lineOffset, int visibleLineCount, TextBufferAnchorOwner owner = null)
+	TextBufferAnchor[] getAnchorsForLines(int lineOffset, int visibleLineCount, ITextBufferAnchorOwner owner = null)
 	{
 		bool ownerIsNull = owner is null;
         auto res = appender!(TextBufferAnchor[]);

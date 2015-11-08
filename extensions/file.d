@@ -110,11 +110,20 @@ void fileSave(BufferView buf, GUIApplication app)
 								 }
 								 );
 		if (p.success)
+        {
 			fileSaveAs(buf, app, p.answer);
+			if (buf.codeModel is null)
+            {
+				import core.language;
+				auto dinfo = manager().lookupByFileExtension(extension(buf.name));
+				if (dinfo !is null)
+					buf.codeModel = dinfo.createModel(buf);
+            }
+        }
 	}
 }
 
-void fileSaveAs(BufferView buf, GUIApplication app, string filename)
+void fileSaveAs(BufferView buf, Application app, string filename)
 {
     static import std.stdio;
 	// handle encoding

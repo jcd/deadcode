@@ -45,11 +45,11 @@ static
 
 		if (styler is null)
 			styler = new TextStyler();
+        }
 
 		static if ( is(Text : BufferView) )
 		{
-			text.onInsert.connect(&styler.textInsertedCallback);
-			text.onRemove.connect(&styler.textRemovedCallback);
+			text.onChanged.connect(&styler.textChangedCallback);
 		}
 		return styler;
 	}
@@ -118,20 +118,23 @@ class TextStyler
 //    }
 
 	// In case a bufferview is hooked up to this styling
-	protected void textInsertedCallback(BufferView b, BufferView.BufferString str,int from)
+	protected void textChangedCallback(BufferView b, int from, int count, bool addOrRemove)
 	{
+		if (addOrRemove)
+        {
+            // Inserts
 		// Update region set
-            _regionSet.entriesInserted(from, cast(int)str.length);
+           _regionSet.entriesInserted(from, count);
+
 		import std.stdio;
 		//writefln("Insert styler %s from %s", str.length, from);
-		scheduleRegion(Region(from, from + cast(int)str.length));
+		    scheduleRegion(Region(from, from + count));
 	}
-
-	// In case a bufferview is hooked up to this styling
-	protected void textRemovedCallback(BufferView b, BufferView.BufferString str,int from)
+        else
 	{
+            // Removes
 		// Update region set
-            _regionSet.entriesRemoved(from, cast(int)str.length);
+            _regionSet.entriesRemoved(from, count);
 
 		import std.stdio;
 		// writefln("Removed styler %s from %s", str.length, from);

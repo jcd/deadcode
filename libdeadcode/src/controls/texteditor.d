@@ -31,6 +31,19 @@ class TextEditor : Widget
 	BufferView bufferView;
 	BufferViewRenderer renderer;
 
+    @property
+    {
+        TextStyler textStyler()
+        {
+            return renderer is null ? null : renderer.textStyler;
+        }
+        void textStyler(TextStyler s)
+        {
+            if (renderer !is null)
+                renderer.textStyler = s;
+        }
+    }
+
     mixin Signal!() onChanged;
     mixin Signal!(Event, GlyphHit) onGlyphMouseUp;
 

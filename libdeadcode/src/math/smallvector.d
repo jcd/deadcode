@@ -351,7 +351,7 @@ nothrow:
                 bool res = true;
                 for (size_t i = 0; i < N; ++i)
                 {
-                    res = res || std.math.isIdentical(w[i], v[i]);
+                    res = res && std.math.isIdentical(w[i], v[i]);
                 }
                 return res;
             }

@@ -218,10 +218,11 @@ struct SymbolInfo
 class DCompletionExtension : Extension
 {
 	import std.stdio;
-	private
+    private
     {
 	    ushort _serverPort = 9166;
 	    Pid _serverPID;
+        File _logFile;
     }
 
 	@property
@@ -245,10 +246,10 @@ class DCompletionExtension : Extension
 
     override void init()
 	{
-        static import extensions.dub;
+        import extensions.dub;
         startServer();
         app.onResourceBaseLocationChanged.connect(&updateResourceBaseLocations);
-        extensions.dub.Package.instance.onActiveConfigurationChanged.connect(&packageUpdated);
+        getExtension!Dub.onActivePackageChanged.connect(&packageChanged);
     }
 
     override void fini()
@@ -267,7 +268,7 @@ class DCompletionExtension : Extension
         }
     }
 
-    private void packageUpdated(string oldPackageName, string newPackageName)
+    private void packageChanged(string oldPackageRoot, string newPackageRoot)
     {
         stopServer();
         startServer();
@@ -280,14 +281,14 @@ class DCompletionExtension : Extension
         try
         {
             // TODO: Fetch -I info from dub file
-            static import extensions.dub;
+            import extensions.dub : Dub;
 
             string[] cmdLine = [execPath];
 
             // TODO: lookup dmd dirs
             string[] sourcePaths = [ r"C:\D\dmd2\src\druntime", r"C:\D\dmd2\src\phobos" ];
 
-            sourcePaths ~= extensions.dub.Package.instance.resolveSourcePaths();
+            sourcePaths ~= getExtension!Dub.activePackage.resolveSourcePaths();
 
             foreach (p; sourcePaths)
             {
@@ -295,7 +296,12 @@ class DCompletionExtension : Extension
                 cmdLine ~= p;
             }
             import std.stdio;
-            _serverPID = spawnProcess(cmdLine, stdin, stdout, stderr, null, Config.suppressConsole);
+
+            string completionLogPath = app.resourceURI("dcd-server.log", ResourceBaseLocation.userDataDir).uriString();
+		    if (_logFile.isOpen())
+		        _logFile.close();
+			_logFile = File(completionLogPath, "w");
+            _serverPID = spawnProcess(cmdLine, stdin, _logFile, _logFile, null, Config.suppressConsole);
             app.addMessage("dcd spawned: %s", cmdLine);
         }
         catch (ProcessException e)
@@ -309,6 +315,9 @@ class DCompletionExtension : Extension
 
 	void stopServer()
 	{
+		if (_logFile.isOpen())
+	        _logFile.close();
+
 		if (_serverPID !is null)
         {
             auto r = tryWait(_serverPID);
@@ -496,7 +505,7 @@ private SymbolInfo[] updateCompletionPopup(Application app, BufferView bv, TextE
 {
 	import std.conv;
     string code = bv.getText().to!string;
-	SymbolInfo[] info = DCompletionExtension.instance.getCompletions(bv.cursorPoint, code);
+	SymbolInfo[] info = getExtension!DCompletionExtension.getCompletions(bv.cursorPoint, code);
 
     PopupList popup = app.getWidget!PopupList("dcompletionpopup");
 
@@ -549,6 +558,10 @@ void dComplete(Application app, BufferView bv, TextEditor editor)
 	auto info = updateCompletionPopup(app, bv, editor);
     PopupList w = cast(PopupList) app.getWidget("dcompletionpopup");
     w.unfocusWidgetID = fallbackFocus;
+
+    // Auto complete when only one completion available
+    if (info.length == 1)
+		dCompleteAccept(app, bv);
 }
 
 @Shortcut("<ctrl> + <shift> + <space>")
@@ -613,7 +626,7 @@ void dFindSymbol(BufferView bv, string name)
         name = bv.getText(r).to!string;
     }
 
-	DCompletionExtension.instance.findSymbol(name, "");
+	getExtension!DCompletionExtension.findSymbol(name, "");
 }
 
 @Shortcut("<f12>")
@@ -621,7 +634,7 @@ void dGotoDefinition(Application app, BufferView bv)
 {
 	import std.conv;
 	string code = bv.getText().to!string;
-	SymbolInfo info = DCompletionExtension.instance.findSymbolDefinition(bv.cursorPoint, code);
+	SymbolInfo info = getExtension!DCompletionExtension.findSymbolDefinition(bv.cursorPoint, code);
 
 	if (info.completion.length)
 	{

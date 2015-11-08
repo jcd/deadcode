@@ -364,7 +364,7 @@ unittest
 	// Test reversibility
 	BufferView v = new BufferView("01234\n67\n9ABCDEF\n");
 	v.copyBuffer = new CopyBuffer;
-	Action i1 = new InsertAction("XY"d);
+	Action i1 = new InsertAction("XY");
 
 	// ""01234\n67\n9ABCDEF\n""
 	v.preferredCursorColumn = 0;
@@ -922,49 +922,49 @@ unittest
 
 	// Testing insertion redo and undo
 	i1.redo(v);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	i1.undo(v);
-	Assert(v.buffer.toArray(), ""d	);
+	Assert(v.buffer.toArray(), ""	);
 
 	i1.redo(v);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	// Testing insertion redo and undo with offset
 	Action o1 = new CursorAction(TextBoundary.chr, -5);
 	o1.redo(v);
 	Action i2 = new InsertAction("foo");
 	i2.redo(v);
-	Assert(v.buffer.toArray(), "tefoosting"d);
+	Assert(v.buffer.toArray(), "tefoosting");
 
 	i2.undo(v);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	i2.redo(v);
-	Assert(v.buffer.toArray(), "tefoosting"d);
+	Assert(v.buffer.toArray(), "tefoosting");
 
 	// Testing remove redo/undo with positive length
 	Action o2 = new CursorAction(TextBoundary.chr, -3);
 	o2.redo(v);
 	Action r2 = new RemoveAction(TextBoundary.chr, 3);
 	r2.redo(v);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	r2.undo(v);
-	Assert(v.buffer.toArray(), "tefoosting"d);
+	Assert(v.buffer.toArray(), "tefoosting");
 
 	r2.redo(v);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	// Testing remove redo/undo with negative length
 	Action o3 = new CursorAction(TextBoundary.chr, 3);
 	o3.redo(v);
 	Action r3 = new RemoveAction(TextBoundary.chr, -1);
 	r3.redo(v);
-	Assert(v.buffer.toArray(), "testng"d);
+	Assert(v.buffer.toArray(), "testng");
 
 	r3.undo(v);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 }
 
 // VIM style undo tree
@@ -1609,7 +1609,7 @@ class ActionStack
 
 version(unittest)
 {
-	void insert(ActionStack st, BufferView bv, dstring txt)
+	void insert(ActionStack st, BufferView bv, string txt)
 	{
 		st.push!InsertAction(bv, txt);
 	}
@@ -1627,53 +1627,53 @@ unittest
 	v.copyBuffer = new CopyBuffer;
 	auto st = new ActionStack();
 
-	st.insert(v, "testing"d);
-	Assert(v.buffer.toArray(), "testing"d);
+	st.insert(v, "testing");
+	Assert(v.buffer.toArray(), "testing");
 
 	st.undo(v);
-	Assert(v.buffer.toArray(), ""d	);
+	Assert(v.buffer.toArray(), ""	);
 
 	st.redo(v);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	// Testing insertion redo and undo with offset
 	st.push!CursorAction(v, TextBoundary.chr, -5, false);
 	st.insert(v, "foo");
-	Assert(v.buffer.toArray(), "tefoosting"d);
+	Assert(v.buffer.toArray(), "tefoosting");
 
 	st.undo(v);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	st.redo(v);
-	Assert(v.buffer.toArray(), "tefoosting"d);
+	Assert(v.buffer.toArray(), "tefoosting");
 
 	// Testing remove redo/undo with positive length
 	st.push!CursorAction(v, TextBoundary.chr, -3, false);
 	st.remove(v, 3);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	st.undo(v);
-	Assert(v.buffer.toArray(), "tefoosting"d);
+	Assert(v.buffer.toArray(), "tefoosting");
 
 	st.redo(v);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	// Testing remove redo/undo with negative length
 	st.push!CursorAction(v, TextBoundary.chr, 3, false);
 	st.remove(v, -1);
-	Assert(v.buffer.toArray(), "testng"d);
+	Assert(v.buffer.toArray(), "testng");
 
 	st.undo(v);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	// Testing undo with after moveing cursor
 	st.push!CursorAction(v, TextBoundary.chr, -4, false);
 	st.remove(v, -1);
-	Assert(v.buffer.toArray(), "esting"d);
+	Assert(v.buffer.toArray(), "esting");
 
 	st.offset(v, 1);
 	st.undo(v);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 }
 
 // Testing viewbuffer undo stack
@@ -1681,51 +1681,51 @@ unittest
 {
 	auto v = new BufferView("");
 	v.copyBuffer = new CopyBuffer;
-	v.insert("testing"d);
-	Assert(v.buffer.toArray(), "testing"d);
+	v.insert("testing");
+	Assert(v.buffer.toArray(), "testing");
 
 	v.undo();
-	Assert(v.buffer.toArray(), ""d	);
+	Assert(v.buffer.toArray(), ""	);
 
 	v.redo();
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	// Testing insertion redo and undo with offset
 	v.cursorLeft(5);
 	v.insert("foo");
-	Assert(v.buffer.toArray(), "tefoosting"d);
+	Assert(v.buffer.toArray(), "tefoosting");
 
 	v.undo();
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	v.redo();
-	Assert(v.buffer.toArray(), "tefoosting"d);
+	Assert(v.buffer.toArray(), "tefoosting");
 
 	// Testing remove redo/undo with positive length
 	v.cursorLeft(3);
 	v.remove(3);
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	v.undo();
-	Assert(v.buffer.toArray(), "tefoosting"d);
+	Assert(v.buffer.toArray(), "tefoosting");
 
 	v.redo();
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	// Testing remove redo/undo with negative length
 	v.cursorRight(3);
 	v.remove(-1);
-	Assert(v.buffer.toArray(), "testng"d);
+	Assert(v.buffer.toArray(), "testng");
 
 	v.undo();
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 
 	// Testing undo with after moveing cursor
 	v.cursorLeft(4);
 	v.remove(-1);
-	Assert(v.buffer.toArray(), "esting"d);
+	Assert(v.buffer.toArray(), "esting");
 
 	v.cursorRight(3);
 	v.undo();
-	Assert(v.buffer.toArray(), "testing"d);
+	Assert(v.buffer.toArray(), "testing");
 }

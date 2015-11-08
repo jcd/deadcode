@@ -40,19 +40,12 @@ class CompletionListStyler : TextStyler
 	this(BufferView text)
 	{
 		super();
-		text.onInsert.connect(&textInsertedCallback);
-		text.onRemove.connect(&textRemovedCallback);
+		text.onChanged.connect(&textChangedCallback);
 	}
 
-	override protected void textInsertedCallback(BufferView b, BufferView.BufferString str, int from)
+	override protected void textChangedCallback(BufferView b, int from, int count, bool insertOrRemove)
 	{
-		super.textRemovedCallback(b, str, from);
-		reset();
-	}
-
-	override protected void textRemovedCallback(BufferView b, BufferView.BufferString str, int from)
-	{
-		super.textRemovedCallback(b, str, from);
+		super.textChangedCallback(b, from, count, insertOrRemove);
 		reset();
 	}
 
@@ -138,7 +131,8 @@ class CommandControl : Widget
 	Mode _mode = Mode.hidden;
 	void delegate(bool, string) _promptDelegate;
 	CompletionEntry[] delegate(string) _completionDelegate;
-	bool _promptCompletionsShown;
+	bool delegate(string) _validationDelegate;
+    bool _promptCompletionsShown;
 
 	//float expandDuration; //
 	// float contractDuration; //
@@ -231,8 +225,7 @@ class CommandControl : Widget
 		commandField = new TextField(bufView);
         commandField.parent = this;
 		commandField.h = 32;
-		commandField.bufferView.onInsert.connect(&handleBufferChanged);
-		commandField.bufferView.onRemove.connect(&handleBufferChanged);
+		commandField.bufferView.onChanged.connect(&handleBufferChanged);
 		commandField.name = "commandEntryField";
 		commandField.onCommandCallback = (Event event, Widget w) => onCommand(event);
 		commandField.onKeyDownCallback = (Event event, Widget w) => onKeyDown(event);
@@ -269,6 +262,7 @@ class CommandControl : Widget
 		_promptDelegate(success, result);
 		_promptDelegate = null;
 		_completionDelegate = null;
+		_validationDelegate = null;
 		_promptCompletionsShown = false;
 		questionLabel.text = "";
 	}
@@ -294,12 +288,19 @@ class CommandControl : Widget
 		else if (ev.keyCode == stringToKeyCode("return"))
 		{
 			if (_promptDelegate is null)
+            {
 				executeCommand();
+                hide(); // hide will end complete session and should go after command execution.
+            }
 			else
 			{
-				endPrompt(true, commandField.text.to!string);
+                auto str = commandField.text.to!string;
+                if (_validationDelegate is null || _validationDelegate(str))
+                {
+				    endPrompt(true, str);
+                    hide(); // hide will end complete session and should go after command execution.
+                }
 			}
-			hide(); // hide will end complete session and should go after command execution.
 		}
 		else if (ev.mod == 0 && isBufferCycleMode)
 		{
@@ -351,12 +352,17 @@ class CommandControl : Widget
             if (_promptDelegate is null)
 			{
 				executeCommand();
+                hide();
 			}
 			else
 			{
-				endPrompt(true, commandField.text.to!string);
+                auto str = commandField.text.to!string;
+                if (_validationDelegate is null || _validationDelegate(str))
+                {
+				    endPrompt(true, str);
+                    hide(); // hide will end complete session and should go after command execution.
+                }
 			}
-			hide();
 			return EventUsed.yes;
 		case "edit.complete":
 			if (_promptDelegate is null)
@@ -577,7 +583,7 @@ class CommandControl : Widget
         }
     }
 
-	void setPrompt(string question, string answer, void delegate(bool, string) dg, CompletionEntry[] delegate(string) getCompletionsDg = null)
+	void setPrompt(string question, string answer, void delegate(bool, string) dg, bool delegate(string) validationDg = null, CompletionEntry[] delegate(string) getCompletionsDg = null)
 	{
 		endCompletionSession();
         _completionsEnabled = false;
@@ -587,6 +593,7 @@ class CommandControl : Widget
 		commandField.bufferView.append(answer);
 		_promptDelegate = dg;
 		_completionDelegate = getCompletionsDg;
+        _validationDelegate = validationDg;
 		questionLabel.text = question ~ ":";
 		show(Mode.oneline);
 	}
@@ -652,16 +659,16 @@ class CommandControl : Widget
 
 	void displayStringList(string[] list)
 	{
-		dstring comps;
+		string comps;
 		size_t maxLen = reduce!( (a,b) => max(a, cast(int)b.length) )(0, list);
-		size_t cutLen = 40;
+		size_t cutLen = 55;
 
 		foreach (c; list)
 		{
 			if (maxLen > cutLen && cutLen < c.length)
-				comps ~= dtext("..." ~ c[$-cutLen..$] ~ " \n");
+				comps ~= text("...", c[$-cutLen..$], " \n");
 			else
-				comps ~= dtext(c ~ " \n");
+				comps ~= text(c, " \n");
 		}
 
 		//if (list.length == 1)
@@ -681,7 +688,7 @@ class CommandControl : Widget
 	}
 
 	//bool handleBufferChanged(BufferView b)
-	void handleBufferChanged(BufferView b, BufferView.BufferString, int)
+	void handleBufferChanged(BufferView b, int index, int count, bool addOrRemove)
 	{
 		if (_completionsEnabled)
 			showCompletions();
@@ -770,7 +777,7 @@ version(oldvw)
 		{
 			completionWidget.bufferView.clear();
 			commandField.bufferView.clear();
-			commandField.bufferView.insert(dtext(res.front ~ ' '));
+			commandField.bufferView.insert(text(res.front, ' '));
 		}
 	}
 
@@ -786,7 +793,7 @@ version(oldvw)
 			commandField.bufferView.remove(-cast(int)prefix.length);
 			//completionWidget.visible = true;
 			completionWidget.bufferView.clear();
-			commandField.bufferView.insert(dtext(res.front.label ~ ' '));
+			commandField.bufferView.insert(text(res.front.label, ' '));
 		}
 	}
 
@@ -812,7 +819,7 @@ version(oldvw)
 		if (!res.empty)
 		{
 			commandField.bufferView.clear();
-			commandField.bufferView.insert(dtext(res.front.label));
+			commandField.bufferView.insert(text(res.front.label));
 		}
 	}
 
@@ -863,7 +870,7 @@ version(NONE)
 		commandField.bufferView.remove(-prefix.length);
 		//completionWidget.visible = true;
 		completionWidget.bufferView.clear();
-		commandField.bufferView.insert(dtext(completionText));
+		commandField.bufferView.insert(text(completionText));
 }
 	}
 

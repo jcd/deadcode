@@ -30,21 +30,47 @@ static
 		return createTextStyler(text, text.name);
 	}
 
+	TextStyler hasTextStyler(Text)(BufferView bv)
+	{
+		TextStyler styler;
+        string name = bv.name;
+		foreach (s; s_Stylers)
+		{
+			if (s.canStyleFilename(name))
+                return true;
+		}
+        return false;
+    }
+
 	TextStyler createTextStyler(Text)(Text text, string name)
 	{
 		TextStyler styler;
 
-		foreach (s; s_Stylers)
-		{
-			if (s.canStyle(name))
-			{
-				styler = instantiate(s);
-				break;
-			}
-		}
+		if (text.codeModel !is null)
+        {
+            string languageName = text.codeModel.name;
+            foreach (s; s_Stylers)
+		    {
+                if (s.canStyleLanguageName(languageName))
+                {
+                    styler = instantiate(s);
+                }
+            }
+        }
 
-		if (styler is null)
-			styler = new TextStyler();
+        if (styler is null)
+        {
+		    foreach (s; s_Stylers)
+		    {
+			    if (s.canStyleFilename(name))
+			    {
+				    styler = instantiate(s);
+				    break;
+			    }
+		    }
+
+		    if (styler is null)
+			    styler = new TextStyler();
         }
 
 		static if ( is(Text : BufferView) )
@@ -97,10 +123,15 @@ class TextStyler
 
 		Returns: true if this styler can handle the file type
 	*/
-	bool canStyle(string name) const pure
+	bool canStyleFilename(string name) const pure
 	{
 		return true;
 	}
+
+    bool canStyleLanguageName(string name) const pure
+    {
+        return true;
+    }
 
 //    void initialize(Text text)
 //    {
@@ -123,37 +154,38 @@ class TextStyler
 		if (addOrRemove)
         {
             // Inserts
-		// Update region set
+            // Update region set
            _regionSet.entriesInserted(from, count);
 
-		import std.stdio;
-		//writefln("Insert styler %s from %s", str.length, from);
+            import std.stdio;
+		    //writefln("Insert styler %s from %s", str.length, from);
 		    scheduleRegion(Region(from, from + count));
-	}
+        }
         else
-	{
+        {
             // Removes
-		// Update region set
+            // Update region set
             _regionSet.entriesRemoved(from, count);
 
-		import std.stdio;
-		// writefln("Removed styler %s from %s", str.length, from);
+            import std.stdio;
+            // writefln("Removed styler %s from %s", str.length, from);
 
-		// Just dirty something on the same line
-		if (from > 0)
-		{
-			scheduleRegion(Region(from-1, from));
-		}
-		else if (b.length)
-		{
-			scheduleRegion(Region(0, 1));
-		}
-		else
-		{
-			// Empty buffer. We can clear the regions set and dirty area
-			_regionSet.clear();
-			_dirtyRegion.a = _dirtyRegion.b;
-		}
+            // Just dirty something on the same line
+            if (from > 0)
+            {
+                scheduleRegion(Region(from-1, from));
+            }
+            else if (b.length)
+            {
+                scheduleRegion(Region(0, 1));
+            }
+            else
+            {
+                // Empty buffer. We can clear the regions set and dirty area
+                _regionSet.clear();
+                _dirtyRegion.a = _dirtyRegion.b;
+            }
+        }
 	}
 
 	void scheduleRegion(Region r)
@@ -277,10 +309,15 @@ class StyleSheetStyler : TextStyler
 		type = 2
 	};
 
-	override bool canStyle(string name) const pure
+	override bool canStyleFilename(string name) const pure
 	{
 		return name.endsWith(".stylesheet");
 	}
+
+    override bool canStyleLanguageName(string name) const pure
+    {
+        return name == "CSS";
+    }
 
 	protected override void styleBufferViewRegion(Region r, BufferView text)
 	{
@@ -371,7 +408,7 @@ class ChangeLogStyler : TextStyler
 		bullet
 	};
 
-	override bool canStyle(string name) const pure
+	override bool canStyleFilename(string name) const pure
 	{
 		return name.toLower.startsWith("changelog");
 	}

@@ -25,30 +25,68 @@ import std.typecons;
 
 class ErrorListWidget : BasicWidget
 {
+	enum initializeMessage = "Console initialized";
+
 	static WidgetID widgetID;
 
 	private TextRenderer!BufferView textRenderer;
-	private BufferView messagesBuffer;
-
     private int currentIssueLine = int.min;
 	private int lines = 0;
 	private int preferredEmptyBottomLines = 1;
 
 	private enum MessageType : ubyte
 	{
-		messages = 1,
-		warnings = 2,
-		errors   = 4,
-		all = ubyte.max
+		message = 1,
+		warning = 2,
+		error   = 4,
+        test    = 8,
+        all = ubyte.max
 	}
 	private ubyte _shownMessageTypes = 6;
 
-	ToggleButton _messageToggle;
-	private int _messageCount = 0;
-	ToggleButton _errorToggle;
-	private int _errorCount = 0;
-	ToggleButton _warningToggle;
-	private int _warningCount = 0;
+	struct Message
+	{
+		MessageType type;
+		string message;
+		string file;
+		int line;
+		int column;
+		Object owner; // optional owner object
+        int ownerID;  // optional id set by the owner
+	}
+
+	private Message[] messages;
+
+	private struct ToggleInfo
+    {
+		ToggleButton toggle;
+		int messageCount;
+        string name;
+	    void updateToggleText()
+        {
+	        toggle.text = text(messageCount, " ", name);
+        }
+    }
+
+    private ToggleInfo[4] _toggles;
+
+    private ToggleInfo* getToggle(MessageType t)
+    {
+        switch (t)
+        {
+	        case MessageType.message:
+	            return &_toggles[0];
+	        case MessageType.warning:
+	            return &_toggles[1];
+	        case MessageType.error:
+	            return &_toggles[2];
+	        case MessageType.test:
+	            return &_toggles[3];
+	        default:
+	            return &_toggles[0];
+        }
+    }
+
 	private Widget _progressWidget;
 
 	private void enable(MessageType t)
@@ -92,68 +130,82 @@ class ErrorListWidget : BasicWidget
 
 	//override const(string[]) classes() const pure nothrow @safe { return null; }
 
-	void append(string msg)
+	void append(string msg, Object owner = null, int ownerID = -1)
 	{
 		import std.conv;
-		auto r = parseLine(msg.to!dstring);
-		messagesBuffer.insert(r.lineText);
-		adjustMessageTypeCounts(r);
-		appendVisible(r);
+		auto r = parseMessage(msg);
+        append(r);
+    }
+
+	void append(Message m)
+    {
+		messages ~= m;
+		ToggleInfo* t = getToggle(m.type);
+        t.messageCount++;
+        t.updateToggleText();
+		appendVisible(m);
 	}
 
-	private void adjustMessageTypeCounts(T)(T r)
-	{
-		final switch (r.type) with (MessageType)
-		{
-			case messages:
-				_messageToggle.text = text(++_messageCount, " messages");
-				break;
-			case warnings:
-				_warningToggle.text = text(++_warningCount, " warnings");
-				break;
-			case errors:
-				_errorToggle.text = text(++_errorCount, " errors");
-				break;
-			case all:
-				break;
-		}
-	}
+	void removeMessages(Object owner, int ownerID)
+    {
+		messages = messages.remove!(a => a.owner is owner && a.ownerID == ownerID);
+		rebuildMessages();
+    }
+
+	Message getMessageByLine(int line)
+    {
+		int visibleMessageIndex = 0;
+        foreach (ref Message m; messages)
+        {
+            if (m.type & _shownMessageTypes)
+            {
+				if (visibleMessageIndex == line)
+	                return m;
+                visibleMessageIndex++;
+            }
+        }
+
+        return Message.init;
+    }
 
 	private void appendVisible(T)(T r)
 	{
 		if (r.type & _shownMessageTypes)
         {
-			textRenderer.text.insert(r.lineText);
+			textRenderer.text.insert(r.message);
 		    lines++;
         }
 		if ((textRenderer.text.visibleLineCount - preferredEmptyBottomLines) < lines)
 			textRenderer.text.scrollDown();
 	}
 
-	private void rebuildMessages(bool adjustCounts = false)
+	private void rebuildMessages()
 	{
 		clearVisible();
-		auto lc = messagesBuffer.lineCount;
-		foreach (lineIdx; 0..lc)
-		{
-			auto txt = messagesBuffer.buffer.lineString(lineIdx);
-			auto r = parseLine(txt.idup);
-			if (adjustCounts)
-				adjustMessageTypeCounts(r);
-			appendVisible(r);
-		}
+		foreach (ref t; _toggles)
+			t.messageCount = 0;
+
+		foreach (ref Message message; messages)
+        {
+			getToggle(message.type).messageCount++;
+			appendVisible(message);
+        }
+
+		foreach (ref t; _toggles)
+	        t.updateToggleText();
 	}
 
 	void clear()
 	{
-		messagesBuffer.clear();
+		messages.length = 0;
 		clearVisible();
-		_messageCount = 0;
-		_messageToggle.text = text(_messageCount, " messages");
-		_warningCount = 0;
-		_warningToggle.text = text(_warningCount, " warnings");
-		_errorCount = 0;
-		_errorToggle.text = text(_errorCount, " errors");
+
+		foreach (ref t; _toggles)
+        {
+	        t.messageCount = 0;
+            t.updateToggleText();
+        }
+
 		import extensions.statuspanel;
 		auto p = cast(StatusPanel)getBasicWidget("statuspanel");
 		if (p is null)
@@ -178,7 +230,6 @@ class ErrorListWidget : BasicWidget
 		//features ~= n;
 
 		auto v = app.bufferViewManager.create();
-		messagesBuffer = app.bufferViewManager.create();
 
 		textRenderer = new TextRenderer!BufferView(v);
 		auto styler = new ErrorListStyler(v, this);
@@ -196,23 +247,41 @@ class ErrorListWidget : BasicWidget
 		_progressWidget.parent = box;
 		_progressWidget.visible = false;
 
-		auto b = new ToggleButton(text(0, " errors"));
-		b.name = "toggleErrors";
-		b.parent = box;
-		b.zOrder = 99;
-		_errorToggle = b;
-		b.onToggled.connect(&toggleErrors);
-		b = new ToggleButton(text(0, " warnings"));
+        ToggleButton setupToggle(string name, string postfixText, MessageType type, void delegate(ToggleButton b) toggleFunc)
+        {
+            auto b = new ToggleButton(text(0, " ", postfixText));
+            b.name = name;
+            b.zOrder = 99;
+            ToggleInfo* info = getToggle(type);
+            info.toggle = b;
+            info.name = postfixText;
+            b.onToggled.connect(toggleFunc);
+            return b;
+        }
+
+        setupToggle("toggleErrors", "errors", MessageType.error, &toggleErrors).parent = box;
+        setupToggle("toggleTests", "tests", MessageType.test, &toggleTests).parent = box;
+
+		auto b = new ToggleButton(text(0, " warnings"));
 		b.name = "toggleWarnings";
 		b.parent = box;
 		b.zOrder = 99;
-		_warningToggle = b;
+		with (getToggle(MessageType.warning))
+        {
+            toggle = b;
+            name = "warnings";
+        }
+
 		b.onToggled.connect(&toggleWarnings);
 		b = new ToggleButton(text(0, " messages"));
 		b.name = "toggleMessages";
 		b.parent = box;
 		b.zOrder = 99;
-		_messageToggle = b;
+		with (getToggle(MessageType.message))
+        {
+            toggle = b;
+            name = "messages";
+        }
 		b.onToggled.connect(&toggleMessages);
 
 		// textRenderer = content(this, v);
@@ -226,21 +295,26 @@ class ErrorListWidget : BasicWidget
 		// TODO: Remove line below to enable errorlist
 		//visible = false;
 		loadSession();
-		append("Console initialized");
+		append(initializeMessage);
 		v.centerOnLine(v.lineCount-3);
 	}
 
 	private void toggleErrors(ToggleButton b)
 	{
-		set(MessageType.errors, b.isOn);
+		set(MessageType.error, b.isOn);
 	}
 	private void toggleWarnings(ToggleButton b)
 	{
-		set(MessageType.warnings, b.isOn);
+		set(MessageType.warning, b.isOn);
 	}
 	private void toggleMessages(ToggleButton b)
 	{
-		set(MessageType.messages, b.isOn);
+		set(MessageType.message, b.isOn);
+	}
+
+	private void toggleTests(ToggleButton b)
+	{
+		set(MessageType.test, b.isOn);
 	}
 
 	override void fini()
@@ -250,32 +324,47 @@ class ErrorListWidget : BasicWidget
 
 	static class SessionData
 	{
-		string messages;
+		Message[] messages;
 		ubyte shownMessageTypes;
 	}
 
 	private void loadSession()
 	{
-		auto s = loadSessionData!SessionData();
+		import std.string;
+        auto s = loadSessionData!SessionData();
 		if (s !is null)
 		{
 			_shownMessageTypes = s.shownMessageTypes;
-			if (_shownMessageTypes & MessageType.messages)
-				_messageToggle.isOn = true;
-			if (_shownMessageTypes & MessageType.warnings)
-				_warningToggle.isOn = true;
-			if (_shownMessageTypes & MessageType.errors)
-				_errorToggle.isOn = true;
+			if (_shownMessageTypes & MessageType.message)
+				getToggle(MessageType.message).toggle.isOn = true;
+			if (_shownMessageTypes & MessageType.warning)
+				getToggle(MessageType.warning).toggle.isOn = true;
+			if (_shownMessageTypes & MessageType.error)
+				getToggle(MessageType.error).toggle.isOn = true;
+			if (_shownMessageTypes & MessageType.test)
+				getToggle(MessageType.test).toggle.isOn = true;
 
-			messagesBuffer.insert(s.messages.to!dstring);
-			rebuildMessages(true);
+			/*
+			// collapse initialize messages
+			messages.reserve(s.messages.length);
+            foreach (idx, m; s.messages)
+            {
+                if (m.message.chomp == initializeMessage && idx != 0 && s.messages[idx-1].message.chomp == initializeMessage)
+	                continue;
+                messages ~= m;
+            }
+
+            if (messages.length != 0 && messages[$-1].message.chomp == initializeMessage)
+                messages.length = messages.length - 1;
+			*/
+			rebuildMessages();
 		}
 	}
 
 	private void saveSession()
 	{
 		auto s = new SessionData();
-		s.messages = messagesBuffer.buffer.toArray().to!string;
+		//s.messages = messages;
 		s.shownMessageTypes = _shownMessageTypes;
 		saveSessionData(s);
 	}
@@ -315,26 +404,28 @@ class ErrorListWidget : BasicWidget
 		if (posInfo.isValid)
 		{
 			auto buf = textRenderer.text.buffer;
-			auto line = buf.lineContaining(posInfo.index);
-            auto info = parseLine(line);
+			auto line = buf.lineNumberAt(posInfo.index);
+			selectIssueHelper(line);
 
-            if (info.message !is null)
-			{
-                textRenderer.getOrCreateHighlighter("error-highlight").regions.clear();
-				BufferView bv = app.openFile(to!string(info.file));
-				if (bv !is null)
-				{
-					int errorStartOfLineIndex = bv.buffer.startAtLineNumber(info.line);
-					bv.cursorPoint = errorStartOfLineIndex + info.column;
-					bv.centerOnLine(info.line);
-                }
-                auto issueListBufferView = textRenderer.text;
-                issueListBufferView.dirty = true;
-                currentIssueLine = buf.lineNumberAt(posInfo.index);
-                auto ends = buf.lineEndsAt(posInfo.index);
-                if (ends[0] != InvalidIndex)
-                    textRenderer.getOrCreateHighlighter("error-highlight").regions.set(ends[0], ends[1]);
-			}
+//	         auto info = getMessageByLine(line);
+//
+//            if (info.file !is null)
+//			{
+//                textRenderer.getOrCreateHighlighter("error-highlight").regions.clear();
+//				BufferView bv = app.openFile(to!string(info.file));
+//				if (bv !is null)
+//				{
+//					int errorStartOfLineIndex = bv.buffer.startAtLineNumber(info.line);
+//					bv.cursorPoint = errorStartOfLineIndex + info.column;
+//					bv.centerOnLine(info.line);
+//                }
+//                auto issueListBufferView = textRenderer.text;
+//                issueListBufferView.dirty = true;
+//                currentIssueLine = buf.lineNumberAt(posInfo.index);
+//                auto ends = buf.lineEndsAt(posInfo.index);
+//                if (ends[0] != InvalidIndex)
+//                    textRenderer.getOrCreateHighlighter("error-highlight").regions.set(ends[0], ends[1]);
+//			}
 		}
 		return EventUsed.yes;
 	}
@@ -346,16 +437,17 @@ class ErrorListWidget : BasicWidget
         {
             checkIssueLine = (checkIssueLine + 1) % textRenderer.text.lineCount;
             if (selectIssueHelper(checkIssueLine))
-            {
-                currentIssueLine = checkIssueLine;
-                auto ends = textRenderer.text.buffer.lineEndsForLineNumber(currentIssueLine);
-                textRenderer.getOrCreateHighlighter("error-highlight").regions.clear();
-                if (ends[0] != InvalidIndex)
-                    textRenderer.getOrCreateHighlighter("error-highlight").regions.set(ends[0], ends[1]);
-                textRenderer.text.viewOnLinePaged(currentIssueLine);
-                textRenderer.text.dirty = true;
-                break;
-            }
+	            break;
+//            {
+//                currentIssueLine = checkIssueLine;
+//                auto ends = textRenderer.text.buffer.lineEndsForLineNumber(currentIssueLine);
+//                textRenderer.getOrCreateHighlighter("error-highlight").regions.clear();
+//                if (ends[0] != InvalidIndex)
+//                    textRenderer.getOrCreateHighlighter("error-highlight").regions.set(ends[0], ends[1]);
+//                textRenderer.text.viewOnLinePaged(currentIssueLine);
+//                textRenderer.text.dirty = true;
+//                break;
+//            }
         }
 
     }
@@ -371,34 +463,42 @@ class ErrorListWidget : BasicWidget
         {
             checkIssueLine = (textRenderer.text.lineCount + checkIssueLine - 1) % textRenderer.text.lineCount;
             if (selectIssueHelper(checkIssueLine))
-            {
-                currentIssueLine = checkIssueLine;
-                auto ends = textRenderer.text.buffer.lineEndsForLineNumber(currentIssueLine);
-                textRenderer.getOrCreateHighlighter("error-highlight").regions.clear();
-                if (ends[0] != InvalidIndex)
-                    textRenderer.getOrCreateHighlighter("error-highlight").regions.set(ends[0], ends[1]);
-                textRenderer.text.viewOnLinePaged(currentIssueLine);
-                textRenderer.text.dirty = true;
-                break;
-            }
+				break;
+//            {
+//                currentIssueLine = checkIssueLine;
+//                auto ends = textRenderer.text.buffer.lineEndsForLineNumber(currentIssueLine);
+//                textRenderer.getOrCreateHighlighter("error-highlight").regions.clear();
+//                if (ends[0] != InvalidIndex)
+//                    textRenderer.getOrCreateHighlighter("error-highlight").regions.set(ends[0], ends[1]);
+//                textRenderer.text.viewOnLinePaged(currentIssueLine);
+//                textRenderer.text.dirty = true;
+//                break;
+//            }
         }
     }
 
     private bool selectIssueHelper(int lineNum)
     {
-        auto buf = textRenderer.text.buffer;
-        auto line = buf.lineString(lineNum);
-        auto info = parseLine(line);
+        auto info = getMessageByLine(lineNum);
 
-        if (info.message !is null)
+        if (info.file !is null)
         {
             BufferView bv = app.openFile(to!string(info.file));
             if (bv !is null)
             {
                 int errorStartOfLineIndex = bv.buffer.startAtLineNumber(info.line);
                 bv.cursorPoint = errorStartOfLineIndex + info.column;
-                bv.centerOnLine(info.line);
+                bv.centerOnLine(info.line, true);
             }
+
+            currentIssueLine = lineNum;
+            auto ends = textRenderer.text.buffer.lineEndsForLineNumber(currentIssueLine);
+            textRenderer.getOrCreateHighlighter("error-highlight").regions.clear();
+            if (ends[0] != InvalidIndex)
+                textRenderer.getOrCreateHighlighter("error-highlight").regions.set(ends[0], ends[1]);
+            textRenderer.text.centerOnLine(currentIssueLine, true);
+            textRenderer.text.dirty = true;
+
             return true;
         }
         else
@@ -407,32 +507,22 @@ class ErrorListWidget : BasicWidget
         }
     }
 
-	private auto parseLine(const(dchar)[] str)
+	static auto parseMessage(const(char)[] str)
 	{
-		struct ParsedLine
-		{
-			dstring lineText;
-			MessageType type;
-			dstring message;
-			dstring file;
-			int line;
-			int column;
-		}
-
-		ParsedLine result = ParsedLine((str ~ "\n"d).idup, MessageType.messages);
+		Message result = Message(MessageType.message, (str ~ "\n").idup);
 
 		import std.regex;
 		auto ctr = regex(ErrorListStyler.errorLineRe, "mg");
-		auto m = matchFirst(result.lineText, ctr);
+		auto m = matchFirst(result.message, ctr);
 
 		if (!m.empty)
 		{
-			result.message = m.captures[3];
+			auto messageText = m.captures[3];
 			result.file = m.captures[1];
-			if (result.message.startsWith("Error:"))
-				result.type = MessageType.errors;
-			else if (result.message.startsWith("Warning:"))
-				result.type = MessageType.warnings;
+			if (messageText.startsWith("Error:"))
+				result.type = MessageType.error;
+			else if (messageText.startsWith("Warning:"))
+				result.type = MessageType.warning;
 
 			auto pos = m.captures[2][1..$-1];
 			auto sp = std.algorithm.findSplit(pos, ",");
@@ -464,7 +554,7 @@ class ErrorListWidget : BasicWidget
 }
 
 @Shortcut("<f8>")
-void issueNext(GUIApplication app)
+void issueNext(Application app)
 {
     ErrorListWidget w = cast(ErrorListWidget)app.getWidget("errorlist");
     if (w is null)
@@ -473,7 +563,7 @@ void issueNext(GUIApplication app)
 }
 
 @Shortcut("<shift> + <f8>")
-void issuePrevious(GUIApplication app)
+void issuePrevious(Application app)
 {
     ErrorListWidget w = cast(ErrorListWidget)app.getWidget("errorlist");
     if (w is null)
@@ -488,11 +578,12 @@ class ErrorListStyler : TextStyler
 		other = 0,
 		otherHighlighted = 1,
 		lineNumber = 2,
-		error = 3,
-		warning = 4,
+        fileName = 3,
+		error = 4,
+		warning = 5,
 	};
 
-	enum errorLineRe = r"(\S*?)(\([\d,]+\)): ((?:Error|Warning).*)"d;
+	enum errorLineRe = r"(\S*?)(\([\d,]+\)): ((?:Error|Warning)?.*)";
 
     private ErrorListWidget _errorListWidget;
 
@@ -500,8 +591,7 @@ class ErrorListStyler : TextStyler
 	{
 		super();
         _errorListWidget = w;
-		text.onInsert.connect(&textInsertedCallback);
-		text.onRemove.connect(&textRemovedCallback);
+		text.onChanged.connect(&textChangedCallback);
 	}
 
 	override protected void styleBufferViewRegion(Region r, BufferView text)
@@ -531,22 +621,36 @@ class ErrorListStyler : TextStyler
 			if (begin != lastEndIdx)
 				_regionSet.merge(offset + lastEndIdx, offset + begin, DStyle.other);
 
-			_regionSet.set(offset + begin, offset + end, DStyle.lineNumber);
+			_regionSet.set(offset + begin, offset + end, DStyle.fileName);
 
             int issueLineNumber = textBuf.lineNumberAt(offset + begin);
 
 			auto lineInFile = m.captures[2];
 			begin = end;
 			end = begin + cast(int)lineInFile.length;
-			_regionSet.set(offset + begin, offset + end, DStyle.error);
+			_regionSet.set(offset + begin, offset + end, DStyle.lineNumber);
 
 			auto message = m.captures[3];
-			begin = end + 1;
+			begin = end + 2; // ": ".length == 2
 			end = begin + cast(int)message.length;
 
             DStyle otherStyle = DStyle.other;
-            if (issueLineNumber == _errorListWidget.currentIssueLine)
-                otherStyle = DStyle.otherHighlighted;
+			auto msg = _errorListWidget.getMessageByLine(issueLineNumber);
+            switch (msg.type)
+            {
+                case ErrorListWidget.MessageType.message:
+	                otherStyle = DStyle.other;
+	                break;
+                case ErrorListWidget.MessageType.warning:
+	                otherStyle = DStyle.otherHighlighted;
+	                break;
+                case ErrorListWidget.MessageType.error:
+	                otherStyle = DStyle.otherHighlighted;
+	                break;
+				default:
+	                otherStyle = DStyle.other;
+	                break;
+			}
 
             _regionSet.set(offset + begin, offset + end, otherStyle);
 			lastEndIdx = end;
@@ -569,6 +673,8 @@ class ErrorListStyler : TextStyler
 				return "errorlist-other-highlighted";
 			case DStyle.lineNumber:
 				return "errorlist-line-number";
+			case DStyle.fileName:
+				return "errorlist-file-name";
 			case DStyle.error:
 				return "errorlist-error";
 			case DStyle.warning:

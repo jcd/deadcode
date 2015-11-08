@@ -118,6 +118,12 @@ version (Windows)
 		}
 		return null;
 	}
+    
+    string defaultExecExtension(string path)
+    {
+		return defaultExtension(path, ".exe");
+    }
+
 }
 version (linux)
 {
@@ -146,6 +152,11 @@ version (linux)
             std.file.write(u.uriString, value);
 	return value;    
 	}
+    
+    string defaultExecExtension(string path)
+    {
+		return path;
+    }    
 }
 
 

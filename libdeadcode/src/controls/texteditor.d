@@ -225,6 +225,13 @@ class TextEditor : Widget
 		glDisable(GL_SCISSOR_TEST);
 	}
 
+    override void layoutRecurse(bool fit, Widget positionReference)
+    {
+        foreach (w; visibleAnchorsChildWidgets)
+            w.recalcPosition();
+        super.layoutRecurse(fit, positionReference);
+    }
+
 	override EventUsed onMouseClick(Event event)
 	{
         setKeyboardFocusWidget();

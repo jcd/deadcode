@@ -271,7 +271,7 @@ void wordUppercase(Application app, string dummy)
 	{
 		auto txt = b.getText(r);
 		toUpperInPlace(txt);
-		b.replace(cast(dstring)txt, r);
+		b.replace(txt.idup, r);
 	}
 	b.cursorPoint = origPoint;
 }

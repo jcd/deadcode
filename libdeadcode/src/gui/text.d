@@ -152,33 +152,41 @@ class TextModel
 		bool skip = false;
 		bool isFull = false;
 		size_t charsUsed = 0;
-		for ( ; !str.empty; str.popFront())
+
+       // auto strRange = str[0..str.length];
+        size_t strideLen = 0;
+
+		for ( ; !str.empty; )
 		{
-			auto ch = str.front;
+		    import std.utf;
+
+            auto ch = str.decodeFront(strideLen);
 
 			// glyphPositions ~= Rectf(pos, Vec2f(0, font.fontLineSkip));
-			glyphPositions ~= Rectf(pos, Vec2f(0, inWorldRect.h));
-			charsUsed++;
+			charsUsed += strideLen;
 
 			if (ch == '\n')
 			{
 				isFull = true;
-				str.popFront();
+				//str.popFront();
 				auto g = font.lookupGlyph(' ');
 				float eolWidth = g.advance;
-				glyphPositions[$-1].w = eolWidth;
+				glyphPositions ~= Rectf(pos, Vec2f(eolWidth, inWorldRect.h));
 				break;
 			}
 
 			if (ch == '\r' || skip)
-				continue;
+            {
+				glyphPositions ~= Rectf(pos, Vec2f(0, inWorldRect.h));
+                continue;
+            }
 
 			if (ch == '\t')
 			{
 				auto g = font.lookupGlyph(' ');
 				float tabWidth = g.advance * 4;
+                glyphPositions ~= Rectf(pos, Vec2f(tabWidth, inWorldRect.h));
 				pos.x += tabWidth;
-				glyphPositions[$-1].w = tabWidth;
 				continue;
 			}
 
@@ -187,14 +195,15 @@ class TextModel
 				float spaceWidth = font.fontWidth;
 				auto g = font.lookupGlyph(ch);
 				float advance = g.advance;
+                glyphPositions ~= Rectf(pos, Vec2f(advance, inWorldRect.h));
 				pos.x += advance;
-				glyphPositions[$-1].w = advance;
 				continue;
 			}
 
 			if (pos.x >= inWorldRect.x2)
 			{
-				if (wordWrap)
+                glyphPositions ~= Rectf(pos, Vec2f(0, inWorldRect.h));
+                if (wordWrap)
 				{
 					isFull = true;
 					break;
@@ -220,7 +229,8 @@ class TextModel
 				// the fontmap at some point to get it. It not done automatically
 				// because we want to bundle fontmap regenerations for many chars at once.
 				missingGlyphInfo = true;
-				continue;
+                glyphPositions ~= Rectf(pos, Vec2f(0, inWorldRect.h));
+                continue;
 			}
 
 			assert(!std.math.isNaN(g.offsetRect.x));
@@ -304,9 +314,11 @@ class TextModel
 			uvbase += 12;
 
 			float advance = g.advance;
-			pos.x += advance;
-			glyphPositions[$-1].w = advance;
 
+            for (size_t codeUnit = 0; codeUnit < strideLen; ++codeUnit)
+                glyphPositions ~= Rectf(pos, Vec2f(advance, inWorldRect.h));
+
+			pos.x += advance;
 		}
 
 		verts.length = vbase;

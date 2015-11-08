@@ -55,7 +55,7 @@ class TextEditor : Widget
     // Binding access
     @property void value(string txt)
     {
-        bufferView.clear(txt.to!dstring);
+        bufferView.clear(txt);
     }
 
     // Binding access

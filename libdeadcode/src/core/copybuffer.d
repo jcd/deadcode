@@ -16,11 +16,11 @@ class CopyBuffer
 
 	static class Entry
 	{
-		this(dstring t)
+		this(string t)
 		{
 			txt = t;
 		}
-		dstring txt;
+		string txt;
 	}
 	Entry[] entries;
 
@@ -47,7 +47,7 @@ class CopyBuffer
 			    {
 				    return 1;
 			    }
-		        else if (entries[$-1].txt.to!string() == SDL_GetClipboardText().to!string())
+		        else if (entries[$-1].txt == SDL_GetClipboardText().to!string())
 			    {
 				    return entries.length;
 			    }
@@ -63,7 +63,7 @@ class CopyBuffer
         }
 	}
 
-	void add(dstring t)
+	void add(string t)
 	{
 		import std.string;
 		entries ~= new Entry(t);
@@ -72,7 +72,7 @@ class CopyBuffer
         }
         else
         {
-            SDL_SetClipboardText(to!string(t).toStringz());
+            SDL_SetClipboardText(t.toStringz());
         }
 	}
 
@@ -92,15 +92,15 @@ class CopyBuffer
 		    {
 			    if (entries.empty)
 			    {
-				    return new Entry(to!string(SDL_GetClipboardText()).to!dstring());
+				    return new Entry(to!string(SDL_GetClipboardText()));
 			    }
-			    else if (entries[$-1].txt.to!string() == SDL_GetClipboardText().to!string())
+			    else if (entries[$-1].txt == SDL_GetClipboardText().to!string())
 			    {
 				    return entries[$-offset-1];
 			    }
 			    else if (offset == 0)
 			    {
-				    return new Entry(to!string(SDL_GetClipboardText()).to!dstring);
+				    return new Entry(to!string(SDL_GetClipboardText()));
 			    }
 			    else
 			    {

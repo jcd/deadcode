@@ -26,13 +26,13 @@ struct SelectionRestorer
 @Shortcut("<tab>")
 void textIncreaseIndent(BufferView v)
 {
-	addTextPrefix(v, "\t"d);
+	addTextPrefix(v, "\t");
 }
 
 @Shortcut("<ctrl> + k <ctrl> + c")
 void textCommentSelection(BufferView v)
 {
-    addTextPrefix(v, "//"d);
+    addTextPrefix(v, "//");
 }
 
 @Shortcut("<alt> + ;")
@@ -44,12 +44,12 @@ void textCommentSelectionToggle(BufferView v)
     // TODO: also remove indented comment tokens ie. munch "\t " here.
 
 	if (l.startsWith("//"))
-		removeTextPrefix(v, "//"d);
+		removeTextPrefix(v, "//");
 	else
-		addTextPrefix(v, "//"d);
+		addTextPrefix(v, "//");
 }
 
-private void addTextPrefix(BufferView v, dstring text)
+private void addTextPrefix(BufferView v, string text)
 {
     auto r = v.getRegion(RegionQuery.selectionOrLine);
 
@@ -77,17 +77,17 @@ private void addTextPrefix(BufferView v, dstring text)
 @Shortcut("<shift> + <tab>")
 void textDecreaseIndent(BufferView v)
 {
-	removeTextPrefix(v, "\t"d);
+	removeTextPrefix(v, "\t");
 }
 
 @Shortcut("<ctrl> + k <ctrl> + u")
 void textUncommentSelection(BufferView v)
 {
     // TODO: also remove indented comment tokens
-	removeTextPrefix(v, "//"d);
+	removeTextPrefix(v, "//");
 }
 
-private void removeTextPrefix(BufferView v, dstring text)
+private void removeTextPrefix(BufferView v, string text)
 {
 	auto r = v.getRegion(RegionQuery.selectionOrLine);
 	if (r.empty)

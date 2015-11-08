@@ -45,7 +45,7 @@ class BasicCommands : Extension
 				    null,
 				    delegate(CommandParameter[] data) {
 		    mixin(getBufferOrReturn);
-		    auto dl = "Hello world I am fine right now"d;
+		    auto dl = "Hello world I am fine right now";
 		    b.clear(dl);
 	    });
 
@@ -210,7 +210,7 @@ class BasicCommands : Extension
 		    mixin(getBufferOrReturn);
 		    auto str = data[0].get!string();
 		    import std.conv;
-		    b.insert(to!dstring(str));
+		    b.insert(str);
 	    });
 
 

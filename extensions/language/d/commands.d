@@ -18,7 +18,7 @@ DCodeModel dCodeModel(BufferView bv)
 	DCodeModel m = dCodeModel(v);
 	if (m is null)
 		return;
-	v.insert(m.getSuggestedPath().to!dstring);
+	v.insert(m.getSuggestedPath());
 }
 
 void dCheckIfElse(TextEditor editor)
@@ -123,7 +123,7 @@ void dFormat(BufferView b)
 		import std.conv;
 		auto result = appender!string();
 	    extensions.language.d.dfmt.format(b.name, cast(ubyte[]) buf, result, &cfg);
-		b.replace(result.data.to!dstring, r);
+		b.replace(result.data, r);
 	}
 }
 
@@ -231,7 +231,7 @@ class DAutoFormat : Extension
 		bv.onInsert.connect(&textInserted);
 	}
 
-	private void textInserted(BufferView bv, dstring txt, int index)
+	private void textInserted(BufferView bv, string txt, int index)
 	{
 		import std.array;
 		import std.range;

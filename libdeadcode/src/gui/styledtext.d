@@ -282,12 +282,12 @@ class StyleSheetStyler : TextStyler
 	protected override void styleBufferViewRegion(Region r, BufferView text)
 	{
 		// TODO: use ctRegex
-		enum keys = [ "background"d, "color", "font", "padding", "transition", "position",
+		enum keys = [ "background", "color", "font", "padding", "transition", "position",
 					  "left", "right", "top", "bottom", "width", "height", "offset" ];
-		enum types = [ "#"d, "\\\\." ];
+		enum types = [ "#", "\\\\." ];
 
-		dstring re = "\\b(";
-		dstring delim = "";
+		string re = "\\b(";
+		string delim = "";
 		foreach (tt; keys)
 		{
 			re ~= delim;
@@ -304,7 +304,7 @@ class StyleSheetStyler : TextStyler
 		import std.regex;
 		auto ctr = regex(re, "mg");
 
-		int[dstring] templates;
+		int[string] templates;
 
 		foreach (d; keys)
 			templates[d] = StyleSheetStyle.styleKey;
@@ -373,7 +373,12 @@ class ChangeLogStyler : TextStyler
 		return name.toLower.startsWith("changelog");
 	}
 
-	private void setStyleByRegex(Text)(Region r, dstring re, Styling styling, Text text)
+    override bool canStyleLanguageName(string name) const pure
+    {
+        return false;
+    }
+
+	private void setStyleByRegex(Text)(Region r, string re, Styling styling, Text text)
 	{
 		import std.regex;
 		//auto ctr = regex(r"\s+([a-f0-9]+)\*?\s+ ", "mg");
@@ -397,10 +402,10 @@ class ChangeLogStyler : TextStyler
 	{
 		import std.stdio;
 		_regionSet.set(r.a, r.b, Styling.other);
-		setStyleByRegex(r, r"^()(Changes:|Overview:)\s*$"d, Styling.subTitle, text);
-		setStyleByRegex(r, r"^()(Release.*?\s+[\.0-9]+\s.*)$"d, Styling.releaseTitle, text);
-		setStyleByRegex(r, r"^(\s+)([0-9a-f]+)\s"d, Styling.changeset, text);
-		setStyleByRegex(r, r"(\s)(\*)\s"d, Styling.bullet, text);
+		setStyleByRegex(r, r"^()(Changes:|Overview:)\s*$", Styling.subTitle, text);
+		setStyleByRegex(r, r"^()(Release.*?\s+[\.0-9]+\s.*)$", Styling.releaseTitle, text);
+		setStyleByRegex(r, r"^(\s+)([0-9a-f]+)\s", Styling.changeset, text);
+		setStyleByRegex(r, r"(\s)(\*)\s", Styling.bullet, text);
 		onChanged.emit();
 	}
 

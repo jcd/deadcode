@@ -12,7 +12,7 @@ import std.range;
 import std.string;
 
 static this()
-{	
+{
 	register(new DSourceStyler());
 }
 
@@ -39,7 +39,7 @@ class DSourceStyler : TextStyler
     override bool canStyleLanguageName(string name) const pure
     {
         return name == "D";
-	}
+    }
 
 	//void XXstyleRegion(Text)(Region r, Text text)
 	override protected void styleBufferViewRegion(Region r, BufferView txt)
@@ -48,16 +48,16 @@ class DSourceStyler : TextStyler
 		import std.conv;
 		import extensions.language.d;
 		import std.d.lexer;
-		
+
 		if (!(r.b >= 0 && r.b <= txt.length))
 			return;
 		assert(r.a >= 0 && r.a <= txt.length);
 
 		assert(r.b >= 0 && r.b <= txt.length, format("%s >= 0 && %s <= %s", r.b, r.b, txt.length) );
 //		auto buf = array(txt[r.a..r.b]).to!string; // TODO: make request for adding string like support to std.regex
-		
+
 		_regionSet.clear();
-		 
+
 		// prefer using existing tokens in buffer and not re-lexing
 		int lastEnd = 0;
 		// if (auto d = txt.dCodeModel)
@@ -142,7 +142,7 @@ class DSourceStyler : TextStyler
 			else
 			{
 				set(t.index, t.text.length, DStyle.other);
-				
+
 				// In case of invalid token the text is empty
 				if (t.text.length)
 					lastEnd = t.index + t.text.length;
@@ -155,8 +155,8 @@ class DSourceStyler : TextStyler
 	void set(size_t a, size_t len, DStyle st)
 	{
 		// We can simply append since order it guaranteed
-            _regionSet ~= Region(cast(int)a, cast(int)(a + len), st); 
-	
+            _regionSet ~= Region(cast(int)a, cast(int)(a + len), st);
+
 		//_regionSet.set(a, a + len, st);
 		// _regionSet.merge(Region(a, a + len, st));
 	}
@@ -166,15 +166,15 @@ class DSourceStyler : TextStyler
 		import std.stdio;
 		writefln("styling %s %s", r.a, r.b);
 		// TODO: use ctRegex
-		enum decls = [ "@property"d, 
+		enum decls = [ "@property",
 		"alias", "auto", "assert", "break", "case", "class", "const", "default", "do", "else", "enum", "extern", "for", "foreach", "goto", "if", "import", "in", "interface", "is", "!is",
-		"module", "new", "nothrow", "null", "override", "package", "private", "public", "pure", "return", "safe", "scope", 
+		"module", "new", "nothrow", "null", "override", "package", "private", "public", "pure", "return", "safe", "scope",
 		"static", "struct", "switch", "template", "this", "union", "unittest", "version", "while" ];
-		enum types = [ "bool"d, 
-		"byte", "char", "dchar", "double", "dstring", "float", "int", "long", "short", "size_t", "string", "ubyte", "uint", "ulong", 
+		enum types = [ "bool",
+		"byte", "char", "dchar", "double", "dstring", "float", "int", "long", "short", "size_t", "string", "ubyte", "uint", "ulong",
 		"ushort", "void", "wchar", "wstring" ];
-		dstring re = "\\b(";
-		dstring delim = "";
+		string re = "\\b(";
+		string delim = "";
 		foreach (tt; decls)
 		{
 			re ~= delim;
@@ -188,10 +188,10 @@ class DSourceStyler : TextStyler
 		}
 		re ~= ")\\b";
 
-		import std.regex;		
+		import std.regex;
 		auto ctr = regex(re, "mg");
 
-		int[dstring] templates;
+		int[string] templates;
 
 		foreach (d; decls)
 			templates[d] = DStyle.other;
@@ -226,7 +226,7 @@ class DSourceStyler : TextStyler
 	override string styleIDToName(int id)
 	{
 		DStyle styleID = cast(DStyle)id;
-		
+
 		final switch(styleID)
 		{
 			case DStyle.other:

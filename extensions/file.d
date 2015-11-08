@@ -64,7 +64,7 @@ auto filesystemCompletions(string path)
 
 
 @InFiber()
-void fileSave(BufferView buf, GUIApplication app)
+void fileSave(BufferView buf, Application app)
 {
 	import std.algorithm;
 	import std.file;
@@ -136,7 +136,7 @@ void fileSaveAs(BufferView buf, Application app, string filename)
 }
 
 @InFiber()
-void fileOpen(GUIApplication app)
+void fileOpen(Application app)
 {
 	auto p = app.yieldPrompt("Open", app.resourceURI("./", ResourceBaseLocation.currentDir).uriString ~ "/",
 							 (string prefix) {

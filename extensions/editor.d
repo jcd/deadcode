@@ -17,7 +17,7 @@ string helpText = q"{ Help
 
 @MenuItem("Help")
 @Shortcut("<ctrl> + x <ctrl> + h")
-void help(GUIApplication app)
+void help(Application app)
 {
     enum helpBufferName = "*Help*";
     app.addMessage("Showing help");
@@ -30,7 +30,7 @@ void help(GUIApplication app)
 
 @MenuItem("Quit")
 @Shortcut("<ctrl> + x <ctrl> + c")
-void editorQuit(GUIApplication app)
+void editorQuit(Application app)
 {
 	app.quit();
 }
@@ -180,7 +180,7 @@ class EditorHideWidgetCommand : BasicCommand
 }
 
 @MenuItem("Tools/List Widgets...")
-void editorListWidgets(GUIApplication app, string widgetName)
+void editorListWidgets(Application app, string widgetName)
 {
 	if (auto w = app.getWidget(widgetName))
 	    w.visible = false;

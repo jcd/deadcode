@@ -1,6 +1,6 @@
 module app;
 
-import guiapplication;
+import application;
 import platform.system;
 
 mixin platformMain!myMain;
@@ -33,10 +33,10 @@ private int myMain(string[] args)
 	}
 	else
 	{
-		GUIApplication app;
+		Application app;
 		try
 		{
-			app = GUIApplication.create();
+			app = Application.create();
 			// Create a text buffer and add show it in the mainWidget
 			//auto fileName = "testmath.d";
 			//app.mainWidget.content = std.file.readText(fileName);

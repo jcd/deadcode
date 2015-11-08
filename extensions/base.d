@@ -12,7 +12,7 @@ public import core.thread;
 
 public import controls.button;
 public import controls.textfield;
-public import guiapplication;
+public import application;
 public import gui.control.scrollview;
 public import gui.widget;
 public import gui.window;
@@ -60,7 +60,7 @@ import std.typetuple;
 	Example:
 		@RegisterCommand!textUppercase
 		@Shortcut("<ctrl> + u")
-		void textUppercase(GUIApplication app, string dummy)
+		void textUppercase(Application app, string dummy)
 {
 			app.currentBuffer.map!(std.uni.toUpper)(RegionQuery.selectionOrWord);
 		}

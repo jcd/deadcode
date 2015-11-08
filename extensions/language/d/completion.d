@@ -491,7 +491,7 @@ class DCompletionExtension : BasicExtension!DCompletionExtension
 	}
 }
 
-private SymbolInfo[] updateCompletionPopup(GUIApplication app, BufferView bv, TextEditor editor)
+private SymbolInfo[] updateCompletionPopup(Application app, BufferView bv, TextEditor editor)
 {
 	import std.conv;
     string code = bv.getText().to!string;
@@ -542,7 +542,7 @@ private SymbolInfo[] updateCompletionPopup(GUIApplication app, BufferView bv, Te
 }
 
 @Shortcut("<ctrl> + <space>")
-void dComplete(GUIApplication app, BufferView bv, TextEditor editor)
+void dComplete(Application app, BufferView bv, TextEditor editor)
 {
     int fallbackFocus = app.activeWindow.getKeyboardFocusWidgetID();
 	auto info = updateCompletionPopup(app, bv, editor);
@@ -551,7 +551,7 @@ void dComplete(GUIApplication app, BufferView bv, TextEditor editor)
 }
 
 @Shortcut("<ctrl> + <shift> + <space>")
-void dCompleteAccept(GUIApplication app, BufferView bv)
+void dCompleteAccept(Application app, BufferView bv)
 {
     Widget w = app.getWidget("dcompletionpopup");
     bool popupVisible = w !is null && w.visible;
@@ -576,7 +576,7 @@ void dCompleteAccept(GUIApplication app, BufferView bv)
 	}
 }
 
-void dCompleteAbort(GUIApplication app)
+void dCompleteAbort(Application app)
 {
     Widget w = app.getWidget("dcompletionpopup");
     bool popupVisible = w !is null && w.visible;
@@ -589,7 +589,7 @@ void dCompleteAbort(GUIApplication app)
 }
 
 @Shortcut("<ctrl> + <alt> + <space>")
-void dCompleteCycling(GUIApplication app, int step)
+void dCompleteCycling(Application app, int step)
 {
     Widget w = app.getWidget("dcompletionpopup");
     bool popupVisible = w !is null && w.visible;
@@ -616,7 +616,7 @@ void dFindSymbol(BufferView bv, string name)
 }
 
 @Shortcut("<f12>")
-void dGotoDefinition(GUIApplication app, BufferView bv)
+void dGotoDefinition(Application app, BufferView bv)
 {
 	import std.conv;
 	string code = bv.getText().to!string;

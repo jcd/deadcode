@@ -93,16 +93,16 @@ class KeyBindingRuleEnv : RuleEnv
 			    return app.currentBuffer.name;
             case "focusWidgetName":
             {
-                import guiapplication;
-                auto a = cast(GUIApplication) app; // TODO: get rid of cast
+                import application;
+                auto a = cast(Application) app; // TODO: get rid of cast
                 if (auto w = a.activeWindow.getKeyboardFocusWidget())
                     return w.name;
                 break;
             }
             case "focusWidgetBranchNames":
             {
-                import guiapplication;
-                auto a = cast(GUIApplication) app; // TODO: get rid of cast
+                import application;
+                auto a = cast(Application) app; // TODO: get rid of cast
                 if (auto w = a.activeWindow.getKeyboardFocusWidget())
                 {
                     string names = w.name;

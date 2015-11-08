@@ -17,7 +17,7 @@ class DebugHighlightRenderer : NineGridRenderer
     }
 }
 
-void dbgHighlightWidget(GUIApplication app, WidgetID widgetID)
+void dbgHighlightWidget(Application app, WidgetID widgetID)
 {
     Widget w = app.activeWindow.getWidget(widgetID);
     if (w is null)
@@ -33,7 +33,7 @@ void dbgHighlightWidget(GUIApplication app, WidgetID widgetID)
     }
 }
 
-void dbgDumpWidgetHierarchy(GUIApplication app)
+void dbgDumpWidgetHierarchy(Application app)
 {
 	import std.conv;
 	import std.algorithm;

@@ -3,7 +3,7 @@ module extensions.config;
 import extensions;
 mixin registerCommands;
 
-void configReloadKeyBindings(GUIApplication app)
+void configReloadKeyBindings(Application app)
 {
 	app.loadKeyMappings();
 }

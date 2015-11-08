@@ -1,6 +1,6 @@
 module extensions.binding;
 
-import guiapplication;
+import application;
 import controls.textfield;
 import gui.layout.gridlayout;
 import gui.widget;
@@ -12,7 +12,7 @@ import std.traits;
 struct AutoControlInfo(Model)
 {
     string field;
-    Widget function(GUIApplication, Model) fp;
+    Widget function(Application, Model) fp;
 }
 
 enum IsAutoControl(alias D) = !is(D == int) && !is(D == void);
@@ -22,7 +22,7 @@ alias AutoControl(D, Model, string field) = void;
 //enum AutoControl(D : int) = IntField;
 //enum AutoControl(D : float) = FloatField;
 
-Widget createAndBindTextField(Model, string field)(GUIApplication app, Model m)
+Widget createAndBindTextField(Model, string field)(Application app, Model m)
 {
     auto ctrl = new TextField(app.createBuffer());
     m.bind!field(m, ctrl);
@@ -30,7 +30,7 @@ Widget createAndBindTextField(Model, string field)(GUIApplication app, Model m)
 };
 enum AutoControl(D : string, Model, string field) = AutoControlInfo!Model(field, &(createAndBindTextField!(Model, field)));
 
-Widget createAndBindIntField(Model, string field)(GUIApplication app, Model m)
+Widget createAndBindIntField(Model, string field)(Application app, Model m)
 {
     auto ctrl = new TextField(app.createBuffer());
     m.bind!field(m, ctrl);

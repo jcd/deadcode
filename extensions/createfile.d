@@ -5,13 +5,13 @@ mixin registerCommands;
 
 @MenuItem("New/Buffer")
 @Shortcut("<ctrl> + n")
-void newBuffer(GUIApplication app)
+void newBuffer(Application app)
 {
 	auto b = app.createBuffer();
 	app.showBuffer(b);
 }
 
-void newExtension(GUIApplication app)
+void newExtension(Application app)
 {
 	import core.language;
 	auto b = app.createBuffer();
@@ -39,7 +39,7 @@ void myextHello(BufferView v)
 	app.showBuffer(b);
 }
 
-void newWidget(GUIApplication app)
+void newWidget(Application app)
 {
 	import core.language;
 	auto b = app.createBuffer();

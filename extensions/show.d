@@ -13,7 +13,7 @@ private enum EOLType : ubyte
     ps,   // paragraph separator
 }
 
-void showEndOfLIne(GUIApplication a, TextEditor e, BufferView b)
+void showEndOfLIne(Application a, TextEditor e, BufferView b)
 {
     //import gui.event;
     //e.setLineAnchor(2, "myanchor")

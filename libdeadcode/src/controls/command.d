@@ -1,6 +1,6 @@
 module controls.command;
 
-import guiapplication;
+import application;
 import controls.texteditor;
 import controls.textfield;
 import core.bufferview;
@@ -150,7 +150,7 @@ class CommandControl : Widget
 
 	WidgetID resumeWidgetID; // FIX: Should use a focus stack or something since changing shown buffer from a command with completions will first focus the resumewidget and then the new buffer which is weird.... maybe?!?
 	string[string] commandMap;
-	GUIApplication app;
+	Application app;
 
     private
     {
@@ -199,7 +199,7 @@ class CommandControl : Widget
 
 	// Widget bottomWidget;
 
-	this(Widget parent, float _height, BufferView bufView, GUIApplication _app)
+	this(Widget parent, float _height, BufferView bufView, Application _app)
 	{
 		super(parent);
 		app = _app;

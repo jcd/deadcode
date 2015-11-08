@@ -5,11 +5,15 @@ import animation.interpolate;
 
 import core.buffer;
 import extensions;
-import guiapplication;
+import application;
 import controls.texteditor;
 import gui.event;
 import gui.window;
 import math.rect;
+
+
+import extensions;
+mixin registerCommands;
 
 import std.string;
 
@@ -77,16 +81,18 @@ class TestWidget : Widget
 class UnittestAnchor : TextEditorAnchor
 {
 	Timeline timeline;
+	Application app;
 
 	@property TextEditor textEditor()
 	{
 		return cast(TextEditor) parent;
 	}
 
-	this(Timeline timeline)
+	this(Timeline timeline, Application app)
 	{
 		super();
 		this.timeline = timeline;
+		this.app = app;
 	}
 
 	override EventUsed onMouseOver(Event ev)

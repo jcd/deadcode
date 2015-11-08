@@ -3,7 +3,7 @@ module extensions.proc;
 import extensions;
 mixin registerCommands;
 
-void procFilter(GUIApplication app, BufferView bv, string batchFile)
+void procFilter(Application app, BufferView bv, string batchFile)
 {
     import std.array;
     import std.process;
@@ -36,7 +36,7 @@ void procFilter(GUIApplication app, BufferView bv, string batchFile)
     }
 }
 
-void procRunCommands(GUIApplication app, BufferView bv, string cmdFile)
+void procRunCommands(Application app, BufferView bv, string cmdFile)
 {
     import std.array;
     import std.exception;

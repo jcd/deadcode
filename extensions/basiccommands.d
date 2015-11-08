@@ -2,12 +2,12 @@ module extensions.basiccommands;
 
 import extensions;
 
-import application;
+//import application;
 import core.buffer;
 import core.bufferview;
 import core.command;
 import core.commandparameter;
-import guiapplication;
+//import application;
 static import std.conv;
 
 // move imports into func when compiler does break on it
@@ -462,7 +462,7 @@ class BasicCommands : BasicExtension!BasicCommands
 	    //    if (i is null)
 	    //    {
 	    //        import controls.command;
-	    //        auto cc = app.guiRoot.activeWindow.userData.get!(GUIApplication.WindowData)().commandControl;
+	    //        auto cc = app.guiRoot.activeWindow.userData.get!(Application.WindowData)().commandControl;
 	    //        cc.setCommand("edit.cursorToLine ");
 	    //        cc.show(CommandControl.Mode.oneline);
 	    //    }

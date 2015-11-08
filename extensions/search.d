@@ -223,7 +223,7 @@ class SearchReverseCommand : SearchCommand
 //@MenuItem("Edit/Search2")
 @Shortcut("<ctrl> + j")
 @Shortcut("<alt> + j", "Lin")
-void search2(GUIApplication app, string needle)
+void search2(Application app, string needle)
 {
 	import std.string;
 	auto str = needle;
@@ -251,7 +251,7 @@ void search2(GUIApplication app, string needle)
 
 //@MenuItem("Edit/Uppercase")
 @Shortcut("<ctrl> + u")
-void wordUppercase(GUIApplication app, string dummy)
+void wordUppercase(Application app, string dummy)
 {
 	import std.uni;
 	auto b = app.currentBuffer;
@@ -278,7 +278,7 @@ void wordUppercase(GUIApplication app, string dummy)
 
 //@MenuItem("Text/Uppercase")
 @Shortcut("<ctrl> + o")
-void textUppercase(GUIApplication app, string dummy)
+void textUppercase(Application app, string dummy)
 {
     static import std.uni;
 	auto b = app.currentBuffer;

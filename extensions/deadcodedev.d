@@ -17,7 +17,7 @@ import util.semver;
 
 @MenuItem("New/Test")
 @InFiber
-void deadcodePing(GUIApplication app)
+void deadcodePing(Application app)
 {
     string reply = app.ping();
     app.addMessage(reply);
@@ -25,7 +25,7 @@ void deadcodePing(GUIApplication app)
 
 @MenuItem("New/Test2")
 @InFiber
-void deadcodeDownload(GUIApplication app, BufferView bv)
+void deadcodeDownload(Application app, BufferView bv)
 {
     import std.conv;
     string url = bv.getText(bv.getRegion(RegionQuery.selectionOrWord)).to!string;
@@ -40,7 +40,7 @@ private class DeadcodeDevConfig
 
 @MenuItem("Tools/Deadcode Dev Env")
 @InFiber
-void deadcodeSetupDevelopmentEnvironment(GUIApplication app)
+void deadcodeSetupDevelopmentEnvironment(Application app)
 {
     auto notice = app.getWidget!Notice("noticeDialog");
     notice.small = false;
@@ -61,7 +61,7 @@ void deadcodeSetupDevelopmentEnvironment(GUIApplication app)
     }
 }
 
-private bool hasConfiguredDevelopmentEnvironment(GUIApplication app)
+private bool hasConfiguredDevelopmentEnvironment(Application app)
 {
     // Look in user config for a path to deadcode dev dir
     auto s = app.getConfig!DeadcodeDevConfig("deadcodedev");
@@ -90,7 +90,7 @@ private bool hasConfiguredDevelopmentEnvironment(GUIApplication app)
     return false;
 }
 
-private bool isRunningInDevelopmentEnvironment(GUIApplication app)
+private bool isRunningInDevelopmentEnvironment(Application app)
 {
     // Look at current running Deadcode instance working dir to see if it is a Deadcode development dir
     string p = getRunningExecutablePath();
@@ -115,7 +115,7 @@ private bool isRunningInDevelopmentEnvironment(GUIApplication app)
     assert(0);
 }
 
-private string selectDevelopmentEnvironmentFolder(GUIApplication app, string startDir)
+private string selectDevelopmentEnvironmentFolder(Application app, string startDir)
 {
     // Prompt user for where to make a working directory
     string dir = app.showSelectFolderDialogBasic(startDir);
@@ -139,7 +139,7 @@ private string selectDevelopmentEnvironmentFolder(GUIApplication app, string sta
     assert(0);
 }
 
-private bool setupNewDeadcodeDevelopmentDir(GUIApplication app, string dir)
+private bool setupNewDeadcodeDevelopmentDir(Application app, string dir)
 {
     import std.stdio;
     import platform.system;
@@ -211,7 +211,7 @@ bool gitClone(string dir)
     return wait(res.pid) == 0;
 }
 
-bool installDMD(GUIApplication app)
+bool installDMD(Application app)
 {
     import std.file;
     import std.path;

@@ -132,7 +132,7 @@ StatusPanel {
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	color: #ff0000;
-	height: 50%;
+	height: 210px;
 	left: 0px;
 	transition: height 0.3s;
 }
@@ -215,13 +215,17 @@ TextEditorAnchor
 {
 	background-color: #0a272d;
 	background-sprite: 0 0 16 16; 
- 	background-sprite-border: 6 6 6 6;
+    background-sprite-border: 6 6 6 6;
+}
+
+AnalysisAnchor {
+	position: relative;
 }
 
 AnalysisAnchor > Label {
 	position: relative;
 	font : url(fonts/RobotoCondensed-Light.ttf) 14;
-	color: #ff0000;
+	color: #ffff00;
 	top: -3px;
 	left: 10px;
 }
@@ -247,13 +251,32 @@ EOLAnchor > Label {
 	background-color: #fa770d;
 }
 
+.unittest-result {
+	background-color: #770a0d;
+	background: url(materials/unittest-failed.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 0 0 0 0;
+	width: 14px;
+	height: 14px;
+}
+
+.build-result {
+	background-color: #77770d;
+	background: url(materials/unittest-failed.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 0 0 0 0;
+	width: 14px;
+	height: 14px;
+}
+
 UnittestAnchor {
-	background-color: #0a770d;
+	background-color: #002200;
 	background-sprite: 16 16 16 16;
+    background-sprite-border: 0 0 0 0;
 	background: url(materials/unittest-start.png);	
 	width: 18px;
 	height: 18px;
-	top: 1px;
+	top: 10px;
 	left: 2px;
 	transition-property: background-color;
 	transition-duration: 0.5s;
@@ -264,8 +287,8 @@ UnittestAnchor {
 
 UnittestAnchor:hover {
 	background-color: #00ff00;
-	width: 22px;
-	height: 22px;
+	width: 28px;
+	height: 28px;
 	left: 0px;
 	top: -1px;
 }
@@ -325,8 +348,8 @@ TextHighlighter {
 	background: url(materials/white-small-nine-border-patch.png);
 	color: #ffff00;
 	padding: 0 0 0 0;
-	background-sprite: 0 0 16 16;
-	background-sprite-border: 6 6 6 6;
+	background-sprite: 1 1 14 15;
+	background-sprite-border: 1 1 1 1;
 }
 
 .error-highflight {
@@ -360,8 +383,12 @@ Text {
 	color: #ff0000;
 }
 
-.errorlist-line-number {
+.errorlist-file-name {
 	color: #a0ffa0;
+}
+
+.errorlist-line-number {
+	color: #f8f8f2;
 }
 
 .errorlist-error {
@@ -592,7 +619,6 @@ TextEditor#commandCompletion {
 	color: #a8a8a2;
 	padding : 6 6 0 6;
 	background-color: #314447;
-
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
 	font : url(fonts/RobotoCondensed-Light.ttf) 19;
@@ -620,11 +646,11 @@ Tree#Menu {
 	background-sprite-border: 6 6 6 6;
 	padding : 5 20 10 0;
 	width: 160px;
-	height: 370px;
+	height: 100%;
 	right: 160px;
 	top: 24px;
 	offset: 0 0;
-	transition: width 0.1s, height 0.3s, background-color 0.3s;
+	transition: width 0.1s, height 0.1s, background-color 0.3s;
 }
 
 Tree#Menu.hidden {

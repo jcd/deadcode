@@ -103,12 +103,31 @@ class DCodeIntel : ICodeIntel
 		_fastVisitor = new FastDVisitor;
 	}
 
+    @property string languageName() const pure @safe nothrow
+    {
+        return "D";
+    }
+
+    bool detect(BufferView bv)
+    {
+        import std.path;
+        return extension(bv.name) == ".d" || !bv.find("^module ").empty;
+    }
+
 	ICodeModel createModel(BufferView v)
 	{
 		auto m = new DCodeModel(v, this);
 		updateAST(m);
 		return m;
 	}
+
+    bool IsSupportingFileExtension(string ext)
+    {
+		import std.algorithm;
+        import std.string;
+		enum exts = [ "d", "di" ];
+	    return exts.canFind(ext.chompPrefix("."));
+    }
 
 	void updateAST(DCodeModel m)
 	{
@@ -120,7 +139,7 @@ class DCodeIntel : ICodeIntel
 		static void logMessage(string fileName, size_t line, size_t column, string message, bool isError)
 		{
 			import std.stdio;
-			writefln("DCodeModel %s(%s,%s): %s", fileName, line, column, message);
+			//writefln("DCodeModel %s(%s,%s): %s", fileName, line, column, message);
 		}
 		string data = m._bufferView.getText().to!string;
 		m._tokens = getTokensForParser(cast(ubyte[])data, config, &_cache);

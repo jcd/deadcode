@@ -93,6 +93,22 @@ class BasicCommands : BasicExtension!BasicCommands
 			    ctrl.scrollUp();
 	    });
 
+	    cmgr.create("edit.scrollUp", "Scroll view up one line",
+				    null,
+				    delegate(CommandParameter[] data) {
+		    mixin(getBufferOrReturn);
+		    auto ctrl = b;
+		    ctrl.scrollUp(1);
+	    });
+
+	    cmgr.create("edit.scrollDown", "Scroll view down one line",
+				    null,
+				    delegate(CommandParameter[] data) {
+		    mixin(getBufferOrReturn);
+		    auto ctrl = b;
+		    ctrl.scrollDown(1);
+	    });
+
 	    cmgr.create("edit.cursorToCharBelow", "Move cursor to char after cursor",
 				    null,
 				    delegate(CommandParameter[] data) {

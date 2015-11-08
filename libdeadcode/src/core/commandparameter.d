@@ -132,6 +132,7 @@ class CommandParameterDefinitions
                 {
                     token = null;
                 }
+                munch(input, " \t");
             }
 
 			if (token.empty)
@@ -145,9 +146,6 @@ class CommandParameterDefinitions
 				}
 				break;
 			}
-
-
-
 		}
 		return allSet;
 	}

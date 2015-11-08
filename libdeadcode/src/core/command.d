@@ -315,7 +315,7 @@ class CommandManager
 		execute(cmd, c.arguments);
 	}
 
-	void execute(string cmdName, CommandParameter[] args)
+	void execute(string cmdName, CommandParameter[] args = null)
 	{
 		auto cmd = lookup(cmdName);
 		execute(cmd, args);

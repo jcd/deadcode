@@ -212,7 +212,7 @@ void dInsertScopeBegin(BufferView bv)
 
 
 version (OFF):
-class DAutoFormat : BasicExtension!DAutoFormat
+class DAutoFormat : Extension
 {
 	override @property string name() { return "unittests"; }
 

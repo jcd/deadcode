@@ -187,7 +187,7 @@ void editorListWidgets(Application app, string widgetName)
 }
 
 version(off):
-class EditorExtension : BasicExtension!EditorExtension
+class EditorExtension : Extension
 {
 
 }

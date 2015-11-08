@@ -37,7 +37,7 @@ class GCAllocAnchor : TextEditorAnchor
 	}
 }
 
-class GCTracker : BasicExtension!GCTracker, TextEditorAnchorOwner
+class GCTracker : Extension, ITextEditorAnchorOwner
 {
 	override @property string name() { return "gctracker"; }
 

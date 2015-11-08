@@ -215,8 +215,9 @@ struct SymbolInfo
 	int location;  // bytes into file
 }
 
-class DCompletionExtension : BasicExtension!DCompletionExtension
+class DCompletionExtension : Extension
 {
+	import std.stdio;
 	private
     {
 	    ushort _serverPort = 9166;

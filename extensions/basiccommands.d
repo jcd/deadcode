@@ -28,7 +28,10 @@ private string createCmd(string name, string desc)
 	return res;
 }
 
-class BasicCommands : BasicExtension!BasicCommands
+import extensions;
+alias a = RegisterExtension!BasicCommands;
+
+class BasicCommands : Extension
 {
     override @property string name() { return "base.commands"; }
 

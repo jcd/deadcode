@@ -1,5 +1,5 @@
 module extensions;
 
 public import extensions.base;
-public import extensions.attr;
+public import extensions.apitraits;
 public import extensions.binding;

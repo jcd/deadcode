@@ -202,6 +202,12 @@ class AsyncIO
         worker.run();
     }
 
+    void kill()
+    {
+        stopWorker();
+        _eventLoop.exit();
+    }
+
     void stopWorker()
     {
         _workerTid.send(true);

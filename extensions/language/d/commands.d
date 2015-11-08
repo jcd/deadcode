@@ -304,7 +304,7 @@ class DAutoFormat : Extension
 /**
 Tools and GUI for the builtin dlang unittests
 */
-class Analysis : BasicExtension!Analysis // , TextEditorAnchorOwner
+class Analysis : Extension // , ITextEditorAnchorOwner
 {
 	import core.buffer;
 	override @property string name() { return "D Language Analysis"; }

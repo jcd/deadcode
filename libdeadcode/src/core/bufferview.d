@@ -54,8 +54,7 @@ class RegionView
 		this.name = name;
         bufferView = bv;
 		region = r;
-		bufferView.onInsert.connect(&this.textInserted);
-		bufferView.onRemove.connect(&this.textRemoved);
+		bufferView.onChanged.connect(&this.textChanged);
 	}
 
     bool detach()
@@ -70,15 +69,13 @@ class RegionView
     //    return bufferView.getText(region);
     //}
 
-	private void textInserted(BufferView v, BufferView.BufferString text, int pos)
+	private void textChanged(BufferView v, int pos, int count, bool addOrRemove)
 	{
-            region.entriesInserted(pos, cast(int)text.length);
-	}
-
-	private void textRemoved(BufferView v, BufferView.BufferString text, int pos)
-	{
-            region.entriesRemoved(pos, cast(int)text.length);
-	}
+        if (addOrRemove)
+            region.entriesInserted(pos, count);
+        else
+            region.entriesRemoved(pos, count);
+    }
     /*
 
 	RegionView opAssign(dstring s)
@@ -89,7 +86,7 @@ class RegionView
 
 	RegionView opAssign(string s)
 	{
-		bufferView.replace(dtext(s), region);
+		bufferView.replace(text(s), region);
 		return this;
 	}
 
@@ -113,7 +110,7 @@ class RegionView
 
 	void doPut(string v)
 	{
-		bufferView.replace(dtext(v), region);
+		bufferView.replace(text(v), region);
 	}
 
 	void doPut(dstring v)
@@ -123,12 +120,12 @@ class RegionView
 
 	void doPut(dchar v)
 	{
-		bufferView.replace(dtext(v), region);
+		bufferView.replace(text(v), region);
 	}
 
 	void doPut(char v)
 	{
-		bufferView.replace(dtext(v), region);
+		bufferView.replace(text(v), region);
 	}
     */
 }
@@ -147,7 +144,6 @@ class RegionView
 class BufferView
 {
 	private int _id;
-	string name;
 	TextBuffer buffer;     // This should be changeable to something else if wanted
 	// private GapBuffer!int lineStarts; // Indexes into buffer for all line starts. Purely a optimization.
 
@@ -158,6 +154,7 @@ class BufferView
 
 	private
 	{
+        string _name;
 		int _preferredCursorColumn;
 		int _lineOffset;   // line offset into the buffer from where to draw.
 		int _bufferStartOffset; // Cached value of index of first char on line specified by lineOffset
@@ -177,7 +174,7 @@ class BufferView
 	alias immutable(TextBuffer.CharType)[] BufferString;
 	alias TextBuffer.CharType CharType;
 
-	ICodeModel codeModel;
+	ICodeModel _codeModel;
 	Variant[string] userData;
 
 	TextBufferAnchor[] visibleAnchors;
@@ -185,13 +182,14 @@ class BufferView
 	//
 	private bool _dirty;
 
-	// TODO: hese signals should really be forwarde from the underlaying buffer in order to
-	// get signal when other bufferviews alters the underlaying buffer!
-	// emit(this, text, insertedTextAfterThisIndex)
-	mixin Signal!(BufferView, BufferString, int) onInsert;
+    // emit(this, oldCodeModel)
+    mixin Signal!(BufferView, ICodeModel) onCodeModelChanged;
 
-	// emit(this, text, removedTextAfterThisIndex)
-	mixin Signal!(BufferView, BufferString, int) onRemove;
+    // emit(this, oldName)
+    mixin Signal!(BufferView, string) onRenamed;
+
+	// emit(this, afterThisIndex, count, true == insert | false == remove)
+	mixin Signal!(BufferView, int, int, bool) onChanged;
 
 	// emit(this, text, copiedTextAfterThisIndex)
 	mixin Signal!(BufferView, BufferString, int) onCopy;
@@ -202,8 +200,8 @@ class BufferView
 
 	// When the text changed since last load/save. The isModified flag can be false in case of undoing all changes
 	// since last save/load.
-	// emit(this, isModified);
-	mixin Signal!(BufferView, bool) bufferModified;
+	// emit(this);
+	mixin Signal!(BufferView) onBufferModified;
 
 	// emit(this, TextBufferAnchor[])
 	mixin Signal!(BufferView, TextBufferAnchor[]) onAnchorVisibilityChanged;
@@ -218,6 +216,18 @@ class BufferView
         int bufferID() const pure nothrow @safe
         {
             return buffer.id;
+        }
+
+        string name() const pure nothrow @safe
+        {
+            return _name;
+        }
+
+        void name(string n)
+        {
+            string oldName = _name;
+            _name = n;
+            onRenamed.emit(this, oldName);
         }
 
         string fileName() const pure nothrow @safe
@@ -236,6 +246,20 @@ class BufferView
 		{
 			buffer.isPersistant = p;
 		}
+
+        void codeModel(ICodeModel c)
+        {
+            if (_codeModel is c)
+                return;
+            auto old = _codeModel;
+            _codeModel = c;
+            onCodeModelChanged.emit(this, old);
+        }
+
+        ICodeModel codeModel()
+        {
+            return _codeModel;
+        }
 
 		void selection(Region r)
 		{
@@ -427,7 +451,7 @@ class BufferView
 		if (modified != v)
 		{
 			_modified = v;
-			bufferModified.emit(this, v);
+			onBufferModified.emit(this);
 		}
 	}
 
@@ -470,7 +494,7 @@ class BufferView
 	package this(string txt)
 	{
 		import std.conv;
-		this(new TextBuffer(to!dstring(txt), 10));
+		this(new TextBuffer(txt, 10));
 	}
 
 	package this(TextBuffer buffer)
@@ -483,6 +507,7 @@ class BufferView
 		// copyBuffer = new CopyBuffer;
 		buffer.onAnchorAdded.connect(&onAnchorAdded);
 		buffer.onAnchorRemoved.connect(&onAnchorRemoved);
+        buffer.onChanged.connect(&bufferChanged);
 	}
 
 	@property
@@ -652,11 +677,11 @@ class BufferView
 	bool isCursorFollowing(string s) const
     {
         if (cursorPoint >= s.length)
-            return getText(cast(int)(cursorPoint - s.length), cursorPoint) == s.to!dstring;
+            return getText(cast(int)(cursorPoint - s.length), cursorPoint) == s;
         return false;
     }
 
-	void replace(dstring txt, Region r)
+	void replace(string txt, Region r)
 	{
 		int restoreCursorPoint = cursorPoint;
 		int begin = r.a;
@@ -713,7 +738,8 @@ class BufferView
 
 	int lineCount() const
 	{
-            return buffer.lineNumberAt(buffer.length == 0 ? 0 : cast(int)buffer.length - 1);
+        // Verify the +1 part!
+        return buffer.lineNumberAt(buffer.length == 0 ? 0 : cast(int)buffer.length - 1) + 1;
 	}
 
 	// Note that using this may mess with the modified state reset in undo()!
@@ -760,10 +786,10 @@ class BufferView
 										  new RemoveAction(TextBoundary.unit, 0)); // remove 0 to remove selection
 	}
 
-	void clear(string dl)
-	{
-	    clear(dl.to!BufferString);
-    }
+    //void clear(string dl)
+    //{
+    //    clear(dl.to!BufferString);
+    //}
 
     void clear(immutable(TextBuffer.CharType)[] dl)
 	{
@@ -936,26 +962,27 @@ class BufferView
 
 	void insert(dchar item)
 	{
-		dchar[1] buf;
-		buf[0] = item;
-		insert(buf.idup);
+		// dchar[1] buf;
+		// buf[0] = item;
+		insert(item.to!string);
 	}
 
-	void insert(dstring txt)
+	void insert(string txt)
 	{
 		_undoStack.push!InsertAction(this, txt);
 	}
 
 	void insert(char item)
 	{
-		dchar[1] buf;
+		char[1] buf;
 		buf[0] = item;
 		insert(buf.idup);
 	}
 
 	void insert(const(char)[] txt)
 	{
-		insert(dtext(txt));
+        insert(txt.idup);
+		//insert(dtext(txt));
 	}
 
     void storeState()
@@ -968,7 +995,7 @@ class BufferView
 	//    insert(txt.to!dstring);
 	//}
 
-	void append(dstring items)
+	void append(string items)
 	{
 		cursorToEnd();
 		insert(items);
@@ -1195,7 +1222,12 @@ class BufferView
 		return buffer.createLineAnchor(lineNum);
 	}
 
-	private void onAnchorAdded(TextBuffer buf, TextBufferAnchor anchor)
+    private void bufferChanged(TextBuffer b, int index, int count, bool addOrRemove)
+    {
+        onChanged.emit(this, index, count, addOrRemove);
+    }
+
+    private void onAnchorAdded(TextBuffer buf, TextBufferAnchor anchor)
 	{
 		// TODO: if this becomes a performance problem the do not just dirty
 		dirty = true;
@@ -1249,10 +1281,18 @@ class BufferViewManager
 
 	mixin Signal!BufferView onBufferViewCreated;
 	mixin Signal!BufferView onBufferViewDestroyed;
-	mixin Signal!(BufferView,bool) bufferModified;
+
+    // Buffer changed modified state ie. once modified this signal is not
+    // call unless all changes are undone or the buffer is persisted.
+    mixin Signal!(BufferView) onBufferModified;
+
+    // (bufferView, index, count, insert == true | remove == false)
+    mixin Signal!(BufferView, int, int, bool) onBufferChanged;
 
 	// BufferView has beem renamed from the second parameter to BufferView.name
 	mixin Signal!(BufferView, string) onBufferViewRenamed;
+
+    mixin Signal!(BufferView, ICodeModel) onBufferViewCodeModelChanged;
 
 	this()
 	{
@@ -1300,11 +1340,15 @@ class BufferViewManager
 			name = uniqueName();
 		enforceEx!Exception(this[name] is null, text("A buffer with the name ", name, "already exists"));
 
-		b.bufferModified.connect(&onBufferModified);
 		b.copyBuffer = copyBuffer;
 		b.name = name;
 		b._id = _nextBufferViewID++;
 		buffers[b.id] = b;
+		b.onRenamed.connect(&bufferViewRenamed);
+        b.onCodeModelChanged.connect(&codeModelChanged);
+        b.onBufferModified.connect(&bufferModified);
+        b.onChanged.connect(&bufferChanged);
+
 		onBufferViewCreated.emit(b);
 	}
 
@@ -1319,10 +1363,10 @@ class BufferViewManager
 		auto f = std.stdio.File(path, "rb");
 		ulong size = f.size();
 		b.buffer.reserve(cast(size_t)size);
-		auto range = f.byLine!(dchar,char)(std.stdio.KeepTerminator.yes, '\n');
+		auto range = f.byLine(std.stdio.KeepTerminator.yes, '\n');
 		foreach (line; range)
 		{
-			b.buffer.insert(to!(dchar[])(line));
+			b.buffer.insert(line);
 		}
 		return b;
 	}
@@ -1383,9 +1427,24 @@ class BufferViewManager
 		}
 	}
 
-	private void onBufferModified(BufferView b, bool isModified)
+	private void bufferModified(BufferView b)
 	{
 		// propagate
-		bufferModified.emit(b, isModified);
+		onBufferModified.emit(b);
 	}
+
+    private void bufferChanged(BufferView b, int index, int count, bool addOrRemove)
+    {
+        onBufferChanged.emit(b, index, count, addOrRemove);
+    }
+
+    private void bufferViewRenamed(BufferView b, string oldName)
+    {
+        onBufferViewRenamed.emit(b, oldName);
+    }
+
+    private void codeModelChanged(BufferView b, ICodeModel m)
+    {
+        onBufferViewCodeModelChanged.emit(b, m);
+    }
 }

@@ -31,9 +31,14 @@ class DSourceStyler : TextStyler
 		identifier,
 	};
 
-	override bool canStyle(string name) const pure
+	override bool canStyleFilename(string name) const pure
 	{
-		return name.endsWith(".d") || name.endsWith(".di") || name.startsWith("Buffer ");
+		return name.endsWith(".d") || name.endsWith(".di");
+	}
+
+    override bool canStyleLanguageName(string name) const pure
+    {
+        return name == "D";
 	}
 
 	//void XXstyleRegion(Text)(Region r, Text text)

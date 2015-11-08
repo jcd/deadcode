@@ -79,8 +79,7 @@ class TextEditor : Widget
 		// this.alignTo(Anchor.BottomRight);
 		renderer = (this.content = buf);
 		bufferView = buf;
-		bufferView.onInsert.connect(&this.onTextInserted);
-		bufferView.onRemove.connect(&this.onTextRemoved);
+		bufferView.onChanged.connect(&this.onTextChanged);
 
 		// bufferView.onDirty.connect(&this.onBufferViewDirty);
 
@@ -398,19 +397,10 @@ class TextEditor : Widget
 
 	// TODO: move slots to bufferView
 	// Text inserted at pos and forward
-	private void onTextInserted(BufferView v, BufferView.BufferString text, int pos)
+	private void onTextChanged(BufferView v, int pos, int count, bool insertOrRemove)
 	{
 		//Region r = bufferView.selection;
 		//r.entriesInserted(pos, text.length);
-		//bufferView.selection = r;
-        onChanged.emit();
-	}
-
-	// Text remove from pos and forward
-	private void onTextRemoved(BufferView v, BufferView.BufferString text, int pos)
-	{
-		//Region r = bufferView.selection;
-		//r.entriesRemoved(pos, text.length);
 		//bufferView.selection = r;
         onChanged.emit();
 	}

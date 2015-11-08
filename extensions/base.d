@@ -9,6 +9,7 @@ public import core.bufferview;
 public import core.command;
 public import core.commandparameter;
 public import core.thread;
+public import core.log;
 
 public import controls.button;
 public import controls.textfield;
@@ -31,7 +32,7 @@ public import math.smallvector;
 
 public import std.variant;
 
-private static IBasicExtension[] g_Extensions;
+private static Extension[] g_Extensions;
 private static BasicCommand[] g_Commands;
 private static TypeInfo_Class[] g_Widgets;
 private static IBasicWidget[] g_BasicWidgets;
@@ -109,14 +110,15 @@ class FunctionCommand(alias Func) : BasicCommand
 	// TODO: parse Func params and set here
 	this()
 	{
-		alias p1 = Filter!(isNotType!GUIApplication, ParameterTypeTuple!Func);
+		alias p1 = Filter!(isNotType!Application, ParameterTypeTuple!Func);
 		alias p2 = Filter!(isNotType!TextEditor, p1);
 		alias p3 = Filter!(isNotType!BufferView, p2);
 		alias p4 = Filter!(isNotType!Fiber, p3);
-		alias p5 = staticMap!(getDefaultValue, p4);
+        alias p5 = Filter!(isNotType!Log, p4);
+		alias p6 = staticMap!(getDefaultValue, p5);
 
 		enum names = [ParameterIdentifierTuple!Func];
-		setCommandParameterDefinitions(createParams(names, p5));
+		setCommandParameterDefinitions(createParams(names, p6));
 	}
 
 	static if (hasAttribute!(Func,MenuItem))
@@ -152,14 +154,16 @@ class FunctionCommand(alias Func) : BasicCommand
 	{
 		enum count = Filter!(isType!BufferView, ParameterTypeTuple!Func).length +
 			Filter!(isType!TextEditor, ParameterTypeTuple!Func).length +
-			Filter!(isType!GUIApplication, ParameterTypeTuple!Func).length +
-			Filter!(isType!Fiber, ParameterTypeTuple!Func).length;
+			Filter!(isType!Application, ParameterTypeTuple!Func).length +
+			Filter!(isType!Fiber, ParameterTypeTuple!Func).length +
+            Filter!(isType!Log, ParameterTypeTuple!Func).length;
 
 		alias t1 = Replace!(BufferView, currentBuffer, ParameterTypeTuple!Func);
 		alias t2 = Replace!(TextEditor, currentTextEditor, t1);
-		alias t3 = Replace!(GUIApplication, app, t2);
+		alias t3 = Replace!(Application, app, t2);
 		alias t4 = Replace!(Fiber, Fiber.getThis, t3);
-		alias preparedArgs = t4[0..count];
+		alias t5 = Replace!(Log, app.log, t4);
+		alias preparedArgs = t5[0..count];
 
 		enum missingArgCount = ParameterTypeTuple!Func.length - count;
 		// pragma(msg, "CommandFunction args: ", fullyQualifiedName!Func, ParameterTypeTuple!Func, missingArgCount);
@@ -182,25 +186,25 @@ class FunctionCommand(alias Func) : BasicCommand
 		else static if (missingArgCount == 2)
 		{
 			assert(v.length >= 2);
-			alias a1 = ParameterTypeTuple!Func[$-1];
-			alias a2 = ParameterTypeTuple!Func[$-2];
+			alias a2 = ParameterTypeTuple!Func[$-1];
+			alias a1 = ParameterTypeTuple!Func[$-2];
 			Func(preparedArgs, v[0].get!a1, v[1].get!a2);
 		}
 		else static if (missingArgCount == 3)
 		{
 			assert(v.length >= 3);
-			alias a1 = ParameterTypeTuple!Func[$-1];
+			alias a3 = ParameterTypeTuple!Func[$-1];
 			alias a2 = ParameterTypeTuple!Func[$-2];
-			alias a3 = ParameterTypeTuple!Func[$-3];
+			alias a1 = ParameterTypeTuple!Func[$-3];
 			Func(preparedArgs, v[0].get!a1, v[1].get!a2, v[2].get!a3);
         }
         else static if (missingArgCount == 4)
         {
             assert(v.length >= 3);
-            alias a1 = ParameterTypeTuple!Func[$-1];
-            alias a2 = ParameterTypeTuple!Func[$-2];
-            alias a3 = ParameterTypeTuple!Func[$-3];
-            alias a4 = ParameterTypeTuple!Func[$-4];
+            alias a4 = ParameterTypeTuple!Func[$-1];
+            alias a3 = ParameterTypeTuple!Func[$-2];
+            alias a2 = ParameterTypeTuple!Func[$-3];
+            alias a1 = ParameterTypeTuple!Func[$-4];
             Func(preparedArgs, v[0].get!a1, v[1].get!a2, v[2].get!a3, v[2].get!a4);
         }
 		else
@@ -210,7 +214,17 @@ class FunctionCommand(alias Func) : BasicCommand
 	}
 }
 
-Exception[] init(GUIApplication app)
+
+struct RegisterExtension(alias T)
+{
+	alias Type = T;
+	static this()
+	{
+		g_Extensions ~= new T();
+	}
+}
+
+Exception[] init(Application app)
 {
 	import std.range;
 
@@ -224,7 +238,7 @@ Exception[] init(GUIApplication app)
     foreach (e; g_Extensions)
     {
 		try
-            e.makeInstance(); // will call init() and make it initialized
+            e.init(); // makeInstance(); // will call init() and make it initialized
         catch (Exception e)
             exceptions ~= e;
     }
@@ -282,7 +296,7 @@ Exception[] init(GUIApplication app)
     return exceptions;
 }
 
-void registerCommandKeyBindings(GUIApplication app)
+void registerCommandKeyBindings(Application app)
 {
 	foreach (c; g_Commands)
 	{
@@ -296,7 +310,7 @@ void registerCommandKeyBindings(GUIApplication app)
 	}
 }
 
-void fini(GUIApplication app)
+void fini(Application app)
 {
 	foreach (e; g_Extensions)
 	{
@@ -325,6 +339,19 @@ T getExtension(T)(string name)
 	return null;
 }
 
+T getExtension(T)()
+{
+	foreach (e; g_Extensions)
+	{
+		if (typeid(e).name == typeid(T).name)
+		{
+			T ce = cast(T) e;
+			return ce;
+		}
+	}
+	return null;
+}
+
 /// The preferred location of a widget
 struct PreferredLocation
 {
@@ -337,7 +364,7 @@ struct PreferredLocation
 */
 class IBasicWidget : Widget
 {
-	GUIApplication app;
+	Application app;
 	this() nothrow {}
 	abstract void init();
 	abstract void fini();
@@ -497,7 +524,7 @@ class BasicWidgetWrap(T) : T
 
 class BasicCommand : Command
 {
-	GUIApplication app;
+	Application app;
 
 	@property MenuItem menuItem() const pure nothrow @safe
 	{
@@ -562,11 +589,8 @@ class BasicCommand : Command
 	{
 		// no-op
 	}
-
-
-
-
 }
+
 /*
 class BasicCommand(T) : BasicCommand
 {
@@ -740,10 +764,9 @@ class BasicCommandWrap(T) : T
 	}
 }
 
-class IBasicExtension
+class Extension
 {
-	GUIApplication app;
-
+	Application app;
 
 	@property BufferView currentBuffer()
 	{
@@ -763,63 +786,10 @@ class IBasicExtension
 		return app.getCurrentTextEditor();
 	}
 
-    abstract protected void makeInstance();
-	abstract @property string name();
-	abstract void init();
-	abstract void fini();
-	abstract void onStart();
-	abstract void onStop();
+	@property string name() { return typeid(this).name; }
+	void init() { }
+	void fini() { }
 }
-
-class BasicExtension(T) : IBasicExtension
-{
-	static this()
-	{
-        _singleton = new T;
-		g_Extensions ~= _singleton;
-	}
-
-    static
-    {
-        private T _singleton;
-        private bool _isInitialized = false;
-        @property T instance()
-        {
-            if (!_singleton._isInitialized)
-            {
-                _singleton.init();
-                _singleton._isInitialized = true;
-            }
-            return _singleton;
-        }
-    }
-
-    final override protected void makeInstance()
-    {
-        instance();
-    }
-
-	override void init()
-	{
-		// no-op
-	}
-
-	override void fini()
-	{
-		// no-op
-	}
-
-	override void onStart()
-	{
-		// no-op
-	}
-
-	override void onStop()
-	{
-		// no-op
-	}
-}
-
 
 interface IBinder
 {
@@ -863,7 +833,7 @@ class Binder(string fieldName, Cls, Ctrl) : IBinder
 version (NO)
 unittest
 {
-import application;
+// import application;
 import core.command;
 
 // Default exposed as 'test'. No shortcut hint

@@ -312,7 +312,7 @@ class InsertAction : Action
             bv.setSelectRegion(reg.a);
             bv.setPreferredCursorColumnFromIndex();
             bv.modified = true;
-            bv.onRemove.emit(bv, removedSelectedText, reg.a);
+            //bv.onChanged.emit(bv, reg.a, removedSelectedText.length, false);
 		}
 
         auto insertPoint = bv.cursorPoint;
@@ -321,7 +321,7 @@ class InsertAction : Action
         bv.setSelectRegion(v);
 		bv.setPreferredCursorColumnFromIndex();
 		bv.modified = true;
-		bv.onInsert.emit(bv, txt, insertPoint);
+		//bv.onChanged.emit(bv, insertPoint, txt.length, true);
 	}
 
 	override void redo(BufferView bv)
@@ -338,7 +338,7 @@ class InsertAction : Action
 		bv.preferredCursorColumn(preferredColumn);
 		// bv.setIndexFromPreferredCursorColumn();
 		bv.modified = true;
-		bv.onRemove.emit(bv, insertedText, bv.cursorPoint);
+		//bv.onChanged.emit(bv, bv.cursorPoint, insertedText.length, false);
 
         // restore selected text that has been removed if any
         if (removedSelectedText.length)
@@ -348,7 +348,7 @@ class InsertAction : Action
             bv.preferredCursorColumn(preferredColumn);
             // bv.setIndexFromPreferredCursorColumn();
             bv.modified = true;
-            bv.onInsert.emit(bv, removedSelectedText, bv.cursorPoint);
+            //bv.onChanged.emit(bv, bv.cursorPoint, removedSelectedText.length, false);
             removedSelectedText = null;
         }
 	}
@@ -460,7 +460,7 @@ class RemoveAction : Action
         bv.setSelectRegion(start);
 		bv.setPreferredCursorColumnFromIndex();
 		bv.modified = true;
-		bv.onRemove.emit(bv, t, start);
+		//bv.onChanged.emit(bv, start, t.length, false);
 	}
 
 	override void redo(BufferView bv)
@@ -477,7 +477,7 @@ class RemoveAction : Action
 		bv.setSelectRegion(origSelection);
 		bv.preferredCursorColumn(preferredColumn);
 		bv.modified = true;
-		bv.onInsert.emit(bv, text, bv.cursorPoint);
+		//bv.onChanged.emit(bv, bv.cursorPoint, text.length, true);
 		text = null;
 	}
 

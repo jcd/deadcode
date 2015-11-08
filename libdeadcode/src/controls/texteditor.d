@@ -475,7 +475,7 @@ class TextEditor : Widget
 
 		if (anchor.owner !is null)
 		{
-			TextEditorAnchorOwner anchorOwner = cast(TextEditorAnchorOwner) anchor.owner;
+			ITextEditorAnchorOwner anchorOwner = cast(ITextEditorAnchorOwner) anchor.owner;
 			if (anchorOwner !is null)
 			{
 				auto w = anchorOwner.createAnchorWidget(anchor, this);
@@ -490,7 +490,7 @@ class TextEditor : Widget
 		return null;
 	}
 
-	auto setLineAnchor(int lineNumber, TextBufferAnchorOwner owner)
+	auto setLineAnchor(int lineNumber, ITextBufferAnchorOwner owner)
 	{
 		return bufferView.buffer.ensureLineAnchor(lineNumber, owner);
 	}
@@ -522,6 +522,16 @@ class TextEditor : Widget
         return res;
     }
 
+/*
+    void unsetLineAnchors(string cssClassName)
+    {
+		foreach (a; bufferView.buffer.getLineAnchors(GenericTextEditorAnchor.anchorManager))
+        {
+            if (a.classes[0] == cssClassname)
+				bufferView.buffer.removeLineAnchorByID(a.id);
+        }
+    }
+*/
 	Rectf lineRect(int lineIdx)
 	{
 		auto lineStart = bufferView.buffer.startAtLineNumber(lineIdx);
@@ -546,7 +556,7 @@ class TextEditor : Widget
 
 import gui.layout.constraintlayout;
 
-interface TextEditorAnchorOwner : TextBufferAnchorOwner
+interface ITextEditorAnchorOwner : ITextBufferAnchorOwner
 {
 	TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor, TextEditor editor);
 }
@@ -605,8 +615,11 @@ class TextEditorAnchor : Widget
 		r.pos = Vec2f(0,0);
 		r.pos = lineRect.pos - anchorPosition(r, widgetAnchor);
 		r.pos.x += lineRect.w;
-		lineRect = editor.lineRect(textAnchor.number);
+
+        //lineRect = editor.lineRect(textAnchor.number);
 		rect = r;
+
+        updateLayout(false, this);
 	}
 }
 
@@ -616,7 +629,7 @@ interface ITextAnchorDataProvider(AnchorData)
     Nullable!AnchorData getAnchorData(int anchorID);
 }
 
-class TextEditorAnchorManager(AnchorData, AnchorWidget) : TextEditorAnchorOwner, ITextAnchorDataProvider!AnchorData
+class TextEditorAnchorManager(AnchorData, AnchorWidget) : ITextEditorAnchorOwner, ITextAnchorDataProvider!AnchorData
 {
     import std.typecons;
     // AnchorData[anchorID][buffer.toHash()]
@@ -627,7 +640,18 @@ class TextEditorAnchorManager(AnchorData, AnchorWidget) : TextEditorAnchorOwner,
         TextEditor editor;
     }
 
-    AnchorData[int] _anchorData;
+    AnchorDataInternal[int] _anchorData;
+
+	auto getAnchorIDs(TextEditor ed)
+    {
+		int[] ids;
+        foreach (k, v; _anchorData)
+        {
+            if (v.editor is ed)
+            ids ~= k;
+        }
+        return ids;
+    }
 
     TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor, TextEditor editor)
     {
@@ -643,10 +667,18 @@ class TextEditorAnchorManager(AnchorData, AnchorWidget) : TextEditorAnchorOwner,
         ed.bufferView.buffer.removeLineAnchorByLine(lineNumber, this);
     }
 
-    void ensureLineAnchor(TextEditor ed, int lineNumber, AnchorData data)
+    void removeLineAnchors(TextEditor ed)
+    {
+        foreach (k, v; _anchorData)
+            if (ed is v.editor)
+                ed.bufferView.buffer.removeLineAnchorByID(k);
+    }
+
+    auto ensureLineAnchor(TextEditor ed, int lineNumber, AnchorData data)
     {
         auto anchor = ed.bufferView.buffer.ensureLineAnchor(lineNumber, this);
         _anchorData[anchor.id] = AnchorDataInternal(data, ed);
+	    return anchor;
     }
 
     Nullable!AnchorData getAnchorData(int anchorID)
@@ -676,7 +708,6 @@ class ManagedTextEditorAnchor(AnchorData) : TextEditorAnchor
 	}
 }
 
-
 class GenericTextEditorAnchor : ManagedTextEditorAnchor!ubyte
 {
  	string[] _classes;
@@ -690,5 +721,13 @@ class GenericTextEditorAnchor : ManagedTextEditorAnchor!ubyte
     static this()
     {
         anchorManager = new typeof(anchorManager);
+    }
+}
+
+class GenericTextEditorAnchorCSS(string cssClassName) : GenericTextEditorAnchor
+{
+    this()
+    {
+        _classes ~= cssClassName;
     }
 }

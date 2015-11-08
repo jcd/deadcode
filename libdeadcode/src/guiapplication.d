@@ -1,14 +1,20 @@
-module guiapplication;
+module foobbbbbbbaaaaarrrr;
+version (none):
+// module application;
 
-import application;
+//import application;
+import behavior.behavior;
 import core.analytics;
+import core.buffer;
 import core.bufferview;
 import core.copybuffer;
 import core.commandparameter;
-import core.command : CompletionEntry;
-import core.future;
+import core.command : CompletionEntry, CommandManager;
 import core.container;
+import core.future;
+import core.log;
 import core.signals;
+import core.stdc.errno;
 import core.uri;
 
 public import platform.config : ResourceBaseLocation;
@@ -64,17 +70,19 @@ interface IWidgetLocationUpdater
 
 class PromptQuery
 {
-	this(string q, string a, Promise!PromptQueryResult p, CompletionEntry[] delegate(string) _getCompletionsDg)
+	this(string q, string a, Promise!PromptQueryResult p, bool delegate(string) _validationDg, CompletionEntry[] delegate(string) _getCompletionsDg)
 	{
 		question = q;
 		answer = a;
 		promise = p;
+        validationDg = _validationDg;
 		getCompletionsDg = _getCompletionsDg;
 	}
 
 	string question;
 	string answer;
 	Promise!PromptQueryResult promise;
+    bool delegate(string) validationDg;
 	CompletionEntry[] delegate(string) getCompletionsDg;
 }
 
@@ -84,7 +92,7 @@ class PromptQueryResult
 	bool success;
 }
 
-class GUIApplication : Application
+class Application
 {
 	GUI guiRoot;
 	Menu menu;
@@ -97,6 +105,17 @@ class GUIApplication : Application
 
 	private string _restartExecutable;
 	private IWidgetLocationUpdater _widgetLocationUpdater;
+
+	// super()
+    private
+	{
+		BufferViewManager _bufferViewManager;
+		BufferView _currentBuffer;
+		int _previousBufferID;
+		EditorBehavior _editorBehavior;
+		CommandManager _commandManager;
+	    Log _log;
+    }
 
 	static struct EditorInfo
 	{
@@ -121,6 +140,7 @@ class GUIApplication : Application
 	string analyticsKey;
 
 	Editors editors;
+	uint _sdlCustomEventType;
 
 	Widget _mainWidget;
     shared GrowableCircularQueue!DWChangeInfo resourceDirWatcherQueue;
@@ -149,6 +169,18 @@ class GUIApplication : Application
         return guiRoot.activeWindow;
     }
 
+	// super()
+    @property
+	{
+		BufferViewManager bufferViewManager() { return _bufferViewManager; }
+		void currentBuffer(BufferView v) { _previousBufferID = _currentBuffer is null ? 0 : _currentBuffer.id; _currentBuffer = v; }
+        BufferView currentBuffer() { return _currentBuffer; }
+        BufferView previousBuffer() { return bufferViewManager[_previousBufferID]; }
+		EditorBehavior editorBehavior() { return _editorBehavior; }
+		CommandManager commandManager() { return _commandManager; }
+        Log log() { return _log; }
+	}
+
     // TODO: move to ctx
     core.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
     {
@@ -169,7 +201,19 @@ class GUIApplication : Application
 		analyticEvent("core", "start");
 		analyticStartTiming("core", "startup");
 		_widgetLocationUpdater = new WidgetLocationUpdater(this);
-		super();
+
+        // super()
+        {
+            _commandManager = new CommandManager();
+            _bufferViewManager = new BufferViewManager();
+            auto buf = _bufferViewManager.create("ctrl+? for help.\nctrl+w for console\n\n", "*Messages*");
+            buf.cursorToEndOfLine();
+            _bufferViewManager.create("", "*CommandInput*");
+
+            // Let text editing behave like emacs
+            import behavior.emacs;
+            _editorBehavior = new EmacsBehavior(this);
+        }
 
         setLogFile(resourceURI("log.txt", ResourceBaseLocation.userDataDir).uriString);
 
@@ -181,7 +225,7 @@ class GUIApplication : Application
 	{
 	}
 
-	static GUIApplication create(GUI gui = null)
+	static Application create(GUI gui = null)
 	{
 		if (gui is null)
                 {
@@ -196,11 +240,33 @@ class GUIApplication : Application
                     }
                 }
 
-		auto app = new GUIApplication(gui);
+		auto app = new Application(gui);
 		app.guiRoot.onFileDropped.connect(&app.onFileDropped);
 
 		return app;
 	}
+
+    // super()
+    void setLogFile(string path)
+    {
+        _log = new Log(path);
+        _log.onInfo.connect(&appendConsoleMessage);
+    }
+
+    // super()
+    private void appendConsoleMessage(string msg, LogLevel level)
+    {
+		import std.conv;
+		auto view = bufferViewManager["*Messages*"];
+		view.insert(dtext(msg));
+		view.insert("\n"d);
+    }
+
+    // super()
+	void addMessage(Types...)(Types msgs)
+	{
+		_log(msgs);
+    }
 
 	void onFileDropped(string path)
 	{
@@ -402,6 +468,11 @@ class GUIApplication : Application
         _asyncIO = new AsyncIO();
         guiRoot.registerCustomEventType(_asyncIO.customEventType);
 
+        import derelict.sdl2.sdl;
+        _sdlCustomEventType = SDL_RegisterEvents(1);
+
+        guiRoot.registerCustomEventType(_sdlCustomEventType);
+
 		import libasync : DWFileEvent;
         static import platform.config;
         _asyncIO.watchDir(platform.config.resourcesRoot, DWFileEvent.ALL,  true).then( (WatchDirResult r) {
@@ -455,11 +526,9 @@ class GUIApplication : Application
     		    string[] argv;
     		    execv(_restartExecutable, argv);
 			}
-
-			//import std.c.stdlib;
-			//import core.thread;
-			//Thread.sleep(dur!"seconds"(1));
 		}
+
+        _asyncIO.kill();
 	}
 
 	private void handleActivity()
@@ -467,6 +536,7 @@ class GUIApplication : Application
 		// Since this is called by onActivity the futures supported currently are only those
 		// being fulfilled by an activity ie. key press, mouse move etc.
 
+		doCommandCalls();
 	    doMainFiberWork();
 		handleFiberFutures();
 		handlePromptQuery();
@@ -490,7 +560,7 @@ class GUIApplication : Application
 			result.success = success;
 			q.promise.setValue(result);
 			_promptStack.remove(q);
-		}, q.getCompletionsDg);
+		}, q.validationDg, q.getCompletionsDg);
 	}
 
 	void scheduleRestart(string exePath)
@@ -807,6 +877,7 @@ class GUIApplication : Application
 
 	BufferView openFile(string path)
 	{
+		path = path.replace("\\", "/");
 		auto existingBuffer = bufferViewManager[path];
 		if (existingBuffer !is null)
 		{
@@ -856,7 +927,7 @@ class GUIApplication : Application
 
 		showBuffer(view);
 		// debug view.enableUndoStackDumps();
-		view.bufferModified.connect(&onBufferModified);
+		view.onBufferModified.connect(&bufferModified);
 		// addMessage("Read %s", view.name);
 		return view;
 		//Application.activeEditor.show(view);
@@ -866,7 +937,7 @@ class GUIApplication : Application
 	{
 		auto view = bufferViewManager.create("", name);
 		addMessage("Create buffer %s", view.name);
-		view.bufferModified.connect(&onBufferModified);
+		view.onBufferModified.connect(&bufferModified);
 		return view;
 	}
 
@@ -878,7 +949,7 @@ class GUIApplication : Application
         return createBuffer(name);
 	}
 
-	private void onBufferModified(BufferView b, bool isModified)
+	private void bufferModified(BufferView b)
 	{
 		// Make a backup copy
 		if (std.file.exists(b.name))
@@ -970,6 +1041,16 @@ class GUIApplication : Application
 		foreach (k,v; editors.editors)
 		{
 			if (v.editor.visible)
+				return v.editor;
+		}
+		return null;
+	}
+
+	TextEditor getTextEditorForBufferView(BufferView bv)
+	{
+		foreach (k,v; editors.editors)
+		{
+			if (v.editor.bufferView is bv)
 				return v.editor;
 		}
 		return null;
@@ -1401,20 +1482,20 @@ class GUIApplication : Application
         loadKeyBindings("key-mappings-user");
     }
 
-	Future!PromptQueryResult prompt(string question, string answer = "", CompletionEntry[] delegate(string) getCompletionsDg = null)
+	Future!PromptQueryResult prompt(string question, string answer = "", bool delegate(string) validationDg = null, CompletionEntry[] delegate(string) getCompletionsDg = null)
 	{
 		PromptQueryResult result;
 		auto promise = new Promise!PromptQueryResult();
-		auto q = new PromptQuery(question, answer, promise, getCompletionsDg);
+		auto q = new PromptQuery(question, answer, promise, validationDg, getCompletionsDg);
 		_promptStack.push(q);
 		return promise.getFuture();
 	}
 
-	PromptQueryResult yieldPrompt(string question, string answer = "", CompletionEntry[] delegate(string) getCompletionsDg = null)
+	PromptQueryResult yieldPrompt(string question, string answer = "", bool delegate(string) validationDg = null, CompletionEntry[] delegate(string) getCompletionsDg = null)
 	{
 		import core.thread;
 		assert(Fiber.getThis() !is null);
-		auto future = prompt(question, answer, getCompletionsDg);
+		auto future = prompt(question, answer, validationDg, getCompletionsDg);
 		yieldFuture(future);
 		return future.get();
 	}
@@ -1438,6 +1519,11 @@ class GUIApplication : Application
 
         auto thread = new Thread( () {
             promise.setValue(dlg(args));
+	        import derelict.sdl2.sdl;
+	        SDL_Event event;
+	        //   SDL_Zero(event); not needed since dlang does this
+	        event.type = _sdlCustomEventType;
+	        SDL_PushEvent(&event);
         });
 
         thread.start();
@@ -1453,7 +1539,12 @@ class GUIApplication : Application
 
         auto thread = new Thread( () {
             promise.setValue(dlg(args));
-        });
+	         import derelict.sdl2.sdl;
+	        SDL_Event event;
+	        //   SDL_Zero(event); not needed since dlang does this
+	        event.type = _sdlCustomEventType;
+	        SDL_PushEvent(&event);
+       });
 
         thread.start();
         yieldFuture(promise.getFuture());
@@ -1472,6 +1563,13 @@ class GUIApplication : Application
     }
 
     MainFiberWork[] _mainFiberWorkList;
+	CommandCall[] _commandCallList;
+
+	void pushCommandCall(CommandCall c)
+    {
+        assumeSafeAppend(_commandCallList);
+        _commandCallList ~= c;
+    }
 
     void pushMainFiberWork(void delegate() dlg)
     {
@@ -1545,6 +1643,14 @@ class GUIApplication : Application
         assumeSafeAppend(_mainFiberWorkList);
 	}
 
+	private void doCommandCalls()
+    {
+        foreach (cc; _commandCallList)
+	        commandManager.execute(cc);
+        _commandCallList.length = 0;
+        assumeSafeAppend(_commandCallList);
+    }
+
 	//static import core.future;
 	//core.future.Fiber getFiber()
 	//{
@@ -1598,10 +1704,10 @@ class WidgetLocationUpdater : IWidgetLocationUpdater
             RelativeLocation location;
         }
         ScheduledLocationUpdate[] _items;
-		GUIApplication app;
+		Application app;
     }
 
-	this(GUIApplication a)
+	this(Application a)
 	{
 		app = a;
 	}
@@ -1631,14 +1737,14 @@ class WidgetLocationUpdater : IWidgetLocationUpdater
 					auto res = app.placeWidgetRelative(i.w, i.relativeWidget, i.location);
 					final switch (res)
 					{
-						case GUIApplication.WidgetPlacementResult.success:
+						case Application.WidgetPlacementResult.success:
 							i.done = true;
 							break;
-						case GUIApplication.WidgetPlacementResult.placementInsideNotPossible:
+						case Application.WidgetPlacementResult.placementInsideNotPossible:
 							app.addMessage("Cannot place %s inside %s", i.w.name, i.relativeWidget);
 							i.done = true;
 							break;
-						case GUIApplication.WidgetPlacementResult.unknownRelativeWidget:
+						case Application.WidgetPlacementResult.unknownRelativeWidget:
 							break;
 					}
                     changed = changed || i.done;

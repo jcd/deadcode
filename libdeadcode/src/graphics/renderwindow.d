@@ -53,6 +53,7 @@ class RenderWindow : RenderTarget
                DWORD style = GetWindowLongA(info.info.win.window, GWL_STYLE);
                style = style | WS_BORDER | WS_GROUP;
                style = style & ~WS_THICKFRAME;
+	           style = style & ~WS_POPUP;
                SetWindowLongA(info.info.win.window, GWL_STYLE, style);
             }
         }
@@ -72,7 +73,7 @@ class RenderWindow : RenderTarget
 		{
 			import std.stdio;
             writeln("Error creating SDL GL context");
-			SDL_Quit();		
+			SDL_Quit();
 		}
 
 		SDL_GL_SetSwapInterval(1);

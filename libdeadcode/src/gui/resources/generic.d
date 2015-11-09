@@ -215,7 +215,7 @@ class GenericResource : Resource!GenericResource
 
 		if (includeHeader)
 		{
-			auto headerOutput = appender!string();
+			string headerOutput; // = appender!string();
 			auto dataOutput = appender!string();
 			auto offset = dataOutput.data().length;
 
@@ -245,7 +245,7 @@ class GenericResource : Resource!GenericResource
 			}
 
 			output ~= format("%s,%s\n", helpers.length, helpers.length);
-			output ~= headerOutput.data();
+			output ~= headerOutput;
 			output ~= dataOutput.data();
 		}
 		else

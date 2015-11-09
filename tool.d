@@ -166,7 +166,7 @@ void test(string[] args, bool showUsage = false)
 	}
 
 	string filt = args.length > 2 ? args[2] : "";
-	auto cmd = dubPath ~ " -q run --build=unittest";
+	auto cmd = dubPath ~ " -q run --build=unittest -- unittestoutput.txt";
 	writeln(cmd);
 	auto res = pipeShell(cmd, Redirect.stdin | Redirect.stderrToStdout | Redirect.stdout);
 	foreach (line; res.stdout.byLine)
@@ -265,7 +265,7 @@ void dist(string[] args, bool showUsage = false)
 	    auto outputPath = buildPath("dist", format("deadcode_%s_%s.tar.gz", outputVersion, isX86_64() ? "amd64" : "i386"));
 		auto packRoot = buildPath("dist", "deadcode");
     }
-	
+
 
 	writeln("Packroot is ", packRoot);
 
@@ -378,12 +378,12 @@ void archive(string packRoot, string outputPath)
     {
 		string srcDir = buildPath(".", packRoot, "*"); // need . prefix for 7zip to not include dir part
 	    string zipcmd = buildPath("external", "7zip", "7za.exe");
-		auto cmd = format("%s a -r %s %s", zipcmd, outputPath, srcDir);       
+		auto cmd = format("%s a -r %s %s", zipcmd, outputPath, srcDir);
     }
 	version (linux)
     {
 		string srcDir = buildPath(".", dirName(packRoot)); // need . prefix for 7zip to not include dir part
-		auto cmd = format("tar -cvzf %s -C %s deadcode", outputPath, srcDir);        
+		auto cmd = format("tar -cvzf %s -C %s deadcode", outputPath, srcDir);
     }
 
 	if (exists(outputPath))

@@ -1488,22 +1488,20 @@ class Application
         {
             winRect = Rectf(0, 0, dm.w, dm.h).clip(winRect);
 
-            if (winRect.w == 0)
+            const float minDim = 50;
+            import std.math;
+
+            if (fabs(winRect.w) < minDim)
             {
                 winRect.x = 0;
                 winRect.w = 300;
             }
 
-            if (winRect.h == 0)
+            if (fabs(winRect.h) < minDim)
             {
                 winRect.y = 0;
                 winRect.h = 500;
             }
-
-            if (winRect.w < 50)
-                winRect.w = 50;
-            if (winRect.h < 50)
-                winRect.h = 50;
         }
 
         activeWindow.position = winRect.pos;

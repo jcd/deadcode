@@ -1,7 +1,7 @@
 Deadcode 1
 json 1
 1,1
-,guiapplication.GUIApplication.loadKeyBindings.KeyMappings,0,181
+,application.Application.loadKeyBindings.KeyMappings,0,181
 { "mappings": [
 	
 	{"keys":"<ctrl> + t", "command":"proc.filter"},

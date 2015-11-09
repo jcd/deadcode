@@ -2074,7 +2074,7 @@ version (OFF)
         index = index == InvalidIndex ? gbuffer.editPoint : index;
 		gbuffer.insert(items, index);
 		lbuffer.textInserted(items, index);
-        onChanged.emit(this, index, items.length, true);
+        onChanged.emit(this, index, cast(int)items.length, true);
 	}
 
 	unittest

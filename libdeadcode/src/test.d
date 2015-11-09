@@ -81,13 +81,15 @@ TestRecord getTestResult(string filename, int unittestStartLine)
 bool printStats(File output, bool includeSuccessful = false)
 {
 	import std.algorithm;
+    bool hasFailing = false;
 	foreach (rec; g_TestRecords)
 	{
 		if (includeSuccessful || !rec.success)
 			output.writeln(text("Test ", rec.file[0..$], ":", rec.line, " ", rec.msg, " ", rec.assertion, " ", rec.success ? "OK" : "FAILED"));
-	}
+	    hasFailing = hasFailing || !rec.success;
+    }
 
-    if (includeSuccessful)
+    if (includeSuccessful && hasFailing)
     {
 	    output.writeln("\n************* Failing unittest subset extract from above listing:");
         foreach (rec; g_TestRecords)

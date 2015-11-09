@@ -152,10 +152,10 @@ struct Rect(T)
 
 	Rect!T clip(Rect!T toBeClipped) const pure nothrow
 	{
-		toBeClipped.x = fmax(this.x, toBeClipped.x);
-		toBeClipped.y = fmax(this.y, toBeClipped.y);
-		toBeClipped.x2 = fmin(this.x2, toBeClipped.x2);
-		toBeClipped.y2 = fmin(this.y2, toBeClipped.y2);
+		toBeClipped.x = fmin(fmax(this.x, toBeClipped.x), this.x2);
+		toBeClipped.y = fmin(fmax(this.y, toBeClipped.y), this.y2);
+		toBeClipped.x2 = fmax(fmin(this.x2, toBeClipped.x2), this.x);
+		toBeClipped.y2 = fmax(fmin(this.y2, toBeClipped.y2), this.y);
 		if (toBeClipped.w < 0)
 			toBeClipped.size.x = 0f;
 		if (toBeClipped.h < 0)

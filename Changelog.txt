@@ -1,3 +1,91 @@
+Release 0.16 - 08 November 2015 
+
+Overview:
+
+    * Live static analysis for dlang code
+    * Live unittest for dlang code
+    * Using narrow strings all over instead of wide strings
+    * Improved extension API
+    
+Changes:
+
+    d12fb4d Merge branch 'master' of https://github.com/jcd/deadcode
+    336c8ba Fix keymappings after GUIApplication rename
+    0c96890 Fix emitting onChanged with correct arguments
+    dccd184 Fix rect clipping
+    7370d79 Fix window clamping on session load
+	c1ad564 Unittest failed anchor image
+	95895e3 Refactor dub extensions. Improve dub project builds.
+	0da4d4e Support for live static analysis and unittesting.
+	e87c8f9 Change window style on Windows.
+	1675e7e Improve logging of completion deamon queries. 
+			Use new extension methods in dlang completions.
+	5a7fd91 Basic support for detecting dlang code in buffer. 
+			Support for checking dlang file extensions.
+	1bc192c Splite styling support detection into filename extension match and language name match.
+	bc9ff45 Migrate to BufferView.onChanged for StyledText.
+	7df2d18 Improved generic text anchor support.
+	ac91fb1 Special layout handling for text anchors.
+	ddacc74 Wide to narrow string migrations.
+	6a01901 Migrate BufferViewActions to let underlying buffer signal changes.
+	f0b2e89 Remove static analysis check result anchors before each dlang run.
+	e84ead8 Use non CRTP for dlang extension
+	c9af68c Wide to narrow string migrations.
+	0fc0977 Do not let new buffers default to dlang styling.
+	1598ebc Use prompt validation delegate when opening file.
+	0e70cb0 Migrate command prompt to use BufferView.onChanged. 
+			Add support for optional validation delegate when using prompt. 
+			Migrate to narrowstring for command prompt.
+	ef032a4 Migrate existing extensions to not use CRTP anymore.
+	4285413 Support for Log injection for extensions. 
+			Make extensions not use CRTP.
+	82129d4 Renaming of GUIApplication to Application all over.
+	7090eef Get rid of guiapplication and move into application instead. 
+			Partial support for live detection of code model and highlighting.
+	2f936af Migrating TextEditor to use BufferView.onChanged.
+	61b198a Combine onInsert and onRemove on bufferview to onChanged. 
+			Changes to migrate from widestring to narrow string. 
+			New signals for codeModel change or name change. 
+			Add signals to BufferViewManager when any signal is emitted from a BufferView.
+	faf3b2a Commands for scrolling line up/down.
+	f3a4a07 Build results and test result styling
+	7a39bee Add native assert support for test module so it can be used in deadcode and have failed test lines highlighted.
+	4592101 Add interface for detecting codemodel and for checking supported file extension for a code intel.
+	9661d22 Refactor and cleanup errorlist. 
+			Support putting id on an error and remove entries by id.
+	a78e602 Fix module imports after renaming to apitraits.d
+	212d318 Add codemodel on filesave if possible
+	7bf5482 Add kill() method to asyncio
+	0c235d3 Add helper function to add default executable extension to file path
+	1c907cf Fix smallvector identity check
+	bc1c934 Fix multi args parsing for commands
+	2ccda87 Make it possible to not provide args when calling a command
+	279d4fa New Log class
+	3a798fe Expose textStyler directly on TextEditor
+	3708b9b Work on making buffer use narrow string instead of wide strings
+	3fd7e14 Import registerExtension and registerCommands
+	003208d Move and rename some files
+	d7d8fbf Make build
+	1ec8a1d Fix focus kept on exiting buffer when cycling to a new buffer
+	3869451 Make sure command control doesn't get resume focus when there are completions to show
+	045d687 Fix wrong assert when selection an item on a popup
+	051dea6 Fix infinite loop when updating popup widget
+	c4e1413 Show calltips completions
+	faff75f Remove a bunch of writeln from windows build
+	b8c63db Fix alt+tab on windows
+	79dc3e5 Collect all exception on extensions init and simple writeout messages instead of throwing
+	d31da19 Do not open dcd-server console on windows
+	69743d1 Better fixing up of window rect on startup if needed
+	2922574 Better unittest handling
+	f4a15c0 Fix uniquePostfixPath unittests on non-windows
+	cbe0ae9 Fix unittests
+	ddd6dfb Fix padding specification in stylesheet after changes to parser
+	c19f3d4 Remove redundant unittest reporting
+	5b6fff9 Fix unittest
+	691c8d4 Parse padding value like css standard
+	099b1dd Better unittest error reporting
+
+
 Release 0.15 - 03 October 2015 
 
 Overview:

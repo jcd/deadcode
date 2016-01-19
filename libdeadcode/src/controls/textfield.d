@@ -2,7 +2,7 @@ module controls.textfield;
 
 import controls.texteditor;
 
-import core.bufferview;
+import dccore.bufferview;
 import gui.widget;
 import math;
 

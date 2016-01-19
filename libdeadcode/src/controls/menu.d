@@ -3,27 +3,15 @@ module controls.menu;
 import controls.button;
 import controls.tree;
 
-import core.command;
+import dccore.command;
 
 import gui.event;
 import gui.widget;
 import gui.widgetfeature.windowdragger;
 
-import core.signals;
+import dccore.signals;
 import std.stdio;
 import std.typetuple;
-
-struct MenuItem
-{
-	string path;
-    string argument;
-}
-
-enum isMenuItem(alias T) = is(typeof(T) == MenuItem);
-
-alias hasMenuItemAttribute(alias what) = anySatisfy!(isMenuItem, __traits(getAttributes, what));
-// enum hasMenuItemAttribute(what) = false;
-enum getMenuItemAttribute(alias what) = Filter!(isMenuItem, __traits(getAttributes, what))[0];
 
 class Menu : Tree
 {

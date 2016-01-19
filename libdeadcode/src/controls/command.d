@@ -3,9 +3,9 @@ module controls.command;
 import application;
 import controls.texteditor;
 import controls.textfield;
-import core.bufferview;
-import core.command : CommandManager, Command, CompletionEntry, Hints;
-import core.commandparameter;
+import dccore.bufferview;
+import dccore.command : CommandManager, Command, CompletionEntry, Hints;
+import dccore.commandparameter;
 import graphics;
 import gui.event;
 import gui.keycode;
@@ -392,7 +392,7 @@ class CommandControl : Widget
 			navigateDown();
 			return EventUsed.yes;
 		case "navigate.right":
-			import core.buffer : TextBoundary;
+			import dccore.buffer : TextBoundary;
             if (commandField.bufferView.classify() == TextBoundary.lineEnd)
 			{
 				completeCommand();
@@ -904,9 +904,15 @@ version(NONE)
 		// setCommand("");
 		clearCompletions();
         window.setKeyboardFocusWidget(resumeWidgetID); // Make sure the current BufferView is active when command is executed
-		app.commandManager.execute(cmdData.cmd, ps);
 
-		//window.app.
+        try
+        {
+            app.commandManager.execute(cmdData.cmd, ps);
+        }
+        catch (Exception e)
+        {
+            app.log.e("Command '%s' error: %s", cmdData.cmd, e.toString());
+        }
 	}
 
 	void onMissingCommandArguments(Command cmd, CommandParameter[] args)

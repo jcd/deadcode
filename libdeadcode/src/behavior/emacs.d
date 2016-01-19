@@ -1,9 +1,9 @@
 module behavior.emacs;
 
 import application;
-import core.bufferview;
-import core.command;
-import core.commandparameter;
+import dccore.bufferview;
+import dccore.command;
+import dccore.commandparameter;
 import graphics;
 import gui.event;
 import gui.keybinding;

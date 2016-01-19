@@ -1,6 +1,6 @@
 module controls.tree;
 
-import core.commandparameter;
+import dccore.commandparameter;
 
 import math;
 
@@ -11,7 +11,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import std.range;
-import core.signals;
+import dccore.signals;
 
 import gui.layout.directionallayout;
 import gui.widgetfeature.textrenderer;

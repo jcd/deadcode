@@ -1,9 +1,9 @@
 module behavior.behavior;
 
-public import core.buffer;
-import core.bufferview;
-import core.commandparameter;
-import core.command;
+public import dccore.buffer;
+import dccore.bufferview;
+import dccore.commandparameter;
+import dccore.command;
 import application;
 public import graphics;
 import gui.event;
@@ -11,7 +11,7 @@ import gui.keybinding;
 import gui.ruleset;
 import gui.window;
 
-import core.signals;
+import dccore.signals;
 
 class EditorBehavior // : KeyBindingValidator
 {

@@ -5,7 +5,7 @@ import gui.label;
 import gui.style;
 import gui.widget;
 
-import core.signals;
+import dccore.signals;
 
 class ButtonBase : Label
 {

@@ -6,7 +6,7 @@ import gui.event;
 import gui.widget;
 import gui.layout.gridlayout;
 
-import core.signals;
+import dccore.signals;
 
 class PopupList : Widget
 {

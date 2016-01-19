@@ -18,7 +18,7 @@ mixin platformMain!myMain;
  */
 private int myMain(string[] args)
 {
-	import core.attr;
+	import dccore.attr;
 
     int result = 0;
 
@@ -36,6 +36,8 @@ private int myMain(string[] args)
 		Application app;
 		try
 		{
+            if (Application.wakeExisting(args))
+                return 0;
 			app = Application.create();
 			// Create a text buffer and add show it in the mainWidget
 			//auto fileName = "testmath.d";

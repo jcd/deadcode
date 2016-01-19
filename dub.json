@@ -22,7 +22,7 @@
 	"versions-windows": ["Unicode" ],
 	"lflags-windows": ["/NOCODEVIEW"],
 	"libs-posix": ["curl", "X11"],
-	"sourcePaths": [ "libdeadcode/src", "src", "extensions" ],
+	"sourcePaths": [ "libdeadcode/src", "deadcodebase", "src", "extensions" ],
 	"buildRequirements": ["allowWarnings"],
 	"versions" : ["NoMain"],
 	"importPaths": [

@@ -67,6 +67,13 @@ void recordTestResult(bool success, string assertion, string msg, string file, i
     }
 }
 
+version (unittest) version (TestingByTool)
+static ~this()
+{
+    import std.stdio;
+    printStats(stdout,  true);
+}
+
 TestRecord getTestResult(string filename, int unittestStartLine)
 {
 	TestRecords recs = g_TestRecords;

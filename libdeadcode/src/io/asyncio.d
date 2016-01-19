@@ -1,6 +1,6 @@
 module io.asyncio;
 
-import core.future;
+import dccore.future;
 
 import libasync;
 
@@ -10,10 +10,16 @@ import util.queue;
 import test;
 mixin registerUnittests;
 
+struct WatchDirChange
+{
+    DWFileEvent event;
+    string path;
+}
+
 struct WatchDirResult
 {
     uint id;
-    shared GrowableCircularQueue!DWChangeInfo changesRange;
+    shared GrowableCircularQueue!WatchDirChange changesRange;
     bool success;
 }
 
@@ -152,20 +158,50 @@ private
 
             _watcher = new AsyncDirectoryWatcher(eventLoop);
 
-            auto r = new shared GrowableCircularQueue!DWChangeInfo();
+            auto r = new shared GrowableCircularQueue!WatchDirChange();
             auto result = Result(s_NextID++, r, true);
 
             _watcher.run({
                 DWChangeInfo[1] change;
                 DWChangeInfo[] changeRef = change.ptr[0..1];
                 while(_watcher.readChanges(changeRef)){
-                    r.push(change[0]);
+                    r.push(WatchDirChange(change[0].event, change[0].path));
                 }
                 worker.resultProduced(this);
             });
             _watcher.watchDir(_args);
 
             _promise.setValue(result);
+        }
+    }
+
+    class TCPListenerJob : IJob
+    {
+        private AsyncTCPListener _watcher;
+
+        alias cb = void delegate(TCPEvent) delegate(AsyncTCPConnection);
+        mixin JobImpl!(VoidState, string, ushort,  cb);
+
+        ~this()
+        {
+            _watcher.kill();
+            destroy(_watcher);
+        }
+
+        override void run(AsyncIOWorker worker)
+        {
+            EventLoop eventLoop = worker._eventLoop;
+            _watcher = new AsyncTCPListener(eventLoop);
+            _watcher.ip(_args[0], _args[1]);
+            _watcher.run(
+                         (AsyncTCPConnection conn) {
+                             int a = 32;
+                             a++;
+                             auto dlg = _args[2](conn);
+                             worker.resultProduced(this);
+                             return dlg;
+                         });
+            _promise.setValue(VoidState());
         }
     }
 }
@@ -196,6 +232,9 @@ class AsyncIO
 
     private static void spawnWorker(Tid parentTid, uint sdlCustomEventType)
     {
+        import core.thread;
+        Thread.getThis().name = "AsyncIO";
+
         auto worker = new AsyncIOWorker(sdlCustomEventType);
         // Need to share the signal between parent and worker
         parentTid.send(worker._signal);
@@ -226,6 +265,15 @@ class AsyncIO
     auto watchDir(string path, DWFileEvent ev = DWFileEvent.ALL, bool recursive = false)
     {
         auto j = new WatchDirJob(path, ev, recursive);
+        return startAsync(j);
+    }
+
+    /** Listens for incoming connnections and calls a delegate
+
+    */
+    auto tcpListen(string ip, ushort port, void delegate(TCPEvent) delegate(AsyncTCPConnection) del)
+    {
+        auto j = new TCPListenerJob(ip, port, del);
         return startAsync(j);
     }
 

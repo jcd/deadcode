@@ -1,19 +1,24 @@
 module application;
 
 import behavior.behavior;
-import core.analytics;
-import core.buffer;
-import core.bufferview;
-import core.copybuffer;
-import core.commandparameter;
-import core.command : CompletionEntry, CommandManager;
-import core.container;
-import core.future;
-import core.language;
-import core.log;
-import core.signals;
+import dccore.analytics;
+import dccore.buffer;
+import dccore.bufferview;
+import dccore.copybuffer;
+import dccore.commandparameter;
+import dccore.command : CompletionEntry, CommandManager;
+import dccore.container;
+import dccore.future;
+import dccore.language;
+import dccore.log;
+import dccore.mainloopworker;
+import dccore.signals;
 import core.stdc.errno;
-import core.uri;
+import dccore.uri;
+
+import extensionapi.rpc;
+import extensionapi.types : MenuItem, Shortcut;
+import extensionapi.remotecommand : RemoteCommandRegistrar;
 
 public import platform.config : ResourceBaseLocation;
 
@@ -28,10 +33,11 @@ import controls.texteditor;
 import gui.resources.generic;
 import gui.layout;
 import io.asyncio;
+import io.tcp : TCPClient, APICall;
 
 import util.queue;
 
-import libasync : DWChangeInfo;
+import libasync : DWChangeInfo, AsyncTCPConnection, TCPEvent;
 
 import math; // Vec2f
 
@@ -44,6 +50,7 @@ import std.path;
 import std.string;
 static import std.exception;
 
+mixin registerRPC;
 
 enum RelativeLocation
 {
@@ -90,13 +97,68 @@ class PromptQueryResult
 	bool success;
 }
 
+uint g_sdlCustomEventType;
+
+void wakeMainThread()
+{
+    import derelict.sdl2.sdl;
+    SDL_Event event;
+    //   SDL_Zero(event); not needed since dlang does this
+    event.type = g_sdlCustomEventType;
+    SDL_PushEvent(&event);
+}
+
+private Throwable.TraceInfo myTraceHandler( void* ptr = null )
+{
+    import core.runtime;
+    import platform.dialog;
+    messageBox("Tracehandling", "Tracehandler is being called", MessageBoxStyle.error | MessageBoxStyle.yesNo | MessageBoxStyle.modal);
+    return defaultTraceHandler(ptr);
+}
+
+/*
+private void tcpCommandSession(Socket sock, Tid ownerTid)
+{
+    ubyte[4096] buf;
+    while (true)
+    {
+        sock.receive(buf);
+        ownerTid.send(SerializedCommand(buf));
+
+        import derelict.sdl2.sdl;
+        SDL_Event event;
+        //   SDL_Zero(event); not needed since dlang does this
+        event.type = _sdlCustomEventType;
+        SDL_PushEvent(&event);
+    }
+}
+
+private void tcpCommandHandler(Tid ownerTid)
+{
+    // Setup listning
+
+    // Accept
+
+    // Spawn new thread for handling connection and provide it with the owner Tid
+    spawn(&tcpCommandSession, sock, ownerTid);
+}
+*/
+@RPC
 class Application
 {
 	GUI guiRoot;
 	Menu menu;
 
+    int id = 0; // for rpc
+
 	import std.container;
 	Stack!PromptQuery _promptStack;
+
+    // Currently connected tcp clients
+    TCPClient[] _connectedTcpClients;
+
+    // Newly connected client waiting to be put into _connectedTcpClients array
+    shared GrowableCircularQueue!(shared TCPClient) _connectedTcpClientQueue;
 
     // int is ResourceBaseLocation flags changed
     mixin Signal!(uint) onResourceBaseLocationChanged;
@@ -114,6 +176,7 @@ class Application
 		EditorBehavior _editorBehavior;
 		CommandManager _commandManager;
 	    Log _log;
+        RemoteCommandRegistrar _remoteCommandRegistrar;
     }
 
 	static struct EditorInfo
@@ -139,11 +202,11 @@ class Application
 	string analyticsKey;
 
 	Editors editors;
-	uint _sdlCustomEventType;
 
 	private Widget _editorStack;
 	private Widget _mainWidget;
-    shared GrowableCircularQueue!DWChangeInfo resourceDirWatcherQueue;
+    shared GrowableCircularQueue!WatchDirChange resourceDirWatcherQueue;
+    shared GrowableCircularQueue!WatchDirChange extensionsDirWatcherQueue;
 
 	StyleSheet defaultStyleSheet;
 
@@ -173,16 +236,16 @@ class Application
     @property
 	{
 		BufferViewManager bufferViewManager() { return _bufferViewManager; }
-		void currentBuffer(BufferView v) { _previousBufferID = _currentBuffer is null ? 0 : _currentBuffer.id; _currentBuffer = v; }
-        BufferView currentBuffer() { return _currentBuffer; }
-        BufferView previousBuffer() { return bufferViewManager[_previousBufferID]; }
+        void currentBuffer(BufferView v) { _previousBufferID = _currentBuffer is null ? 0 : _currentBuffer.id; _currentBuffer = v; }
+        @RPC BufferView currentBuffer() { return _currentBuffer; }
+        @RPC BufferView previousBuffer() { return bufferViewManager[_previousBufferID]; }
 		EditorBehavior editorBehavior() { return _editorBehavior; }
 		CommandManager commandManager() { return _commandManager; }
-        Log log() { return _log; }
+        @RPC Log log() { return _log; }
 	}
 
     // TODO: move to ctx
-    core.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+    dccore.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
     {
         static import platform.config;
         return platform.config.resourceURI(path, base);
@@ -190,6 +253,20 @@ class Application
 
 	private this(GUI gui)
 	{
+        // Make sure standard dirs exists
+        {
+            auto d = resourceURI("extensions", ResourceBaseLocation.userDataDir).uriString;
+            if (!exists(d))
+                mkdirRecurse(d);
+
+            d = resourceURI("", ResourceBaseLocation.sessionDir).uriString;
+            if (!exists(d))
+                mkdirRecurse(d);
+        }
+
+        _connectedTcpClientQueue = new shared GrowableCircularQueue!(shared TCPClient)();
+        _mainThreadWorkQueue = new typeof(_mainThreadWorkQueue);
+
 		// This also sets up tracking keys for analytics
 		guiRoot = gui;
 		setupRegistryEntries();
@@ -225,6 +302,44 @@ class Application
 	{
 	}
 
+    static bool wakeExisting(string[] args)
+    {
+        // Try to connect to an existing instance and pass the args
+        import std.socket;
+
+        auto addr = new InternetAddress("127.0.0.1", 13575);
+        auto sock = new TcpSocket();
+        sock.blocking = false;
+        sock.connect(addr);
+        auto readSockets = new SocketSet();
+        auto writeSockets = new SocketSet();
+        auto errSockets = new SocketSet();
+        writeSockets.add(sock);
+        readSockets.add(sock);
+
+        import core.time;
+        auto count = Socket.select(readSockets, writeSockets, errSockets, dur!"msecs"(100));
+        if (count <= 0 || !writeSockets.isSet(sock))
+            return false;
+
+        readSockets.reset();
+        writeSockets.reset();
+        errSockets.reset();
+
+        readSockets.add(sock);
+
+        string cmdline = std.conv.to!string(args.map!(a => "\"" ~ a ~ "\"").joiner(" ").array);
+        sock.send("commandline " ~ cmdline);
+
+        count = Socket.select(readSockets, writeSockets, errSockets, dur!"msecs"(100));
+        if (count <= 0 || !readSockets.isSet(sock))
+            return false;
+
+        char[8] buf;
+        auto bytesReceived = sock.receive(buf);
+        return bytesReceived >= 2 && "ok" == buf[0..2];
+    }
+
 	static Application create(GUI gui = null)
 	{
 		if (gui is null)
@@ -246,11 +361,73 @@ class Application
 		return app;
 	}
 
+
+    shared GrowableCircularQueue!(shared IWorker) _mainThreadWorkQueue;
+
+    void pushMainThreadWork(IWorker worker)
+    {
+        _mainThreadWorkQueue.push(cast(shared)worker);
+        wakeMainThread();
+    }
+
+    void handleMainThreadWorkQueue()
+    {
+        while (!_mainThreadWorkQueue.empty)
+        {
+            auto w = cast(IWorker)_mainThreadWorkQueue.pop();
+            w.work();
+        }
+    }
+
     // super()
+    @RPC
     void setLogFile(string path)
     {
         _log = new Log(path);
         _log.onInfo.connect(&appendConsoleMessage);
+    }
+
+    @RPC
+    void bufferViewParamTest(BufferView b)
+    {
+        b.scrollDown(1);
+    }
+
+    @RPC
+    void addCommand(Command c)
+    {
+        commandManager.add(c);
+    }
+
+    @RPC
+    void addMenuItem(string commandName, MenuItem menuItem)
+    {
+        if (!menuItem.path.empty)
+        {
+            if (menuItem.argument is null)
+            {
+                menu.addTreeItem(menuItem.path, commandName);
+            }
+            else
+            {
+                auto args = commandManager.parseCommandArguments(commandName, menuItem.argument);
+                menu.addTreeItem(menuItem.path, commandName, args);
+            }
+        }
+    }
+
+    @RPC
+    void addCommandShortcuts(string commandName, Shortcut[] shortcuts)
+    {
+        import std.stdio;
+
+        foreach (sc; shortcuts)
+        {
+            if (sc.argument is null)
+                editorBehavior.keyBindings.setKeyBinding(sc.keySequence, commandName);
+            else
+                editorBehavior.keyBindings.setKeyBinding(sc.keySequence, commandName, sc.argument);
+        }
     }
 
     // super()
@@ -268,7 +445,8 @@ class Application
 		_log(msgs);
     }
 
-	void onFileDropped(string path)
+    @RPC
+    void onFileDropped(string path)
 	{
 		analyticEvent("core", "fileDrop");
 		addMessage("Dropped file %s ", path);
@@ -384,7 +562,11 @@ class Application
 
 	void run()
 	{
-		setupResourcesRoot();
+		import core.runtime;
+        Runtime.traceHandler = &myTraceHandler;
+        registerCommandParameterPackHandlers();
+
+        setupResourcesRoot();
 
 		// guiRoot.locationsManager.baseURI = "resources/";
 
@@ -469,15 +651,66 @@ class Application
         guiRoot.registerCustomEventType(_asyncIO.customEventType);
 
         import derelict.sdl2.sdl;
-        _sdlCustomEventType = SDL_RegisterEvents(1);
+        g_sdlCustomEventType = SDL_RegisterEvents(1);
 
-        guiRoot.registerCustomEventType(_sdlCustomEventType);
+        guiRoot.registerCustomEventType(g_sdlCustomEventType);
 
 		import libasync : DWFileEvent;
         static import platform.config;
+
         _asyncIO.watchDir(platform.config.resourcesRoot, DWFileEvent.ALL,  true).then( (WatchDirResult r) {
+            // TODO: append... do not just set the queue
             resourceDirWatcherQueue = r.changesRange;
         });
+
+
+        foreach (loc; [ ResourceBaseLocation.executableDir /* , ResourceBaseLocation.userDataDir */ ])
+        {
+            string extensionsDir = platform.config.resourceURI("extensions", loc).uriString;
+            if (exists(extensionsDir))
+            {
+                _asyncIO.watchDir(extensionsDir, DWFileEvent.ALL,  true).then( (WatchDirResult r) {
+                    // TODO: append... do not just set the queue
+                    extensionsDirWatcherQueue = r.changesRange;
+                });
+                scheduleExtensionsDirScan(extensionsDir);
+            }
+        }
+
+        ushort port = 13575;
+        _asyncIO.tcpListen("127.0.0.1", port, &acceptTcpConnection);
+
+        /*
+        _syncIO.tcpListen("127.0.0.1", 13575, void delegate(TCPEvent) delegate(AsyncTCPConnection conn) {
+            enum bufSize = 4096;
+            ubyte[bufSize] buf;
+            return (TCPEvent ev) {
+                switch (ev)
+                {
+                    case TCPEvent.CONNECT:
+                        // just connected
+                        break;
+                    case TCPEvent.READ:
+                        uint bytesRead = bufSize + 1;
+
+                        while (bytesRead >= bufSize)
+                        {
+                            bytesRead = conn.read(buf);
+
+                        }
+                        break;
+                    case TCPEvent.WRITE:
+                        // ?
+                        break;
+                    case TCPEvent.CLOSE:
+
+                        break;
+                }
+            };
+        });
+        */
+
+        //_tcpCommandTid = spawn(&tcpCommandHandler, thisTid);
 
         // Regular check will also be called on every refocus or async job completion
         regularCheck();
@@ -489,8 +722,8 @@ class Application
 
 		setupMainWindow();
 
-		static import extensions.base;
-		auto exceptions = extensions.base.init(this);
+		import extensionapi : extInit = init, extFini = fini;
+		auto exceptions = extInit(this);
         foreach (e; exceptions)
             addMessage(e.toString());
 
@@ -510,7 +743,7 @@ class Application
 		if (analytics !is null)
 			analytics.stop();
 
-		extensions.base.fini(this);
+		extFini(this);
 		saveSession();
 
 		if (!_restartExecutable.empty)
@@ -531,7 +764,14 @@ class Application
         _asyncIO.kill();
 	}
 
-	private void handleActivity()
+	private void delegate(TCPEvent) acceptTcpConnection(AsyncTCPConnection conn)
+    {
+        auto h = new TCPClient(conn);
+        _connectedTcpClientQueue.push(cast(shared)h);
+        return &h.handleEvent;
+    }
+
+    private void handleActivity()
 	{
 		// Since this is called by onActivity the futures supported currently are only those
 		// being fulfilled by an activity ie. key press, mouse move etc.
@@ -540,6 +780,84 @@ class Application
 		handleFiberFutures();
 		handlePromptQuery();
 		doCommandCalls();
+        handleNewTCPClients();
+        handleTCPClientCommands();
+        handleMainThreadWorkQueue();
+    }
+
+    private void handleNewTCPClients()
+    {
+        while (!_connectedTcpClientQueue.empty)
+        {
+            auto c = _connectedTcpClientQueue.pop();
+            assumeSafeAppend(_connectedTcpClients);
+            auto tcpClient = cast(TCPClient)c;
+            _connectedTcpClients ~= tcpClient;
+
+            import std.functional;
+            tcpClient.onQueuesUpdated.connectTo(() { wakeMainThread(); });
+        }
+    }
+
+    private void handleTCPClientCommands()
+    {
+        for (int i = 0; i < _connectedTcpClients.length; )
+        {
+            auto c = _connectedTcpClients[i];
+            if (c.isClosed)
+            {
+                commandManager.remove((cmdName, cmd) {
+                    import extensionapi.remotecommand : RemoteCommand;
+                    auto rcmd = cast(RemoteCommand)cmd;
+                    if (rcmd is null)
+                        return false;
+                    bool res = rcmd.client is c;
+                    if (res)
+                    {
+                        // Remove shortcuts for commands
+                        editorBehavior.keyBindings.clearKeyBinding(cmdName);
+                        menu.removeTreeItemByCommand(cmdName);
+                    }
+                    return res;
+                });
+
+                _connectedTcpClients[i] = _connectedTcpClients[$-1];
+                _connectedTcpClients.length--;
+                assumeSafeAppend(_connectedTcpClients);
+                continue;
+            }
+            while (c.hasAPICall)
+            {
+                APICall apiCall = c.popAPICall();
+                bool ok = false;
+                try
+                {
+                    apiCall.execute(&lookupAPIObject);
+                }
+                catch (Exception e)
+                {
+                    log.e("Error handling tcp client command %s", e.toString());
+                }
+            }
+            ++i;
+        }
+    }
+
+    Object lookupAPIObject(string objectType, string objectID)
+    {
+        import extensionapi.remotecommand;
+        switch (objectType)
+        {
+            case "Application":
+                return this;
+            case "BufferView":
+                return bufferViewManager[objectID.to!int];
+            case "RemoteCommandRegistrar":
+                CommandManager mgr = commandManager;
+                return new RemoteCommandRegistrar(mgr, &lookupAPIObject);
+            default:
+                return null;
+        }
     }
 
 	private void handlePromptQuery()
@@ -569,10 +887,22 @@ class Application
 		guiRoot.stop();
 	}
 
+    @RPC
     void quit()
     {
 		_asyncIO.stopWorker();
         guiRoot.stop();
+    }
+
+    @RPC
+    string hello(string yourName)
+    {
+        return "Hello to you : " ~ yourName;
+    }
+
+    void setKeyBinding(string keySequence, string cmd)
+    {
+        editorBehavior.keyBindings.setKeyBinding(keySequence, cmd);
     }
 
 	void setupResourcesRoot()
@@ -581,7 +911,7 @@ class Application
 
         version (portable)
         {
-            import core.pack;
+            import dccore.pack;
             string destDir = FilePack!"resources.pack"().unpack();
             resourcesRoot = buildPath(destDir, "resources");
             writeln("Unpack dir ", destDir);
@@ -592,7 +922,10 @@ class Application
         else
         {
             resourcesRoot = absolutePath("resources", thisExePath().dirName());
-            binariesRoot = absolutePath("binaries", thisExePath().dirName());
+            debug
+                binariesRoot = absolutePath("binaries", thisExePath().dirName());
+            else
+                binariesRoot = absolutePath(thisExePath().dirName());
         }
 	}
 
@@ -656,7 +989,7 @@ class Application
         import platform.display : getExistingWindowRect;
 		Rectf existingRect;
 		bool gotRect = getExistingWindowRect(&existingRect);
-		auto win = createWindow("Deadcode");
+		auto win = createWindow("Deadcode", 1280, 720);
 		if (gotRect)
 		{
             import std.stdio;
@@ -777,6 +1110,10 @@ class Application
 		menu.parent = win;
 		menu.onMissingCommandArguments.connect(&cc.onMissingCommandArguments);
 
+		import gui.control.notice;
+        auto n = new Notice();
+        n.parent = win;
+
         guiRoot.onEvent.connectTo((Event* ev) {
 			// Let the shortcut handler do its magic before event is dispatched to
 			// the widgets.
@@ -878,13 +1215,23 @@ class Application
         return firstObjectInResource;
     }
 
-	BufferView openFile(string path)
+    private static string normalizePath(string path)
+    {
+        import platform.config;
+        auto de = statFilePathCase(path.absolutePath);
+		path = de.replace("\\", "/");
+        return path;
+    }
+
+	BufferView openFile(string path, bool show = true)
 	{
-		path = path.replace("\\", "/");
-		auto existingBuffer = bufferViewManager[path];
+		path = normalizePath(path);
+
+        auto existingBuffer = bufferViewManager[path];
 		if (existingBuffer !is null)
 		{
-			showBuffer(existingBuffer);
+			if (show)
+                showBuffer(existingBuffer);
 			return existingBuffer;
 		}
 
@@ -929,8 +1276,12 @@ class Application
         if (curBV)
             view.visibleLineCount = curBV.visibleLineCount;
 
-		showBuffer(view);
-		// debug view.enableUndoStackDumps();
+		if (show)
+            showBuffer(view);
+        else
+            ensureTextEditor(view);
+
+        // debug view.enableUndoStackDumps();
 		view.onBufferModified.connect(&bufferModified);
 		// addMessage("Read %s", view.name);
 
@@ -999,56 +1350,62 @@ class Application
 		return std.array.array(bufferViewManager.buffers.values.map!"a.name".filter!(a => a.startsWith(prefix))());
 	}
 
+    private TextEditor ensureTextEditor(BufferView buf)
+    {
+        EditorInfo* w = buf.id in editors.editors;
+
+        if (w !is null)
+            return w.editor;
+
+		//a create a new widget for this buffer
+		auto editorWidget = new TextEditor(buf);
+        editorWidget.onGlyphMouseUp.connect(&textEditorGlyphClicked);
+
+        editorWidget.parent = _editorStack;
+		// guiRoot.timeout(dur!"msecs"(500), () { editorWidget.toggleCursorVisibility(); return true; });
+		//editorWidget.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
+		//editorWidget.alignTo(Anchor.BottomRight);
+		editors.editors[buf.id] = EditorInfo(++editors.focusOrderCounter, editorWidget);
+		editorWidget.name = "editor-buffer-" ~ buf.id.to!string;
+		editorWidget.onKeyboardFocusCallback = (Event ev, Widget w) {
+			EditorInfo* info = &(editors.editors[buf.id]);
+            info.focusOrder = ++editors.focusOrderCounter;
+			currentBuffer = buf;
+			return EventUsed.yes;
+		};
+
+		import dccore.language;
+		auto dinfo = manager().lookupByFileExtension(extension(buf.name));
+		if (buf.codeModel is null && dinfo !is null)
+        {
+			buf.codeModel = dinfo.createModel(buf);
+        }
+        else
+        {
+            buf.onChanged.connect(&detectCodeModel);
+        }
+
+        buf.onCodeModelChanged.connect(&codeModelChanged);
+
+        if (editorWidget.textStyler is null)
+            editorWidget.textStyler = createTextStyler(buf);
+
+        bufferViewManager.onBufferViewRenamed.connect(&bufferViewRenamed);
+        return editorWidget;
+    }
+
 	private auto setBufferVisible(BufferView buf)
 	{
 		_editorStack.hideChildren();
-		EditorInfo* w = buf.id in editors.editors;
-		if (w is null)
-		{
-			//a create a new widget for this buffer
-			auto editorWidget = new TextEditor(buf);
-            editorWidget.onGlyphMouseUp.connect(&textEditorGlyphClicked);
-
-            editorWidget.parent = _editorStack;
-			// guiRoot.timeout(dur!"msecs"(500), () { editorWidget.toggleCursorVisibility(); return true; });
-			//editorWidget.alignTo(Anchor.TopLeft, Vec2f(-1, -1), Vec2f(6,0));
-			//editorWidget.alignTo(Anchor.BottomRight);
-			editors.editors[buf.id] = EditorInfo(++editors.focusOrderCounter, editorWidget);
-			editorWidget.name = "editor-buffer-" ~ buf.id.to!string;
-			editorWidget.onKeyboardFocusCallback = (Event ev, Widget w) {
-				EditorInfo* info = &(editors.editors[buf.id]);
-                info.focusOrder = ++editors.focusOrderCounter;
-				currentBuffer = buf;
-				return EventUsed.yes;
-			};
-
-			import core.language;
-			auto dinfo = manager().lookupByFileExtension(extension(buf.name));
-			if (buf.codeModel is null && dinfo !is null)
-            {
-				buf.codeModel = dinfo.createModel(buf);
-            }
-            else
-            {
-                buf.onChanged.connect(&detectCodeModel);
-            }
-			w = buf.id in editors.editors;
-
-            buf.onCodeModelChanged.connect(&codeModelChanged);
-
-            if (editorWidget.textStyler is null)
-                editorWidget.textStyler = createTextStyler(buf);
-
-            bufferViewManager.onBufferViewRenamed.connect(&bufferViewRenamed);
-		}
-		w.editor.visible = true;
+	    auto w = ensureTextEditor(buf);
+		w.visible = true;
 		return w;
 	}
 
     private void bufferViewRenamed(BufferView buf, string oldName)
     {
         // Check if the codeModel shoudl be set/changed
-        import core.language;
+        import dccore.language;
         auto dinfo = manager().lookupByFileExtension(extension(buf.name));
         if (dinfo !is null && (buf.codeModel is null || buf.codeModel.codeIntel !is dinfo))
             buf.codeModel = dinfo.createModel(buf);
@@ -1058,7 +1415,7 @@ class Application
     {
         if (b.codeModel is null)
         {
-            import core.language;
+            import dccore.language;
             auto dinfo = manager().detect(b);
             if (dinfo !is null)
             {
@@ -1097,7 +1454,8 @@ class Application
         }
     }
 
-	TextEditor getCurrentTextEditor()
+	@RPC
+    TextEditor getCurrentTextEditor()
 	{
 		foreach (k,v; editors.editors)
 		{
@@ -1117,7 +1475,21 @@ class Application
 		return null;
 	}
 
-	BufferView getCurrentBuffer()
+	TextEditor getTextEditorForFile(string path)
+	{
+        // open the file in background if needed
+        auto bv = openFile(path, false);
+
+        foreach (k,v; editors.editors)
+		{
+			if (v.editor.bufferView is bv)
+				return v.editor;
+		}
+        return null;
+	}
+
+	@RPC
+    BufferView getCurrentBuffer()
     {
         return getVisibleBuffer();
     }
@@ -1164,7 +1536,7 @@ class Application
 	void showBuffer(BufferView buf)
 	{
 		auto w = setBufferVisible(buf);
-		w.editor.setKeyboardFocusWidget();
+		w.setKeyboardFocusWidget();
 		currentBuffer = buf;
 	}
 
@@ -1326,7 +1698,8 @@ class Application
 
 	private bool regularCheck()
     {
-        checkDirForChanges();
+        checkResourceDirForChanges();
+        checkExtensionsDirForChanges();
         updateDelayedWidgetLocations();
         if (auto ed = getCurrentTextEditor())
             ed.toggleCursorVisibility();
@@ -1342,7 +1715,7 @@ class Application
     // Here we simply check if there is something in the queue and scan resources.
     // Note that the watching thread will wake up the main thread in case it notices some changes
     // and therefore we will get here process it.
-    private void checkDirForChanges()
+    private void checkResourceDirForChanges()
 	{
         if (resourceDirWatcherQueue is null)
             return;
@@ -1350,6 +1723,85 @@ class Application
         if (resourceDirWatcherQueue.clear())
             scanResources();
 	}
+
+    private void checkExtensionsDirForChanges()
+	{
+        if (extensionsDirWatcherQueue is null)
+            return;
+
+        while (!extensionsDirWatcherQueue.empty)
+        {
+            WatchDirChange info = extensionsDirWatcherQueue.pop();
+            handleOutOfProcessExtensionCandidate(info.path);
+        }
+	}
+
+    void scheduleExtensionsDirScan(string dirPath)
+    {
+        WatchDirChange ci = WatchDirChange();
+
+        if (extensionsDirWatcherQueue is null)
+            extensionsDirWatcherQueue = new typeof(extensionsDirWatcherQueue);
+
+        import std.file;
+        foreach (f; dirEntries(dirPath, "*.d", SpanMode.depth))
+        {
+            ci.path = f;
+            extensionsDirWatcherQueue.push(ci);
+        }
+    }
+
+    void handleOutOfProcessExtensionCandidate(string path)
+    {
+        // Check first ~4k bytes for "mixin registerCommandsRPC". If found then compile the extension
+        // as out of process and (re)spawn it.
+        if (!isFileOutOfProcessExtensionSource(path))
+            return;
+
+        commandManager.execute("deadcode.buildAndStartExtension", path);
+    }
+
+    class ProcessManager
+    {
+
+    }
+    ProcessManager processManager;
+   import std.process; Pid[string] _runningExtensionProcesses;
+
+    @RPC
+    void startExtension(string path)
+    {
+        log.i("Starting extension ", path);
+        import std.process;
+        import std.stdio;
+        // TODO: Register all sub processes so that they can be killed on request by path name and also registered for KillWhenParentDies windows JobObject thingy
+        //processManager.kill(path);
+        //processManager.spawn(path, Config.suppressConsole);
+
+        auto existingProcess = path in _runningExtensionProcesses;
+        if (existingProcess !is null)
+        {
+            kill(*existingProcess);
+            _runningExtensionProcesses.remove(path);
+        }
+        auto pid = spawnProcess(path, stdin, stdout, stderr, null, Config.suppressConsole);
+        // Error check
+        _runningExtensionProcesses[path] = pid;
+    }
+
+    private bool isFileOutOfProcessExtensionSource(string path)
+    {
+        import std.file;
+        if (!exists(path))
+            return false;
+        if (isDir(path))
+        {
+            log.e("%s is directory and not extension", path);
+            return false;
+        }
+        char[] data = cast(char[]) read(path, 4000);
+        return data.canFind("mixin registerCommandsRPC");
+    }
 
 	static class SessionBuffer
 	{
@@ -1518,7 +1970,7 @@ class Application
         editorBehavior.currentKeyBindingsSet.clear();
 
         // Re-register command extension shortcuts as defined by @Shortcut attribute
-        import extensions.base;
+        import extensionapi.command : registerCommandKeyBindings;
         registerCommandKeyBindings(this);
 
         // Load global key mappings
@@ -1577,7 +2029,7 @@ class Application
         return promise.getFuture().get();
     }
 
-    U yield(U, Args...)(U delegate(Args) dlg, Args args)
+    U yield(U, Args...)(U delegate(Args) dlg, Args args) if (!is(U == void))
     {
         import core.thread;
         enforce(Fiber.getThis() !is null);
@@ -1589,7 +2041,7 @@ class Application
 	        import derelict.sdl2.sdl;
 	        SDL_Event event;
 	        //   SDL_Zero(event); not needed since dlang does this
-	        event.type = _sdlCustomEventType;
+	        event.type = g_sdlCustomEventType;
 	        SDL_PushEvent(&event);
         });
 
@@ -1599,7 +2051,29 @@ class Application
         return promise.getFuture().get();
     }
 
-    U yield(U, Args...)(U function(Args) dlg, Args args)
+    void yield(Args...)(void delegate(Args) dlg, Args args)
+    {
+        import core.thread;
+        enforce(Fiber.getThis() !is null);
+
+        auto promise = new Promise!bool();
+
+        auto thread = new Thread( () {
+			dlg(args);
+            promise.setValue(true);
+	        import derelict.sdl2.sdl;
+	        SDL_Event event;
+	        //   SDL_Zero(event); not needed since dlang does this
+	        event.type = g_sdlCustomEventType;
+	        SDL_PushEvent(&event);
+        });
+
+        thread.start();
+        yieldFuture(promise.getFuture());
+        thread.join();
+    }
+
+    U yield(U, Args...)(U function(Args) dlg, Args args) if (!is(U == void))
     {
         import core.thread;
         enforce(Fiber.getThis() !is null);
@@ -1611,7 +2085,7 @@ class Application
             import derelict.sdl2.sdl;
 	        SDL_Event event;
 	        //   SDL_Zero(event); not needed since dlang does this
-	        event.type = _sdlCustomEventType;
+	        event.type = g_sdlCustomEventType;
 	        SDL_PushEvent(&event);
         });
 
@@ -1621,9 +2095,31 @@ class Application
         return promise.getFuture().get();
     }
 
-	void timeout(Fn, Args...)(Duration d, Fn fn, Args args)
+    void yield(Args...)(void function(Args) dlg, Args args)
+    {
+        import core.thread;
+        enforce(Fiber.getThis() !is null);
+
+        auto promise = new Promise!bool();
+
+        auto thread = new Thread( () {
+			dlg(args);
+            promise.setValue(true);
+	        import derelict.sdl2.sdl;
+	        SDL_Event event;
+	        //   SDL_Zero(event); not needed since dlang does this
+	        event.type = g_sdlCustomEventType;
+	        SDL_PushEvent(&event);
+        });
+
+        thread.start();
+        yieldFuture(promise.getFuture());
+        thread.join();
+    }
+
+    auto timeout(Fn, Args...)(Duration d, Fn fn, Args args)
 	{
-		guiRoot.timeout(d, fn, args);
+		return guiRoot.timeout(d, fn, args);
 	}
 
     struct MainFiberWork
@@ -1633,6 +2129,14 @@ class Application
 
     MainFiberWork[] _mainFiberWorkList;
 	CommandCall[] _commandCallList;
+
+    @RPC
+	void scheduleCommand(string commandName, string arg1)
+    {
+        auto cc = CommandCall(commandName);
+        cc.arguments ~= CommandParameter(arg1);
+        pushCommandCall(cc);
+    }
 
 	void pushCommandCall(CommandCall c)
     {
@@ -1697,7 +2201,14 @@ class Application
 					done = false;
 
 					// Future ready... resume fiber
-					ff.fiber.call();
+                    try
+                    {
+    					ff.fiber.call();
+                    }
+                    catch (Exception e)
+                    {
+                        log.e("Fiber future resume error: %s", e.toString());
+                    }
 					break;
 				}
 			}
@@ -1707,7 +2218,16 @@ class Application
 	private void doMainFiberWork()
 	{
         foreach (ff; _mainFiberWorkList)
-            ff.dlg();
+        {
+            try
+            {
+                ff.dlg();
+            }
+            catch (Exception e)
+            {
+                log.e("Delayed main fiber work error: %s", e.toString());
+            }
+        }
 		_mainFiberWorkList.length = 0;
         assumeSafeAppend(_mainFiberWorkList);
 	}
@@ -1715,17 +2235,26 @@ class Application
 	private void doCommandCalls()
     {
         foreach (cc; _commandCallList)
-	        commandManager.execute(cc);
+        {
+	        try
+            {
+                commandManager.execute(cc);
+            }
+            catch (Exception e)
+            {
+                log.e("Command '%s' error: %s", cc.name, e.toString());
+            }
+        }
         _commandCallList.length = 0;
         assumeSafeAppend(_commandCallList);
     }
 
-	//static import core.future;
-	//core.future.Fiber getFiber()
+	//static import dccore.future;
+	//dccore.future.Fiber getFiber()
 	//{
 	//    static import core.thread;
 	//    auto f =  core.thread.Fiber.getThis();
-	//    return cast(core.future.Fiber)f;
+	//    return cast(dccore.future.Fiber)f;
 	//}
 
 	void analyticEvent(string category, string action, string label = null, string value = null)
@@ -1757,6 +2286,18 @@ class Application
 		if (analytics !is null)
 			analytics.addException(description, isFatal);
 	}
+
+    @RPC
+    string getUserDataDir()
+    {
+        return resourceURI(".", ResourceBaseLocation.userDataDir).uriString;
+    }
+
+    @RPC
+    string getExecutableDir()
+    {
+        return resourceURI(".", ResourceBaseLocation.executableDir).uriString;
+    }
 }
 
 
@@ -1855,11 +2396,11 @@ class WidgetLocationUpdater : IWidgetLocationUpdater
 
 version (none):
 import behavior.behavior;
-import core.buffer;
-import core.bufferview;
-import core.command;
+import dccore.buffer;
+import dccore.bufferview;
+import dccore.command;
 import core.stdc.errno;
-import core.log;
+import dccore.log;
 
 import std.stdio;
 

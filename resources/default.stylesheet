@@ -336,9 +336,9 @@ UnittestAnchor:focus {
 	background-sprite-border: 6 6 6 6;
 }
 
-.error-highfight {
+.error-highflight {
 	background: url(materials/white-small-nine-patch.png);
-	color: #111111;
+	color: #ff1111;
 	padding: 0 0 0 0;
 	background-sprite: 0 0 16 16;
 	background-sprite-border: 6 6 6 6;
@@ -352,7 +352,7 @@ TextHighlighter {
 	background-sprite-border: 1 1 1 1;
 }
 
-.error-highflight {
+.error-highlight {
 	background: url(materials/white-small-nine-border-patch.png);
 	color: #ffff00;
 	padding: 0 0 0 0;
@@ -363,6 +363,8 @@ TextHighlighter {
 .lineHighlight {
 	color: #212e30;
 	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
 	width: 100%;
 }
 

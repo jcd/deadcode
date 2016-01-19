@@ -561,7 +561,7 @@ class TextSelectionModel : Stylable
 }
 
 
-class TextHighlighter : Stylable
+class RegionSetDecoration : Stylable
 {
 	string[] classNames;
     BoxModel[] models; // Model representing the selected area
@@ -675,7 +675,16 @@ class TextHighlighter : Stylable
 			// Begin and end glyph pos will tell us the horizontal ends of the selection box for
 			// The
 			Rectf beginGlyphPos = textLayout.model.getGlyphPos(line.region.a);
-			Rectf endGlyphPos =  textLayout.model.getGlyphPos(line.region.b-1);
+			Rectf endGlyphPos = beginGlyphPos;
+            if (line.region.empty)
+            {
+                endGlyphPos.size.x = 2; // 2 px width when region is empty
+
+            }
+            else
+            {
+                endGlyphPos = textLayout.model.getGlyphPos(line.region.b-1);
+            }
 
 			// Swap y-coords to match coor system
 			beginGlyphPos.y = (-beginGlyphPos.y) - beginGlyphPos.h;
@@ -694,6 +703,10 @@ class TextHighlighter : Stylable
 				box.setupDefaultNinePatch(sprite);
 				box.color = style.color;
 			}
+
+            if (line.region.empty)
+                box.borders = RectfOffset(0,0,0,0);
+
 
 			Vec2f size = Vec2f((endGlyphPos.pos.x + endGlyphPos.size.x) - beginGlyphPos.pos.x, line.lineHeight);
 

@@ -1,6 +1,6 @@
 module math.rect;
 
-import animation.mutator;
+// import animation.mutator;
 
 import math.smallvector;
 import std.math : fmin, fmax, isNaN;

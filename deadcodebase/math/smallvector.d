@@ -1,6 +1,6 @@
 module math.smallvector;
 
-import animation.mutator;
+//import animation.mutator;
 
 import std.math;
 import std.traits;
@@ -28,7 +28,7 @@ nothrow:
         {
             T[N] v;
 
-			@Bindable()
+			//@Bindable()
 			struct
             {
                 static if (N >= 1) T x;

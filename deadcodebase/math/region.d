@@ -59,7 +59,7 @@ struct Region
 
 	@property pure size_t length() const nothrow @safe
 	{
-		return b - a;
+		return b >= a ?  b - a : a - b;
 	}
 
 	Region normalized() const pure nothrow @safe
@@ -134,8 +134,8 @@ struct Region
 	 */
 	Region intersect(Region r) const pure nothrow @safe
 	{
-		if (r.b <= a || r.a >= b || r.empty || empty)
-			return Region(a, a, id); // an empty region with start at this.a
+		if (r.end <= begin || r.begin >= end)
+			return invalid;
 		return Region(r.a > a ? r.a : a, r.b < b ? r.b : b, r.id);
 	}
 
@@ -149,50 +149,55 @@ struct Region
 		struct IntersectResult
 		{
 			pure nothrow @safe:
-			
+
 			Region before;
 			Region at;
 			Region after;
 
 			@property int max() const
 			{
-				return before.b > at.b ? (before.b > after.b ? before.b : after.b) : (at.b > after.b ? at.b : after.b);
+				return before.end > at.end ? (before.end > after.end ? before.end : after.end) : (at.end > after.end ? at.end : after.end);
 			}
 
 			@property size_t length() const
 			{
-				return (before.empty ? 0 : 1) + (at.empty ? 0 : 1) + (after.empty ? 0 : 1);
+				return (before.valid ? 1 : 0) + (at.valid ? 1 : 0) + (after.valid ? 1 : 0);
 			}
 
 			@property bool empty() const
 			{
-				return before.empty && at.empty && after.empty;
+				return !before.valid && !at.valid && !after.valid;
 			}
 
 			@property Region front() const
 			{
-				return before.empty ? (at.empty ? after : at) : before;
+				return before.valid ? before : (at.valid ? at : after);
 			}
 
-            IntersectResult save() const 
+            IntersectResult save() const
             {
                 return IntersectResult(before, at, after);
             }
 
 			void popFront()
 			{
-				if (!before.empty)
-					before.a = before.b;
-				else if (!at.empty)
-					at.a = at.b;
+				if (before.valid)
+					before = invalid;
+				else if (at.valid)
+					at = invalid;
 				else
-					after.a = after.b;
+					after = invalid;
 			}
 		}
 
 		Region r1 = intersect(r);
-		if (r1.empty)
-			return IntersectResult(this, zero, zero);
+		if (!r1.valid)
+        {
+		    if (begin >= r.end)
+                return IntersectResult(invalid, invalid, this);
+            else
+                return IntersectResult(this, invalid, invalid);
+        }
 		Region r0 = Region(a, r1.a, id);
 		Region r2 = Region(r1.b, b, id);
 		return IntersectResult(r0, r1, r2);
@@ -220,7 +225,12 @@ struct Region
 	 */
 	bool contains(Region r) const
 	{
-		return r.a >= a && r.b <= b && !r.empty && !empty;
+        if (r.empty)
+            return contains(r.a);
+        else if (a <= b)
+            return !empty && r.a >= a && r.b <= b;
+        else
+            return !empty && r.a <= a && r.b >= b;
 	}
 
 	unittest {
@@ -238,12 +248,12 @@ struct Region
 	 */
 	bool contains(int p) const
 	{
-		return p >= a && p < b && !empty;
+		return a <= b ? p == a || (p > a && p < b) : p == b || (p > b && p < a);
 	}
 
 	unittest
 	{
-		Assert(!Region.zero.contains(0));
+		Assert(Region.zero.contains(0));
 		Assert(Region(0,1).contains(0));
 		Assert(!Region(0,1).contains(1));
 		Assert(!Region(0,1).contains(2));
@@ -540,9 +550,21 @@ class RegionSet
 	alias Container.Range Range;
 	Container regions;
 	// alias regions this;
+    //enum MergeStyle
+    //{
+    //    disallow = 0,                 // merge not allowed
+    //    allowAdjecent = 1,            // adjecent and ID matching
+    //    allowIDMismatch = 2,          // non-adjecent, and ID mismatch
+    //    allowNonAdjecentAndNotSameID = 3    // non-adjecent and not-same ID
+    //    allow = 3,                    // adjecent and not-same ID
+    //}
 
 	bool _mergeIntersectingRegions = true;
+    bool _mergeRegionsWithSameID = false;
+    bool _mergeAdjecent = false;
+    bool _allowEmptyRegions = true;
 
+final:
 	@property
 	{
 		int a()
@@ -590,7 +612,18 @@ class RegionSet
         regions.clear();
     }
 
+    void clear(Region r)
+    {
+        clear();
+        regions ~= r;
+    }
+
     ref Region opIndex(size_t n) pure @safe
+    {
+        return regions.opIndex(n);
+    }
+
+    const(Region) opIndex(size_t n) pure @safe const
     {
         return regions.opIndex(n);
     }
@@ -716,8 +749,9 @@ class RegionSet
 
 	void set(Region r)
 	{
-		if (r.empty) return;
-		if (regions.empty)
+		// if (r.empty && !_allowEmptyRegions) return;
+
+        if (regions.empty)
 		{
 			regions.insertBack(r);
 			return;
@@ -730,7 +764,7 @@ class RegionSet
 			auto cur = regions[i];
 			if (r.b <= cur.a)
 			{
-				if (!r.empty)
+				//if (!r.empty)
 					regions.insertBefore(regions[i..i+1], r);
 				return; // done
 			}
@@ -740,10 +774,12 @@ class RegionSet
 			{
 				regions.insertBefore(regions[i..i+1], Region(r.a, cur.a, r.id));
 				++i;
+                if (r.empty)
+                    return;
 			}
 
 			auto isect = cur.intersect3(r);
-			if (isect.at.empty)
+			if (!isect.at.valid)
 			{
 				++i;
 				continue;
@@ -773,7 +809,7 @@ class RegionSet
 			//    i++;
 			//}
 			r.a = isect.max;
-			if (r.a > r.b)
+			if (r.a > r.b || r.empty)
 				return;
 		}
 		regions.insertBack(r);
@@ -1188,6 +1224,17 @@ class RegionSet
 		return false;
 	}
 
+    Region probe(int index)
+    {
+		for (int i = 0; i < regions.length; ++i)
+		{
+			auto re = regions[i];
+			//if (r.b <= re.a) break;
+			if (re.contains(index)) return re;
+		}
+        return Region.invalid;
+    }
+
 	// TODO fix
 	RegionSet getInverse()
 	{
@@ -1323,7 +1370,7 @@ class RegionSet
                     void popFront() nothrow @safe
                     {
                         auto i = slice.front.intersect3(reg);
-                        if (i.at.empty)
+                        if (!i.at.valid)
                         {
                             currentFront = Region.invalid;
                             // end of intersections and this.empty should return true now
@@ -1409,6 +1456,3 @@ class RegionSet
 	}
 }
 
-//unittest {
-//    printStats(true);
-//}

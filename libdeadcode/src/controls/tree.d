@@ -174,6 +174,49 @@ class Tree : Widget
 		layout = new VerticalLayout(false);
 	}
 
+    bool removeTreeItemByCommand(string commandName)
+    {
+        bool result = false;
+        if (commandCall.name == commandName)
+        {
+            parentTree.parent = null;
+            result = true;
+        }
+        else
+        {
+            foreach (c; children)
+            {
+                Tree ct = cast(Tree) c;
+                if (ct !is null)
+                    ct.removeTreeItemByCommand(commandName);
+            }
+        }
+
+        /* TODO: auto remove of empty subtrees
+        else
+        {
+            bool removedOne = false;
+            foreach (c; children)
+            {
+                Tree ct = cast(Tree) c;
+                if (ct !is null)
+                    removedOne = removedOne || c.removTreeItemByCommand(commandName);
+            }
+
+            // Check if this tree is empty now that children might have been removed
+            if (removedOne)
+            {
+                if (children.length == 0)
+                {
+                    parent = null;
+                }
+                result = true;
+            }
+        }
+        */
+        return result;
+    }
+
 	Tree addTreeItem(string path, string commandName = null, CommandParameter[] arguments = null)
 	{
 		return addTreeItem(path.split('/'), commandName, arguments);

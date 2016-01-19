@@ -208,6 +208,36 @@ struct NoSerializeLookup(T)
 }
 
 
+template TransitiveFieldNameTuple(T) if (is(T == class))
+{
+    import std.traits;
+    import std.typetuple;
+    static if (is(T == Object))
+        alias TransitiveFieldNameTuple = TypeTuple!();
+    else
+    {
+        alias TransitiveFieldNameTuple = TypeTuple!(TransitiveFieldNameTuple!(BaseTypeTuple!T[0]), FieldNameTuple!T);
+    }
+}
+
+template TransitiveFieldNameTuple(T) if (is(T == struct))
+{
+    import std.traits;
+    alias TransitiveFieldNameTuple = FieldNameTuple!T;
+}
+
+template hasCustomJSONEncode(T) if (is(T == class))
+{
+    pragma(msg, "XXX ", T, __traits(compiles, (T t) { return t._toJSON(); }));
+    enum hasCustomJSONEncode = __traits(compiles, (T t) { return t._toJSON(); });
+}
+
+template hasCustomJSONEncode(T) if (!is(T == class))
+{
+    enum hasCustomJSONEncode = false;
+}
+
+
 /* Encode struct or class */
 void jsonEncode_impl(S, A)(S obj, ref A app) if((is(S == struct) || is(S == class)) && !is(S == JsonNull)) {
     static if(is(S == class)) {
@@ -226,16 +256,18 @@ void jsonEncode_impl(S, A)(S obj, ref A app) if((is(S == struct) || is(S == clas
 	import std.algorithm;
 	NoSerializeLookup!S fieldLookup;
 
-    foreach(i, val; obj.tupleof) {
+    //foreach(i, val; obj.tupleof) {
+    foreach(i, val; TransitiveFieldNameTuple!S) {
 
 		static if (isSomeFunction!val)
 			continue;
 		/* obj.tupleof[i].stringof is something like "obj.member".
 		* We just want "member" */
-        auto key = obj.tupleof[i].stringof[4..$];
+        // auto key = obj.tupleof[i].stringof[4..$];
+        auto key = val;
 
-		if (fieldLookup.fields.countUntil(key) != -1)
-		    continue;
+        //if (fieldLookup.fields.countUntil(key) != -1)
+        //    continue;
 
 		// Check for @noserialize property set
 		if(!first)
@@ -250,7 +282,15 @@ void jsonEncode_impl(S, A)(S obj, ref A app) if((is(S == struct) || is(S == clas
         app.put(' ');
         app.put(':');
         app.put(' ');
-        jsonEncode_impl(val, app);
+        static if (hasCustomJSONEncode!(typeof(__traits(getMember, obj, val))))
+        {
+            app.put(__traits(getMember, obj, val)._toJSON());
+        }
+        else
+        {
+            // jsonEncode_impl(val, app);
+            jsonEncode_impl(__traits(getMember, obj, val), app);
+        }
     }
     indent = indent[0..$-2];
     app.put('\n');
@@ -463,12 +503,16 @@ T jsonDecode_impl(T, R)(ref R input)
             /* Get class and struct members from tupleof */
             bool didRead = false;
 
-            foreach(i, oval; obj.tupleof) {
+            foreach(i, oval; TransitiveFieldNameTuple!T) {
                 /* obj.tupleof[i].stringof is something like "obj.member".
                  * We just want "member" */
-                if(key == obj.tupleof[i].stringof[4..$]) {
-                    /* Assigning to oval doesn't seem to work, but obj.tupleof[i] does */
-                    obj.tupleof[i] = jsonDecode_impl!(typeof(obj.tupleof[i]))(input);
+                if(key == (oval[0] == '_' ? oval[1..$] : oval)) {
+                    //if(key == obj.tupleof[i].stringof[4..$]) {
+                        /* Assigning to oval doesn't seem to work, but obj.tupleof[i] does */
+                    // obj.tupleof[i] = jsonDecode_impl!(typeof(obj.tupleof[i]))(input);
+                    import std.traits;
+                    alias MemberType = typeof(__traits(getMember, obj, oval));
+                    __traits(getMember, obj, oval) = jsonDecode_impl!MemberType(input);
                     didRead = true;
                     break;
                 }
@@ -493,6 +537,12 @@ T jsonDecode_impl(T, R)(ref R input)
 T[] jsonDecode_impl(A : T[], T, R)(ref R input) if(isInputCharRange!R && !isSomeString!A) {
     auto first = true;
 	auto app = appender!(T[])();
+
+    /* Arrays can be null */
+    if(!input.empty && input.front == 'n') {
+        jsonDecode_impl!JsonNull(input);
+        return null;
+    }
 
     /* First character should be '[' */
     enforceChar(input, '[', true);
@@ -542,6 +592,12 @@ T jsonDecode_impl(T, R)(ref R input) if(isInputCharRange!R && isNumeric!T && !is
 /* Decode JSON string -> D string */
 T jsonDecode_impl(T, R)(ref R input) if(isInputCharRange!R && isSomeString!T) {
     auto app = Appender!T();
+
+    /* Strings can be null */
+    if(!input.empty && input.front == 'n') {
+        jsonDecode_impl!JsonNull(input);
+        return null;
+    }
 
     /* For strings we can attempt to scan without copying or decoding UTF */
     enum canReuseInput = is(T == R);

@@ -1,7 +1,7 @@
 module gui.gui;
 
 import animation.timeline;
-import core.command;
+import dccore.command;
 import core.time;
 import gui;
 import gui.locations;
@@ -11,7 +11,7 @@ import graphics;
 import math; // Vec2f
 import derelict.sdl2.sdl;
 import std.range;
-import core.signals;
+import dccore.signals;
 
 import util.profile;
 
@@ -31,6 +31,12 @@ class GUI
 		{
 			bool done;
 			int msNext;
+            ulong id;
+            static sNextID = 1;
+            this()
+            {
+                id = sNextID++;
+            }
 			abstract bool onTimeout();
 		}
 
@@ -193,7 +199,7 @@ class GUI
 			}
 		}
 
-        outputProfile(profiler);
+        debug outputProfile(profiler);
 	}
 
     void outputProfile(Profiler p)
@@ -254,10 +260,42 @@ class GUI
 		running = false;
 	}
 
-	void timeout(Fn, Args...)(Duration d, Fn fn, Args args)
+    struct TimeoutHandle
+    {
+        GUI gui;
+        ulong id;
+        bool abort()
+        {
+			if (gui !is null)
+	            return gui.abortTimeout(id);
+            return false;
+        }
+    }
+
+    TimeoutHandle timeout(Fn, Args...)(Duration d, Fn fn, Args args)
 	{
-		_timeouts ~= new FnTimeout!(Fn,Args)(cast(int)d.total!"msecs", fn, args);
+		auto to = new FnTimeout!(Fn,Args)(cast(int)d.total!"msecs", fn, args);
+        _timeouts ~= to;
+        return TimeoutHandle(this, to.id);
 	}
+
+    bool abortTimeout(ulong id)
+    {
+        assumeSafeAppend(_timeouts);
+
+		for (size_t i = _timeouts.length; i > 0; --i)
+		{
+            size_t idx = i - 1;
+            if (_timeouts[idx].id == id)
+			{
+               // Remove from list.
+               _timeouts[idx] = _timeouts[$-1];
+               _timeouts.length -= 1;
+                return true;
+            }
+        }
+        return false;
+    }
 
 	void tick()
 	{
@@ -324,9 +362,12 @@ class GUI
 
         assumeSafeAppend(_timeouts);
 
-		foreach_reverse (ref t; _timeouts)
+		for (size_t idx = _timeouts.length; idx > 0; --idx)
 		{
-			if (t.msNext <= curTick)
+            size_t i = idx - 1;
+            Timeout t = _timeouts[i];
+
+            if (t.msNext <= curTick)
 			{
 				//timedOutThisTick = true;
 				if (t.onTimeout())
@@ -337,7 +378,7 @@ class GUI
                 else
                 {
                     // Task is done. Remove from list.
-                    _timeouts[$-1] = t;
+                    _timeouts[i] = _timeouts[$-1];
                     _timeouts.length -= 1;
                 }
 				numTimedOut++;
@@ -346,6 +387,7 @@ class GUI
             {
                 smallestTimeout = std.algorithm.min(smallestTimeout, t.msNext);
             }
+
             //else if (smallestTimeout > t.msLeft)
             //{
             //        smallestTimeout = t.msLeft;
@@ -552,7 +594,7 @@ class GUI
 		auto w = e.windowID in _windows;
 		if (w !is null)
 			w.dispatchEvent(e);
-		else
+		else if (e.type != EventType.AsyncCompletion)
         {
             import std.stdio;
             debug writeln("Event with no window target received ", e);

@@ -14,7 +14,7 @@ import gui.style.stylesheet : matchStylableImpl, StyleSheet;
 import gui.style.style : Style;
 import gui.resources.font : Font;
 import math;
-import core.buffer : InvalidIndex;
+import dccore.buffer : InvalidIndex;
 import core.time;
 import std.range;
 import std.variant;
@@ -37,8 +37,8 @@ struct GlyphHit
  */
 class TextRenderer(Text) : WidgetFeature, Stylable
 {
-	import core.buffer;
-	import core.command;
+	import dccore.buffer;
+	import dccore.command;
 
 	// Stylable interface
 	@property
@@ -56,12 +56,17 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 		Stylable parent() pure nothrow @safe { return null; } // TODO: return widget
 	}
 
+    @property TextBoxLayout layout()
+    {
+        return _layout;
+    }
+
 	private
 	{
 		TextModel _model;
 //		TextSelectionModel _selectionModel;
 
-        TextHighlighter[string] _selectionModels;
+        //TextHighlighter[string] _selectionModels;
 		//Style _selectionStyle;
 
 		//TextSelectionModel _selectionModel;
@@ -238,24 +243,24 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 	}
 
 
-    final TextHighlighter getOrCreateHighlighter(string name)
-    {
-        if (auto h = name in _selectionModels)
-        {
-            return *h;
-        }
-        else
-        {
-            auto nh = new TextHighlighter(name);
-            _selectionModels[name] = nh;
-            return nh;
-        }
-    }
-
-    final void removeHighlighter(string name)
-    {
-        _selectionModels.remove(name);
-    }
+    //final TextHighlighter getOrCreateHighlighter(string name)
+    //{
+    //    if (auto h = name in _selectionModels)
+    //    {
+    //        return *h;
+    //    }
+    //    else
+    //    {
+    //        auto nh = new TextHighlighter(name);
+    //        _selectionModels[name] = nh;
+    //        return nh;
+    //    }
+    //}
+    //
+    //final void removeHighlighter(string name)
+    //{
+    //    _selectionModels.remove(name);
+    //}
 
 	/*
 	void runCommand(string commandName, Variant data)
@@ -345,43 +350,47 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 			text.dirty = false;
 		}
 
-		TextHighlighter selectionsModel = getOrCreateHighlighter("selection");
-		selectionsModel.mergeBorders = true;
-
-		static if (!_isBasicText)
-		{
-            selectionsModel.regions.clear();
-            selectionsModel.regions ~= text.selection.normalized();
-            import core.bufferview;
-            BufferView mybv = text;
-            int a = 42;
-        }
-
-        foreach (sm; _selectionModels)
-        {
-            sm.styleSheet = widget.window.styleSheet;
-            sm.textLayout = _layout;
-            static if (_isBasicText)
-                sm.update(0, widget.size);
-            else
-                sm.update(text.bufferStartOffset, widget.size);
-        }
+        //TextHighlighter selectionsModel = getOrCreateHighlighter("selection");
+        //selectionsModel.mergeBorders = true;
+        //
+        //static if (!_isBasicText)
+        //{
+        //    selectionsModel.regions.clear();
+        //    selectionsModel.regions ~= text.selection.normalized();
+        //    import dccore.bufferview;
+        //    BufferView mybv = text;
+        //    int a = 42;
+        //}
+        //
+        //foreach (sm; _selectionModels)
+        //{
+        //    sm.styleSheet = widget.window.styleSheet;
+        //    sm.textLayout = _layout;
+        //    static if (_isBasicText)
+        //        sm.update(0, widget.size);
+        //    else
+        //        sm.update(text.bufferStartOffset, widget.size);
+        //}
 	}
+
+    void updateLayout(Widget widget)
+    {
+		Vec2f layoutSize = widget.rect.size;
+		RectfOffset padding = widget.style.padding;
+		updateLayout(widget, Vec2f(layoutSize.x - padding.horizontal, layoutSize.y - padding.vertical));
+    }
 
 	override void draw(Widget widget)
 	{
 //		Vec2f layoutSize = widget.rectStyled.size;
-		Vec2f layoutSize = widget.rect.size;
-		RectfOffset padding = widget.style.padding;
-		updateLayout(widget, Vec2f(layoutSize.x - padding.horizontal, layoutSize.y - padding.vertical));
 
 		// Rectf wrect = widget.window.windowToWorld(widget.rect);
 		Mat4f transform;
 		widget.getStyledScreenToWorldTransform(transform);
 		Mat4f trx = widget.window.MVP * transform;
 
-        foreach (sm; _selectionModels)
-   			sm.draw(trx);
+        //foreach (sm; _selectionModels)
+        //    sm.draw(trx);
 		if (_model !is null)
 			_model.draw(trx);
 

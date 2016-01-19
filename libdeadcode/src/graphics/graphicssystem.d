@@ -23,7 +23,7 @@ class OpenGLSystem : GraphicsSystem
 {
 	override bool init()
 	{
-        import core.moduleloader;
+        import dccore.moduleloader;
         import std.exception;
 
         enforce(ModuleLoader!(DerelictSDL2, "SDL2.dll")().load());

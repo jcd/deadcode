@@ -1,6 +1,6 @@
 module gui.style.stylesheet;
 
-import core.uri;
+import dccore.uri;
 
 import gui.resource;
 

@@ -1,6 +1,6 @@
 module gui.event;
 
-import core.commandparameter;
+import dccore.commandparameter;
 
 import derelict.sdl2.sdl;
 import gui.keycode;

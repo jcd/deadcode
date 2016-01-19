@@ -4,7 +4,7 @@ import animation.mutator;
 
 import graphics.texture;
 
-//import core.resource;
+//import dccore.resource;
 
 import math;
 

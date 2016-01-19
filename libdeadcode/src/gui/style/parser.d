@@ -1,6 +1,6 @@
 module gui.style.parser;
 
-import core.uri;
+import dccore.uri;
 
 import gui.resource;
 import gui.resources.material : Material, MaterialManager;

@@ -15,7 +15,7 @@ import gui.style.types;
 
 import std.datetime;
 import std.string;
-import core.signals;
+import dccore.signals;
 import std.math : isNaN;
 
 import test;

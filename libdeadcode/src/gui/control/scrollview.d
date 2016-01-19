@@ -1,6 +1,6 @@
 module gui.control.scrollview;
 
-import core.bufferview;
+import dccore.bufferview;
 import gui.widget;
 import gui.widgetfeature;
 import math;

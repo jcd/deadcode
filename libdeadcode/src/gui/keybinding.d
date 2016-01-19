@@ -1,6 +1,6 @@
 module gui.keybinding;
 
-import core.commandparameter;
+import dccore.commandparameter;
 
 import gui.keycode;
 import gui.ruleset;
@@ -278,7 +278,7 @@ class KeyBinding
 
 class KeyBindingsSet
 {
-    import core.signals;
+    import dccore.signals;
 
 	private
 	{
@@ -316,6 +316,20 @@ class KeyBindingsSet
 		import std.array;
 		return array(std.algorithm.filter!( (a) => { return a.match(seq, prefixMatchAllowed); } )(set));
 	*/
+	}
+
+	// TODO: use "swap back remove" instead us making a new array for all these remove methods
+    void removeKeyBinding(string cmd)
+	{
+		KeyBinding[] newSet;
+		newSet.length = set.length;
+		newSet.length = 0;
+		foreach (kb; set)
+		{
+			if (kb.command != cmd)
+				newSet ~= kb;
+		}
+		set = newSet;
 	}
 
 	void removeKeyBinding(KeySequence seq)
@@ -558,8 +572,12 @@ class KeyBindingStack
 		stack[0].setKeyBinding(seq, com, arg);
 	}
 
+    void clearKeyBinding(string com)
+    {
+        stack[0].removeKeyBinding(com);
+    }
 
-	/*
+    /*
 	/// ditto
 	void setKeyBinding()(string seq, string commandName)
 	{

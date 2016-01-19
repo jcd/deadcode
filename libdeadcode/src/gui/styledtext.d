@@ -1,11 +1,11 @@
 module gui.styledtext;
 
-import core.bufferview;
-import core.buffer : InvalidIndex;
+import dccore.bufferview;
+import dccore.buffer : InvalidIndex;
 import gui.style;
 import math.region;
 import std.container;
-import core.signals;
+import dccore.signals;
 import std.string;
 
 T instantiate(T)(T o)

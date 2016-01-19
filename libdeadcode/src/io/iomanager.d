@@ -2,7 +2,7 @@ module io.iomanager;
 
 import std.exception;
 
-public import core.uri;
+public import dccore.uri;
 
 
 /** IO specific exception

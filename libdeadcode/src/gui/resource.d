@@ -1,10 +1,10 @@
 module gui.resource;
 
-import core.uri;
+import dccore.uri;
 
 import std.datetime;
 import std.exception;
-import core.signals;
+import dccore.signals;
 import std.typecons;
 
 import io.iomanager;
@@ -21,7 +21,7 @@ enum LoadState
 	loaded,    // Done loading the resource from disk, net, whatever
 	preparing, // Processing, generating, converting resource before it is ready for use
 	prepared,  // Ready to be used
-	error,     // Could not be loaded	
+	error,     // Could not be loaded
 	unloading  // Unloading from system. Will result in resource going to unloaded state
 }
 
@@ -434,7 +434,7 @@ public:
 		if (rs.state >= LoadState.loading && rs.state <= LoadState.prepared)
 			return true; // already loaded => noop
 		if (rs.state == LoadState.error)
-			return false;		
+			return false;
 		return load(*rs);
 	}
 

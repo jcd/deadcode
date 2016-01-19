@@ -3,7 +3,7 @@ module gui.window;
 import animation.timeline;
 
 import core.time;
-import core.visitor;
+import dccore.visitor;
 import derelict.sdl2.sdl;
 import graphics;
 import gui.event;
@@ -12,7 +12,7 @@ import gui.style;
 import gui.widget;
 import math;
 import std.range;
-import core.signals;
+import dccore.signals;
 import std.stdio;
 import std.typecons;
 
@@ -145,7 +145,7 @@ class Window : Widget
 		{
 			return cast(MouseCursor) SDL_GetCursor();
 		}
-        
+
         private Uint32 windowFlags() const nothrow @trusted
         {
             uint wid = 0;
@@ -155,17 +155,17 @@ class Window : Widget
             }
             catch (Exception e)
             {
-				assert(0);                
+				assert(0);
             }
             return SDL_GetWindowFlags(SDL_GetWindowFromID(wid));
         }
-        
+
 		override @property bool visible() const nothrow @safe
 	    {
-	        Uint32 flags = windowFlags(); 
+	        Uint32 flags = windowFlags();
 			return (flags & SDL_WINDOW_SHOWN) != 0;
 	    }
-	
+
 	    override @property void visible(bool v)
 	    {
 	        if (visible && v || !visible && !v)
@@ -181,11 +181,11 @@ class Window : Widget
             }
             catch (Exception e)
             {
-				assert(0);                
+				assert(0);
             }
-            
+
 		    super.visible = v;
-        } 
+        }
 	}
 
 	void repaint()

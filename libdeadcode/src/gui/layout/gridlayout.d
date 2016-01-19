@@ -34,7 +34,7 @@ class GridLayout : ILayout
 		return _direction;
 	}
 
-	this(Direction dir, int count)
+	this(Direction dir, int count) nothrow
 	{
 		_direction = dir;
 		_count = count;

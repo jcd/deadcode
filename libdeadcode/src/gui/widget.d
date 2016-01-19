@@ -3,8 +3,8 @@ module gui.widget;
 import animation.mutator;
 import animation.timeline;
 
-import core.signals;
-import core.visitor;
+import dccore.signals;
+import dccore.visitor;
 
 import graphics;
 import gui.event;
@@ -430,8 +430,12 @@ class Widget : Stylable
         }
 
         // If this widget has keyboard focus then release it.
-        if (!_visible && window.getKeyboardFocusWidgetID == id)
-            window.setKeyboardFocusWidget(NullWidgetID);
+        if (!_visible)
+        {
+            auto win = window;
+            if (window !is null && window.getKeyboardFocusWidgetID == id)
+                window.setKeyboardFocusWidget(NullWidgetID);
+        }
 
         recalculateStyle();
     }

@@ -1,4 +1,13 @@
-module core.attr;
+module dccore.attr;
+
+import std.traits : isSomeFunction;
+
+enum isClass(alias T) = is(T == class);
+enum isMethod(alias T) = isSomeFunction!T;
+enum isMethod(T) = false;
+enum isPublic(alias T) = T == "public";
+enum isAnyPublic(alias T) = anySatisfy!(isPublic, __traits(getProtection, T));
+
 
 /** Compile time check if a type equals another type
 
@@ -36,6 +45,11 @@ template isNotType(ThisType)
 
 /// Compile time check if 'what' has an attibute of type AttrType
 alias hasAttribute(alias what, AttrType) = anySatisfy!(isType!AttrType, __traits(getAttributes, what));
+template hasAttributeCurry(AttrType)
+{
+    alias hasAttributeCurry(alias what) = anySatisfy!(isType!AttrType, __traits(getAttributes, what));
+}
+
 //alias hasAttribute(What, AttrType) = anySatisfy!(isType!AttrType, __traits(getAttributes, What));
 
 /// Compile time get all attributes on 'what' that have type AttrType

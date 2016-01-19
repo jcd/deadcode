@@ -1,7 +1,11 @@
-module core.log;
+module dccore.log;
 
 import std.stdio;
-import core.signals;
+import dccore.signals;
+
+import extensionapi.rpc;
+mixin registerRPC;
+
 
 enum LogLevel : ubyte
 {
@@ -11,11 +15,15 @@ enum LogLevel : ubyte
     error
 }
 
+@RPC
 class Log
 {
+    int id;
+
     private
     {
         File _file;
+        static int sNextID = 1;
     }
 
     mixin Signal!(string, LogLevel) onVerbose;
@@ -25,6 +33,7 @@ class Log
 
     this(string path)
     {
+        id = sNextID++;
         _file = File(path, "a");
     }
 

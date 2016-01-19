@@ -1,4 +1,4 @@
-module core.analytics;
+module dccore.analytics;
 
 import std.array;
 import std.conv;
@@ -8,11 +8,11 @@ import std.concurrency;
 import std.stdio;
 
 class Analytics
-{	
+{
 	//void addEvent(string category, string action, string label = null, string value = null);
 	//void addtiming(string category, string variable, Duration d);
 	//void addException(string description, bool isFatal);
-	
+
 	private
 	{
 		StopWatch[string] runningTimings;
@@ -71,8 +71,8 @@ class Analytics
 //}
 
 class GoogleAnalytics : Analytics
-{	
-	private 
+{
+	private
 	{
 		enum BASEURL = "http://www.google-analytics.com/collect";
 		Tid worker;
@@ -83,7 +83,7 @@ class GoogleAnalytics : Analytics
 		string clientID;
 		shared bool running;
 	}
-	
+
 	this(string trackingID, string clientID, string appName, string appID, string appVersion)
 	{
 		this.clientID = clientID;
@@ -150,7 +150,7 @@ class GoogleAnalytics : Analytics
 		running = true;
 		while(running)
 		{
-			receive( (string category, string action, string label, string value) 
+			receive( (string category, string action, string label, string value)
 					 {
 						sendEvent(httpClient, category, action, label, value);
 					 },

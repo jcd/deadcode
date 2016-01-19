@@ -1,7 +1,7 @@
-module core.bufferviewaction;
+module dccore.bufferviewaction;
 
-import core.buffer;
-import core.bufferview;
+import dccore.buffer;
+import dccore.bufferview;
 import math.region;
 
 import std.algorithm;
@@ -16,7 +16,7 @@ version(unittest)
 {
     import test;
     mixin registerUnittests;
-	import core.copybuffer;
+	import dccore.copybuffer;
 }
 
 // An action is reversible in regards to
@@ -1040,7 +1040,7 @@ class ActionTree
 	// Bundle sequential insert and remove sequences
 	// Action activeAction;
 
-    // If beginGroup() has been called the all action are put as subaction of this group
+    // If beginGroup() has been called then all action are put as subaction of this group
     // until endGroup() is called.
     int activeGroupID;
 

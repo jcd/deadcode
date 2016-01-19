@@ -1,4 +1,4 @@
-module core.pack;
+module dccore.pack;
 
 struct FilePack(string path)
 {

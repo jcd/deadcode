@@ -1,11 +1,11 @@
-module core.buffer;
+module dccore.buffer;
 
 import std.algorithm;
 import std.conv;
 import std.exception;
 import std.range;
 import std.typecons;
-import core.signals;
+import dccore.signals;
 import std.variant;
 import math.region;
 
@@ -332,7 +332,7 @@ class GapBuffer(T)
 		if (to <= gapStart || gapSize == 0)
 		{
 			int clampTo = min(to, buffer.length);
-			return buffer[from..clampTo].dup;
+            return buffer[from..clampTo].dup;
 		}
 
 		// sanitize

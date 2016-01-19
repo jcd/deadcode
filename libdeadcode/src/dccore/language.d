@@ -1,6 +1,6 @@
-module core.language;
+module dccore.language;
 
-import core.bufferview;
+import dccore.bufferview;
 
 import std.algorithm;
 import std.array;

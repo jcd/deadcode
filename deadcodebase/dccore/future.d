@@ -1,4 +1,4 @@
-module core.future;
+module dccore.future;
 
 // static import core.thread;
 import core.time;
@@ -88,6 +88,8 @@ class PromiseTmpl(T, bool Progress = false)
 
 alias Promise(T) = PromiseTmpl!(T, false);
 alias ProgressingPromise(T) = PromiseTmpl!(T, true);
+alias PromiseVoid = Promise!VoidState;
+alias ProgressingPromiseVoid = ProgressingPromise!VoidState;
 
 interface IFuture
 {
@@ -100,6 +102,8 @@ interface IFuture
 class FutureTmpl(T, bool Progress = false) : IFuture
 {
 	private SharedState!(T,Progress) _state;
+
+    // alias this = get;
 
 	private this(SharedState!(T,Progress) s)
 	{
@@ -223,6 +227,8 @@ class FutureTmpl(T, bool Progress = false) : IFuture
 
 alias Future(T) = FutureTmpl!(T, false);
 alias ProgressingFuture(T) = FutureTmpl!(T, true);
+alias FutureVoid = Future!VoidState;
+alias ProgressingFutureVoid = ProgressingFuture!VoidState;
 
 /*
 class Fiber : core.thread.Fiber

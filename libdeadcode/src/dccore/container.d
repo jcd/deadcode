@@ -1,4 +1,4 @@
-module core.container;
+module dccore.container;
 
 import test;
 mixin registerUnittests;

@@ -1,12 +1,13 @@
-module core.command;
+module dccore.command;
 
-public import core.commandparameter;
+public import dccore.commandparameter;
 
 import std.conv;
 import std.exception;
 import std.range : empty;
 import std.string;
 import std.typecons;
+import util.string;
 
 struct CompletionEntry
 {
@@ -28,10 +29,15 @@ enum Hints : ubyte
 	all = ubyte.max,
 }
 
+import extensionapi.rpc;
+mixin registerRPC;
+
+@RPC
 class Command
 {
 	private CommandParameterDefinitions _commandParamtersTemplate;
-
+    static int sNextID = 1;
+    int id;
 	@property
 	{
 		string name() const
@@ -116,6 +122,7 @@ class Command
 
 	this(CommandParameterDefinitions paramsTemplate = null)
 	{
+        id = sNextID++;
 		_commandParamtersTemplate = paramsTemplate;
 	}
 
@@ -129,7 +136,8 @@ class Command
 		return _commandParamtersTemplate;
 	}
 
-	bool canExecute(CommandParameter[] data)
+	@RPC
+    bool canExecute(CommandParameter[] data)
 	{
 		return true;
 		//auto defs = getCommandParameterDefinitions();
@@ -137,7 +145,9 @@ class Command
 		//return defs is null || defs.setValues(params, data);
 	}
 
-	abstract void execute(CommandParameter[] data);
+	@RPC
+    abstract void execute(CommandParameter[] data);
+
     bool executeWithMissingArguments(ref CommandParameter[] data) { return false; /* false => not handled by method */ }
 
 	void undo(CommandParameter[] data) { }
@@ -306,7 +316,26 @@ class CommandManager
 	 */
 	void remove(string commandName)
 	{
-		// TODO: commands.remove(commandName);
+		commands.remove(commandName);
+	}
+
+    void remove(bool delegate(string, Command) pred)
+	{
+        // TODO: Do smarter
+        bool doCheck = true;
+        while (doCheck)
+        {
+            doCheck = false;
+            foreach (k; commands.byKey)
+            {
+                if (pred(k, commands[k]))
+                {
+                    commands.remove(k);
+                    doCheck = true;
+                    break;
+                }
+            }
+        }
 	}
 
 	void execute(CommandCall c)
@@ -320,6 +349,11 @@ class CommandManager
 		auto cmd = lookup(cmdName);
 		execute(cmd, args);
 	}
+
+	void execute(T)(string cmd, T arg1)
+	{
+        execute(cmd, [ CommandParameter(arg1) ]);
+    }
 
 	void execute(Command cmd, CommandParameter[] args)
 	{
@@ -397,7 +431,7 @@ class CommandManager
 		return result;
 	}
 
-	Command[] lookupFuzzy(string searchString)
+	Command[] lookupFuzzy(string searchString, bool includeEmptySearch = false)
     {
         import std.algorithm;
         import std.array;
@@ -406,7 +440,7 @@ class CommandManager
         return commands
             .byKeyValue
             .map!(a => tuple(a.key.rank(searchString), a.value))
-            .filter!(a => a[0] > 0.0)
+            .filter!(a => a[0] > 0.0 || includeEmptySearch)
             .array
             .sort!((a,b) => a[0] > b[0])
             .map!(a => a[1])

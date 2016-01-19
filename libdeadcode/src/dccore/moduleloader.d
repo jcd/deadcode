@@ -1,4 +1,4 @@
-module core.moduleloader;
+module dccore.moduleloader;
 
 struct ModuleLoader(alias Mod, string modFilename)
 {

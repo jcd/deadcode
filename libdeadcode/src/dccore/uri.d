@@ -1,4 +1,4 @@
-module core.uri;
+module dccore.uri;
 
 import std.string;
 import std.path;
@@ -9,8 +9,8 @@ class URI
 	{
 		string _uri;
 	}
-	
-	@property 
+
+	@property
 	{
 		string schema() const @safe
 		{
@@ -19,7 +19,7 @@ class URI
 				return null;
 			return _uri[0..idx];
 		}
-		
+
 		URI dirName()
 		{
 			auto idx = _uri.lastIndexOf('/');
@@ -27,7 +27,7 @@ class URI
 				return new URI("");
 			return new URI(_uri[0..idx+1]);
 		}
-	
+
 		bool isAbsolute()
 		{
 			return _uri.indexOf("://") >= 0;
@@ -49,7 +49,7 @@ class URI
 			return _uri.baseName;
 		}
 
-		string extension() 
+		string extension()
 		{
 			return _uri.extension;
 		}
@@ -62,7 +62,7 @@ class URI
 
 	this(string uriString)
 	{
-		_uri = uriString;	
+		_uri = uriString;
 	}
 
 	void makeAbsolute(URI baseURI)
@@ -72,7 +72,7 @@ class URI
 		_uri = baseURI._uri ~ _uri;
 		normalize();
 	}
-	
+
 	void normalize()
 	{
 		import std.array;

@@ -1,15 +1,15 @@
-module core.bufferview;
+module dccore.bufferview;
 
-import core.buffer; // : TextBuffer;
-import core.bufferviewaction;
-import core.copybuffer;
-import core.language;
+import dccore.buffer; // : TextBuffer;
+import dccore.bufferviewaction;
+import dccore.copybuffer;
+import dccore.language;
 import math.region;
 import std.container;
 import std.conv;
 import std.exception;
 import std.range;
-import core.signals;
+import dccore.signals;
 import std.stdio;
 import std.variant;
 
@@ -131,6 +131,9 @@ class RegionView
 }
 
 
+import extensionapi.rpc;
+mixin registerRPC;
+
 // TODO:
 //  * Cannot page down until out after buffer length. Think buffer.startOfLine/endOfLine are guilty
 
@@ -141,6 +144,7 @@ class RegionView
  * Changes to the buffer is usually done through a view.
  * To render a specific BufferView on screen use a TextRenderer.
  */
+@RPC
 class BufferView
 {
 	private int _id;
@@ -165,11 +169,13 @@ class BufferView
 
 	bool autoCursorInView = true;
 
-	private Region _selection;
+	//private Region _selection;
 
     private RegionView[string] _regionViews;
 
-	// RegionSet selections;
+    private RegionSet[string] _regionSets;
+
+	RegionSet selections;
 
 	alias immutable(TextBuffer.CharType)[] BufferString;
 	alias TextBuffer.CharType CharType;
@@ -206,6 +212,12 @@ class BufferView
 	// emit(this, TextBufferAnchor[])
 	mixin Signal!(BufferView, TextBufferAnchor[]) onAnchorVisibilityChanged;
 
+    // emit(RegionSet.name, Region, BufferView)
+    mixin Signal!(string, Region, BufferView) onRegionActivated;
+
+    // emit(RegionSet.name, Region, BufferView)
+    mixin Signal!(string, Region, BufferView) onAnchorActivated;
+
 	@property
 	{
         int id() const pure nothrow @safe
@@ -218,6 +230,7 @@ class BufferView
             return buffer.id;
         }
 
+        @RPC
         string name() const pure nothrow @safe
         {
             return _name;
@@ -263,20 +276,22 @@ class BufferView
 
 		void selection(Region r)
 		{
-			if (_selection == r)
+            auto firstSelectionRegion = selections[0];
+            if (firstSelectionRegion == r)
 				return;
 
-			if (r.a != _selection.a)
+			if (r.a != firstSelectionRegion.a)
                 cursorPoint = r.a; // will also put this action on undo stack
 
 			bool selecting = !r.empty;
-            _undoStack.push!CursorAction(this, TextBoundary.unit, r.b - _selection.b, selecting);
+            _undoStack.push!CursorAction(this, TextBoundary.unit, r.b - selections[0].b, selecting);
 		}
 
-		const(Region) selection() const pure nothrow
+		const(Region) selection() const pure
 		{
-			return _selection;
+			return selections[0];
 		}
+
 		void dirty(bool d)
 		{
 			if (d)
@@ -292,6 +307,57 @@ class BufferView
 			return _dirty;
 		}
 	}
+
+    bool handleRegionActivation(int index)
+    {
+        foreach (k, v; _regionSets)
+        {
+            Region r = v.probe(index);
+            if (r.valid)
+            {
+                onRegionActivated.emit(k, r, this);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool hasRegionsSet(string name)
+    {
+        return (name in _regionSets) !is null;
+    }
+
+    RegionSet getRegionSet(string name, lazy RegionSet _default = new RegionSet())
+    {
+        if (auto rv = name in _regionSets)
+            return *rv;
+
+        if (_default is null)
+            return null;
+
+        _regionSets[name] = _default;
+        return _default;
+    }
+
+    void setRegionSet(string name, RegionSet rs)
+    {
+        _regionSets[name] = rs;
+        if (name == "selections")
+            selections = rs;
+    }
+
+    void removeRegionSet(string name)
+    {
+        if (name == "selections")
+        {
+            selections[0].a = selections[0].b;
+            selections.clear(selection);
+        }
+        else
+        {
+            _regionSets.remove(name);
+        }
+    }
 
     RegionView getOrCreateRegionView(string name, Region r = Region(0,0))
     {
@@ -355,9 +421,14 @@ class BufferView
 
 	void clearSelection()
 	{
-		if (_selection.empty)
+		if (selections.length == 1 && selection.empty)
 			return;
-		_selection.clear();
+
+        // TODO: performance opt chance here
+        selections[0].a = selections[0].b;
+        selections.clear(selections[0]);
+        // selections.set(r);
+        //_selection.clear();
 		dirty = true;
 	}
 
@@ -504,6 +575,9 @@ class BufferView
 		_modified = false;
 		//selections = new RegionSet(true); // should be false
 		_undoStack = new ActionTree;
+        selections = new RegionSet(0, 0);
+        setRegionSet("selections", selections);
+
 		// copyBuffer = new CopyBuffer;
 		buffer.onAnchorAdded.connect(&onAnchorAdded);
 		buffer.onAnchorRemoved.connect(&onAnchorRemoved);
@@ -618,10 +692,15 @@ class BufferView
 
 	Region getRegion(RegionQuery query)
 	{
+        return getRegion(query, cursorPoint);
+    }
+
+    Region getRegion(RegionQuery query, int index)
+	{
 		final switch (query)
 		{
 		case RegionQuery.none:
-			return Region(cursorPoint, cursorPoint);
+			return Region(index, index);
 		case RegionQuery.selection:
 			return selection;
 		case RegionQuery.selectionOrWord:
@@ -637,17 +716,17 @@ class BufferView
 				goto case RegionQuery.buffer;
 			return selection;
 		case RegionQuery.word:
-			auto a = buffer.offsetToBeginningOfWord(cursorPoint);
-			auto b = buffer.offsetToEndOfWord(cursorPoint);
+			auto a = buffer.offsetToBeginningOfWord(index);
+			auto b = buffer.offsetToEndOfWord(index);
 			if (a == InvalidIndex || b == InvalidIndex)
-				return Region(cursorPoint, cursorPoint);
+				return Region(index, index);
 			else
 				return Region(a, b);
 		case RegionQuery.line:
-			auto ends = buffer.lineEndsAt(cursorPoint);
+			auto ends = buffer.lineEndsAt(index);
 			return Region(ends[0], ends[1]);
 		case RegionQuery.buffer:
-                    return Region(0, cast(int)buffer.length);
+            return Region(0, cast(int)buffer.length);
 		}
 	}
 
@@ -837,9 +916,9 @@ class BufferView
 			centerOnLine(l);
 	}
 
-	@property int cursorPoint() const pure nothrow
+	@property int cursorPoint() const pure
 	{
-		return _selection.b;
+		return selection.b;
 	}
 
 	@property void cursorPoint(int v)
@@ -853,10 +932,10 @@ class BufferView
 		if (cursorPoint == v)
 			return;
 
-		_undoStack.push!CursorAction(this, TextBoundary.unit, v - _selection.b, false);
+		_undoStack.push!CursorAction(this, TextBoundary.unit, v - selection.b, false);
 
-        assert(_selection.empty);
-        assert(_selection.b == v, text(selection.b, " ", v));
+        assert(selection.empty);
+        assert(selection.b == v, text(selection.b, " ", v));
 
 		navigated();
 	}
@@ -1013,11 +1092,13 @@ class BufferView
 		_undoStack.push!RemoveAction(this, TextBoundary.chr, count);
 	}
 
+    @RPC
     void beginUndoGroup()
     {
         _undoStack.beginGroup();
     }
 
+    @RPC
     void endUndoGroup()
     {
         _undoStack.endGroup(this);
@@ -1075,7 +1156,7 @@ class BufferView
 	// Should only be called from an Action (see bufferviewaction.d)
 	package void selectTo(int c)
 	{
-		_selection.b = c;
+		selections[0].b = c;
         //if (_selection.empty)
         //    selectionStartIndex = cursorPoint;
         //
@@ -1092,15 +1173,15 @@ class BufferView
     // property will itself create a new action.
 	package void setSelectRegion(Region r)
 	{
-		_selection = r;
+		selections[0] = r;
 		//selectionStartIndex = r.a;
         //cursorPoint = r.b;
 	}
 
 	package void setSelectRegion(int cursor)
     {
-        _selection.a = cursor;
-        _selection.b = cursor;
+        selections[0].a = cursor;
+        selections[0].b = cursor;
     }
 
 
@@ -1224,6 +1305,16 @@ class BufferView
 
     private void bufferChanged(TextBuffer b, int index, int count, bool addOrRemove)
     {
+        if (addOrRemove)
+        {
+            foreach (r; _regionSets)
+                r.entriesInserted(index, count);
+        }
+        else
+        {
+            foreach (r; _regionSets)
+                r.entriesRemoved(index, count);
+        }
         onChanged.emit(this, index, count, addOrRemove);
     }
 

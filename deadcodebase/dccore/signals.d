@@ -1,4 +1,4 @@
-module core.signals;
+module dccore.signals;
 
 /*
 */

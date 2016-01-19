@@ -1,7 +1,8 @@
-module core.commandparameter;
+module dccore.commandparameter;
 
 import std.string;
 import std.variant;
+import msgpack;
 
 alias CommandParameter = Algebraic!(uint, int, string, float);
 
@@ -27,18 +28,67 @@ CommandParameter parse(CommandParameter typeSpecifier, string input)
 	return parsedValue;
 }
 
+
+void commandParameterPackHandler(ref Packer packer, ref CommandParameter param)
+{
+    param.tryVisit!( (uint p) { int id = 1; packer.pack(id); packer.pack(p); },
+                     (int p) { int id = 2; packer.pack(id); packer.pack(p); },
+                     (string p) { int id = 3; packer.pack(id); packer.pack(p); },
+                     (float p) { int id = 4; packer.pack(id); packer.pack(p); } );
+}
+
+void commandParameterUnpackHandler(ref Unpacker u, ref CommandParameter p)
+{
+    int id;
+    u.unpack(id);
+    switch (id)
+    {
+        case 1:
+            uint r;
+            u.unpack(r);
+            p = r;
+            break;
+        case 2:
+            int r;
+            u.unpack(r);
+            p = r;
+            break;
+        case 3:
+            string r;
+            u.unpack(r);
+            p = r;
+            break;
+        case 4:
+            float r;
+            u.unpack(r);
+            p = r;
+            break;
+        default:
+            import std.conv;
+            throw new Exception("Cannot unpack CommandParamter with type " ~ id.to!string);
+    }
+}
+
+void registerCommandParameterPackHandlers()
+{
+    registerPackHandler!(CommandParameter, commandParameterPackHandler);
+    registerUnpackHandler!(CommandParameter, commandParameterUnpackHandler);
+}
+
 struct CommandParameterDefinition
 {
-	this(CommandParameter p, string n = "", string desc = "")
+	this(CommandParameter p, string n = "", string desc = "", bool isNul = true)
 	{
 		parameter = p;
 		name = n;
 		description = desc;
+        isNull = isNul;
 	}
 
 	CommandParameter parameter;
 	string name;
 	string description;
+    bool isNull; // See CommandParameterDefinitions.paramtersAreNull
 }
 
 class CommandParameterDefinitions
@@ -47,7 +97,7 @@ class CommandParameterDefinitions
 	string[] parameterNames;
 	string[] parameterDescriptions;
 
-	// the assigned value for a template command parameter is only set to specify the type.  If valueIsDefault
+	// The assigned value for a template command parameter is only set to specify the type.  If valueIsDefault
 	// is true then the value also defines a default value of the parameter is not specified when using a command
 	// with the command parameter. Otherwise it is mandatory to set the paramter.
 	bool[] parametersAreNull;
@@ -57,9 +107,18 @@ class CommandParameterDefinitions
 	//    return parameters[n];
 	//}
 
+    CommandParameterDefinition[] asArray() const
+    {
+        CommandParameterDefinition[] res;
+        res.length = parameters.length;
+        foreach (i; 0..parameters.length)
+            res[i] = opIndex(i);
+        return res;
+    }
+
 	const(CommandParameterDefinition) opIndex(size_t n) const
 	{
-		return CommandParameterDefinition(parameters[n], parameterNames[n], parameterDescriptions[n]);
+		return CommandParameterDefinition(parameters[n], parameterNames[n], parameterDescriptions[n], parametersAreNull[n]);
 	}
 
 	@property size_t length() const pure nothrow @safe
@@ -182,6 +241,23 @@ class CommandParameterDefinitions
 		}
 		return res;
 	}
+
+    static CommandParameterDefinitions create(CommandParameterDefinition[] arr)
+    {
+		CommandParameterDefinitions res = new CommandParameterDefinitions;
+		res.parameters.length = arr.length;
+		res.parameterNames.length = arr.length;
+		res.parameterDescriptions.length = arr.length;
+		res.parametersAreNull.length = arr.length;
+        foreach (i, elm; arr)
+        {
+            res.parameters[i] = elm.parameter;
+            res.parameterNames[i] = elm.name;
+            res.parameterDescriptions[i] = elm.description;
+            res.parametersAreNull[i] = elm.isNull;
+        }
+        return res;
+    }
 }
 
 CommandParameterDefinitions createParams(Args...)(Args args) if ( ! is(Args[0] == string[]) )

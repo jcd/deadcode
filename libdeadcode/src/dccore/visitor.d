@@ -1,8 +1,8 @@
-module core.visitor;
+module dccore.visitor;
 
 struct Persist {};
 
-import core.attr;
+import dccore.attr;
 import std.conv;
 import std.range;
 import std.stdio;

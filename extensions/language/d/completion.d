@@ -1,6 +1,6 @@
 module extensions.language.d.completion;
 
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 import controls.popup;
@@ -244,6 +244,11 @@ class DCompletionExtension : Extension
 			return "d.completion";
 		}
 
+        override string[] dependencies()
+        {
+            return [ "dub" ];
+        }
+
 		void serverPort(ushort port)
 		{
 			_serverPort = port;
@@ -300,7 +305,10 @@ class DCompletionExtension : Extension
             // TODO: lookup dmd dirs
             string[] sourcePaths = [ r"C:\D\dmd2\src\druntime", r"C:\D\dmd2\src\phobos" ];
 
-            sourcePaths ~= getExtension!Dub.activePackage.resolveSourcePaths();
+            extensions.dub.dubpackage.Package pack = getExtension!Dub.activePackage;
+
+            if (pack !is null)
+                sourcePaths ~= pack.resolveSourcePaths();
 
             foreach (p; sourcePaths)
             {
@@ -322,7 +330,7 @@ class DCompletionExtension : Extension
         }
 
         import platform.system;
-        //killProcessWithThisProcess(_serverPID.osHandle);
+        killProcessWithThisProcess(_serverPID.osHandle);
     }
 
 	void stopServer()

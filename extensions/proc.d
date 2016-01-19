@@ -1,6 +1,6 @@
 module extensions.proc;
 
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 void procFilter(Application app, BufferView bv, string batchFile)

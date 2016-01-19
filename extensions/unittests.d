@@ -3,16 +3,14 @@ module extensions.unittests;
 import animation.timeline;
 import animation.interpolate;
 
-import core.buffer;
-import extensions;
+import dccore.buffer;
 import application;
 import controls.texteditor;
 import gui.event;
 import gui.window;
 import math.rect;
 
-
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 import std.string;
@@ -78,7 +76,7 @@ class TestWidget : Widget
 	}
 }
 
-class UnittestAnchor : TextEditorAnchor
+class UnittestAnchor : GenericTextEditorAnchorWidget
 {
 	Timeline timeline;
 	Application app;
@@ -177,11 +175,11 @@ class UnittestAnchor : TextEditorAnchor
 */
 class Unittests : Extension, ITextEditorAnchorOwner
 {
-	import core.buffer;
+	import dccore.buffer;
 
     override @property string name() { return "unittests"; }
 
-	TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor, TextEditor editor)
+	TextEditorAnchorWidget createAnchorWidget(TextBufferAnchor anchor, TextEditor editor)
 	{
 		return new UnittestAnchor(app.guiRoot.timeline, app);
 	}

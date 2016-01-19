@@ -1,6 +1,6 @@
 module extensions.editor;
 
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 import std.algorithm;

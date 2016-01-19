@@ -1,10 +1,10 @@
 module extensions.errorlist;
 
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 import controls.button;
-import core.buffer : InvalidIndex;
+import dccore.buffer : InvalidIndex;
 import gui.event;
 import gui.layout.constraintlayout;
 import gui.layout.gridlayout;
@@ -12,15 +12,17 @@ import gui.widgetfeature.ninegridrenderer;
 import gui.widgetfeature.textrenderer;
 import gui.styledtext;
 import gui.style;
+import gui.text;
 import math.rect;
 import math.region;
 import math.smallvector;
+import math.smallmatrix;
 
 import std.algorithm;
 import std.array : empty;
 import std.conv;
 import std.regex;
-import core.signals;
+import dccore.signals;
 import std.typecons;
 
 class ErrorListWidget : BasicWidget
@@ -33,6 +35,9 @@ class ErrorListWidget : BasicWidget
     private int currentIssueLine = int.min;
 	private int lines = 0;
 	private int preferredEmptyBottomLines = 1;
+
+    // region set name -> decoration
+    RegionSetDecoration[string] decorations;
 
 	private enum MessageType : ubyte
 	{
@@ -207,7 +212,7 @@ class ErrorListWidget : BasicWidget
         }
 
 		import extensions.statuspanel;
-		auto p = cast(StatusPanel)getBasicWidget("statuspanel");
+		auto p = get!StatusPanel("statuspanel");
 		if (p is null)
 			return;
 
@@ -222,6 +227,79 @@ class ErrorListWidget : BasicWidget
 		lines = 0;
 	}
 
+    final void setRegionSetStyle(string name, string cssClassName = null, bool mergeBorders = false)
+    {
+        if (cssClassName is null)
+            cssClassName = name;
+
+        RegionSetDecoration* d = name in decorations;
+        RegionSetDecoration rsd = null;
+        if (d is null)
+        {
+            rsd = new RegionSetDecoration(cssClassName);
+            decorations[name] = rsd;
+        }
+        else
+        {
+            rsd = *d;
+            rsd.classNames.length = 0;
+            rsd.classNames ~= cssClassName;
+        }
+        rsd.mergeBorders = mergeBorders;
+    }
+
+    override void drawFeatures()
+    {
+		auto bg = background;
+		if (bg !is null)
+			bg.draw(this);
+
+		// Draw features
+		foreach (f; features)
+		{
+			if (f !is textRenderer)
+                f.draw(this);
+		}
+
+        textRenderer.updateLayout(this);
+
+		drawDecorations();
+
+        textRenderer.draw(this);
+    }
+
+    private void drawDecorations()
+    {
+        // TODO: get selection regionset directly when it becomes a region set
+        auto bv = textRenderer.text;
+        bv.getRegionSet("selection").clear(bv.selection.normalized());
+
+        auto sheet = window.styleSheet;
+
+        foreach (k, d; decorations)
+        {
+            auto rs = bv.getRegionSet(k);
+            if (rs !is null)
+            {
+                d.styleSheet = sheet;
+                d.textLayout = textRenderer.layout;
+                d.regions = rs;
+                d.update(bv.bufferStartOffset, this.size);
+            }
+        }
+
+        Mat4f transform;
+		getStyledScreenToWorldTransform(transform);
+		Mat4f trx = window.MVP * transform;
+
+        string[] removeDecors;
+
+        foreach (k, d; decorations)
+        {
+            d.draw(trx);
+        }
+    }
+
 	override void init()
 	{
 		name = "errorlist";
@@ -235,6 +313,8 @@ class ErrorListWidget : BasicWidget
 		auto styler = new ErrorListStyler(v, this);
 		textRenderer.textStyler = styler;
 		features ~= textRenderer;
+
+        setRegionSetStyle("error-highlight");
 
         layout = null;
 
@@ -373,7 +453,7 @@ class ErrorListWidget : BasicWidget
 	{
 		import extensions.statuspanel;
 
-		auto p = cast(StatusPanel)getBasicWidget("statuspanel");
+		auto p = get!StatusPanel("statuspanel");
 		if (p is null)
 			return;
 
@@ -493,9 +573,14 @@ class ErrorListWidget : BasicWidget
 
             currentIssueLine = lineNum;
             auto ends = textRenderer.text.buffer.lineEndsForLineNumber(currentIssueLine);
-            textRenderer.getOrCreateHighlighter("error-highlight").regions.clear();
+            auto rs = textRenderer.text.getRegionSet("error-highlight");
+            rs.clear();
             if (ends[0] != InvalidIndex)
-                textRenderer.getOrCreateHighlighter("error-highlight").regions.set(ends[0], ends[1]);
+                rs.set(ends[0], ends[1]);
+
+            // TODO: Do like TextEditor for setting regions render styles
+
+                       // textRenderer.getOrCreateHighlighter("error-highlight").regions.set(ends[0], ends[1]);
             textRenderer.text.centerOnLine(currentIssueLine, true);
             textRenderer.text.dirty = true;
 
@@ -607,7 +692,7 @@ class ErrorListStyler : TextStyler
 		import std.regex;
 		auto ctr = regex(errorLineRe, "mg");
 
-        import core.buffer;
+        import dccore.buffer;
         TextBuffer textBuf = text.buffer;
 
 		foreach (m; match(buf, ctr))

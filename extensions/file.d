@@ -1,6 +1,6 @@
 module extensions.file;
 
-import extensions;
+import extensionapi;
 
 mixin registerCommands;
 
@@ -86,7 +86,7 @@ void fileSave(BufferView buf, Application app)
 		}
 		else if (auto h = buf.codeModel) // probably a d file so lets guess on that
 		{
-			import core.language;
+			import dccore.language;
 			h.updateAST();
 			auto spath = h.getSuggestedPath();
 			if (spath.length)
@@ -118,7 +118,7 @@ void fileSave(BufferView buf, Application app)
 			fileSaveAs(buf, app, p.answer);
 			if (buf.codeModel is null)
             {
-				import core.language;
+				import dccore.language;
 				auto dinfo = manager().lookupByFileExtension(extension(buf.name));
 				if (dinfo !is null)
 					buf.codeModel = dinfo.createModel(buf);
@@ -142,7 +142,8 @@ void fileSaveAs(BufferView buf, Application app, string filename)
 @InFiber()
 void fileOpen(Application app)
 {
-	auto p = app.yieldPrompt("Open", app.resourceURI("./", ResourceBaseLocation.currentDir).uriString ~ "/",
+	auto filePath = app.resourceURI("./", ResourceBaseLocation.currentDir).uriString ~ "/";
+	auto p = app.yieldPrompt("Open", filePath,
 							 (string prefix) {
                                  import std.file;
                                  return exists(prefix) &&  isFile(prefix);

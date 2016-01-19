@@ -1,8 +1,8 @@
 module extensions.language.d;
 
-import extensions;
+import extensionapi;
 
-import core.language;
+import dccore.language;
 
 import std.d.lexer;
 import std.d.parser;
@@ -157,10 +157,10 @@ class DCodeIntel : ICodeIntel
 	}
 }
 
-import controls.texteditor;
+import controls.texteditor : TextEditorDataAnchorManager, TextEditorDataAnchorWidget;
 import extensions.language.d.analysis.base;
 
-class AnalysisAnchor : ManagedTextEditorAnchor!Message
+class AnalysisAnchorWidget : TextEditorDataAnchorWidget!Message
 {
 	import gui.label;
 	Label label;
@@ -170,17 +170,17 @@ class AnalysisAnchor : ManagedTextEditorAnchor!Message
 		super.update();
 		if (label is null)
 		{
-			auto m = getAnchorData();
-			if (!m.isNull && m.get.message.length)
+			auto m = anchorData;
+			if ( m.message.length)
 			{
-				label = new Label(m.get.message);
+				label = new Label(m.message);
 				label.parent = this;
 			}
 		}
 	}
 }
 
-static TextEditorAnchorManager!(Message, AnalysisAnchor) anchorManager;
+static TextEditorDataAnchorManager!AnalysisAnchorWidget anchorManager;
 static this()
 {
     anchorManager = new typeof(anchorManager);

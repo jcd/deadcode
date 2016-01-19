@@ -1,12 +1,12 @@
 module extensions.basiccommands;
 
-import extensions;
+import extensionapi;
 
 //import application;
-import core.buffer;
-import core.bufferview;
-import core.command;
-import core.commandparameter;
+import dccore.buffer;
+import dccore.bufferview;
+import dccore.command;
+import dccore.commandparameter;
 //import application;
 static import std.conv;
 
@@ -28,7 +28,6 @@ private string createCmd(string name, string desc)
 	return res;
 }
 
-import extensions;
 alias a = RegisterExtension!BasicCommands;
 
 class BasicCommands : Extension

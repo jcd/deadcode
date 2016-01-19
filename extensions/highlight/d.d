@@ -1,6 +1,6 @@
 module extensions.highlight.d;
 
-import core.bufferview;
+import dccore.bufferview;
 import gui.styledtext;
 
 import math.region;

@@ -1,12 +1,12 @@
 module extensions.dub.commands;
-import core.signals;
+import dccore.signals;
 import core.time;
-import core.log;
+import dccore.log;
 
-import extensions;
+import extensionapi;
 import math;
+import controls.texteditor : GenericTextEditorAnchorWidget, GenericTextEditorAnchorManager;
 import gui.layout.constraintlayout;
-
 import std.algorithm;
 import std.concurrency;
 import std.file;
@@ -60,7 +60,9 @@ class DubBuildCommand : BasicCommand
 		auto builder = ext.createBuilder(ext.activePackage.packageRoot);
         builder.onBuildFinished.connect(&setBuildFinished);
 		builder.onBuildMessage.connect(&log);
-        builder.run(app);
+        builder.run();
+        // Todo: do something smarter than polling for status on main thread
+		app.guiRoot.timeout(dur!"msecs"(200), &builder.checkBuildStatus);
 	}
 
 	void showBuildWidget()
@@ -381,18 +383,18 @@ void DubOpenPackage(Application app, string path)
 
 enum unitTestsID = 0xFF00FF00;
 
-static TextEditorAnchorManager!(ubyte, GenericTextEditorAnchorCSS!"unittest-result") unittestResultAnchorManager;
+static GenericTextEditorAnchorManager unittestResultAnchorManager;
 static this()
 {
-    unittestResultAnchorManager = new typeof(unittestResultAnchorManager);
+    unittestResultAnchorManager = new typeof(unittestResultAnchorManager)(["unittest-result"]);
 }
 
 enum buildErrorsID = 0xFF00FFFF;
 
-static TextEditorAnchorManager!(ubyte, GenericTextEditorAnchorCSS!"build-result") buildResultAnchorManager;
+static GenericTextEditorAnchorManager buildResultAnchorManager;
 static this()
 {
-    buildResultAnchorManager = new typeof(buildResultAnchorManager);
+    buildResultAnchorManager = new typeof(buildResultAnchorManager)(["build-result"]);
 }
 
 
@@ -413,13 +415,13 @@ void dubRunModuleUnittests(Application app, BufferView bv)
     import std.path;
     import std.file;
 
-	if (bv.name.endsWith("deadcodetest.d"))
+	if (bv.name.endsWith("_deadcodetest.d"))
     {
 	    remove(bv.name);
 		return;
     }
-
-    string path = bv.name.stripExtension() ~ "deadcodetest.d";
+    string tmpdir = tempDir();
+    string path = buildPath(tmpdir, bv.name.stripExtension().replace("/", "___").replace("\\","___").replace(":", "____") ~ "_deadcodetest.d");
 
     auto target = path.stripExtension();
 
@@ -445,7 +447,7 @@ static this()
 }
 }";
 
-auto tempPath = buildPath(tempDir(), "deadcode_unittest_asserthandler.d");
+auto tempPath = buildPath(tmpdir, "deadcode_unittest_asserthandler.d");
 int[] anchors;
 auto editor = app.getTextEditorForBufferView(bv);
 import extensions.errorlist;
@@ -457,7 +459,11 @@ while (true)
     write(path, bv.getText().to!string);
     std.file.write(tempPath, setupAssertHandlerSource);
 string[] flags = [ "-version=TestingByDeadcode" ];
-auto runInfo = buildAndRun(target, [tempPath,path], p.activePackage.activeBuildSettings.importPaths ~ p.activePackage.activeBuildSettings.sourcePaths, flags);
+
+string[] importPaths;
+if (p.activePackage !is null)
+    importPaths = p.activePackage.activeBuildSettings.importPaths ~ p.activePackage.activeBuildSettings.sourcePaths;
+auto runInfo = buildAndRun(target, [tempPath,path], importPaths, flags);
 
 app.yield(&wait, runInfo[0]);
 if (exists(path))
@@ -485,7 +491,7 @@ foreach (l; runInfo[1].byLine())
         if (err !is null)
         {
             auto msg = toks[3..$].join(" ");
-            auto filename = text(toks[1].chomp("deadcodetest.d"), ".d");
+            auto filename = text(toks[1].chomp("_deadcodetest.d"), ".d").baseName().replace("____", ":").replace("___", "/");
             auto line = ErrorListWidget.Message(ErrorListWidget.MessageType.test, text(filename, "(", toks[2], "): ", msg, "\n"),
                                                 filename, toks[2].to!int - 1, 0);
             // Link test result and messages in the errorlist so that we can later remove them from
@@ -498,11 +504,18 @@ foreach (l; runInfo[1].byLine())
     }
     else
     {
+        // string msgStr = l.replace("_deadcodetest.d","").idup;
         string msgStr = l.idup;
         auto msg = ErrorListWidget.parseMessage(msgStr);
         msg.owner = editor;
         msg.ownerID = buildErrorsID;
-        msg.file = msg.file.endsWith("deadcodetest.d") ? msg.file.chomp("deadcodetest.d") ~ ".d" : msg.file;
+        if (msg.file.endsWith("_deadcodetest.d"))
+        {
+            auto bn = msg.file.baseName();
+            auto newbn = (bn.chomp("_deadcodetest.d") ~ ".d").replace("____", ":").replace("___", "/");
+            msg.message = msg.message.find(bn).array.replace(bn, newbn).to!string;
+            msg.file = newbn;
+        }
 
         app.addMessage("<unittest> " ~ l.replace("%", "%%"));
         if (msg.file !is null)
@@ -547,7 +560,7 @@ done:
                 if (m.ownerID == buildErrorsID)
                 {
 	                err.append(m);
-              	  buildResultAnchorManager.ensureLineAnchor(editor, m.line, 0);
+              	    buildResultAnchorManager.ensureLineAnchor(editor, m.line, null);
 					gotBuildError = true;
                 }
             }
@@ -560,7 +573,7 @@ done:
 	            {
 	                if (m.ownerID == unitTestsID)
                     {
-                  	  unittestResultAnchorManager.ensureLineAnchor(editor, m.line, 0);
+                  	    unittestResultAnchorManager.ensureLineAnchor(editor, m.line, null);
 		                err.append(m);
                     }
 	            }
@@ -574,38 +587,24 @@ done:
 
 }
 
-private auto spawnProcess(
-                             in char[][] args,
-                             const string[string] env = null,
-                             in char[] workDir = null)
+private auto buildAndRun(string targetPath, string[] sourcePaths, string[] importPaths, string[] flags)
+{
+    import std.conv;
+    enum compiler = r"C:\D\dmd2\windows\bin\rdmd.exe";
+	import std.algorithm;
+
+    string[] args = [compiler, "-of"~targetPath, "-unittest","-main"];
+	args ~= flags;
+	args ~= "-vcolumns";
+
+    importPaths.each!((a) { args ~= "-I\"" ~ a ~ "\""; });
+	if (sourcePaths.length > 1)
     {
-        static import std.process;
-        import std.typecons;
-        auto tempPath = buildPath(tempDir(), "deadcode_unittest.log");
-        auto tempLog = File(tempPath, "w+");
-		import std.array;
-        tempLog.writeln(args.join(" "));
-        auto pid = std.process.spawnProcess(args, std.stdio.stdin, tempLog, tempLog, env, Config.suppressConsole | Config.retainStdout | Config.retainStderr, workDir);
-        return tuple(pid, tempLog);
+        sourcePaths[0..$-1].each!((a) { args ~= "--extra-file=" ~ a; });
     }
+    args ~= sourcePaths[$-1];
+    import util.process;
+    return spawnProcess(args, "deadcode_unittest.log");
 
-    private auto buildAndRun(string targetPath, string[] sourcePaths, string[] importPaths, string[] flags)
-    {
-        import std.conv;
-        enum compiler = r"C:\D\dmd2\windows\bin\rdmd.exe";
-	    import std.algorithm;
-
-        string[] args = [compiler, "-of"~targetPath, "-unittest","-main"];
-		args ~= flags;
-		args ~= "-vcolumns";
-
-        importPaths.each!((a) { args ~= "-I\"" ~ a ~ "\""; });
-	    if (sourcePaths.length > 1)
-        {
-            sourcePaths[0..$-1].each!((a) { args ~= "--extra-file=" ~ a; });
-        }
-        args ~= sourcePaths[$-1];
-        return spawnProcess(args);
-
-        //return spawnProcess(log, format("%s -of%s %s %s", compiler, targetPath, flags, text(srcs)));
-    }
+    //return spawnProcess(log, format("%s -of%s %s %s", compiler, targetPath, flags, text(srcs)));
+}

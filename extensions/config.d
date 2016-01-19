@@ -1,6 +1,6 @@
 module extensions.config;
 
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 void configReloadKeyBindings(Application app)

@@ -1,6 +1,6 @@
 module extensions.find;
 
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 @Shortcut("<ctrl> + <shift> + f")

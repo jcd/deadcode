@@ -1,6 +1,6 @@
 module extensions.search;
 
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 @MenuItem("Edit/Search")
@@ -32,6 +32,10 @@ class SearchCommand : BasicCommand
 	{
         BufferSearchInfo info = getBufferInfo();
 
+        auto rs = currentTextEditor.getRegionSet("search");
+
+        currentTextEditor.setRegionSetStyle("search", "search", false);
+
         with (info)
         {
             lastNeedle = needle;
@@ -44,7 +48,7 @@ class SearchCommand : BasicCommand
             }
             else
             {
-                idx = currentTextEditor.getOrCreateHighlighter("search").regions[cursorAtRegionIndex].a;
+                idx = rs[cursorAtRegionIndex].a;
                 cursorPointAtStart = 0;
             }
 
@@ -54,7 +58,7 @@ class SearchCommand : BasicCommand
 			    currentTextEditor.bufferView.selection = Region(at, at + cast(int)needle.length);
 			    currentTextEditor.bufferView.cursorPoint = at + cast(int)needle.length;
 		    }
-		    currentTextEditor.getOrCreateHighlighter("search").regions.clear();
+		    rs.clear();
 		    cursorPointAtStart = -1;
             cursorAtRegionIndex = int.min;
         }
@@ -123,7 +127,7 @@ class SearchCommand : BasicCommand
     override void endCompletionSession()
     {
         BufferSearchInfo info = getBufferInfo();
-		currentTextEditor.getOrCreateHighlighter("search").regions.clear();
+		currentTextEditor.getRegionSet("search").clear();
 		info.cursorPointAtStart = -1;
         info.completionSessionID = -1;
         info.cursorAtRegionIndex = int.min;
@@ -158,17 +162,17 @@ class SearchCommand : BasicCommand
 
 		    if (cursorPointAtStart == -1)
 			    cursorPointAtStart = currentTextEditor.bufferView.cursorPoint;
-		    auto highlighter = currentTextEditor.getOrCreateHighlighter("search");
+		    auto highlighter = currentTextEditor.getRegionSet("search");
 
 		    needle = needle.toLower();
 
             // TODO: do not search again if the needle is the same since we know the regions already.
-            highlighter.regions.clear();
+            highlighter.clear();
             int idx = search(needle, 0);
             if (idx != -1)
             {
                 auto at = idx;
-                highlighter.regions.set(at, at + cast(int)needle.length);
+                highlighter.set(at, at + cast(int)needle.length);
 
                 // The region index that is right after the cursor position.
                 int cursorRegionIndexOffset = -1;
@@ -184,7 +188,7 @@ class SearchCommand : BasicCommand
                     at = idx + nextIdx;
                     if (cursorRegionIndexOffset == -1 && at >= cursorPointAtStart)
                         cursorRegionIndexOffset = count;
-                    highlighter.regions.set(at, at + cast(int)needle.length);
+                    highlighter.set(at, at + cast(int)needle.length);
                     idx = at + 1;
                 }
                 cursorAtRegionIndex = nextRegionIndex(cursorAtRegionIndex, cursorRegionIndexOffset);
@@ -194,8 +198,8 @@ class SearchCommand : BasicCommand
             if (cursorAtRegionIndex != int.min)
             {
                 import std.algorithm : min, max;
-                cursorAtRegionIndex = (cast(int)highlighter.regions.length + cursorAtRegionIndex) % cast(int)highlighter.regions.length;
-                Region activeRegion = highlighter.regions[cursorAtRegionIndex];
+                cursorAtRegionIndex = (cast(int)highlighter.length + cursorAtRegionIndex) % cast(int)highlighter.length;
+                Region activeRegion = highlighter[cursorAtRegionIndex];
                 currentTextEditor.bufferView.viewOnCharPaged(activeRegion.a);
                 currentTextEditor.bufferView.selection = activeRegion;
                 currentTextEditor.bufferView.cursorPoint = activeRegion.b;

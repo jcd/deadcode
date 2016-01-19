@@ -1,5 +1,5 @@
 module extensions.statuspanel;
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 import gui.layout.stacklayout;

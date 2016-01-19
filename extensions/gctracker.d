@@ -1,13 +1,13 @@
 module extensions.gctracker;
 
-import extensions;
+import extensionapi;
 
 static if (false && HasModule!"extensions.errorlist"):
 
 import gui.event;
 import gui.label;
 import controls.texteditor;
-import core.buffer;
+import dccore.buffer;
 import extensions.errorlist;
 import std.stdio;
 import std.regex;

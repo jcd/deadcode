@@ -1,8 +1,10 @@
 module extensions.dub.build;
 
-import application;
-import core.signals;
-import core.log : LogLevel;
+//import application;
+import extensionapi.common;
+
+import dccore.signals;
+import dccore.log : LogLevel;
 import core.time;
 
 import std.concurrency;
@@ -22,7 +24,7 @@ class Builder
     mixin Signal!(string, LogLevel) onBuildMessage;
     mixin Signal!(BuildStatus) onBuildFinished;
 
-	private 
+	private
     {
        Tid tid;
        BuildStatus status;
@@ -31,18 +33,15 @@ class Builder
 	this(string packageRoot, string buildType, string targetName)
     {
         status.packageRoot = packageRoot;
-		status.buildType = buildType;        
+		status.buildType = buildType;
         status.target = targetName;
     }
 
-	void run(Application app)
+	void run()
 	{
         assert(tid == Tid.init);
 		tid = spawn(&build, thisTid);
         tid.send(status);
-
-		// Todo: do something smarter than polling for status on main thread
-		app.guiRoot.timeout(dur!"msecs"(200), &checkBuildStatus);
 	}
 
 	// In worker thread
@@ -56,8 +55,8 @@ class Builder
 	{
 		// TODO: Get build configuration from package settings
 		auto status = receiveOnly!BuildStatus();
-		
-		string cmd = "dub build -v --build=" ~ status.buildType;
+
+		string cmd = "dub build -v --build=" ~ status.buildType ~ " --root=\"" ~ status.packageRoot ~ "\"";
 
 		auto pipes = pipeShell(cmd, Redirect.stdout | Redirect.stderr, null, Config.suppressConsole);
 
@@ -89,7 +88,7 @@ class Builder
 	}
 
 	// Call continuously on a timeout until false is returned ie. build is done
-	private bool checkBuildStatus()
+	bool checkBuildStatus()
 	{
 		if (tid == Tid.init)
 		{
@@ -104,7 +103,7 @@ class Builder
                               (string s) { onBuildMessage.emit(s, LogLevel.info); return true; },
                               (BuildStatus st) { tid = Tid.init;
 						                         status = st;
-		                                         return true; 
+		                                         return true;
                                                })) {}
 
 		return true; // reschedule update callbacks

@@ -1,6 +1,6 @@
 module extensions.text;
 
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 // RAII struct that records selection and restores it in destructor

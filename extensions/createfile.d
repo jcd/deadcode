@@ -1,6 +1,6 @@
 module extensions.createfile;
 
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 @MenuItem("New/Buffer")
@@ -13,7 +13,7 @@ void newBuffer(Application app)
 
 void newExtension(Application app)
 {
-	import core.language;
+	import dccore.language;
 	auto b = app.createBuffer();
 
 	import std.path;
@@ -23,7 +23,7 @@ void newExtension(Application app)
 	// b.name = "New extension";
 	b.insert(q"{module extensions.myext;
 
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 void myextHello(BufferView v)
@@ -41,7 +41,7 @@ void myextHello(BufferView v)
 
 void newWidget(Application app)
 {
-	import core.language;
+	import dccore.language;
 	auto b = app.createBuffer();
 
 	import std.path;
@@ -51,7 +51,7 @@ void newWidget(Application app)
 	// b.name = "New extension";
 	b.insert(q"{module extensions.mywidget;
 
-import extensions;
+import extensionapi;
 mixin registerCommands;
 
 class MyWidget : BasicWidget

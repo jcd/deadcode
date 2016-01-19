@@ -1,8 +1,8 @@
 module controls.texteditor;
 
-import core.buffer;
-import core.bufferview;
-import core.command : CommandManager;
+import dccore.buffer;
+import dccore.bufferview;
+import dccore.command : CommandManager;
 import graphics;
 import gui.event;
 import gui.style;
@@ -14,11 +14,15 @@ import gui.window;
 import math;
 
 import std.conv;
-import core.signals;
+import dccore.signals;
 import std.string;
 
 alias TextRenderer!BufferView BufferViewRenderer;
 
+import extensionapi.rpc;
+mixin registerRPC;
+
+@RPC
 class TextEditor : Widget
 {
 	/*
@@ -30,6 +34,9 @@ class TextEditor : Widget
 	 */
 	BufferView bufferView;
 	BufferViewRenderer renderer;
+
+    // region set name -> decoration
+    RegionSetDecoration[string] decorations;
 
     @property
     {
@@ -53,19 +60,21 @@ class TextEditor : Widget
 	}
 
     // Binding access
+    @RPC
     @property void value(string txt)
     {
         bufferView.clear(txt);
     }
 
     // Binding access
+    @RPC
     @property string value() const
     {
         return this.text.to!string;
     }
 
 	// Child widget of TextEditor
-	TextEditorAnchor[] visibleAnchorsChildWidgets;
+	TextEditorAnchorWidget[] visibleAnchorsChildWidgets;
 
 	private int _mouseStartSelectionIdx;
 
@@ -94,17 +103,45 @@ class TextEditor : Widget
 		//onKeyboardUnfocusSignal.connect((Event ev) {
 		//    window.mouseCursor(MouseCursor.arrow);
 		//});
+        setRegionSetStyle("selection", "selection", true);
+        setRegionSetStyle("lineHighlight");
         updateLineHighlight();
 	}
 
-    final TextHighlighter getOrCreateHighlighter(string name)
+    //final TextHighlighter getOrCreateHighlighter(string name)
+    //{
+    //    return renderer.getOrCreateHighlighter(name);
+    //}
+    //
+    //final void removeHighlighter(string name)
+    //{
+    //    renderer.removeHighlighter(name);
+    //}
+
+    final RegionSet getRegionSet(string name, lazy RegionSet _default = new RegionSet())
     {
-        return renderer.getOrCreateHighlighter(name);
+        return bufferView.getRegionSet(name, _default);
     }
 
-    final void removeHighlighter(string name)
+    final void setRegionSetStyle(string name, string cssClassName = null, bool mergeBorders = false)
     {
-        renderer.removeHighlighter(name);
+        if (cssClassName is null)
+            cssClassName = name;
+
+        RegionSetDecoration* d = name in decorations;
+        RegionSetDecoration rsd = null;
+        if (d is null)
+        {
+            rsd = new RegionSetDecoration(cssClassName);
+            decorations[name] = rsd;
+        }
+        else
+        {
+            rsd = *d;
+            rsd.classNames.length = 0;
+            rsd.classNames ~= cssClassName;
+        }
+        rsd.mergeBorders = mergeBorders;
     }
 
 	override EventUsed onMouseOver(Event e)
@@ -225,6 +262,57 @@ class TextEditor : Widget
 		glDisable(GL_SCISSOR_TEST);
 	}
 
+    override void drawFeatures()
+    {
+		auto bg = background;
+		if (bg !is null)
+			bg.draw(this);
+
+		// Draw features
+		foreach (f; features)
+		{
+			if (f !is renderer)
+                f.draw(this);
+		}
+
+        renderer.updateLayout(this);
+
+		drawDecorations();
+
+        renderer.draw(this);
+    }
+
+    private void drawDecorations()
+    {
+        // TODO: get selection regionset directly when it becomes a region set
+        bufferView.getRegionSet("selection").clear(bufferView.selection.normalized());
+
+        auto sheet = window.styleSheet;
+
+        foreach (k, d; decorations)
+        {
+            auto rs = getRegionSet(k);
+            if (rs !is null)
+            {
+                d.styleSheet = sheet;
+                d.textLayout = renderer.layout;
+                d.regions = rs;
+                d.update(bufferView.bufferStartOffset, this.size);
+            }
+        }
+
+        Mat4f transform;
+		getStyledScreenToWorldTransform(transform);
+		Mat4f trx = window.MVP * transform;
+
+        string[] removeDecors;
+
+        foreach (k, d; decorations)
+        {
+            d.draw(trx);
+        }
+    }
+
     override void layoutRecurse(bool fit, Widget positionReference)
     {
         foreach (w; visibleAnchorsChildWidgets)
@@ -334,7 +422,10 @@ class TextEditor : Widget
 
 	EventUsed onGlyphMouseDown(Event event, GlyphHit hit)
 	{
-		if (event.mouseMod.isShiftDown())
+        if (auto r = handleRegionActivation(event, hit))
+            return r;
+
+        if (event.mouseMod.isShiftDown())
 		{
 			if (_mouseStartSelectionIdx == InvalidIndex)
 			{
@@ -365,6 +456,13 @@ class TextEditor : Widget
 
 		return EventUsed.yes;
 	}
+
+	private EventUsed handleRegionActivation(Event event, GlyphHit hit)
+    {
+        // Check if glyph is part of a region that can be activated
+        return !hit.endOfLine && hit.isValid && bufferView.handleRegionActivation(hit.index) ?
+               EventUsed.yes : EventUsed.no;
+    }
 
 	private void _updateSelectionEnd(GlyphHit hit, Vec2f mousePos)
 	{
@@ -397,9 +495,10 @@ class TextEditor : Widget
     {
         auto ends = bufferView.buffer.lineEndsAt(bufferView.cursorPoint);
         auto last = bufferView.buffer.next(ends[1]); // bump it to after the newline in order to have a region for empty lines also.
-        auto hl = getOrCreateHighlighter("lineHighlight");
-        hl.regions.clear();
-        hl.regions.set(ends[0], last);
+        auto hl = getRegionSet("lineHighlight");
+        //auto hl = getOrCreateHighlighter("lineHighlight");
+        hl.clear();
+        hl.set(ends[0], last);
     }
 
 	// TODO: move slots to bufferView
@@ -464,13 +563,13 @@ class TextEditor : Widget
 	}
 
 	// Returns true if the widget is present after the call
-	private TextEditorAnchor ensureAnchorWidget(TextBufferAnchor anchor)
+	private TextEditorAnchorWidget ensureAnchorWidget(TextBufferAnchor anchor)
 	{
 		string candidateName = anchor.id.to!string ~ "-textBufferAnchor";
 		foreach (c; children)
 		{
 			if (c.name == candidateName)
-				return cast(TextEditorAnchor) c;
+				return cast(TextEditorAnchorWidget) c;
 		}
 
 		if (anchor.owner !is null)
@@ -508,15 +607,15 @@ class TextEditor : Widget
 		bufferView.buffer.removeLineAnchorByID(anchorID);
 	}
 
-    GenericTextEditorAnchor setLineAnchor(int lineNumber, string cssClassName)
+    GenericTextEditorAnchorWidget setLineAnchor(int lineNumber, string cssClassName)
     {
         // TODO: fix coupling on children length and ensureLineAnchor
 		auto origLen = children.length;
-        auto a = bufferView.buffer.ensureLineAnchor(lineNumber, GenericTextEditorAnchor.anchorManager);
-        GenericTextEditorAnchor res = null;
+        auto a = bufferView.buffer.ensureLineAnchor(lineNumber, getManager!GenericTextEditorAnchorManager());
+        GenericTextEditorAnchorWidget res = null;
         if (origLen != children.length)
         {
-            res = cast(GenericTextEditorAnchor)(children[$-1]);
+            res = cast(GenericTextEditorAnchorWidget)(children[$-1]);
             res._classes = [ cssClassName ];
         }
         return res;
@@ -554,16 +653,64 @@ class TextEditor : Widget
 	}
 }
 
+
+//class TextEditorAnchorWidgetFactory
+//{
+//    TextEditorAnchorWidget createAnchorWidget(TextBufferAnchor anchor, TextEditor editor)
+//    {
+//        // TODO: support pooling.
+//        auto w = new DataAnchorWidget();
+//        w.anchorID = anchor.id;
+//        // w.manager = this;
+//        w.onMouseClickCallback((Event e, Widget wi) {
+//            onAnchorClicked.emit(e, w, editor, getAnchorData(anchor.id));
+//            return EventUsed.yes;
+//        });
+//        return w;
+//    }
+//}
+
+//editor.setLineAnchor!EOLAnchor(32);
+//editor.clearLineAnchor!EOLAnchor(32);
+//
+//auto setLineAnchor(AnchorWidget : TextEditorAnchorWidget)(TextEditor editor, int lineNumber)
+//{
+//    enum wid = typeid(AnchorWidget).stringof;
+//    auto w = wid in editor._anchorManagers;
+//    TextEditorAnchorWidgetManager!AnchorWidget mgr = null;
+//    if (w is null)
+//    {
+//        // First of its kind
+//        mgr = new TextEditorAnchorWidgetFactory!AnchorWidget;
+//        editor._anchorManagers[wid] = new TextEditorAnchorWidgetManager!AnchorWidget(editor);
+//    }
+//    else
+//    {
+//        mgr = *w;
+//    }
+//    return editor.bufferView.buffer.ensureLineAnchor(lineNumber, mgr);
+//}
+
+//bool clearLineAnchor(AnchorWidget : TextEditorAnchorWidget)(TextEditor editor, int lineNumber)
+//{
+//    enum wid = typeid(AnchorWidget).stringof;
+//    auto w = wid in editor._anchorManagers;
+//    if (w !is null)
+//        editor.bufferView.buffer.removeLineAnchorByLine(lineNumber, *w);
+//}
+//
+//bool clearLineAnchor(T)(TextEditor editor, int lineNumber)
+//{
+//    foreach (k, v; editor._anchorManagers)
+//        editor.bufferView.buffer.removeLineAnchorByLine(lineNumber, v);
+//}
+
 import gui.layout.constraintlayout;
 
-interface ITextEditorAnchorOwner : ITextBufferAnchorOwner
+class TextEditorAnchorWidget : Widget
 {
-	TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor, TextEditor editor);
-}
-
-class TextEditorAnchor : Widget
-{
-	TextBufferAnchor textAnchor;
+    int anchorID;
+    TextBufferAnchor textAnchor;
 	Anchor widgetAnchor;
 
 	bool inView;
@@ -629,9 +776,36 @@ interface ITextAnchorDataProvider(AnchorData)
     Nullable!AnchorData getAnchorData(int anchorID);
 }
 
-class TextEditorAnchorManager(AnchorData, AnchorWidget) : ITextEditorAnchorOwner, ITextAnchorDataProvider!AnchorData
+interface ITextEditorAnchorOwner : ITextBufferAnchorOwner
+{
+	TextEditorAnchorWidget createAnchorWidget(TextBufferAnchor anchor, TextEditor editor);
+}
+
+class TextEditorDataAnchorWidget(AnchorDat) : TextEditorAnchorWidget
+{
+    alias AnchorData = AnchorDat;
+    private AnchorData _anchorData;
+    //alias Manager = TextEditorDataAnchorManager!(typeof(this));
+    //Manager manager;
+
+    @property
+    {
+        AnchorData anchorData() { return _anchorData; }
+        void anchorData(AnchorData d) { _anchorData = d; }
+    }
+
+    protected string[] _classes;
+
+	override protected @property const(string[]) classes() const pure nothrow @safe
+	{
+		return _classes;
+	}
+}
+
+class TextEditorDataAnchorManager(DataAnchorWidget) : ITextEditorAnchorOwner, ITextAnchorDataProvider!(DataAnchorWidget.AnchorData)
 {
     import std.typecons;
+    alias AnchorData = DataAnchorWidget.AnchorData;
     // AnchorData[anchorID][buffer.toHash()]
     private struct AnchorDataInternal
     {
@@ -641,6 +815,8 @@ class TextEditorAnchorManager(AnchorData, AnchorWidget) : ITextEditorAnchorOwner
     }
 
     AnchorDataInternal[int] _anchorData;
+
+    mixin Signal!(Event, DataAnchorWidget, TextEditor, Nullable!AnchorData) onAnchorClicked;
 
 	auto getAnchorIDs(TextEditor ed)
     {
@@ -653,18 +829,36 @@ class TextEditorAnchorManager(AnchorData, AnchorWidget) : ITextEditorAnchorOwner
         return ids;
     }
 
-    TextEditorAnchor createAnchorWidget(TextBufferAnchor anchor, TextEditor editor)
+    TextEditorAnchorWidget createAnchorWidget(TextBufferAnchor anchor, TextEditor editor)
     {
         // TODO: support pooling.
-        auto w = new AnchorWidget();
+        auto w = new DataAnchorWidget();
         w.anchorID = anchor.id;
-        w.manager = this;
+        // w.manager = this;
+        w.onMouseClickCallback((Event e, Widget wi) {
+            onAnchorClicked.emit(e, w, editor, getAnchorData(anchor.id));
+            return EventUsed.yes;
+        });
         return w;
     }
 
-    void removeLineAnchor(TextEditor ed, int lineNumber)
+    void removeLineAnchor(int lineNumber, TextEditor ed)
     {
         ed.bufferView.buffer.removeLineAnchorByLine(lineNumber, this);
+    }
+
+    // In case editor is null it will be automatically looked up. You can get rid of a loopup
+    // by providing it.
+    void removeLineAnchorByID(int anchorID, TextEditor ed = null)
+    {
+        if (ed is null)
+        {
+            auto a = anchorID in _anchorData;
+            if (a is null)
+                return; // Unknown anchorID
+            ed = a.editor;
+        }
+        ed.bufferView.buffer.removeLineAnchorByID(anchorID);
     }
 
     void removeLineAnchors(TextEditor ed)
@@ -690,44 +884,98 @@ class TextEditorAnchorManager(AnchorData, AnchorWidget) : ITextEditorAnchorOwner
     }
 }
 
-class ManagedTextEditorAnchor(AnchorData) : TextEditorAnchor
+template Manager(T, Args...)
 {
-	import std.typecons;
-    int anchorID;
-    ITextAnchorDataProvider!AnchorData manager;
-
-    // TextEditorAnchorManager!(AnchorData, typeof(this)) manager;
-
-    final Nullable!AnchorData getAnchorData()
+    T getManager(S : T)()
     {
-        return manager.getAnchorData(anchorID);
-    }
-
-    this()
-	{
-	}
-}
-
-class GenericTextEditorAnchor : ManagedTextEditorAnchor!ubyte
-{
- 	string[] _classes;
-
-	override protected @property const(string[]) classes() const pure nothrow @safe
-	{
-		return _classes;
-	}
-
-    static TextEditorAnchorManager!(ubyte, GenericTextEditorAnchor) anchorManager;
-    static this()
-    {
-        anchorManager = new typeof(anchorManager);
+        static T _singleton;
+        if (_singleton is null)
+            _singleton = new T(Args);
+        return _singleton;
     }
 }
 
-class GenericTextEditorAnchorCSS(string cssClassName) : GenericTextEditorAnchor
+//template Singleton(T)
+//{
+//    enum TN = T.stringof;
+//    mixin("private " ~ TN ~ " _instance" ~ TN ~ " = null;" ~
+//          TN ~ " get()
+//          {
+//          if (_instance" ~ TN ~ " is null)
+//          _instance" ~ TN ~ " = new " ~ TN ~ ";
+//          return _instance;
+//          }
+//          ");
+//}
+
+alias BasicTextEditorDataAnchorManager(AnchorData) = TextEditorDataAnchorManager!(TextEditorDataAnchorWidget!AnchorData);
+
+
+//class ManagedTextEditorAnchor(AnchorData) : TextEditorAnchor
+//{
+//    import std.typecons;
+//    int anchorID;
+//    ITextAnchorDataProvider!AnchorData manager;
+//
+//    // TextEditorAnchorManager!(AnchorData, typeof(this)) manager;
+//
+//    final Nullable!AnchorData getAnchorData()
+//    {
+//        return manager.getAnchorData(anchorID);
+//    }
+//
+//    this()
+//    {
+//    }
+//}
+
+//class GenericTextEditorAnchor(AnchorData = ubyte) : ManagedTextEditorAnchor!AnchorData
+//{
+//    string[] _classes;
+//    private static TextEditorAnchorManager!(AnchorData, GenericTextEditorAnchor) _mgr;
+//
+//    override protected @property const(string[]) classes() const pure nothrow @safe
+//    {
+//        return _classes;
+//    }
+//
+//    @property
+//    static TextEditorAnchorManager!(AnchorData, GenericTextEditorAnchor) anchorManager()
+//    {
+//        if (_mgr is null)
+//            _mgr = new TextEditorAnchorManager!(AnchorData, GenericTextEditorAnchor);
+//        return _mgr;
+//    }
+//    //    static this()
+//    //{
+//    //    anchorManager = new typeof(anchorManager);
+//    //}
+//}
+
+//class GenericTextEditorAnchor : TextEditorDataAnchorWidget!Object
+//{
+//    this()
+//    {
+//        _classes ~= cssClassName;
+//    }
+//}
+
+alias GenericTextEditorAnchorWidget = TextEditorDataAnchorWidget!Object;
+
+class GenericTextEditorAnchorManager : TextEditorDataAnchorManager!GenericTextEditorAnchorWidget
 {
-    this()
+    string[] cssClasses;
+    this(string[] cssClasses)
     {
-        _classes ~= cssClassName;
+        this.cssClasses = cssClasses;
+    }
+
+    override TextEditorAnchorWidget createAnchorWidget(TextBufferAnchor anchor, TextEditor editor)
+    {
+        auto w = cast(GenericTextEditorAnchorWidget) super.createAnchorWidget(anchor, editor);
+        w._classes ~= cssClasses;
+        return w;
     }
 }
+
+mixin Manager!(GenericTextEditorAnchorManager, ["generic"]);

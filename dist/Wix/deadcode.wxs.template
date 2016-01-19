@@ -8,6 +8,11 @@
       
       <Package InstallerVersion="200" Compressed="yes" Comments="Windows Installer Package"/>
       
+      <UIRef Id="WixUI_InstallDir" />
+      <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+      <WixVariable Id="WixUILicenseRtf" Value="boost-license.rtf" />
+      <WixVariable Id="WixUIBannerBmp" Value="top-banner.bmp" />
+      <WixVariable Id="WixUIDialogBmp" Value="main-banner.bmp" />
       <Media Id="1" Cabinet="product.cab" EmbedCab="yes"/>
  
       <Icon Id="ProductIcon" SourceFile="..\..\resources\icon.ico"/>
@@ -15,12 +20,16 @@
       <Property Id="ARPHELPLINK" Value="http://deadcode.steamwinter.com"/>
       <Property Id="ARPURLINFOABOUT" Value="http://deadcode.steamwinter.com"/>
       <Property Id="ARPNOREPAIR" Value="1"/>
-      <Property Id="ARPNOMODIFY" Value="1"/>
+      <!-- <Property Id="ARPNOMODIFY" Value="1"/> -->
 
       <Upgrade Id="$(var.ProductUpgradeCode)">
-         <UpgradeVersion Minimum="$(var.ProductVersion)" OnlyDetect="yes" Property="NEWERVERSIONDETECTED"/>
+<!--        <UpgradeVersion Minimum="$(var.ProductVersion)" OnlyDetect="no" IncludeMinimum="no" Property="NEWERVERSIONDETECTED"/>
          <UpgradeVersion Minimum="0.0.0" Maximum="$(var.ProductVersion)" IncludeMinimum="yes" IncludeMaximum="no" 
-                         Property="OLDERVERSIONBEINGUPGRADED"/>     
+                         Property="OLDERVERSIONBEINGUPGRADED"/>  -->
+                             <UpgradeVersion OnlyDetect='no' Property='PREVIOUSFOUND'
+        Minimum='0.0.0' IncludeMinimum='yes'
+        Maximum='$(var.ProductVersion)' IncludeMaximum='no' />  
+   <!-- <UpgradeVersion Minimum="0.0.0.0" Maximum="99.0.5.0" Property="PREVIOUSVERSIONSINSTALLED" IncludeMinimum="yes" IncludeMaximum="no" />                         -->
       </Upgrade>
       <Condition Message="A newer version of this software is already installed.">NOT NEWERVERSIONDETECTED</Condition>
 
@@ -58,7 +67,8 @@
       </Directory>
  
       <InstallExecuteSequence>
-         <RemoveExistingProducts After="InstallValidate"/>
+         <!-- <InstallExecute After='RemoveExistingProducts'>UPGRADINGPRODUCTCODE</InstallExecute> -->
+         <RemoveExistingProducts After="InstallInitialize"/>
       </InstallExecuteSequence>
 
       <Feature Id="DefaultFeature" Level="1">
@@ -66,5 +76,33 @@
          <ComponentRef Id="ApplicationShortcuts"/>
          <ComponentRef Id="RegistryEntries"/>
       </Feature>
+
+
+    <!-- Step 2: Add UI to your installer / Step 4: Trigger the custom action -->
+    <UI>
+        <Publish Dialog="ExitDialog" 
+            Control="Finish" 
+            Event="DoAction" 
+            Value="LaunchApplication">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
+    </UI>
+  
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch Deadcode Editor" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1"/>
+    
+    <!-- Step 3: Include the custom action -->
+<CustomAction Id="LaunchApplication"
+   FileKey="ApplicationFiledeadcode.exe"
+   ExeCommand="--foo"
+   Execute="immediate"
+   Impersonate="yes"
+   Return="asyncNoWait" />
+
+  <!--  <Property Id="WixShellExecTarget" Value="[#ApplicationFiledeadcode.exe]" />
+    <CustomAction Id="LaunchApplication" 
+        BinaryKey="WixCA" 
+        DllEntry="WixShellExec"
+        Impersonate="yes" 
+        ExeCommand="-foo"/>
+-->
    </Product>
 </Wix>

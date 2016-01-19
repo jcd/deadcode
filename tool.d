@@ -521,9 +521,14 @@ void buildMSI(string packRoot)
 
         if (!name.isDir)
         {
-            string keyPath = src.endsWith("deadcode.exe") ? "KeyPath=\"yes\"" : "";
-            // writeln(componentTmpl.format(i+2, i+2, src, keyPath));
-            componentsText ~= componentTmpl.format(i+2, i+2, src, keyPath);
+            if (src.endsWith("deadcode.exe"))
+            {
+	            componentsText ~= componentTmpl.format(i+2, "deadcode.exe", src, "KeyPath=\"yes\"");
+	        }
+	        else
+	        {
+	            componentsText ~= componentTmpl.format(i+2, i+2, src, "");
+	        }
             componentsRefText ~= componentRefTmpl.format(i+2);
             i++;
         }

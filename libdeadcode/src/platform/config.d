@@ -1,6 +1,6 @@
 module platform.config;
 
-static import core.uri;
+static import dccore.uri;
 import std.format : format;
 import std.path;
 
@@ -118,13 +118,35 @@ version (Windows)
 		}
 		return null;
 	}
-    
+
     string defaultExecExtension(string path)
     {
 		return defaultExtension(path, ".exe");
     }
 
+
+    pragma(lib, "kernel32");
+    extern (Windows) DWORD GetLongPathNameW(LPCWSTR lpszShortPath, LPWSTR lpszLongPath, DWORD chBuffer);
+
+    string statFilePathCase(string inPath)
+    {
+        import std.conv;
+        import std.internal.cstring;
+        import std.windows.syserror;
+        import std.string;
+
+        string ipath = r"\\?\" ~ inPath.replace("/", r"\");
+        enum numChars = 32767;
+        static wchar[numChars] buf;
+
+        DWORD res = GetLongPathNameW(ipath.tempCStringW(), buf.ptr, numChars);
+        if (res == 0)
+            throw new Exception("Error getting long case of file " ~ sysErrorString(GetLastError()));
+
+        return buf[4..res].to!string.replace(r"\", "/");
+     }
 }
+
 version (linux)
 {
     immutable string builtinFontPath = r"/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
@@ -150,13 +172,18 @@ version (linux)
             value = readText(u.uriString);
         else
             std.file.write(u.uriString, value);
-	return value;    
+		return value;
 	}
-    
+
     string defaultExecExtension(string path)
     {
 		return path;
-    }    
+    }
+
+    string statFilePathCase(string inPath)
+    {
+        return inPath;
+    }
 }
 
 
@@ -173,11 +200,11 @@ enum ResourceBaseLocation : uint
 	homeDir = 64,      /// The user home dir which is platform specific
 }
 
-core.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+dccore.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
 {
     if (isAbsolute(path))
     {
-        auto res = new core.uri.URI(path);
+        auto res = new dccore.uri.URI(path);
         res.normalize();
         return res;
     }
@@ -240,7 +267,7 @@ core.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLo
             break;
     }
 
-    auto u = new core.uri.URI(buildNormalizedPath(basePath, path));
+    auto u = new dccore.uri.URI(buildNormalizedPath(basePath, path));
     u.normalize();
     return u;
 }

@@ -1,3 +1,73 @@
+Release 0.17 - 20 January 2016
+
+Overview:
+
+    * Start of out-of-process extensions
+    * RegionSets on buffers that can be activated
+    * Updated dcd-server
+    * Refactor source file layout
+    
+Changes:
+
+    9877781 A deadcode extension for compiling and starting out-of-proces extensions and other core stuff
+    2f4481c Out-of-process client api and classes for easy OOP extension creation
+    768b35a Move util.string to deadcodebase
+    585ec47 New mainloop worker to queue job to be run on main thread.
+    f7e24cb Main support for wake existing editor instead of spawning a new one
+    eb36962 Support for tracehandler on linux Now listening on extensions dir for out-of-process extension changes 
+            Now listening for RPC clients on tcp socket Ensure that extensions dir exists in user data dir on startup 
+            Support for waking up existing editor and pass command line args 
+            Support for pushing work to be run on main thread 
+            Support for adding new remote command through RPC 
+            Support for adding command shortcuts and menu entries through RPC 
+            Fix binaries dir in release mode 
+            Normalize buffer paths 
+            Support for starting extension through RPC Support for scheduling a command for later
+    f99faf9 Support for new TextDecoration of RegionSets on TextEditor 
+            Support for clicking on region sets to activate them
+    866871a Fix errorline highlighting style
+    c3be02d Support for removing tree item by attached command
+    016f85f Add spawnProcess that writes output to log file
+    9f3dd3b JSON support for decoding null strings 
+            JSON support for custom encoding and decoding.
+    1d90c13 Function to get real casing of a path which is needed for windows
+    395d707 Added TCPClient that can handle RPC calls
+    263db88 New Notice widget
+    e62a1af Make asyncio support tcplisten jobs
+    c96da5e TextRenderer is not responsible for rendering regions anymore
+    c695d5b Fix crash when widget.window is null
+    b3035da Rename TextHighlighter to RegionDecoration and render empty regions with 2px width.
+    b2f3b8c Make GUI.timeout return a handle that can be used to abort the timeout
+    1b398ec RPC registration support to register editor side methods available for rpc
+    b07fb83 Added remote command class
+    0803794 Edtior specific extensionapi
+    31d9a01 More renaming fixes for core to dccore
+    dffdd7e Naming fixes after code to dccore renaming
+    cebc129 Move common math into deadcodebase
+    435f92a Move extension api to deadcodebase extensionapi to prepare for out-of-process extensions 
+            Make ErrorList use region sets for highlighting and activating error messages 
+            Make search extension use region sets for highlighting matched words 
+            Dub extension supports custom build root 
+            Moved live unittest exe files to temp folder in order to not pollute working dir
+    d08cc1e Move test module to deadcodebase and make tool testing output test result
+    a886067 Update dcd-server binary
+    f76a64f Include deadcodebase source files in build
+    79e9618 Improve install experience on windows.
+    2ded11e Tool support for generating RPC api sources
+            Add libcurl dll in windows package
+            Add short form tool command names.
+    c0048d6 Moving rename core package to dccore to avoid collision with core package of std dlang runtime
+            Prepare serialization of commands and function calls through msgpack
+            Expose a set of base classes and methods using new @RPC attribute
+            Added named RegionSets to BufferView
+            New signal on BufferView when activating a region in a regions set on the buffer view
+            Starting support for multiselection/multicursor.
+    abee177 Correct notice layout a bit
+    fcc0cc4 Fix weird bug when using two string appender at the same time in release mode resulting in mixed content.
+    73f5f41 Fix tool test running
+    6b6e209 Improve test printing
+
+
 Release 0.16 - 08 November 2015 
 
 Overview:

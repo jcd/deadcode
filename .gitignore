@@ -30,6 +30,8 @@
 ehthumbs.db
 Thumbs.db
 *.di
+/binaries.pack
+/resources.pack
 /docs
 .dub
 dub.selections.json
@@ -53,6 +55,7 @@ dub.selections.json
 /ddox
 /dub
 /deadcode
+/trash
 /*.dll
 /*.exe
 /*.exe_cv

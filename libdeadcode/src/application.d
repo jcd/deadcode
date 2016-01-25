@@ -379,6 +379,97 @@ class Application
         }
     }
 
+    auto signalOnMainThread(alias sig)()
+    {
+        import std.traits;
+        class DelayedSignal : IWorker
+        {
+            alias SigParams = Parameters!(sig.connect);
+            mixin Signal!SigParams onSignal;
+
+            alias connect = onSignal.connect;
+            alias connectTo = onSignal.connectTo;
+            alias disconnect = onSignal.disconnect;
+            alias unhook = onSignal.unhook;
+
+            private SigParams _params;
+            private Application _app;
+
+            private this(Application app)
+            {
+                _app = app;
+                sig.connect(&this.collect);
+            }
+
+            private void collect(SigParams p)
+            {
+                _params = p;
+                _app.pushMainThreadWork(this);
+            }
+
+            void work()
+            {
+                onSignal.emit(_params);
+            }
+        }
+        return new DelayedSignal(this);
+    }
+
+    auto mainThreadRelay(Dlg)(Dlg dlg)
+    {
+        import std.traits;
+        //class RelaySignal : IWorker
+        //{
+        //    Dlg _dlg;
+        //    alias Params = Parameters!Dlg;
+        //
+        //    alias slot_t = void delegate(Params);
+        //    slot_t slot;
+        //
+        //    private Params _params;
+        //    private Application _app;
+        //
+        //    private this(Application app, Dlg d)
+        //    {
+        //        _app = app;
+        //        _dlg = d;
+        //    }
+        //
+        //    void opCall(Params params)
+        //    {
+        //        _params = params;
+        //        _app.pushMainThreadWork(this);
+        //    }
+        //
+        //    void work()
+        //    {
+        //        slot(_params);
+        //    }
+        //}
+
+        alias Params = Parameters!Dlg;
+        return (Params params)
+                {
+                    class RelayWorker : IWorker
+                    {
+                        private Params _params;
+                        this (Params p)
+                        {
+                            _params = p;
+                        }
+
+                        void work()
+                        {
+                            dlg(_params);
+                        }
+                    }
+
+                    pushMainThreadWork(new RelayWorker(params));
+                };
+
+        //return (new RelaySignal(this, dlg)).opCall;
+    }
+
     // super()
     @RPC
     void setLogFile(string path)

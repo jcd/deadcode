@@ -461,12 +461,17 @@ auto editor = app.getTextEditorForBufferView(bv);
 import extensions.errorlist;
 ErrorListWidget err = app.getWidget!ErrorListWidget("errorlist");
 
+bool rerunBecauseDoubleMainPresent = false;
+
 while (true)
 {
 	anchors.length = 0;
     write(path, bv.getText().to!string);
     std.file.write(tempPath, setupAssertHandlerSource);
+
 string[] flags = [ "-version=TestingByDeadcode" ];
+if (!rerunBecauseDoubleMainPresent)
+	flags ~= "-main";
 
 string[] importPaths;
 if (p.activePackage !is null)
@@ -525,6 +530,9 @@ foreach (l; runInfo[1].byLine())
             msg.file = newbn;
         }
 
+		if (l.canFind("-main switch added another main()"))
+	        rerunBecauseDoubleMainPresent = true;
+
         app.addMessage("<unittest> " ~ l.replace("%", "%%"));
         if (msg.file !is null)
         {
@@ -541,7 +549,14 @@ foreach (l; runInfo[1].byLine())
         if (info.lastRun < info.lastChanged && info.isRunning)
         {
             // Do a rerun if the buffer changed and it was automatically scheduled
+			rerunBecauseDoubleMainPresent = false;
             info.lastRun = info.lastChanged;
+            bv.userData[UnittestRunInfo.key] = info;
+        }
+	    else if (rerunBecauseDoubleMainPresent)
+        {
+			import std.datetime;
+            info.lastRun = Clock.currTime;
             bv.userData[UnittestRunInfo.key] = info;
         }
         else
@@ -601,7 +616,7 @@ private auto buildAndRun(string targetPath, string[] sourcePaths, string[] impor
     enum compiler = r"C:\D\dmd2\windows\bin\rdmd.exe";
 	import std.algorithm;
 
-    string[] args = [compiler, "-of"~targetPath, "-unittest","-main"];
+    string[] args = [compiler, "-of"~targetPath, "-unittest"];
 	args ~= flags;
 	args ~= "-vcolumns";
 

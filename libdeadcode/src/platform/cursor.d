@@ -34,16 +34,16 @@ version (Windows)
         Vec2f winPos = Vec2f(desktopPos.ptScreenPos.x, desktopPos.ptScreenPos.y);
 */
 
-        POINT p;
-        GetCursorPos(&p);
-        *result = Vec2f(p.x, p.y);
-        return true;
-        /** When SDL2 2.0.4 is released the GetGlobalMouseState will be supported
+//        POINT p;
+//        GetCursorPos(&p);
+//        *result = Vec2f(p.x, p.y);
+//        return true;
+        /** When SDL2 2.0.4 is released the GetGlobalMouseState will be supported */
         import derelict.sdl2.sdl;
         int x,y;
         SDL_GetGlobalMouseState(&x, &y);
-        Vec2f winPos = Vec2f(x, y);
-*/
+        *result = Vec2f(x, y);
+		return true;
     }
 }
 

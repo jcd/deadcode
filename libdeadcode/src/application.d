@@ -830,6 +830,9 @@ class Application
 		guiRoot.onActivity.connect(&handleActivity);
 
 		guiRoot.run();
+
+        guiRoot.outputProfile(log());
+
 		analyticEvent("core", "stop");
 		if (analytics !is null)
 			analytics.stop();

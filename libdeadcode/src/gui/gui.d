@@ -198,11 +198,9 @@ class GUI
 				// std.stdio.writeln(std.conv.text("FPS ", 100.0 / secs));
 			}
 		}
-
-        debug outputProfile(profiler);
 	}
 
-    void outputProfile(Profiler p)
+    void outputProfile(Output)(Output output)
     {
         import tharsis.prof;
         import std.algorithm;
@@ -211,7 +209,7 @@ class GUI
 		import std.array;
 
         // Filter all instances of the "frame" zone
-        auto zones = p.profileData.zoneRange;
+        auto zones = profiler.profileData.zoneRange;
         auto frames = zones.filter!(z => z.info == "frame");
 
         // Sort the frames by duration from longest to shortest.
@@ -238,18 +236,18 @@ class GUI
         foreach(frame; frameArray[].take(2000))
         {
             // In hectonanoseconds (tenths of microsecond)
-            writeln(cast(double) frame.duration / 10_000.0);
+            output(cast(double) frame.duration / 10_000.0);
         }
 
         // Print details about all zones in the worst frame.
         int i = 0;
         foreach(frame; frameArray[].take(20))
         {
-            writefln("Frame %s", i++);
+            output("Frame %s", i++);
             auto worst = frame;
             foreach(zone; zones.filter!(z => z.startTime >= worst.startTime && z.endTime <= worst.endTime))
             {
-                writefln("    %s: %s ms from %s to %s",
+                output("    %s: %s ms from %s to %s",
                          zone.info, hnsToMS(zone.duration), hnsToS(zone.startTime), hnsToS(zone.endTime));
             }
         }

@@ -79,7 +79,11 @@ class Log
         static import std.stdio;
 		version (linux)
             std.stdio.writeln("*Messages* " ~ format(msgs));
-        auto fmtmsg = format(msgs);
+
+        static if (msgs.length == 1)
+            auto fmtmsg = format(msgs[0].to!string);
+        else
+            auto fmtmsg = format(msgs[0].to!string, msgs[1..$]);
 
         if (_file.getFP() !is null)
         {

@@ -833,7 +833,7 @@ class Application
 
         guiRoot.outputProfile(log());
 
-		analyticEvent("core", "stop");
+        analyticEvent("core", "stop");
 		if (analytics !is null)
 			analytics.stop();
 

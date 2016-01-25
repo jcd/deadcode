@@ -7,6 +7,82 @@ import graphics.rendertarget;
 import math;
 import std.typecons;
 
+import derelict.sdl2.functions;
+import derelict.sdl2.types;
+
+RenderWindow[SDL_Window*] g_RenderWindows;
+
+extern (C) SDL_HitTestResult myHitTest(SDL_Window* win, const(SDL_Point)* point, void* userData) nothrow @nogc
+{
+    RenderWindow w = cast(RenderWindow) userData; // g_RenderWindows[win];
+    auto wz = w.systemWindowSize;
+    auto pos = w.position;
+    // auto area = Rectf(pos.x, pos.y, wz.x, wz.y);
+    auto dragArea = Rectf(0, 0, wz.x - 100, 30);
+    if (dragArea.contains(Vec2f(point.x, point.y)))
+        return SDL_HITTEST_DRAGGABLE;
+
+    float resizeBorderThinkness = 10f;
+    float resizeAreaHalf = 15f;
+    Vec2f resizeAreaSize = Vec2f(resizeAreaHalf*2, resizeAreaHalf*2);
+
+    auto bottomRight = Rectf(wz.x - resizeAreaHalf, wz.y - resizeAreaHalf, resizeAreaSize);
+    if (bottomRight.contains(Vec2f(point.x, point.y)))
+        return SDL_HITTEST_RESIZE_BOTTOMRIGHT;
+
+    auto topRight = Rectf(wz.x - resizeAreaHalf, -resizeAreaHalf, resizeAreaSize);
+    if (topRight.contains(Vec2f(point.x, point.y)))
+        return SDL_HITTEST_RESIZE_TOPRIGHT;
+
+    auto topLeft = Rectf(-resizeAreaHalf, -resizeAreaHalf, resizeAreaSize);
+    if (topLeft.contains(Vec2f(point.x, point.y)))
+        return SDL_HITTEST_RESIZE_TOPLEFT;
+
+    auto bottomLeft = Rectf(-resizeAreaHalf, wz.y - resizeAreaHalf, resizeAreaSize);
+    if (bottomLeft.contains(Vec2f(point.x, point.y)))
+        return SDL_HITTEST_RESIZE_BOTTOMLEFT;
+
+    auto top = Rectf(0, -resizeBorderThinkness, wz.x, resizeBorderThinkness);
+    if (top.contains(Vec2f(point.x, point.y)))
+        return SDL_HITTEST_RESIZE_TOP;
+
+    auto bottom = Rectf(0, wz.y, wz.x, resizeBorderThinkness);
+    if (bottom.contains(Vec2f(point.x, point.y)))
+        return SDL_HITTEST_RESIZE_BOTTOM;
+
+    auto left = Rectf(-resizeBorderThinkness, 0, resizeBorderThinkness, wz.y);
+    if (left.contains(Vec2f(point.x, point.y)))
+        return SDL_HITTEST_RESIZE_LEFT;
+
+    auto right = Rectf(wz.x, 0, resizeBorderThinkness, wz.y);
+    if (right.contains(Vec2f(point.x, point.y)))
+        return SDL_HITTEST_RESIZE_RIGHT;
+
+    return SDL_HITTEST_NORMAL;
+}
+
+RenderWindow getRenderWindow(SDL_Window* win) nothrow
+{
+    void* wp = SDL_GetWindowData(win, "RenderWindow");
+    RenderWindow* w = cast(RenderWindow*)wp;
+    if (w is null)
+        return null;
+    return *w;
+}
+
+extern (C) int eventWatch( void* userData, SDL_Event* e ) nothrow
+{
+    if( e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED)
+    {
+        import gui.gui;
+        try
+            GUI.the.tick();
+        catch (Exception e)
+        {}
+    }
+    return 1; // return 1 so all events are added to queue
+}
+
 class RenderWindow : RenderTarget
 {
 	private
@@ -36,6 +112,8 @@ class RenderWindow : RenderTarget
 		int flags = SDL_WINDOW_OPENGL |SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN;// |
 		/*SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE; */
 		win = SDL_CreateWindow(name.ptr, 0, 0, width, height, flags);
+
+        SDL_AddEventWatch( &eventWatch, cast(void*)0);
 
         version (Windows)
         {
@@ -100,6 +178,9 @@ class RenderWindow : RenderTarget
 		_MVP = proj * view;
 
 		icon();
+
+        //g_RenderWindows[win] = this;
+        SDL_SetWindowHitTest(win, &myHitTest, cast(void*)this);
 	}
 
 	~this()
@@ -189,28 +270,28 @@ class RenderWindow : RenderTarget
 			return _MVP;
 		}
 
-		override Vec2f position() const
+		override Vec2f position() const nothrow @nogc
 		{
 			int x, y;
 			SDL_GetWindowPosition(cast(SDL_Window*)win, &x, &y);
 			return Vec2f(x, y);
 		}
 
-		override void position(Vec2f pos)
+		override void position(Vec2f pos) nothrow
 		{
 			int x = cast(int)pos.x;
 			int y = cast(int)pos.y;
 			SDL_SetWindowPosition(win, x, y);
 		}
 
-		Vec2i systemWindowSize() const
+		Vec2i systemWindowSize() const nothrow @nogc
 		{
 			int x, y;
 			SDL_GetWindowSize(cast(SDL_Window*)win, &x, &y);
 			return Vec2i(x, y);
 		}
 
-		override Vec2i size() const
+		override Vec2i size() const nothrow
 		{
 			return Vec2i(glViewSize.x, glViewSize.y);
 		}

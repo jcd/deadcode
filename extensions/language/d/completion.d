@@ -598,7 +598,7 @@ void dCompleteAccept(Application app, BufferView bv)
     int cp = bv.buffer.prev(bv.cursorPoint);
 	if (cp != InvalidIndex)
 	{
-        cp = bv.buffer.findOneOfReverse(cp, ". \t\n");
+        cp = bv.buffer.findOneOfReverse(cp, ". \t\n([");
 		int toRemove = bv.cursorPoint - cp - 1;
 		if (toRemove > 0)
 			bv.remove(-toRemove); // TODO: remove units

@@ -58,11 +58,19 @@ class DubBuildCommand : BasicCommand
 		showBuildWidget();
         auto ext = getExtension!Dub;
 		auto builder = ext.createBuilder(ext.activePackage.packageRoot);
-        builder.onBuildFinished.connect(&setBuildFinished);
-		builder.onBuildMessage.connect(&log);
+        //builder.onBuildFinished.connect(&setBuildFinished);
+		//builder.onBuildMessage.connect(&log);
+
+        //app.signalOnMainThread!(builder.onBuildMessage).connect(&log);
+       // app.signalOnMainThread!(builder.onBuildFinished).connect(&setBuildFinished);
+
+        builder.onBuildMessage.connectTo(app.mainThreadRelay(&log));
+        builder.onBuildFinished.connectTo(app.mainThreadRelay(&setBuildFinished));
+
         builder.run();
+
         // Todo: do something smarter than polling for status on main thread
-		app.guiRoot.timeout(dur!"msecs"(200), &builder.checkBuildStatus);
+		//app.guiRoot.timeout(dur!"msecs"(200), &builder.checkBuildStatus);
 	}
 
 	void showBuildWidget()

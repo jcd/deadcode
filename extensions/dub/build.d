@@ -21,7 +21,10 @@ struct BuildStatus
 
 class Builder
 {
+    // Emitted from thread
     mixin Signal!(string, LogLevel) onBuildMessage;
+
+    // Emitted from thread
     mixin Signal!(BuildStatus) onBuildFinished;
 
 	private
@@ -42,12 +45,14 @@ class Builder
         assert(tid == Tid.init);
 		tid = spawn(&build, thisTid);
         tid.send(status);
+        tid.send(cast(shared)this);
 	}
 
 	// In worker thread
-	private static void sendLog(Tid pTid, string msg)
+	private void sendLog(Tid pTid, string msg)
 	{
-		send(pTid, msg);
+		onBuildMessage.emit(msg, LogLevel.info);
+        // send(pTid, msg);
 	}
 
 	// In worker thread
@@ -55,6 +60,7 @@ class Builder
 	{
 		// TODO: Get build configuration from package settings
 		auto status = receiveOnly!BuildStatus();
+        Builder builder = cast(Builder)receiveOnly!(shared(Builder))();
 
 		string cmd = "dub build -v --build=" ~ status.buildType ~ " --root=\"" ~ status.packageRoot ~ "\"";
 
@@ -72,24 +78,35 @@ class Builder
 		{
 			string l = line.idup;
 //			parseTargetPath(l, status);
-			sendLog(pTid, l);
+			builder.sendLog(pTid, l);
 		}
 
 		foreach (line; pipes.stdout.byLine)
 		{
 			string l = line.idup;
 //			parseTargetPath(l, status);
-			sendLog(pTid, l);
+			builder.sendLog(pTid, l);
 		}
 
 		status.exitCode = wait(pipes.pid);
 
-		send(pTid, status);
+        builder.onBuildMessage.emit(format("Build done at %s (exitcode %s)", status.target, status.exitCode), LogLevel.info);
+        builder.onBuildFinished.emit(status);
+
+		// send(pTid, status);
 	}
 
 	// Call continuously on a timeout until false is returned ie. build is done
+    /*
 	bool checkBuildStatus()
 	{
+		import std.datetime;
+		while (receiveTimeout(dur!"seconds"(0),
+                              (string s) { onBuildMessage.emit(s, LogLevel.info); return true; },
+                              (BuildStatus st) { tid = Tid.init;
+						                         status = st;
+		                                         return true;
+                                               })) {}
 		if (tid == Tid.init)
 		{
             import std.format;
@@ -98,14 +115,7 @@ class Builder
 			return false;
 		}
 
-		import std.datetime;
-		while (receiveTimeout(dur!"seconds"(0),
-                              (string s) { onBuildMessage.emit(s, LogLevel.info); return true; },
-                              (BuildStatus st) { tid = Tid.init;
-						                         status = st;
-		                                         return true;
-                                               })) {}
-
 		return true; // reschedule update callbacks
 	}
+    */
 }

@@ -116,7 +116,7 @@ class ShaderProgramSerializer : ResourceSerializer!ShaderProgram
 
 	override void deserialize(ShaderProgram res, string str)
 	{
-        version (Windows)
+        version (none) // windows
         {
 		    struct ShaderProgramSpec
 		    {
@@ -124,7 +124,7 @@ class ShaderProgramSerializer : ResourceSerializer!ShaderProgram
 			    string win_vertexShader;
 		    }
         }
-        version (linux)
+        version (all) // linux
         {
 		    struct ShaderProgramSpec
 		    {
@@ -141,7 +141,7 @@ class ShaderProgramSerializer : ResourceSerializer!ShaderProgram
 		auto spec = jsonDecode!ShaderProgramSpec(str);
 
 		// TODO: Make explicit attach and link here!
-        version (Windows)
+        version (none) // windows
         {
 		    if (ShaderProgram.create(spec.win_vertexShader, spec.win_fragmentShader, res) !is null)
             {
@@ -149,7 +149,7 @@ class ShaderProgramSerializer : ResourceSerializer!ShaderProgram
 			    res.manager.onResourceLoaded(res, this);
 		    }
         }
-        version (linux)
+        version (all) // linux
         {
 		    if (ShaderProgram.create(spec.linux_vertexShader, spec.linux_fragmentShader, res) !is null)
             {

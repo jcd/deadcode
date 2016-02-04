@@ -55,12 +55,12 @@ class OpenGLSystem : GraphicsSystem
 			return false;
 		}
 
-		version (Windows)
+		version (none)
 		{
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 		}
-		version (linux)
+		version (all)
 		{
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);

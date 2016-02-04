@@ -110,7 +110,7 @@ class ShaderProgram
 	{
 		assert(glProgramID > 0);
 
-		version (linux)
+		version (all) // linux
 		{
 			glBindAttribLocation(glProgramID, 0, "pos");		
 			glBindAttribLocation(glProgramID, 1, "texCoords");		

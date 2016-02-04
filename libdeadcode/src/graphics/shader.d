@@ -7,7 +7,7 @@ import std.exception;
 
 final class Shader 
 {
-version (Windows)
+version (none) // Windows
 {
 	enum builtInVertexShaderSource = " 
    	#version 330 
@@ -48,7 +48,7 @@ version (Windows)
 	} 
    	"; 
 }
-version (linux)
+version (all) // linux
 {
 	enum builtInVertexShaderSource = " 
    	#version 120

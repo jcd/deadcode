@@ -294,6 +294,9 @@ class DCompletionExtension : Extension
 	void startServer()
 	{
         string execPath = app.resourceURI("dcd-server", ResourceBaseLocation.binariesDir).uriString();
+        import std.file;
+        if (!exists(execPath))
+            execPath = app.resourceURI("binaries/dcd-server", ResourceBaseLocation.binariesDir).uriString();
         string cwd = app.resourceURI("", ResourceBaseLocation.currentDir).uriString();
         try
         {
@@ -326,7 +329,7 @@ class DCompletionExtension : Extension
         }
         catch (ProcessException e)
         {
-            app.addMessage("Error spawning dcd-server %s", execPath);
+            app.addMessage("Error spawning dcd-server %s %s", e, execPath);
         }
 
         import platform.system;

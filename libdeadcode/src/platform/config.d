@@ -40,7 +40,7 @@ version (Windows)
     import std.c.windows.windows;
     extern (Windows)
     {
-        nothrow export BOOL SHGetSpecialFolderPathA(HWND hwndOwner, LPTSTR lpszPath, int csidl, BOOL fCreate);
+        nothrow export BOOL SHGetSpecialFolderPathA(HWND hwndOwner, char* lpszPath, int csidl, BOOL fCreate);
     }
 
     void addFileBrowserContextMenuItem(string name, string command)

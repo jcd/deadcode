@@ -74,7 +74,6 @@ class Package
 
 	string packageName;
     string packageRoot;
-    Log log;
 
     BuildSettings globalBuildSettings;
 	Configuration[] configurations;
@@ -110,10 +109,9 @@ class Package
         return activeBuildSettings.buildOptions.canFind(BuildOption.unittests);
     }
 
-    this(string packageRoot, Log log)
+    this(string packageRoot)
     {
         this.packageRoot = buildNormalizedPath(absolutePath(packageRoot));
-        this.log = log;
     }
 
     void refreshFromDisk()

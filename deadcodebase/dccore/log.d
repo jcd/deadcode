@@ -6,6 +6,19 @@ import dccore.signals;
 import extensionapi.rpc;
 mixin registerRPC;
 
+@property
+{
+    Log log()
+    {
+        assert (Log._globalLogger !is null);
+        return Log._globalLogger;
+    }
+}
+
+void setGlobalLog(Log l)
+{
+    Log._globalLogger = l;
+}
 
 enum LogLevel : ubyte
 {
@@ -22,6 +35,7 @@ class Log
 
     private
     {
+        static Log _globalLogger;
         File _file;
         static int sNextID = 1;
     }
@@ -35,6 +49,11 @@ class Log
     {
         id = sNextID++;
         _file = File(path, "a");
+    }
+
+    private this()
+    {
+        id = sNextID++;
     }
 
     File getLogFile()

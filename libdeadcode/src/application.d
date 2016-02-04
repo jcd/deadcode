@@ -241,7 +241,6 @@ class Application
         @RPC BufferView previousBuffer() { return bufferViewManager[_previousBufferID]; }
 		EditorBehavior editorBehavior() { return _editorBehavior; }
 		CommandManager commandManager() { return _commandManager; }
-        @RPC Log log() { return _log; }
 	}
 
     // TODO: move to ctx
@@ -253,6 +252,8 @@ class Application
 
 	private this(GUI gui)
 	{
+        setLog(dccore.log.log);
+
         // Make sure standard dirs exists
         {
             auto d = resourceURI("extensions", ResourceBaseLocation.userDataDir).uriString;
@@ -470,12 +471,18 @@ class Application
         //return (new RelaySignal(this, dlg)).opCall;
     }
 
+    void setLog(Log l)
+    {
+        log.onInfo.disconnect(&appendConsoleMessage);
+        setGlobalLog(l);
+        log.onInfo.connect(&appendConsoleMessage);
+    }
+
     // super()
     @RPC
     void setLogFile(string path)
     {
-        _log = new Log(path);
-        _log.onInfo.connect(&appendConsoleMessage);
+        setLog(new Log(path));
     }
 
     @RPC
@@ -533,7 +540,7 @@ class Application
     // super()
 	void addMessage(Types...)(Types msgs)
 	{
-		_log(msgs);
+		dccore.log.log.i(msgs);
     }
 
     @RPC
@@ -663,7 +670,9 @@ class Application
 
 		scanResources();
 
-		defaultStyleSheet = guiRoot.styleSheetManager.load(resourceURI("default.stylesheet", ResourceBaseLocation.resourceDir));
+		auto styleSheetPath = resourceURI("default.stylesheet", ResourceBaseLocation.resourceDir);
+        log.v("Using stylesheet %s", styleSheetPath);
+        defaultStyleSheet = guiRoot.styleSheetManager.load(styleSheetPath);
 		guiRoot.styleSheetManager.onSourceChanged.connect(&styleSheetSourceChanged);
 		guiRoot.textureManager.onSourceChanged.connect(&textureSourceChanged);
 
@@ -764,7 +773,7 @@ class Application
                     // TODO: append... do not just set the queue
                     extensionsDirWatcherQueue = r.changesRange;
                 });
-                scheduleExtensionsDirScan(extensionsDir);
+                // scheduleExtensionsDirScan(extensionsDir);
             }
         }
 

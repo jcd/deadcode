@@ -214,7 +214,7 @@ class Dub : Extension
 
     override void init()
 	{
-        auto p = new Package(getcwd(), app.log);
+        auto p = new Package(getcwd());
         p.refreshFromDisk();
         if (p.isValid())
         {

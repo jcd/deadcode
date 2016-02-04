@@ -34,12 +34,20 @@ private int myMain(string[] args)
 	else
 	{
 		Application app;
+        import dccore.log;
+
 		try
 		{
+            import platform.config;
+            auto l = new Log(resourceURI("log.txt", ResourceBaseLocation.userDataDir).uriString);
+            setGlobalLog(l);
+
             if (Application.wakeExisting(args))
                 return 0;
+
 			app = Application.create();
-			// Create a text buffer and add show it in the mainWidget
+
+            // Create a text buffer and add show it in the mainWidget
 			//auto fileName = "testmath.d";
 			//app.mainWidget.content = std.file.readText(fileName);
 			app.pushMainFiberWork(() {
@@ -60,7 +68,17 @@ private int myMain(string[] args)
 
 			string s = e.toString();
 			s ~= "\n" ~ "Help improve the editor by uploading this backtrace?";
-			int res = messageBox("Caught Exception", e.toString(),
+
+            try
+            {
+                log.e(s);
+            }
+            catch (Throwable)
+            {
+                // pass
+            }
+
+            int res = messageBox("Caught Exception", e.toString(),
                                  MessageBoxStyle.error | MessageBoxStyle.yesNo | MessageBoxStyle.modal);
 			if (res)
 			{

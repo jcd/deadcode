@@ -1,5 +1,7 @@
 module graphics.renderwindow;
 
+import dccore.log;
+
 import derelict.opengl3.gl3;
 import derelict.sdl2.sdl;
 
@@ -142,7 +144,7 @@ class RenderWindow : RenderTarget
 		if(!win)
 		{
 			import std.stdio;
-            writeln("Error creating SDL window");
+            log.e("Error creating SDL window");
 			SDL_Quit();
 		}
 
@@ -150,7 +152,7 @@ class RenderWindow : RenderTarget
 		if (context is null)
 		{
 			import std.stdio;
-            writeln("Error creating SDL GL context");
+            log.e("Error creating SDL GL context");
 			SDL_Quit();
 		}
 
@@ -170,8 +172,8 @@ class RenderWindow : RenderTarget
 		   near_height, zNear, zFar );
 */
 		import std.stdio;
-		writeln("GL Context ", context);
-		writeln("Using OpenGL version ", DerelictGL3.reload());
+		log.v("GL Context %s", context);
+		log.v("Using OpenGL version %s", DerelictGL3.reload());
 
 		Mat4f proj = Mat4f.orthographic(-1,1,-1,1,1,100);
 		Mat4f view = Mat4f.makeTranslate(Vec3f(0.0,0.0,10.0f));

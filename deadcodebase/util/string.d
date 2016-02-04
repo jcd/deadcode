@@ -79,7 +79,7 @@ private string[] toarr(R)(R e)
         return e.map!"a[0]".array;
     else
         return e.map!(a => a[0].replace("/", "\\")).array;
-        
+
 }
 
 unittest
@@ -252,7 +252,7 @@ unittest
 	{
 		import std.stdio;
 		auto r = a.rank(b);
-		writeln(a, " <=> ", b, " is ", r);
+		log.i(a, " <=> ", b, " is ", r);
 
 		if (expected == -1)
 			return;

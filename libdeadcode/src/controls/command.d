@@ -6,6 +6,7 @@ import controls.textfield;
 import dccore.bufferview;
 import dccore.command : CommandManager, Command, CompletionEntry, Hints;
 import dccore.commandparameter;
+import dccore.log;
 import graphics;
 import gui.event;
 import gui.keycode;
@@ -911,7 +912,7 @@ version(NONE)
         }
         catch (Exception e)
         {
-            app.log.e("Command '%s' error: %s", cmdData.cmd, e.toString());
+            log.e("Command '%s' error: %s", cmdData.cmd, e.toString());
         }
 	}
 

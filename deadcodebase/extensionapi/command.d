@@ -20,12 +20,12 @@ Example:
 @Shortcut("<ctrl> + m", "Hello world")  // Shortcut that with the command argument set in advance
 class SayHelloCommand : BasicCommand
 {
-this() { super(createParams("")); }
+    this() { super(createParams("")); }
 
-void run(string txt)
-{
-std.stdio.writeln(txt);
-}
+    void run(string txt)
+    {
+        log.info(txt);
+    }
 }
 
 Example:
@@ -33,7 +33,7 @@ Example:
 @Shortcut("<ctrl> + u")
 void textUppercase(Application app, string dummy)
 {
-app.currentBuffer.map!(std.uni.toUpper)(RegionQuery.selectionOrWord);
+    app.currentBuffer.map!(std.uni.toUpper)(RegionQuery.selectionOrWord);
 }
 */
 
@@ -133,7 +133,7 @@ class FunctionCommand(alias Func) : BasicCommand
 		alias t2 = Replace!(TextEditor, currentTextEditor, t1);
 		alias t3 = Replace!(Application, app, t2);
 		alias t4 = Replace!(Fiber, Fiber.getThis, t3);
-		alias t5 = Replace!(Log, currentLog, t4);
+		alias t5 = Replace!(Log, dccore.log.log, t4);
 		alias preparedArgs = t5[0..count];
 
 		enum missingArgCount = ParameterTypeTuple!Func.length - count;
@@ -241,11 +241,6 @@ class BasicCommand : Command
             return app.previousBuffer;
         return b;
 	}
-
-	@property Log currentLog()
-    {
-        return app.log;
-    }
 
 	@property TextEditor currentTextEditor()
 	{

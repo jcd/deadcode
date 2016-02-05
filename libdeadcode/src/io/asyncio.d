@@ -19,8 +19,9 @@ struct WatchDirChange
 struct WatchDirResult
 {
     uint id;
-    shared GrowableCircularQueue!WatchDirChange changesRange;
-    bool success;
+    // shared GrowableCircularQueue!WatchDirChange changesRange;
+    shared RWQueue!WatchDirChange* changesRange;
+    bool success = true;
 }
 
 private
@@ -142,6 +143,7 @@ private
         static private uint s_NextID = 1;
 
         alias WatchDirResult Result;
+        shared RWQueue!WatchDirChange _queue;
 
         mixin JobImpl!(Result, string, DWFileEvent, bool);
 
@@ -153,19 +155,23 @@ private
 
         override void run(AsyncIOWorker worker)
         {
+            import dccore.log;
+            // log.i("Want dir changes %s", _args[1]); TODO: handle logging from threads
 
             EventLoop eventLoop = worker._eventLoop;
 
             _watcher = new AsyncDirectoryWatcher(eventLoop);
 
-            auto r = new shared GrowableCircularQueue!WatchDirChange();
-            auto result = Result(s_NextID++, r, true);
+            // auto r = new shared GrowableCircularQueue!WatchDirChange();
+            auto result = Result(s_NextID++, &_queue);
 
             _watcher.run({
                 DWChangeInfo[1] change;
                 DWChangeInfo[] changeRef = change.ptr[0..1];
+                // log.i("Dir changes:"); TODO: handle logging from threads
                 while(_watcher.readChanges(changeRef)){
-                    r.push(WatchDirChange(change[0].event, change[0].path));
+                    // log.i("Dir changes %s", change[0].path); TODO: handle logging from threads
+                    result.changesRange.pushBusyWait(WatchDirChange(change[0].event, change[0].path));
                 }
                 worker.resultProduced(this);
             });

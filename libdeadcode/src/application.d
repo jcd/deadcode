@@ -158,7 +158,8 @@ class Application
     TCPClient[] _connectedTcpClients;
 
     // Newly connected client waiting to be put into _connectedTcpClients array
-    shared GrowableCircularQueue!(shared TCPClient) _connectedTcpClientQueue;
+    //shared GrowableCircularQueue!(shared TCPClient) _connectedTcpClientQueue;
+    shared RWQueue!(shared TCPClient) _connectedTcpClientQueue;
 
     // int is ResourceBaseLocation flags changed
     mixin Signal!(uint) onResourceBaseLocationChanged;
@@ -205,8 +206,10 @@ class Application
 
 	private Widget _editorStack;
 	private Widget _mainWidget;
-    shared GrowableCircularQueue!WatchDirChange resourceDirWatcherQueue;
-    shared GrowableCircularQueue!WatchDirChange extensionsDirWatcherQueue;
+    //shared GrowableCircularQueue!WatchDirChange resourceDirWatcherQueue;
+    shared RWQueue!WatchDirChange* resourceDirWatcherQueue;
+    // shared GrowableCircularQueue!WatchDirChange extensionsDirWatcherQueue;
+    shared RWQueue!WatchDirChange* extensionsDirWatcherQueue;
 
 	StyleSheet defaultStyleSheet;
 
@@ -265,8 +268,8 @@ class Application
                 mkdirRecurse(d);
         }
 
-        _connectedTcpClientQueue = new shared GrowableCircularQueue!(shared TCPClient)();
-        _mainThreadWorkQueue = new typeof(_mainThreadWorkQueue);
+        //_connectedTcpClientQueue = new shared GrowableCircularQueue!(shared TCPClient)();
+        // _mainThreadWorkQueue = new typeof(_mainThreadWorkQueue);
 
 		// This also sets up tracking keys for analytics
 		guiRoot = gui;
@@ -293,7 +296,6 @@ class Application
             _editorBehavior = new EmacsBehavior(this);
         }
 
-        setLogFile(resourceURI("log.txt", ResourceBaseLocation.userDataDir).uriString);
 
         // editorcommands.register(this);
 		editors = new Editors;
@@ -358,16 +360,16 @@ class Application
 
 		auto app = new Application(gui);
 		app.guiRoot.onFileDropped.connect(&app.onFileDropped);
-
 		return app;
 	}
 
 
-    shared GrowableCircularQueue!(shared IWorker) _mainThreadWorkQueue;
+    //shared GrowableCircularQueue!(shared IWorker) _mainThreadWorkQueue;
+    shared RWQueue!(shared IWorker) _mainThreadWorkQueue;
 
     void pushMainThreadWork(IWorker worker)
     {
-        _mainThreadWorkQueue.push(cast(shared)worker);
+        _mainThreadWorkQueue.pushBusyWait(cast(shared)worker);
         wakeMainThread();
     }
 
@@ -759,8 +761,14 @@ class Application
         static import platform.config;
 
         _asyncIO.watchDir(platform.config.resourcesRoot, DWFileEvent.ALL,  true).then( (WatchDirResult r) {
-            // TODO: append... do not just set the queue
+            // log.i("Watching dir %s", r.success);
             resourceDirWatcherQueue = r.changesRange;
+            //// TODO: append... do not just set the queue
+            //while (!r.changesRange.empty)
+            //{
+            //    auto item = r.changesRange.pop();
+            //    resourceDirWatcherQueue.pushBusyWait(item);
+            //}
         });
 
 
@@ -771,7 +779,15 @@ class Application
             {
                 _asyncIO.watchDir(extensionsDir, DWFileEvent.ALL,  true).then( (WatchDirResult r) {
                     // TODO: append... do not just set the queue
-                    extensionsDirWatcherQueue = r.changesRange;
+                   extensionsDirWatcherQueue = r.changesRange;
+                   //if (r.success)
+                   //{
+                   //     while (!r.changesRange.empty)
+                   //     {
+                   //         auto item = r.changesRange.pop();
+                   //         extensionsDirWatcherQueue.pushBusyWait(item);
+                   //     }
+                   //}
                 });
                 // scheduleExtensionsDirScan(extensionsDir);
             }
@@ -870,7 +886,7 @@ class Application
 	private void delegate(TCPEvent) acceptTcpConnection(AsyncTCPConnection conn)
     {
         auto h = new TCPClient(conn);
-        _connectedTcpClientQueue.push(cast(shared)h);
+        _connectedTcpClientQueue.pushBusyWait(cast(shared)h);
         return &h.handleEvent;
     }
 
@@ -1829,6 +1845,7 @@ class Application
 
     private void checkExtensionsDirForChanges()
 	{
+        // TODO: extensionsDirWatcherQueue might be null if not initialized yet by watchDIR
         if (extensionsDirWatcherQueue is null)
             return;
 
@@ -1843,14 +1860,16 @@ class Application
     {
         WatchDirChange ci = WatchDirChange();
 
-        if (extensionsDirWatcherQueue is null)
-            extensionsDirWatcherQueue = new typeof(extensionsDirWatcherQueue);
+        // TODO: extensionsDirWatcherQueue might be null if not initialized yet by watchDIR
+        //if (extensionsDirWatcherQueue is null)
+        //    extensionsDirWatcherQueue = new typeof(extensionsDirWatcherQueue);
 
         import std.file;
         foreach (f; dirEntries(dirPath, "*.d", SpanMode.depth))
         {
             ci.path = f;
-            extensionsDirWatcherQueue.push(ci);
+            // log.i("bar4b2 %s", &extensionsDirWatcherQueue);
+            extensionsDirWatcherQueue.pushBusyWait(ci);
         }
     }
 
@@ -2176,7 +2195,7 @@ class Application
         thread.join();
     }
 
-    U yield(U, Args...)(U function(Args) dlg, Args args) if (!is(U == void))
+    U yield(U, Args...)(U function(Args) dlg, Args args) if (!is(U == void))
     {
         import core.thread;
         enforce(Fiber.getThis() !is null);

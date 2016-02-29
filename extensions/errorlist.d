@@ -22,6 +22,7 @@ import std.algorithm;
 import std.array : empty;
 import std.conv;
 import std.regex;
+import std.string : tr;
 import dccore.signals;
 import std.typecons;
 
@@ -603,7 +604,7 @@ class ErrorListWidget : BasicWidget
 		if (!m.empty)
 		{
 			auto messageText = m.captures[3];
-			result.file = m.captures[1];
+			result.file = m.captures[1].tr(r"\", "/");
 			if (messageText.startsWith("Error:"))
 				result.type = MessageType.error;
 			else if (messageText.startsWith("Warning:"))
@@ -618,6 +619,7 @@ class ErrorListWidget : BasicWidget
 				result.line = to!int(sp[0]) - 1;
 				result.column = to!int(sp[2]) - 1;
 			}
+			result.message  = text(result.file, "(", pos, "): ", messageText, "\n");
 		}
 		return result;
 	}

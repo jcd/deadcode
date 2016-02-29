@@ -157,7 +157,8 @@ class MaterialSerializer : ResourceSerializer!Material
 
 	override bool canHandle(URI uri)
 	{
-		import std.path;
+		import dccore.path;
+
 		return uri.extension == ".material";
 	}
 

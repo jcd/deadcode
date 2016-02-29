@@ -1,10 +1,12 @@
 module io.file;
 
+import dccore.path;
+
+
 import io.iomanager;
 
 import std.algorithm;
 import std.file;
-import std.path;
 import std.range;
 import std.stdio : StdFile = File;
 import test;

@@ -604,7 +604,9 @@ public:
 			}
 		}
 
-		import std.path;
+		import dccore.path;
+
+
 		foreach (s; _serializers)
 		{
 			if (s.canRead() && s.canHandle(uri))

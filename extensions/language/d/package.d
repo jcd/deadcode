@@ -61,10 +61,11 @@ class DCodeModel : ICodeModel
 
 	string getSuggestedPath()
 	{
+		import dccore.path;
 		import std.array;
-		import std.path;
+		
 		auto v = _codeIntel.updateFastInfo(this);
-		string res = v.moduleName.replace(".", dirSeparator);
+		string res = v.moduleName.replace(".", "/");
 		if (res.length)
 			res ~= ".d";
 		return res;
@@ -110,7 +111,7 @@ class DCodeIntel : ICodeIntel
 
     bool detect(BufferView bv)
     {
-        import std.path;
+        import dccore.path;
         return extension(bv.name) == ".d" || !bv.find("^module ").empty;
     }
 

@@ -11,7 +11,7 @@ auto uniquePostfixPath(R)(R names)
 {
     import std.algorithm;
     import std.array;
-    import std.path;
+    import dccore.path;
 
     struct SortHelper
     {

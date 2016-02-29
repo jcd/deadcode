@@ -30,6 +30,8 @@ import controls.button;
 import controls.command;
 import controls.menu;
 import controls.texteditor;
+import dccore.path;
+
 import gui.resources.generic;
 import gui.layout;
 import io.asyncio;
@@ -46,7 +48,6 @@ import std.array;
 import std.conv;
 import std.datetime;
 import std.file;
-import std.path;
 import std.string;
 static import std.exception;
 

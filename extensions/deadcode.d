@@ -1,8 +1,9 @@
 module extensions.deadcode;
+import dccore.path;
+
 import std.algorithm;
 import std.array;
 import std.file;
-import std.path;
 import std.process;
 
 import extensionapi;

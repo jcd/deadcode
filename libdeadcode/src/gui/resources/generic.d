@@ -1,5 +1,8 @@
 module gui.resources.generic;
 
+import dccore.path;
+
+
 import gui.locations;
 import gui.resource;
 
@@ -8,7 +11,7 @@ import io.iomanager;
 import util.jsonx;
 
 import std.array;
-import std.path;
+
 import std.variant;
 
 /** Persisting of objects

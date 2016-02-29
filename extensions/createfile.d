@@ -16,7 +16,8 @@ void newExtension(Application app)
 	import dccore.language;
 	auto b = app.createBuffer();
 
-	import std.path;
+	import dccore.path;
+
 
 	//auto base = buildNormalizedPath(app.resourceURI("./", ResourceBaseLocation.currentDir).uriString, "extensions/myext.d");
 	//b.name = base;
@@ -44,7 +45,8 @@ void newWidget(Application app)
 	import dccore.language;
 	auto b = app.createBuffer();
 
-	import std.path;
+	import dccore.path;
+
 
 	//auto base = buildNormalizedPath(app.resourceURI("./", ResourceBaseLocation.currentDir).uriString, "extensions/myext.d");
 	//b.name = base;

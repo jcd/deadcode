@@ -103,7 +103,8 @@ class TextureSerializer : ResourceSerializer!Texture
 
 	override bool canHandle(URI uri)
 	{
-		import std.path;
+		import dccore.path;
+
 		import std.algorithm;
 		return [ ".png" ].countUntil(uri.extension) >= 0;
 	}

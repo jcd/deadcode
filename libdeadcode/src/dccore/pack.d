@@ -13,8 +13,9 @@ struct FilePack(string path)
             string depacked = null;
             try
             {
-                import std.algorithm;
-                import std.path;
+                import dccore.path;
+
+				import std.algorithm;
                 import std.file;
                 import std.format;
                 import std.range;

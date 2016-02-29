@@ -2,6 +2,9 @@ module gui.style.parser;
 
 import dccore.uri;
 
+import dccore.path;
+
+
 import gui.resource;
 import gui.resources.material : Material, MaterialManager;
 import gui.resources.font : Font, FontManager;
@@ -15,7 +18,6 @@ import gui.style.types;
 import math;
 
 import std.conv;
-import std.path;
 import std.range;
 
 import test;

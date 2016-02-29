@@ -110,7 +110,8 @@ class ShaderProgramSerializer : ResourceSerializer!ShaderProgram
 
 	override bool canHandle(URI uri)
 	{
-		import std.path;
+		import dccore.path;
+
 		return uri.extension == ".shaderprogram";
 	}
 

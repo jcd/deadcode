@@ -7,11 +7,12 @@ import extensionapi;
 mixin registerCommands;
 
 import core.time;
+import dccore.path;
 
 import gui.control.notice;
 
 import std.file;
-import std.path;
+
 import std.stdio;
 import std.string;
 import platform.system;
@@ -216,7 +217,6 @@ bool gitClone(string dir)
 bool installDMD(Application app)
 {
     import std.file;
-    import std.path;
     import std.process;
     import core.time;
 

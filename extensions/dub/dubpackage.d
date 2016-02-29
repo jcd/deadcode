@@ -1,11 +1,11 @@
 module extensions.dub.dubpackage;
 
+import dccore.path;
 import dccore.signals;
 
 import std.algorithm;
 import std.file;
 import std.json;
-import std.path;
 import std.range;
 import dccore.log;
 

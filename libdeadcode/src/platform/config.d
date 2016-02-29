@@ -1,8 +1,9 @@
 module platform.config;
 
+import dccore.path;
+
 static import dccore.uri;
 import std.format : format;
-import std.path;
 
 private string _resourcesRoot;
 private string _binariesRoot;
@@ -243,7 +244,8 @@ dccore.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBase
             version (linux)
             {
                 import std.process;
-                import std.path;
+                import dccore.path;
+
                 string home = environment.get("XDG_DATA_HOME", expandTilde("~/.local/share"));
                 basePath = absolutePath(buildPath(home, appName));
             }

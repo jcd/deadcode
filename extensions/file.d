@@ -8,9 +8,10 @@ import std.algorithm;
 
 auto filesystemCompletions(string path)
 {
+	import dccore.path;
+
 	import std.array;
 	import std.file;
-	import std.path;
 	import std.string;
     import std.typecons;
 	import util.string;

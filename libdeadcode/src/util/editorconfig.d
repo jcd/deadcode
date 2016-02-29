@@ -69,7 +69,8 @@ struct EditorConfig
 
 private struct EditorConfigPaths
 {
-    import std.path;
+    import dccore.path;
+
     private
     {
         string _currentDir;
@@ -107,7 +108,8 @@ private auto editorConfigPaths(string dir)
 
 EditorConfig editorConfigForPath(string path)
 {
-    import std.path;
+    import dccore.path;
+
     import std.file;
 
     auto r = editorConfigPaths(path.dirName());
@@ -228,7 +230,8 @@ private struct EditorConfigResolver
     this(string iniFilePath)
     {
         import std.file;
-        import std.path;
+        import dccore.path;
+
         import std.file;
         import util.ini;
 
@@ -258,7 +261,8 @@ private struct EditorConfigResolver
     string[string] resolve(string path)
     {
         string[string] options;
-        import std.path;
+        import dccore.path;
+
         import std.string;
 
         foreach (idx; 0..index.length)

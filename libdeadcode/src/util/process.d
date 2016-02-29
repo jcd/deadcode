@@ -5,10 +5,11 @@ auto spawnProcess(in char[][] args,
                   const string[string] env = null,
                   in char[] workDir = null)
 {
+    import dccore.path;
+
     static import std.process;
 	import std.array;
     import std.file;
-    import std.path;
     import std.stdio;
     import std.typecons;
 

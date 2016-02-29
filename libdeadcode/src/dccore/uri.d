@@ -1,7 +1,7 @@
 module dccore.uri;
 
+import dccore.path;
 import std.string;
-import std.path;
 
 class URI
 {

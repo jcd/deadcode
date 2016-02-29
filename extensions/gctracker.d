@@ -98,8 +98,10 @@ class GCTracker : Extension, ITextEditorAnchorOwner
 
 	void onMessageAppended(ErrorListWidget w, string msg)
 	{
+		import dccore.path;
+
 		import std.conv;
-		import std.path;
+		
 		auto m = msg.matchFirst(re);
 		if (m)
 		{

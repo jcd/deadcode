@@ -11,7 +11,8 @@ struct ModuleLoader(alias Mod, string modFilename)
             import std.stdio;
             try
             {
-                import std.path;
+                import dccore.path;
+
                 import std.file;
 
                 string depacked = buildPath(tempDir(), modFilename);
@@ -59,7 +60,8 @@ struct ModuleLoaderRaw(string modFilename)
             {
                 import derelict.util.sharedlib;
                 import std.file;
-                import std.path;
+                import dccore.path;
+
 
                 string depacked = buildPath(tempDir(), modFilename);
                 writeln("Unpacking to ", depacked);

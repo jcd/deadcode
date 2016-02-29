@@ -1,5 +1,8 @@
 module gui.resources.font;
 
+import dccore.path;
+
+
 import graphics.font : GFont = Font;
 import gui.locations;
 import gui.resource;
@@ -7,8 +10,6 @@ import gui.resource;
 import io.iomanager;
 
 import util.jsonx;
-
-import std.path;
 
 import test;
 mixin registerUnittests;

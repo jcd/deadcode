@@ -2,6 +2,7 @@ module extensions.dub.commands;
 import dccore.signals;
 import core.time;
 import dccore.log;
+import dccore.path;
 
 import extensionapi;
 import math;
@@ -12,7 +13,6 @@ import std.concurrency;
 import std.file;
 import std.json;
 import std.string;
-import std.path;
 import std.process;
 import std.range;
 import std.regex;
@@ -148,8 +148,7 @@ class DubBuildCommand : BasicCommand
 
 	private void spawn(string newExecPath)
 	{
-        import std.file;
-		import std.path;
+		import std.file;
 		import std.string;
 
         auto thisExecNormalizedPath = absolutePath(buildNormalizedPath(thisExePath()));
@@ -420,7 +419,6 @@ void dubRunModuleUnittests(Application app, BufferView bv)
 
 	import std.algorithm;
 	import std.conv;
-    import std.path;
     import std.file;
 
 	if (bv.name.endsWith("_deadcodetest.d"))

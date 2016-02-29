@@ -100,7 +100,8 @@ class Locations : Resource!Locations
 
 		void popFront()
 		{
-			import std.path;
+			import dccore.path;
+
 			++_offset;
 			while (!empty)
 			{

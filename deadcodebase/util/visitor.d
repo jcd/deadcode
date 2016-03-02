@@ -1,4 +1,4 @@
-module dccore.visitor;
+module edit.visitor;
 version (none):
 struct Persist {};
 

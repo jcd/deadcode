@@ -1,7 +1,7 @@
 module behavior.emacs;
 
 import application;
-import dccore.bufferview;
+import edit.bufferview;
 import dccore.command;
 import dccore.commandparameter;
 import graphics;

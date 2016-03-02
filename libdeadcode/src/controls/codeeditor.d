@@ -1,7 +1,7 @@
 module controls.codeeditor;
 
 import controls.texteditor;
-import dccore.bufferview;
+import edit.bufferview;
 import gui.widget;
 
 class CodeEditor : TextEditor

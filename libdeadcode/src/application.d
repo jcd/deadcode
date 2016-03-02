@@ -2,19 +2,21 @@ module application;
 
 import behavior.behavior;
 import dccore.analytics;
-import dccore.buffer;
-import dccore.bufferview;
-import dccore.copybuffer;
 import dccore.commandparameter;
 import dccore.command : CompletionEntry, CommandManager;
 import dccore.container;
 import dccore.future;
-import dccore.language;
+
 import dccore.log;
 import dccore.mainloopworker;
 import dccore.signals;
 import core.stdc.errno;
 import dccore.uri;
+
+import edit.buffer;
+import edit.bufferview;
+import edit.copybuffer;
+import edit.language;
 
 import extensionapi.rpc;
 import extensionapi.types : MenuItem, Shortcut;
@@ -1494,7 +1496,7 @@ class Application
 			return EventUsed.yes;
 		};
 
-		import dccore.language;
+		import edit.language;
 		auto dinfo = manager().lookupByFileExtension(extension(buf.name));
 		if (buf.codeModel is null && dinfo !is null)
         {
@@ -1525,7 +1527,7 @@ class Application
     private void bufferViewRenamed(BufferView buf, string oldName)
     {
         // Check if the codeModel shoudl be set/changed
-        import dccore.language;
+        import edit.language;
         auto dinfo = manager().lookupByFileExtension(extension(buf.name));
         if (dinfo !is null && (buf.codeModel is null || buf.codeModel.codeIntel !is dinfo))
             buf.codeModel = dinfo.createModel(buf);
@@ -1535,7 +1537,7 @@ class Application
     {
         if (b.codeModel is null)
         {
-            import dccore.language;
+            import edit.language;
             auto dinfo = manager().detect(b);
             if (dinfo !is null)
             {
@@ -2519,8 +2521,8 @@ class WidgetLocationUpdater : IWidgetLocationUpdater
 
 version (none):
 import behavior.behavior;
-import dccore.buffer;
-import dccore.bufferview;
+import edit.buffer;
+import edit.bufferview;
 import dccore.command;
 import core.stdc.errno;
 import dccore.log;

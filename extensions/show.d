@@ -24,7 +24,7 @@ void showEndOfLIne(Application a, TextEditor e, BufferView b)
 }
 
 import controls.texteditor : TextEditorDataAnchorManager, TextEditorDataAnchorWidget, TextEditorAnchorWidget;
-import dccore.buffer;
+import edit.buffer;
 import extensions.language.d.analysis.base;
 
 class EOLAnchor : TextEditorDataAnchorWidget!(EOLType)
@@ -77,7 +77,7 @@ class EOLAnchorManager : TextEditorDataAnchorManager!EOLAnchor
 
     void ensureAnchors(TextEditor e, int begin = 0, int end = int.max)
     {
-	    import dccore.buffer : InvalidIndex;
+	    import edit.buffer : InvalidIndex;
 
 	    auto buf = e.bufferView.buffer;
 		auto bufLen = buf.length;

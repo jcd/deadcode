@@ -4,7 +4,6 @@ import animation.mutator;
 import animation.timeline;
 
 import dccore.signals;
-import dccore.visitor;
 
 import graphics;
 import gui.event;
@@ -57,16 +56,16 @@ class Widget : Stylable
 
 	WidgetID id;
 
-	@Persist
+	//@Persist
 	string _name;
 
-	@Persist
+	//@Persist
 	float zOrder;
 
-	@Persist
+	//@Persist
 	bool acceptsKeyboardFocus;
 
-	@Persist
+	//@Persist
 	bool manualLayout;
 
 	// Events

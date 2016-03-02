@@ -1,7 +1,7 @@
 module gui.styledtext;
 
-import dccore.bufferview;
-import dccore.buffer : InvalidIndex;
+import edit.bufferview;
+import edit.buffer : InvalidIndex;
 import gui.style;
 import math.region;
 import std.container;

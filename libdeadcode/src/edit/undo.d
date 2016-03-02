@@ -1,4 +1,4 @@
-module dccore.undo;
+module edit.undo;
 
 version(OFF):
 

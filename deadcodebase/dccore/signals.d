@@ -42,7 +42,7 @@ mixin template Signal(T...)
 
 mixin template Signal(T1...)
 {
-    static import std.c.stdlib;
+    static import core.stdc.stdlib;
     static import core.exception;
     /***
      * A slot is implemented as a delegate.

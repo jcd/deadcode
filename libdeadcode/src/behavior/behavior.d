@@ -1,7 +1,7 @@
 module behavior.behavior;
 
-public import dccore.buffer;
-import dccore.bufferview;
+public import edit.buffer;
+import edit.bufferview;
 import dccore.commandparameter;
 import dccore.command;
 import application;

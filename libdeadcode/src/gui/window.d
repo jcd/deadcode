@@ -3,7 +3,6 @@ module gui.window;
 import animation.timeline;
 
 import core.time;
-import dccore.visitor;
 import derelict.sdl2.sdl;
 import graphics;
 import gui.event;

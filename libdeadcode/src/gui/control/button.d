@@ -1,6 +1,6 @@
 module gui.control.button;
 
-import dccore.bufferview;
+import edit.bufferview;
 import gui.widget;
 import gui.widgetfeature;
 

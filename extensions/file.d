@@ -87,7 +87,7 @@ void fileSave(BufferView buf, Application app)
 		}
 		else if (auto h = buf.codeModel) // probably a d file so lets guess on that
 		{
-			import dccore.language;
+			import edit.language;
 			h.updateAST();
 			auto spath = h.getSuggestedPath();
 			if (spath.length)
@@ -119,7 +119,7 @@ void fileSave(BufferView buf, Application app)
 			fileSaveAs(buf, app, p.answer);
 			if (buf.codeModel is null)
             {
-				import dccore.language;
+				import edit.language;
 				auto dinfo = manager().lookupByFileExtension(extension(buf.name));
 				if (dinfo !is null)
 					buf.codeModel = dinfo.createModel(buf);

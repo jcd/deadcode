@@ -4,7 +4,7 @@ import extensionapi;
 mixin registerCommands;
 
 import controls.button;
-import dccore.buffer : InvalidIndex;
+import edit.buffer : InvalidIndex;
 import gui.event;
 import gui.layout.constraintlayout;
 import gui.layout.gridlayout;
@@ -694,7 +694,7 @@ class ErrorListStyler : TextStyler
 		import std.regex;
 		auto ctr = regex(errorLineRe, "mg");
 
-        import dccore.buffer;
+        import edit.buffer;
         TextBuffer textBuf = text.buffer;
 
 		foreach (m; match(buf, ctr))

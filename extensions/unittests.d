@@ -3,7 +3,7 @@ module extensions.unittests;
 import animation.timeline;
 import animation.interpolate;
 
-import dccore.buffer;
+import edit.buffer;
 import application;
 import controls.texteditor;
 import gui.event;
@@ -175,7 +175,7 @@ class UnittestAnchor : GenericTextEditorAnchorWidget
 */
 class Unittests : Extension, ITextEditorAnchorOwner
 {
-	import dccore.buffer;
+	import edit.buffer;
 
     override @property string name() { return "unittests"; }
 

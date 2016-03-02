@@ -14,7 +14,7 @@ import gui.style.stylesheet : matchStylableImpl, StyleSheet;
 import gui.style.style : Style;
 import gui.resources.font : Font;
 import math;
-import dccore.buffer : InvalidIndex;
+import edit.buffer : InvalidIndex;
 import core.time;
 import std.range;
 import std.variant;
@@ -37,7 +37,7 @@ struct GlyphHit
  */
 class TextRenderer(Text) : WidgetFeature, Stylable
 {
-	import dccore.buffer;
+	import edit.buffer;
 	import dccore.command;
 
 	// Stylable interface
@@ -357,7 +357,7 @@ class TextRenderer(Text) : WidgetFeature, Stylable
         //{
         //    selectionsModel.regions.clear();
         //    selectionsModel.regions ~= text.selection.normalized();
-        //    import dccore.bufferview;
+        //    import edit.bufferview;
         //    BufferView mybv = text;
         //    int a = 42;
         //}

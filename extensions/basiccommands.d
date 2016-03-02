@@ -3,8 +3,8 @@ module extensions.basiccommands;
 import extensionapi;
 
 //import application;
-import dccore.buffer;
-import dccore.bufferview;
+import edit.buffer;
+import edit.bufferview;
 import dccore.command;
 import dccore.commandparameter;
 //import application;

@@ -132,7 +132,7 @@ void dFormat(BufferView b)
 private string getIndentStringForLineAtIndex(BufferView bv, int index)
 {
     import std.range;
-    import dccore.buffer;
+    import edit.buffer;
 
     int tabSize = 4;
     int indentSize = 4;
@@ -169,7 +169,7 @@ void dInsertNewline(BufferView bv)
 {
     import std.array;
     import std.range;
-    import dccore.buffer;
+    import edit.buffer;
 
     bv.insert('\n');
 
@@ -190,7 +190,7 @@ void dInsertScopeBegin(BufferView bv)
 {
     import std.array;
     import std.range;
-    import dccore.buffer;
+    import edit.buffer;
 
     int tabSize = 4;
     int indentSize = 4;
@@ -236,7 +236,7 @@ class DAutoFormat : Extension
 	{
 		import std.array;
 		import std.range;
-		import dccore.buffer;
+		import edit.buffer;
 
 		int tabSize = 4;
 		int indentSize = 4;
@@ -307,7 +307,7 @@ Tools and GUI for the builtin dlang unittests
 */
 class Analysis : Extension // , ITextEditorAnchorOwner
 {
-	import dccore.buffer;
+	import edit.buffer;
 	override @property string name() { return "D Language Analysis"; }
 
    TextEditorAnchorManager!(Message, AnalysisAnchor) anchorManager;

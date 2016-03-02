@@ -13,7 +13,7 @@ void newBuffer(Application app)
 
 void newExtension(Application app)
 {
-	import dccore.language;
+	import edit.language;
 	auto b = app.createBuffer();
 
 	import dccore.path;
@@ -42,7 +42,7 @@ void myextHello(BufferView v)
 
 void newWidget(Application app)
 {
-	import dccore.language;
+	import edit.language;
 	auto b = app.createBuffer();
 
 	import dccore.path;

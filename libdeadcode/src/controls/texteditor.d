@@ -1,7 +1,7 @@
 module controls.texteditor;
 
-import dccore.buffer;
-import dccore.bufferview;
+import edit.buffer;
+import edit.bufferview;
 import dccore.command : CommandManager;
 import graphics;
 import gui.event;

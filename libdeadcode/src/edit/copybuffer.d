@@ -1,4 +1,4 @@
-module dccore.copybuffer;
+module edit.copybuffer;
 
 version (unittest)
 {

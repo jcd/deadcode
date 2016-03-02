@@ -2,7 +2,7 @@ module extensionsapi;
 
 // Exposed through rpcapi
 public import application;
-public import dccore.bufferview;
+public import edit.bufferview;
 
 // Not exposed through rpcapi
 public import controls.menu;

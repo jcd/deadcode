@@ -1,5 +1,5 @@
 module dccore.visitor;
-
+version (none):
 struct Persist {};
 
 import dccore.attr;

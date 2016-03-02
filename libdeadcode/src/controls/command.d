@@ -3,7 +3,7 @@ module controls.command;
 import application;
 import controls.texteditor;
 import controls.textfield;
-import dccore.bufferview;
+import edit.bufferview;
 import dccore.command : CommandManager, Command, CompletionEntry, Hints;
 import dccore.commandparameter;
 import dccore.log;
@@ -393,7 +393,7 @@ class CommandControl : Widget
 			navigateDown();
 			return EventUsed.yes;
 		case "navigate.right":
-			import dccore.buffer : TextBoundary;
+			import edit.buffer : TextBoundary;
             if (commandField.bufferView.classify() == TextBoundary.lineEnd)
 			{
 				completeCommand();

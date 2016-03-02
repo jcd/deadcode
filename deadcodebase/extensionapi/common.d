@@ -26,7 +26,7 @@ else
     // Exposed through rpcapi
     public import dccore.log;
     public import application;
-    public import dccore.bufferview;
+    public import edit.bufferview;
     public import controls.texteditor : TextEditor;
 }
 

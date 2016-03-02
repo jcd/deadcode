@@ -7,7 +7,7 @@ static if (false && HasModule!"extensions.errorlist"):
 import gui.event;
 import gui.label;
 import controls.texteditor;
-import dccore.buffer;
+import edit.buffer;
 import extensions.errorlist;
 import std.stdio;
 import std.regex;

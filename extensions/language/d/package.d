@@ -2,7 +2,7 @@ module extensions.language.d;
 
 import extensionapi;
 
-import dccore.language;
+import edit.language;
 
 import std.d.lexer;
 import std.d.parser;

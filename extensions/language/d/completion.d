@@ -293,11 +293,13 @@ class DCompletionExtension : Extension
 
 	void startServer()
 	{
-        string execPath = app.resourceURI("dcd-server", ResourceBaseLocation.binariesDir).uriString();
+		import platform.config;
+        string execPath = app.resourceURI("dcd-server", ResourceBaseLocation.binariesDir).uriString().defaultExecExtension();
         import std.file;
         if (!exists(execPath))
-            execPath = app.resourceURI("binaries/dcd-server", ResourceBaseLocation.binariesDir).uriString();
-        string cwd = app.resourceURI("", ResourceBaseLocation.currentDir).uriString();
+            execPath = app.resourceURI("binaries/dcd-server", ResourceBaseLocation.binariesDir).uriString().defaultExecExtension();
+        
+		string cwd = app.resourceURI("", ResourceBaseLocation.currentDir).uriString();
         try
         {
             // TODO: Fetch -I info from dub file
@@ -323,6 +325,7 @@ class DCompletionExtension : Extension
             string completionLogPath = app.resourceURI("dcd-server.log", ResourceBaseLocation.userDataDir).uriString();
 		    if (_logFile.isOpen())
 		        _logFile.close();
+			import std.string;
 			_logFile = File(completionLogPath, "w");
             _serverPID = spawnProcess(cmdLine, stdin, _logFile, _logFile, null, Config.suppressConsole);
             app.addMessage("dcd spawned: %s", cmdLine);

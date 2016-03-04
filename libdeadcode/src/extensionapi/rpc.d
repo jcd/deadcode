@@ -1,7 +1,5 @@
 module extensionapi.rpc;
 
-version = OutputRPCAPI;
-
 import dccore.attr : isClass, isMethod, isAnyPublic, hasAttributeCurry;
 import std.meta : staticMap;
 import std.traits;
@@ -322,8 +320,8 @@ alias RPCIdentifiers = AliasSeq!("isAccessible", "accessibleMembers", "isAccessi
 
     private template accessiblePublicClassMembers(alias Cls)
     {
-        pragma(msg, Cls);
-        pragma(msg, accessibleMembersByAlias!Cls);
+        //pragma(msg, Cls);
+        //pragma(msg, accessibleMembersByAlias!Cls);
         alias accessiblePublicClassMembers = staticMap!(getMemberAlias!Cls, Filter!(isPublicMethodInClass!Cls, accessibleMembersByAlias!Cls));
         //alias accessiblePublicClassMembers = staticMap!(getMemberAlias!Cls, Filter!(isPublicMethodInClass!Cls, accessibleMembersByAlias!Cls));
     }
@@ -338,7 +336,7 @@ alias RPCIdentifiers = AliasSeq!("isAccessible", "accessibleMembers", "isAccessi
         alias Type = Cls;
         alias Method = Meth;
 
-        pragma(msg, "method ", fullyQualifiedName!Method, " ", __traits(parent, Method));
+        //pragma(msg, "method ", fullyQualifiedName!Method, " ", __traits(parent, Method));
     }
 
     private template registerModuleRCPClassByName(alias Mod)
@@ -376,7 +374,7 @@ alias rpcClassesCTRegister(alias Mod) = staticMap!(registerModuleRCPClassByName!
         private struct CTRegisterRPC
         {
             alias rpcTypes = rpcClassesCTRegister!(mixin(Mod));
-            pragma(msg, rpcTypes);
+            // pragma(msg, rpcTypes);
 
             //alias rpcTypesMethods = staticMap!(mapMethod, rpcTypes);
             //pragma(msg, rpcTypesMethods);

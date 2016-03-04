@@ -228,7 +228,7 @@ template TransitiveFieldNameTuple(T) if (is(T == struct))
 
 template hasCustomJSONEncode(T) if (is(T == class))
 {
-    pragma(msg, "XXX ", T, __traits(compiles, (T t) { return t._toJSON(); }));
+    //pragma(msg, "XXX ", T, __traits(compiles, (T t) { return t._toJSON(); }));
     enum hasCustomJSONEncode = __traits(compiles, (T t) { return t._toJSON(); });
 }
 

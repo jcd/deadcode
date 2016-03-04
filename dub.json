@@ -48,6 +48,10 @@
 		    "preBuildCommands-windows" : [ "tool.bat generate-resource-pack resources resources.pack",
 							     		   "tool.bat generate-resource-pack binaries binaries.pack" ],
      		"versions" : ["release"]
+        },
+        "rpcapioutput" : {
+        	"buildOptions" : [ "debugMode", "debugInfo" ],
+        	"versions" : [ "OutputRPCAPI" ]
         }
     }
 }

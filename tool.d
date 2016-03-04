@@ -181,7 +181,7 @@ void build(string[] args, bool showUsage = false)
 
 void generateClientAPI()
 {
-	auto cmd = dubPath ~ " build 2>&1";
+	auto cmd = dubPath ~ " build --build=OutputRPCAPI 2>&1";
 
 	auto res = pipeShell(cmd, Redirect.stdin | Redirect.stderrToStdout | Redirect.stdout);
 

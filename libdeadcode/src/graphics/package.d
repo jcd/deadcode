@@ -17,9 +17,11 @@ import derelict.opengl3.gl3;
 
 import math;
 
+/*
 pragma(lib, "DerelictUtil.lib");
 pragma(lib, "DerelictSDL2.lib");
 pragma(lib, "DerelictGL3.lib");
+*/
 
 Texture defaultTexture;
 Shader defaultShader;

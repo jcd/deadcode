@@ -45,7 +45,7 @@ mixin template platformMain(alias customMain)
     import std.string;
 
     //import std.c.windows.windows;
-    import std.c.wcharh;
+    import core.stdc.wchar_;
     import std.conv;
 
     extern (Windows)
@@ -152,7 +152,7 @@ version (linux)
 
 version (Windows)
 {
-    import std.c.windows.windows;
+    import core.sys.windows.windows;
 
     extern (Windows) {
     struct IO_COUNTERS {

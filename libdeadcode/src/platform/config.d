@@ -38,7 +38,7 @@ version (Windows)
 {
     immutable string builtinFontPath = r"C:\Windows\Fonts\verdana.ttf";
 
-    import std.c.windows.windows;
+    import core.sys.windows.windows;
     extern (Windows)
     {
         nothrow export BOOL SHGetSpecialFolderPathA(HWND hwndOwner, char* lpszPath, int csidl, BOOL fCreate);

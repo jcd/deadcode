@@ -3,7 +3,7 @@ module platform.dialog;
 
 version (Windows)
 {
-    import std.c.windows.windows;
+    import core.sys.windows.windows;
     import win32.shlobj;
 
     import core.stdc.wctype;

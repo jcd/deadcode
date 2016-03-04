@@ -301,29 +301,31 @@ struct NonBindable {}
 
 bool hasUDAOld(UDA, T, string _field)()
 {
+	bool r = false;
 	foreach (attr;  __traits(getAttributes, mixin("T." ~ _field)))
 	{
 		static if (is(typeof(attr) : UDA))
 		{
-			return true;
+			r = true;
 		}
 	}
-	return false;
+	return r;
 }
 
 bool hasFuncAttrib(string hasAtt, T, string _field)()
 {
+	bool r = false;
 	static if (__traits(compiles, __traits(getFunctionAttributes, mixin("T." ~ _field))))
 	{
 		foreach (attr;  __traits(getFunctionAttributes, mixin("T." ~ _field)))
 		{
 			static if (attr == hasAtt)
 			{
-				return true;
+				r = true;
 			}
 		}
 	}
-	return false;
+	return r;
 }
 
 private string getProxyFields(T, alias prefix = "")()

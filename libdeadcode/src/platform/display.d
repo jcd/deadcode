@@ -4,8 +4,7 @@ import math.rect;
 
 version (Windows)
 {
-    import std.c.windows.windows;
-    // import core.sys.windows.windows;
+    import core.sys.windows.windows;
 
     extern (Windows)
     {

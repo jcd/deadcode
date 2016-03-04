@@ -4,7 +4,7 @@ import math.smallvector;
 
 version (Windows)
 {
-    import std.c.windows.windows;
+    import core.sys.windows.windows;
 
     struct CURSORINFO {
         DWORD   cbSize;

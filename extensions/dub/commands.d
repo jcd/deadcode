@@ -18,7 +18,7 @@ import std.range;
 import std.regex;
 import std.stdio;
 
-import std.c.windows.windows;
+import core.sys.windows.windows;
 
 import extensions.statuspanel;
 

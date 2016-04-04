@@ -151,26 +151,8 @@ void fileOpen(Application app)
                              },
                              (string prefix) {
 								 return filesystemCompletions(prefix);
-								 //CompletionEntry[] result;
-								 // result ~= CompletionEntry("foo1", "bar1");
-								 // result ~= CompletionEntry("foo2", "bar2");
-								 // result ~= CompletionEntry("foo3", "bar3");
-								 //return result;
 							 }
 							 );
 	if (p.success)
 		app.openFile(p.answer);
 }
-
-//class FileOpenCommand : BasicCommand
-//{
-//    void run(string path)
-//    {
-//        app.openFile(path);
-//    }
-//
-//    CompletionEntry[] complete(string path)
-//    {
-//        return filesystemCompletions(path);
-//    }
-//}

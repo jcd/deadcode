@@ -6,8 +6,11 @@ mixin registerCommands;
 @MenuItem("Edit/Search")
 @Shortcut("<ctrl> + i")
 @(Hints.off)
-class SearchCommand : BasicCommand
+class SearchCommand : Command
 {
+	@Autowire
+	Application app;
+
 	import std.string;
 
     struct BufferSearchInfo
@@ -20,21 +23,21 @@ class SearchCommand : BasicCommand
 
     final private BufferSearchInfo getBufferInfo()
     {
-        return buffer.userData.get("search", Variant(BufferSearchInfo(currentTextEditor.bufferView.cursorPoint, null,  int.min, false))).get!BufferSearchInfo;
+        return app.getRecentNonCommandBuffer().userData.get("search", Variant(BufferSearchInfo(app.getCurrentTextEditor().bufferView.cursorPoint, null,  int.min, false))).get!BufferSearchInfo;
     }
 
     final private void setBufferInfo(BufferSearchInfo info)
     {
-        buffer.userData["search"] = info;
+        app.getRecentNonCommandBuffer().userData["search"] = info;
     }
 
 	void run(string needle)
 	{
         BufferSearchInfo info = getBufferInfo();
 
-        auto rs = currentTextEditor.getRegionSet("search");
+        auto rs =  app.getCurrentTextEditor().getRegionSet("search");
 
-        currentTextEditor.setRegionSetStyle("search", "search", false);
+         app.getCurrentTextEditor().setRegionSetStyle("search", "search", false);
 
         with (info)
         {
@@ -44,7 +47,7 @@ class SearchCommand : BasicCommand
             int idx = 0;
             if (cursorAtRegionIndex == int.min)
             {
-		        idx = search(needle, cursorPointAtStart == -1 ? currentTextEditor.bufferView.cursorPoint : cursorPointAtStart);
+		        idx = search(needle, cursorPointAtStart == -1 ? app.getCurrentTextEditor().bufferView.cursorPoint : cursorPointAtStart);
             }
             else
             {
@@ -55,8 +58,8 @@ class SearchCommand : BasicCommand
 		    if (idx != -1)
 		    {
 			    auto at = cursorPointAtStart + idx;
-			    currentTextEditor.bufferView.selection = Region(at, at + cast(int)needle.length);
-			    currentTextEditor.bufferView.cursorPoint = at + cast(int)needle.length;
+			    app.getCurrentTextEditor().bufferView.selection = Region(at, at + cast(int)needle.length);
+			    app.getCurrentTextEditor().bufferView.cursorPoint = at + cast(int)needle.length;
 		    }
 		    rs.clear();
 		    cursorPointAtStart = -1;
@@ -84,7 +87,7 @@ class SearchCommand : BasicCommand
 
 	private int search(string needle, int startIdx)
 	{
-		auto b = currentTextEditor.bufferView.buffer;
+		auto b =  app.getCurrentTextEditor().bufferView.buffer;
         auto len = b.length;
         if (needle.length == 0 || startIdx >= len)
             return -1;
@@ -127,7 +130,7 @@ class SearchCommand : BasicCommand
     override void endCompletionSession()
     {
         BufferSearchInfo info = getBufferInfo();
-		currentTextEditor.getRegionSet("search").clear();
+		app.getCurrentTextEditor().getRegionSet("search").clear();
 		info.cursorPointAtStart = -1;
         info.completionSessionID = -1;
         info.cursorAtRegionIndex = int.min;
@@ -161,8 +164,8 @@ class SearchCommand : BasicCommand
             lastNeedle = needle;
 
 		    if (cursorPointAtStart == -1)
-			    cursorPointAtStart = currentTextEditor.bufferView.cursorPoint;
-		    auto highlighter = currentTextEditor.getRegionSet("search");
+			    cursorPointAtStart = app.getCurrentTextEditor().bufferView.cursorPoint;
+		    auto highlighter = app.getCurrentTextEditor().getRegionSet("search");
 
 		    needle = needle.toLower();
 
@@ -200,9 +203,9 @@ class SearchCommand : BasicCommand
                 import std.algorithm : min, max;
                 cursorAtRegionIndex = (cast(int)highlighter.length + cursorAtRegionIndex) % cast(int)highlighter.length;
                 Region activeRegion = highlighter[cursorAtRegionIndex];
-                currentTextEditor.bufferView.viewOnCharPaged(activeRegion.a);
-                currentTextEditor.bufferView.selection = activeRegion;
-                currentTextEditor.bufferView.cursorPoint = activeRegion.b;
+                app.getCurrentTextEditor().bufferView.viewOnCharPaged(activeRegion.a);
+                app.getCurrentTextEditor().bufferView.selection = activeRegion;
+                app.getCurrentTextEditor().bufferView.cursorPoint = activeRegion.b;
             }
         }
 

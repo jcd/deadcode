@@ -846,7 +846,7 @@ class Application
         foreach (e; exceptions)
             addMessage(e.toString());
 
-        loadKeyMappings();
+        reloadKeyMappings();
 
 		loadSession();
 
@@ -1096,12 +1096,7 @@ class Application
 		return null;
 	}
 
-    Widget getWidget(string name)
-    {
-        return guiRoot.activeWindow.getWidget(name);
-    }
-
-    T getWidget(T)(string name)
+    T getWidget(T = Widget)(string name)
     {
         return cast(T) guiRoot.activeWindow.getWidget(name);
     }
@@ -1623,6 +1618,14 @@ class Application
 		return e is null ? null : e.bufferView;
 	}
 
+	BufferView getRecentNonCommandBuffer()
+	{
+		auto b = getCurrentBuffer();
+		if (b.name == "*CommandInput*")
+			return previousBuffer;
+		return b;
+	}
+
 	void previewBuffer(string name)
 	{
 		auto buf = bufferViewManager[name];
@@ -2085,7 +2088,7 @@ class Application
         activeWindow.size = winRect.size;
 	}
 
-    void loadKeyMappings()
+    void reloadKeyMappings()
     {
         static class Config
         {

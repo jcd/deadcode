@@ -97,8 +97,6 @@ template rpcClient()
         static import dccore.commandparameter;
         import extensionapi.rpcclient;
         dccore.commandparameter.registerCommandParameterPackHandlers();
-        BasicCommand[] cmds;
-        init(cmds);
 
         writeln("Connecting");
 
@@ -115,6 +113,9 @@ template rpcClient()
         writeln("Connected");
 
         auto app = loop.app;
+        Command[] cmds;
+        init(app, cmds);
+
         writeln(app.hello("Jonas"));
 
         // Setup commands

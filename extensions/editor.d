@@ -119,9 +119,9 @@ private void dmp2(Widget w, string match, ref WidgetNameRank[] entries)
 
 
 @Shortcut("<ctrl> + b")
-class EditorShowWidgetCommand : BasicCommand
+class EditorShowWidgetCommand : Command
 {
-	void run(string widgetName)
+	void run(Application app, string widgetName)
 	{
 		if (auto w = app.getWidget(widgetName))
 	    {
@@ -133,7 +133,7 @@ class EditorShowWidgetCommand : BasicCommand
 	    }
 	}
 
-	override CompletionEntry[] getCompletions(CommandParameter[] data)
+	CompletionEntry[] complete(Application app, CommandParameter[] data)
 	{
         import std.array;
         string match = data[0].get!string();
@@ -150,9 +150,9 @@ class EditorShowWidgetCommand : BasicCommand
 
 
 @Shortcut("<ctrl> + <shift> + b")
-class EditorHideWidgetCommand : BasicCommand
+class EditorHideWidgetCommand : Command
 {
-	void run(string widgetName)
+	void run(Application app, string widgetName)
 	{
 		if (auto w = app.getWidget(widgetName))
 	    {
@@ -164,7 +164,7 @@ class EditorHideWidgetCommand : BasicCommand
 	    }
 	}
 
-	override CompletionEntry[] getCompletions(CommandParameter[] data)
+	CompletionEntry[] complete(Application app, CommandParameter[] data)
 	{
         import std.array;
         string match = data[0].get!string();

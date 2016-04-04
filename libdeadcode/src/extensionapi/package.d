@@ -6,20 +6,17 @@ public import extensionapi.extension;
 public import extensionapi.widget;
 public import extensionapi.registerctextensions;
 public import extensionapi.binding;
+public import poodinis : Autowire;
 
 Exception[] init(Application app)
 {
     auto exs = initExtensions(app);
-    exs ~= initCommands((Command c) {
-        BasicCommand bc = cast(BasicCommand)c;
-        if (bc !is null)
-        {
-            bc.app = app; // Todo: fix cast
-            bc.init();
-            app.addCommand(bc);
-            app.addMenuItem(bc.name, bc.menuItem);
-            app.addCommandShortcuts(bc.name, bc.shortcuts);
-        }
+    exs ~= initCommands(app, (Command c, MenuItem menuItem, Shortcut[] shortcuts, Hints hints) {
+        c.onLoaded();
+        app.addCommand(c);
+        app.addMenuItem(c.name, menuItem);
+        app.addCommandShortcuts(c.name, shortcuts);
+		// TODO: handle hints
     });
     exs ~= initWidgets(app);
     return exs;
@@ -28,7 +25,7 @@ Exception[] init(Application app)
 void fini(Application app)
 {
     finiExtensions(app);
-    finiCommands();
+    finiCommands(app);
     finiWidgets(app);
 }
 

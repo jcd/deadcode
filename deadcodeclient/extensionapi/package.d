@@ -19,18 +19,16 @@ struct CommandMenuItem
     MenuItem menuItem;
 }
 
-Exception[] init(ref BasicCommand[] cmds)
+Exception[] init(Application app, ref Command[] cmds)
 {
-    return initCommands((dccore.command.Command c) {
-        BasicCommand bc = cast(BasicCommand)c;
-        if (bc !is null)
-            cmds ~= bc;
+    return initCommands(app, (dccore.command.Command c, MenuItem menuItem, Shortcut[] shortcuts, Hints hints) {
+		cmds ~= c;
     });
 }
 
 void fini(Application app)
 {
-    finiCommands();
+    finiCommands(app);
 }
 
 template registerCommandsRPC(string Mod = __MODULE__)

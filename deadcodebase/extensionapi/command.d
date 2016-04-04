@@ -5,44 +5,69 @@ import extensionapi.common : Application, BufferView, TextEditor, MenuItem, Shor
 import dccore.command;
 
 import std.meta : anySatisfy, Filter, Replace, staticMap;
-import std.traits : isSomeFunction, ParameterIdentifierTuple, ParameterTypeTuple;
+import std.traits : FieldNameTuple, isSomeFunction, Identity, ParameterIdentifierTuple, ParameterTypeTuple;
 
-private static BasicCommand[] g_Commands;
+import poodinis : Autowire, DependencyContainer;
+import poodinis.container : existingInstance;
+
+private 
+{
+	static shared(DependencyContainer) g_CommandsContainer;
+	@property shared(DependencyContainer) commandsContainer()
+	{
+		if (g_CommandsContainer is null)
+			g_CommandsContainer = new DependencyContainer();
+		return g_CommandsContainer;
+	}
+	
+	struct WrappedCommandInfo
+	{
+		MenuItem menuItem;
+		Shortcut[] shortcuts;
+		Hints	hints;
+	}
+
+	static WrappedCommandInfo[TypeInfo] g_WrappedCommandInfo;
+}
 
 
-/** Attribute to specify a short for for a Command or command function
+/** Attribute to specify a that a command should be run in a fiber
 
-A class derived from class BasicCommand or a function with the @RegisterCommand attribute
-use the @Shortcut attribute to set the default shortcut for the command.
+In a module that has a  "mixin registerCommands":
+A class derived from class Command or a public function use the @InFiber attribute to force
+the command to be run in a fiber.
+
+Another way to force running in a fiber is by setting one of the first parameters of the 
+command to be of type Fiber. This will run the command in a fiber at pass the fiber as
+argument.
 
 Example:
-@Shortcut("<ctrl> + h")                 // Shortcut that will prompt for missing command argument
-@Shortcut("<ctrl> + m", "Hello world")  // Shortcut that with the command argument set in advance
-class SayHelloCommand : BasicCommand
+@InFiber
+class SayHelloCommand : Command
 {
-    this() { super(createParams("")); }
+	this() { super(createParams("")); }
 
-    void run(string txt)
-    {
-        log.info(txt);
-    }
+	void run(Log log, string txt)
+	{
+		log.info(txt);
+	}
 }
 
 Example:
-@RegisterCommand!textUppercase
-@Shortcut("<ctrl> + u")
+@InFiber
 void textUppercase(Application app, string dummy)
 {
-    app.currentBuffer.map!(std.uni.toUpper)(RegionQuery.selectionOrWord);
+	app.currentBuffer.map!(std.uni.toUpper)(RegionQuery.selectionOrWord);
+}
+
+Example:
+void textUppercase(Fiber fiber, Application app, string dummy)
+{
+	// The fiber parameter is automatically provided to the function 
+	// and the command is run in that fiber.
+	app.currentBuffer.map!(std.uni.toUpper)(RegionQuery.selectionOrWord);
 }
 */
-
-
-//enum isMenuItem(alias T) = is(typeof(T) == MenuItem);
-// alias hasMenuItemAttribute(alias what) = anySatisfy!(isMenuItem, __traits(getAttributes, what));
-// enum hasMenuItemAttribute(what) = false;
-//enum getMenuItemAttribute(alias what) = Filter!(isMenuItem, __traits(getAttributes, what))[0];
-
 struct InFiber
 {
 }
@@ -61,26 +86,98 @@ it can get that by setting the first parameter to the type of context it needs. 
 * Widget      = the widget that currently has focus
 * Context     = A struct with all of the above.
 */
-struct RegisterCommand(alias Func)
+struct RegisterFunctionCommand(alias Func)
 {
 	alias Function = Func;
-	static this()
-	{
-		new FunctionCommand!Func;
-	}
+	alias FC = ExtensionCommandWrap!(Func, Command);
 }
 
-/// Command to wrap a function. Use RegisterCommand!Func and not this directly.
-class FunctionCommand(alias Func) : BasicCommand
+struct RegisterClassCommand(alias Cls)
 {
-	static this()
+	alias FC = ExtensionCommandWrap!(Cls, Cls);
+}
+
+class Foo {}
+
+Exception[] initCommands(InitCommandFunc)(Application app, InitCommandFunc f)
+{
+	import std.range;
+
+    Exception[] exceptions;
+
+	commandsContainer.register!Application.existingInstance(app);
+	commandsContainer.register!Log.existingInstance(dccore.log.log);
+
+	Command[] commands = commandsContainer().resolveAll!Command;
+	
+	foreach (c; commands)
 	{
-		g_Commands ~= new FunctionCommand!Func;
+		try
+        {
+			TypeInfo ti = typeid(c);
+			WrappedCommandInfo* cmdInfo = ti in g_WrappedCommandInfo;
+            f(c, cmdInfo.menuItem, cmdInfo.shortcuts, cmdInfo.hints);
+        }
+        catch (Exception e)
+            exceptions ~= e;
 	}
 
-	// TODO: parse Func params and set here
+    return exceptions;
+}
+
+void finiCommands(Application app)
+{
+	Command[] commands = app.commandManager.commands.values;
+	foreach (c; commands)
+		c.onUnloaded();
+}
+
+// Wrapper for a function or a class derived from Command where it will
+// automatically inject needed values to either the function or a .run method on the class instance
+// when executed through e.g. the command manager.
+class ExtensionCommandWrap(alias AttributeHolder, Base) : Base
+{
+	static if ( ! anySatisfy!(isType!Application, FieldNameTuple!Base) )
+	{
+		@Autowire
+		Application app;
+	}
+
+	static if ( isSomeFunction!AttributeHolder )
+		alias Func = AttributeHolder;
+	else
+		alias Func = run;
+	
+	static if (hasAttribute!(AttributeHolder, InFiber) || anySatisfy!(isType!Fiber, ParameterTypeTuple!Func))
+		override bool mustRunInFiber() const pure nothrow @safe
+		{
+			return true;
+		}
+
+	static this()
+	{
+		alias WrappedType = ExtensionCommandWrap!(AttributeHolder, Base);
+		commandsContainer.register!(Command, WrappedType)();
+
+		WrappedCommandInfo info;
+
+		static if (hasAttribute!(AttributeHolder,MenuItem))
+			info.menuItem = getAttributes!(AttributeHolder, MenuItem)[0];
+
+		static if (hasAttribute!(AttributeHolder, Shortcut))
+			info.shortcuts = getAttributes!(AttributeHolder, Shortcut);
+
+		static if (hasAttribute!(AttributeHolder, Hints))
+			info.hints = getAttributes!(AttributeHolder, Hints)[0];
+		
+		TypeInfo wrappedTypeInfo = typeid(WrappedType);
+		g_WrappedCommandInfo[wrappedTypeInfo] = info;
+	}
+
 	this()
 	{
+		enum getDefaultValue(U) = U.init;
+
 		alias p1 = Filter!(isNotType!Application, ParameterTypeTuple!Func);
 		alias p2 = Filter!(isNotType!TextEditor, p1);
 		alias p3 = Filter!(isNotType!BufferView, p2);
@@ -91,43 +188,17 @@ class FunctionCommand(alias Func) : BasicCommand
 		enum names = [ParameterIdentifierTuple!Func];
 		setCommandParameterDefinitions(createParams(names, p6));
 	}
+	
+	private BufferView currentBuffer() { return app.getCurrentBuffer(); }
+	private TextEditor currentTextEditor() { return app.getCurrentTextEditor(); }
 
-	static if (hasAttribute!(Func,MenuItem))
-		override @property MenuItem menuItem() const pure nothrow @safe
-		{
-			return getAttributes!(Func,MenuItem)[0];
-		}
-
-	static if (hasAttribute!(Func, Shortcut))
-		override @property Shortcut[] shortcuts() const pure nothrow @safe
-		{
-			return getAttributes!(Func,Shortcut);
-		}
-
-	static if (hasAttribute!(Func, InFiber) || anySatisfy!(isType!Fiber, ParameterTypeTuple!Func))
-		override bool mustRunInFiber() const pure nothrow @safe
-		{
-			return true;
-		}
-
-    /*
-	@property BufferView currentBuffer()
+	private auto call(alias F)(CommandParameter[] v)
 	{
-    return app.currentBuffer;
-	}
-
-	@property TextEditor currentTextEditor()
-	{
-    return app.getCurrentTextEditor();
-	}
-    */
-	override void execute(CommandParameter[] v)
-	{
-		enum count = Filter!(isType!BufferView, ParameterTypeTuple!Func).length +
-			Filter!(isType!TextEditor, ParameterTypeTuple!Func).length +
-			Filter!(isType!Application, ParameterTypeTuple!Func).length +
-			Filter!(isType!Fiber, ParameterTypeTuple!Func).length +
-            Filter!(isType!Log, ParameterTypeTuple!Func).length;
+		enum count = Filter!(isType!BufferView, ParameterTypeTuple!F).length +
+			Filter!(isType!TextEditor, ParameterTypeTuple!F).length +
+			Filter!(isType!Application, ParameterTypeTuple!F).length +
+			Filter!(isType!Fiber, ParameterTypeTuple!F).length +
+            Filter!(isType!Log, ParameterTypeTuple!F).length;
 
 		alias t1 = Replace!(BufferView, currentBuffer, ParameterTypeTuple!Func);
 		alias t2 = Replace!(TextEditor, currentTextEditor, t1);
@@ -136,283 +207,82 @@ class FunctionCommand(alias Func) : BasicCommand
 		alias t5 = Replace!(Log, dccore.log.log, t4);
 		alias preparedArgs = t5[0..count];
 
-		enum missingArgCount = ParameterTypeTuple!Func.length - count;
+		enum missingArgCount = ParameterTypeTuple!F.length - count;
 		// pragma(msg, "CommandFunction args: ", fullyQualifiedName!Func, ParameterTypeTuple!Func, missingArgCount);
 
         // Save current active buffer since current buffer may be changed by the command
-        static if (Filter!(isType!BufferView, ParameterTypeTuple!Func).length +
-                   Filter!(isType!TextEditor, ParameterTypeTuple!Func).length != 0)
+        static if (Filter!(isType!BufferView, ParameterTypeTuple!F).length +
+                   Filter!(isType!TextEditor, ParameterTypeTuple!F).length != 0)
         {
-            auto bv = currentBuffer;
+            auto bv = app.getCurrentBuffer();
             bv.beginUndoGroup();
             scope (exit) bv.endUndoGroup();
         }
 
         static if (missingArgCount == 0)
 		{
-			Func(preparedArgs);
+			return F(preparedArgs);
 		}
 		else static if (missingArgCount == 1)
 		{
 			assert(v.length >= 1);
-			alias a1 = ParameterTypeTuple!Func[$-1];
-			Func(preparedArgs, v[0].get!a1);
+			alias a1 = ParameterTypeTuple!F[$-1];
+			return F(preparedArgs, v[0].get!a1);
 		}
 		else static if (missingArgCount == 2)
 		{
 			assert(v.length >= 2);
-			alias a2 = ParameterTypeTuple!Func[$-1];
-			alias a1 = ParameterTypeTuple!Func[$-2];
-			Func(preparedArgs, v[0].get!a1, v[1].get!a2);
+			alias a2 = ParameterTypeTuple!F[$-1];
+			alias a1 = ParameterTypeTuple!F[$-2];
+			return F(preparedArgs, v[0].get!a1, v[1].get!a2);
 		}
 		else static if (missingArgCount == 3)
 		{
 			assert(v.length >= 3);
-			alias a3 = ParameterTypeTuple!Func[$-1];
-			alias a2 = ParameterTypeTuple!Func[$-2];
-			alias a1 = ParameterTypeTuple!Func[$-3];
-			Func(preparedArgs, v[0].get!a1, v[1].get!a2, v[2].get!a3);
+			alias a3 = ParameterTypeTuple!F[$-1];
+			alias a2 = ParameterTypeTuple!F[$-2];
+			alias a1 = ParameterTypeTuple!F[$-3];
+			return F(preparedArgs, v[0].get!a1, v[1].get!a2, v[2].get!a3);
         }
         else static if (missingArgCount == 4)
         {
             assert(v.length >= 3);
-            alias a4 = ParameterTypeTuple!Func[$-1];
-            alias a3 = ParameterTypeTuple!Func[$-2];
-            alias a2 = ParameterTypeTuple!Func[$-3];
-            alias a1 = ParameterTypeTuple!Func[$-4];
-            Func(preparedArgs, v[0].get!a1, v[1].get!a2, v[2].get!a3, v[2].get!a4);
+            alias a4 = ParameterTypeTuple!F[$-1];
+            alias a3 = ParameterTypeTuple!F[$-2];
+            alias a2 = ParameterTypeTuple!F[$-3];
+            alias a1 = ParameterTypeTuple!F[$-4];
+            return F(preparedArgs, v[0].get!a1, v[1].get!a2, v[2].get!a3, v[2].get!a4);
         }
 		else
 		{
 			pragma(msg, "Add support for more argments in CommandFunction. Only 4 supported now.");
 		}
 	}
-}
-
-Exception[] initCommands(InitCommandFunc)(InitCommandFunc f)
-{
-	import std.range;
-
-    Exception[] exceptions;
-
-	foreach (c; g_Commands)
-	{
-		try
-        {
-            f(c);
-        }
-        catch (Exception e)
-            exceptions ~= e;
-	}
-
-    return exceptions;
-}
-
-
-void finiCommands()
-{
-	foreach (c; g_Commands)
-		c.fini();
-}
-
-class BasicCommand : Command
-{
-	Application app;
-
-	@property MenuItem menuItem() const pure nothrow @safe
-	{
-		return MenuItem();
-	}
-
-	@property Shortcut[] shortcuts() const pure nothrow @safe
-	{
-		return null;
-	}
-
-	@property BufferView currentBuffer()
-	{
-		return app.getCurrentBuffer();
-	}
-
-    @property BufferView buffer()
-	{
-		auto b = currentBuffer;
-        if (b.name == "*CommandInput*")
-            return app.previousBuffer;
-        return b;
-	}
-
-	@property TextEditor currentTextEditor()
-	{
-		return app.getCurrentTextEditor();
-	}
-
-	protected final T getWidget(T)(string name)
-	{
-		return cast(T)app.getWidget(name);
-	}
 
 	override void execute(CommandParameter[] v)
 	{
-		assert(0);
+		call!Func(v);
 	}
 
-	void init()
-	{
-		// no-op
-	}
-
-	void fini()
-	{
-		// no-op
-	}
-
-	void onStart()
-	{
-		// no-op
-	}
-
-	void onStop()
-	{
-		// no-op
-	}
-}
-
-enum getDefaultValue(T) = T.init;
-
-class BasicCommandWrap(T) : T
-{
-	final override @property
-	{
-		static if (hasAttribute!(T,MenuItem))
-			MenuItem menuItem() const pure nothrow @safe
-			{
-				return getAttributes!(T,MenuItem)[0];
-			}
-
-		static if (hasAttribute!(T, Shortcut))
-			Shortcut[] shortcuts() const pure nothrow @safe
-			{
-				return getAttributes!(T,Shortcut);
-			}
-
-		string name() const
-		{
-			import std.algorithm;
-			import std.range;
-			import std.string;
-			import std.uni;
-
-			// class Name is assumed PascalCase ie. FooBarCommand and the Command postfix is stripped
-			auto toks = T.classinfo.name.splitter('.').retro;
-			string className = toks.front.chomp("Command");
-			return classNameToCommandName(className);
-		}
-
-		static if (hasAttribute!(T, Hints))
-			int hints() const
-			{
-				int result = Hints.off;
-				foreach (h; getAttributes!(T, Hints))
-					result = result & h;
-				return result;
-			}
-	}
-
-	static this()
-	{
-		g_Commands ~= new BasicCommandWrap!T;
-	}
-
-	this()
-	{
-		setCommandParameterDefinitions(createParams([ ParameterIdentifierTuple!run ], staticMap!(getDefaultValue, ParameterTypeTuple!run)));
-	}
-
-	override void execute(CommandParameter[] v)
-	{
-		alias Func = run;
-		enum parameterCount = ParameterTypeTuple!Func.length;
-
-		//alias convertedArgs = staticMap!(convertToType!(v,Func), Iota!(0, parameterCount));
-		//Func(convertedArgs);
-
-		static if (parameterCount == 0)
-		{
-			Func();
-		}
-		else static if (parameterCount == 1)
-		{
-			assert(v.length >= 1);
-			alias a1 = ParameterTypeTuple!Func[$-1];
-			Func(v[0].get!a1);
-		}
-		else static if (parameterCount == 2)
-		{
-			assert(v.length >= 2);
-			alias a1 = ParameterTypeTuple!Func[$-2];
-			alias a2 = ParameterTypeTuple!Func[$-1];
-			Func(v[0].get!a1, v[1].get!a2);
-		}
-		else static if (parameterCount == 3)
-		{
-			assert(v.length >= 3);
-			alias a1 = ParameterTypeTuple!Func[$-3];
-			alias a2 = ParameterTypeTuple!Func[$-2];
-			alias a3 = ParameterTypeTuple!Func[$-1];
-			Func(v[0].get!a1, v[1].get!a2, v[2].get!a3);
-		}
-		else
-		{
-			pragma(msg, "Add support for more argments in Command extension. Only 3 supported now.");
-		}
-	}
-
-	static if (__traits(hasMember, T, "complete") &&  isSomeFunction!(T.complete))
+	static if (__traits(hasMember, Base, "complete") && isSomeFunction!(Base.complete))
 	{
 		override CompletionEntry[] getCompletions(CommandParameter[] v)
 		{
-			alias Func = complete;
-			enum parameterCount = ParameterTypeTuple!Func.length;
-
-			//alias convertedArgs = staticMap!(convertToType!(v,Func), Iota!(0, parameterCount));
-			//Func(convertedArgs);
-
-			static if (parameterCount == 0)
-			{
-				return Func();
-			}
-			else static if (parameterCount == 1)
-			{
-				assert(v.length >= 1);
-				alias a1 = ParameterTypeTuple!Func[$-1];
-				return Func(v[0].get!a1);
-			}
-			else static if (parameterCount == 2)
-			{
-				assert(v.length >= 2);
-				alias a1 = ParameterTypeTuple!Func[$-2];
-				alias a2 = ParameterTypeTuple!Func[$-1];
-				return Func(v[0].get!a1, v[1].get!a2);
-			}
-			else static if (parameterCount == 3)
-			{
-				assert(v.length >= 3);
-				alias a1 = ParameterTypeTuple!Func[$-3];
-				alias a2 = ParameterTypeTuple!Func[$-2];
-				alias a3 = ParameterTypeTuple!Func[$-1];
-				return Func(v[0].get!a1, v[1].get!a2, v[2].get!a3);
-			}
-			else
-			{
-				pragma(msg, "Add support for more argments in Command extension completion. Only 3 supported now.");
-			}
+			return call!complete(v);
 		}
 	}
 }
 
 void registerCommandKeyBindings(Application app)
 {
-	foreach (c; g_Commands)
-        app.addCommandShortcuts(c.name, c.shortcuts);
+	Command[] commands = app.commandManager.commands.values;
+	foreach (c; commands)
+	{
+		TypeInfo ti = typeid(c);
+		TypeInfo_Class tic = cast(TypeInfo_Class) ti;
+		string name = tic.name;
+		WrappedCommandInfo* cmdInfo = ti in g_WrappedCommandInfo;
+		if (cmdInfo !is null)
+			app.addCommandShortcuts(c.name, cmdInfo.shortcuts);
+	}
 }

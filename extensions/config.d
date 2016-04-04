@@ -5,5 +5,5 @@ mixin registerCommands;
 
 void configReloadKeyBindings(Application app)
 {
-	app.loadKeyMappings();
+	app.reloadKeyMappings();
 }

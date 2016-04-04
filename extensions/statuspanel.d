@@ -5,9 +5,9 @@ mixin registerCommands;
 import gui.layout.stacklayout;
 
 @Shortcut("<ctrl> + m")
-class StatusTogglePanelCommand : BasicCommand
+class StatusTogglePanelCommand : Command
 {
-	void run()
+	void run(Application app)
 	{
 		auto w = app.guiRoot.activeWindow.getWidget("statuspanel");
 		auto p = cast(StatusPanel)(w);

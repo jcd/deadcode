@@ -49,10 +49,12 @@ spawnProcess(dubService.activePackage.executable);
 
 @MenuItem("Dub/Build")
 @Shortcut("<f10>")
-class DubBuildCommand : BasicCommand
+class DubBuildCommand : Command
 {
+	@Autowire
+	Application app;
 
-	void run()
+	void run(Application app)
 	{
 		clearLog();
 		showBuildWidget();
@@ -76,7 +78,7 @@ class DubBuildCommand : BasicCommand
 	void showBuildWidget()
 	{
 		import extensions.errorlist;
-		auto w = getWidget!ErrorListWidget("errorlist");
+		auto w = app.getWidget!ErrorListWidget("errorlist");
 
 		if (w is null)
 			return;
@@ -84,7 +86,7 @@ class DubBuildCommand : BasicCommand
 		w.visible = true;
 		w.showProgress(true);
 
-		auto p = getWidget!StatusPanel("statuspanel");
+		auto p = app.getWidget!StatusPanel("statuspanel");
 		if (p is null)
 			return;
 
@@ -95,7 +97,7 @@ class DubBuildCommand : BasicCommand
 	{
 		// Use messages instead of calls
 		import extensions.errorlist;
-		auto w = getWidget!ErrorListWidget("errorlist");
+		auto w = app.getWidget!ErrorListWidget("errorlist");
 		if (w is null)
 			return;
 		w.clear();
@@ -105,7 +107,7 @@ class DubBuildCommand : BasicCommand
 	{
 		// Use messages instead of calls
 		import extensions.errorlist;
-		auto w = getWidget!ErrorListWidget("errorlist");
+		auto w = app.getWidget!ErrorListWidget("errorlist");
 		if (w is null)
 			return;
 
@@ -117,7 +119,7 @@ class DubBuildCommand : BasicCommand
 	final private void showProgress(bool f)
 	{
 		import extensions.errorlist;
-		auto w = getWidget!ErrorListWidget("errorlist");
+		auto w = app.getWidget!ErrorListWidget("errorlist");
 		if (w !is null)
 			w.showProgress(f);
 	}
@@ -331,13 +333,13 @@ private
     }
 }
 
-class DubQuickOpenCommand : BasicCommand
+class DubQuickOpenCommand : Command
 {
 	// override @property string description() const { return "Quick open file in dub project"; }
 	// override @property string name() const { return "dub.quickopen"; }
 	// override @property string shortcut() const { return "<ctrl> + ,"; }
 
-	void run(string path)
+	void run(Application app, string path)
 	{
 		// auto path = v[0].get!string;
 		app.openFile(path);

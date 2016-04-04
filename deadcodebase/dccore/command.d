@@ -53,7 +53,7 @@ class Command
 			// class Name is assumed PascalCase ie. FooBarCommand and the Command postfix is stripped
 			// The special case of extension.FunctionCommand!(xxxx).FunctionCommand
 			// is for function commands and the xxx part is pulled out instead.
-			if (toks.front == "FunctionCommand")
+			if (toks.front == "ExtensionCommandWrap")
 			{
 				toks.popFront();
 				auto idx = toks.front.lastIndexOf('(');
@@ -61,16 +61,17 @@ class Command
 					className = "invalid-command-name:" ~ this.classinfo.name;
 				else
 				{
+					auto idx2 = toks.front.lastIndexOf(',');
 					className ~= toks.front[idx+1].toUpper;
-					className ~= toks.front[idx+2..$-1];
+					className ~= toks.front[idx+2..idx2];
 				}
 			}
 			else
 			{
-				className = toks.front.chomp("Command");
+				className = toks.front;
 			}
 
-			return classNameToCommandName(className);
+			return classNameToCommandName(className.chomp("Command"));
 		}
 
 		static protected string classNameToCommandName(string className)
@@ -134,6 +135,18 @@ class Command
 	CommandParameterDefinitions getCommandParameterDefinitions()
 	{
 		return _commandParamtersTemplate;
+	}
+
+	/// Called once the command has been loaded e.g. on app startup
+	void onLoaded()
+	{
+		// no-op
+	}
+
+	// Called just before unloading the command e.g. on app shutdown
+	void onUnloaded()
+	{
+		// no-op
 	}
 
 	@RPC
@@ -308,7 +321,7 @@ class CommandManager
 	 */
 	void add(Command command)
 	{
-		enforceEx!Exception(!(command.name in commands), text("Trying to add existing command ", command.name));
+		enforceEx!Exception(!(command.name in commands), text("Trying to add existing command ", command.name, " ", command.classinfo.name));
 		commands[command.name] = command;
 	}
 

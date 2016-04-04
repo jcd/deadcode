@@ -217,7 +217,7 @@ class DAutoFormat : Extension
 {
 	override @property string name() { return "unittests"; }
 
-	override void init()
+	override void onLoaded()
 	{
 		import core.runtime;
 
@@ -338,7 +338,7 @@ class Analysis : Extension // , ITextEditorAnchorOwner
     //        return Message();
     //}
 
-	override void init()
+	override void onLoaded()
 	{
 		the = this;
 		//import core.runtime;

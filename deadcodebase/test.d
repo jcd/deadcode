@@ -106,7 +106,14 @@ bool printStats(File output, bool includeSuccessful = false)
 	    }
     }
 
-    auto c = g_TestRecords.count!"a.success";
+	version (unittest)
+	{
+	}
+	else
+	{
+		output.writefln("Warning: application not compiled with unittests enabled");
+    }
+	auto c = g_TestRecords.count!"a.success";
 	output.writefln("%s of %s OK", c, g_Total);
     return c == g_Total;
 }

@@ -25,7 +25,7 @@ class WindowResizer : WidgetFeature
 	{
 		// Dragging support
 		//if (event.type == EventType.MouseDown && widget.rectStyled.contains(event.mousePos))
-		if (event.type == EventType.MouseDown && widget.rect.contains(event.mousePos))
+		if (event.type == GUIEvents.mousePressed && widget.rect.contains((cast(MousePressedEvent)event).position))
 		{
 			startSize = widget.window.size;
 			widget.grabMouse();
@@ -34,7 +34,7 @@ class WindowResizer : WidgetFeature
 			//widget.window.waitForEvents = false;
 			return EventUsed.yes;
 		}
-		if (event.type == EventType.MouseUp)
+		if (event.type == GUIEvents.mouseReleased)
 		{
 			startDragPos = Vec2f(-1000000, -1000000);
 			widget.releaseMouse();

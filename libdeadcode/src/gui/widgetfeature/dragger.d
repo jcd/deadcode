@@ -43,12 +43,12 @@ class Dragger : WidgetFeature
 
         EventUsed used = EventUsed.yes;
 
-		if (event.type == EventType.MouseDown && handleRectAbs.contains(event.mousePos))
+		if (event.type == GUIEvents.mousePressed && handleRectAbs.contains((cast(MousePressedEvent)event).position))
 		{
-			startDragPos = event.mousePos;
+			startDragPos = (cast(MousePressedEvent)event).position;
             used = EventUsed.no;
 		}
-		else if (event.type == EventType.MouseUp)
+		else if (event.type == GUIEvents.mouseReleased)
 		{
             startDragPos = Vec2f(-1000000, -1000000);
             if (widget.isGrabbingMouse())
@@ -56,15 +56,15 @@ class Dragger : WidgetFeature
             else
                 used = EventUsed.no;
 		}
-		else if ( (widget.isGrabbingMouse() || (startDragPos - event.mousePos).squaredLength() >= (dragTriggerDistance*dragTriggerDistance)) &&
-		         event.type == EventType.MouseMove &&
-		         event.mouseButtonsActive == Event.MouseButton.Left)
+		else if ( event.type == GUIEvents.mouseMove && 
+				  (widget.isGrabbingMouse() || (startDragPos - (cast(MouseMoveEvent)event).position).squaredLength() >= (dragTriggerDistance*dragTriggerDistance)) &&
+		         isPressed((cast(MouseMoveEvent)event).buttons, MouseButtonFlag.left))
 		{
             if (!widget.isGrabbingMouse())
                 widget.grabMouse();
 			startDragPos = Vec2f(-1000000, -1000000);
 			widget.parent = widget.window;
-			widget.overridePos = Vec2f(widget.rect.x + event.mousePosRel.x, widget.rect.y + event.mousePosRel.y);
+			widget.overridePos = Vec2f(widget.rect.x + (cast(MouseMoveEvent)event).relative.x, widget.rect.y + (cast(MouseMoveEvent)event).relative.y);
 			//widget.moveTo(widget.rect.x + event.mousePosRel.x, widget.rect.y + event.mousePosRel.y);
             //import gui.style.types;
             //

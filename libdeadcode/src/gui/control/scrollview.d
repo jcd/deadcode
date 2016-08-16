@@ -2,6 +2,7 @@ module gui.control.scrollview;
 
 import edit.bufferview;
 import gui.widget;
+import gui.event : MouseWheelEvent;
 import gui.widgetfeature;
 import math;
 
@@ -46,10 +47,10 @@ class ScrollView : Widget
 	{
         _scrollArea = new Widget(this, 0, 0, contentSize.x, contentSize.y);
 
-   		this.onMouseScrollCallback = &scroll;
+   		this.onMouseWheelCallback = &scroll;
     }
 
-    private EventUsed scroll(Event e, Widget w)
+    private EventUsed scroll(MouseWheelEvent e, Widget w)
     {
         _scrollOffset += e.scroll * _scrollSpeed;
         _scrollOffset = _scrollOffset.min(Vec2f(0,0));
@@ -66,7 +67,7 @@ class ScrollView : Widget
 
     override void draw()
 	{
-		if (!visible)
+		if (!visible || w() == 0)
 			return;
 
      	import derelict.opengl3.gl3;

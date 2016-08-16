@@ -14,15 +14,27 @@ enum isAnyPublic(alias T) = anySatisfy!(isPublic, __traits(getProtection, T));
 	Template accepting a type and will in turn create a homonym template accepting another type.
 	The final template value will be true if the two types are equal and false if not.
 */
-template isType(ThisType)
+template isType(TheseTypes) 
 {
 	template isType(alias OtherType)
 	{
-		enum isType = is(typeof(OtherType) == ThisType);
+		enum isType = is(typeof(OtherType) == TheseTypes);
 	}
 	template isType(OtherType)
 	{
-		enum isType = is(OtherType == ThisType);
+		enum isType = is(OtherType == TheseTypes);
+	}
+}
+
+template isType(TheseTypes...) if (TheseTypes.length > 1)
+{
+	template isType(alias OtherType)
+	{
+		enum isType = anySatisfy!(.isType!OtherType, TheseTypes);
+	}
+	template isType(OtherType)
+	{
+		enum isType = anySatisfy!(.isType!OtherType, TheseTypes);
 	}
 }
 
@@ -31,15 +43,27 @@ template isType(ThisType)
 Template accepting a type and will in turn create a homonym template accepting another type.
 The final template value will be true if the two types are unequal and false if not.
 */
-template isNotType(ThisType)
+template isNotType(TheseTypes)
 {
 	template isNotType(alias OtherType)
 	{
-		enum isNotType = ! is(typeof(OtherType) == ThisType);
+		enum isNotType = ! is(typeof(OtherType) == TheseTypes);
 	}
 	template isNotType(OtherType)
 	{
-		enum isNotType = ! is(OtherType == ThisType);
+		enum isNotType = ! is(OtherType == TheseTypes);
+	}
+}
+
+template isNotType(TheseTypes...) if (TheseTypes.length > 1)
+{
+	template isNotType(alias OtherType)
+	{
+		enum isNotType = ! anySatisfy!(isType!OtherType, TheseTypes);
+	}
+	template isNotType(OtherType)
+	{
+		enum isNotType = ! anySatisfy!(isType!OtherType, TheseTypes);
 	}
 }
 

@@ -237,9 +237,9 @@ class CommandControl : Widget
 		commandField.h = 32;
 		commandField.bufferView.onChanged.connect(&handleBufferChanged);
 		commandField.name = "commandEntryField";
-		commandField.onCommandCallback = (Event event, Widget w) => onCommand(event);
-		commandField.onKeyDownCallback = (Event event, Widget w) => onKeyDown(event);
-		commandField.onKeyUpCallback = (Event event, Widget w) => onKeyUp(event);
+		commandField.onCommandCallback = (CommandEvent event, Widget w) => onCommandEvent(event);
+		commandField.onKeyPressedCallback = (KeyPressedEvent event, Widget w) => onKeyPressedEvent(event);
+		commandField.onKeyReleasedCallback = (KeyReleasedEvent event, Widget w) => onKeyReleasedEvent(event);
 
 		auto ww = new Widget(this, 0, 0, 1, 1); // dummy for grid cell
 		ww.name = "dummy";
@@ -277,16 +277,16 @@ class CommandControl : Widget
 		questionLabel.text = "";
 	}
 
-	override EventUsed onMouseClick(Event event)
+	override EventUsed onMouseClickedEvent(MouseClickedEvent event)
 	{
 		if (!isShown)
 			show(Mode.multiline);
 		return EventUsed.yes;
 	}
 
-	override EventUsed onKeyDown(Event ev)
+	override EventUsed onKeyPressedEvent(KeyPressedEvent ev)
 	{
-		if (ev.keyCode == stringToKeyCode("escape"))
+		if (ev.code == stringToKeyCode("escape"))
 		{
 			if (_promptDelegate !is null)
 			{
@@ -295,7 +295,7 @@ class CommandControl : Widget
 			hide();
 			clearCompletions();
 		}
-		else if (ev.keyCode == stringToKeyCode("return"))
+		else if (ev.code == stringToKeyCode("return"))
 		{
 			if (_promptDelegate is null)
             {
@@ -312,7 +312,7 @@ class CommandControl : Widget
                 }
 			}
 		}
-		else if (ev.mod == 0 && isBufferCycleMode)
+		else if (ev.modifiers == 0 && isBufferCycleMode)
 		{
 			// TODO: Fix hide jumping back to last focus widget since executeCommand may want to change that
             //       and end cycle buffer mode is changing that.
@@ -326,12 +326,12 @@ class CommandControl : Widget
 		return EventUsed.yes;
 	}
 
-	override EventUsed onKeyUp(Event ev)
+	override EventUsed onKeyReleasedEvent(KeyReleasedEvent ev)
 	{
 		if (_promptCompletionsShown)
 			updatePromptCompletions();
 
-		if (ev.mod == 0 && isBufferCycleMode)
+		if (ev.modifiers == 0 && isBufferCycleMode)
 		{
 			endCycleBufferMode();
 			// hide();
@@ -345,7 +345,7 @@ class CommandControl : Widget
 
 	override void draw()
 	{
-		if (!visible)
+		if (!visible || w() == 0)
 			return;
 
 		auto tup = completionWidget.bufferView.buffer.lineEndsForLineNumber(completionStyler.lineHighlighted);
@@ -354,9 +354,9 @@ class CommandControl : Widget
 		super.draw();
 	}
 
-	override EventUsed onCommand(Event event)
+	override EventUsed onCommandEvent(CommandEvent event)
 	{
-		switch (event.name)
+		switch (event.commandName)
 		{
 		case "edit.commitCompletion":
             if (_promptDelegate is null)
@@ -423,7 +423,7 @@ class CommandControl : Widget
 			import std.conv;
 
 			int val = 1;
-			auto valPtr = event.argument[0].peek!string();
+			auto valPtr = event.arguments[0].peek!string();
 			if (valPtr !is null)
 				val = (*valPtr).to!int();
 

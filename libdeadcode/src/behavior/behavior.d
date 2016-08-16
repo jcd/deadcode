@@ -6,7 +6,7 @@ import dccore.commandparameter;
 import dccore.command;
 import application;
 public import graphics;
-import gui.event;
+import dccore.event;
 import gui.keybinding;
 import gui.ruleset;
 import gui.window;

@@ -28,7 +28,7 @@ class GUI
 		Uint32 _lastScrollTick;
 		
 		CtxVar!(MainEventSource) eventSource;
-
+		
         class Timeout
 		{
 			bool done;
@@ -37,7 +37,7 @@ class GUI
 			shared(TimeoutEvent) ev;
 			int msInit;
 
-            static sNextID = 1;
+			static sNextID = 1;
             this()
             {
                 id = sNextID++;
@@ -112,9 +112,9 @@ class GUI
         static import io.file;
 		import platform.system;
 		import gui.resources;
-		auto g = new GUI(gs is null ? new graphics.graphicssystem.OpenGLSystem() : gs);
+		auto g = new GUI(gs is null ? new OpenGLSystem() : gs);
         g._graphicsSystem.init();
-        the = g;
+		the = g;
 		g.ioManager = new io.iomanager.IOManager;
 		// g.ioManager.add(new io.iomanager.ScanProtocol);
 		g.ioManager.add(new io.file.FileProtocol);
@@ -133,7 +133,7 @@ class GUI
 		g.locationsManager.addListener(g.shaderProgramManager);
 		g.locationsManager.addListener(g.textureManager);
 		g.locationsManager.addListener(g.materialManager);
-		g.locationsManager.addListener(g.styleSheetManager);
+		g.locationsManager.addListener(g.styleSheetManager); 
 
 		return g;
 
@@ -246,7 +246,8 @@ class GUI
         {
             output("Frame %s", i++);
             auto worst = frame;
-            foreach(zone; zones.filter!(z => z.startTime >= worst.startTime && z.endTime <= worst.endTime))
+            auto r = zones.filter!(z => z.startTime >= worst.startTime && z.endTime <= worst.endTime);
+			foreach(zone; r)
             {
                 output("    %s: %s ms from %s to %s",
                          zone.info, hnsToMS(zone.duration), hnsToS(zone.startTime), hnsToS(zone.endTime));
@@ -265,7 +266,7 @@ class GUI
 		{
 			output("    eventCount : %s\n", var);
 		}
-    }
+	}
 
 	void stop()
 	{
@@ -275,8 +276,8 @@ class GUI
     struct TimeoutHandle
     {
         static ulong _nextID = 1;
-        GUI gui;
-        ulong id;
+		GUI gui;
+		ulong id;
         bool abort()
         {
 			if (gui !is null)
@@ -291,7 +292,7 @@ class GUI
 		auto to = new FnTimeout!(Fn,Args)(cast(int)d.total!"msecs", fn, args);
 		auto data = TimeoutHandle(this, to.id);
 		to.ev = eventSource.scheduleTimeout(d, Variant(data)); 
-        _timeouts ~= to;
+		_timeouts ~= to;
         return data;
 	}
 
@@ -311,11 +312,11 @@ class GUI
 					_timeouts[idx].ev = eventSource.scheduleTimeout(dur!"msecs"(_timeouts[idx].msInit), Variant(data));
 			    }
 				else
-    {
+				{
 					// Remove from list.
 					_timeouts[idx] = _timeouts[$-1];
 					_timeouts.length -= 1;
-        assumeSafeAppend(_timeouts);
+					assumeSafeAppend(_timeouts);
 				}
 				break;
             }
@@ -331,11 +332,11 @@ class GUI
             if (_timeouts[idx].id == id)
 			{
 				eventSource.abortTimeout(_timeouts[idx].ev);
-               // Remove from list.
-               _timeouts[idx] = _timeouts[$-1];
-               _timeouts.length -= 1;
+				// Remove from list.
+                _timeouts[idx] = _timeouts[$-1];
+				_timeouts.length -= 1;
 			    assumeSafeAppend(_timeouts);
-                return true;
+			    return true;
             }
         }
         return false;
@@ -381,8 +382,8 @@ class GUI
 			//import graphics.mesh : Mesh;
 			//Mesh.numDrawCalls = 0;
 			//Mesh.numBufferUploads= 0;
-
-		    foreach (k, v; _windows)
+		    
+			foreach (k, v; _windows)
 		    {
 			    // TODO: cull hidden windows
 			    // TODO: fix double drawing of widgets because the are all drawn here and some of them
@@ -688,7 +689,7 @@ class GUI
 		if (ge !is null)
 		{
 			auto w = ge.windowID in _windows;
-		if (w !is null)
+			if (w !is null)
 			{
 				w.dispatch(e);
 				return;
@@ -709,12 +710,12 @@ class GUI
 		}
 		
 		if (e.type != GUIEvents.completed)
-        {
+		{
             import std.stdio;
             debug writeln("Event with no window target received ", e);
         }
 	}
-
+	
 	void repaintAllWindows()
 	{
 		foreach(winID, win; _windows)

@@ -90,13 +90,15 @@ class Log
         import std.string;
 		import std.conv;
         static import std.stdio;
-		version (linux)
-            std.stdio.writeln("*Messages* " ~ format(msgs));
 
         static if (msgs.length == 1)
             auto fmtmsg = format(msgs[0].to!string);
         else
             auto fmtmsg = format(msgs[0].to!string, msgs[1..$]);
+
+
+		version (linux)
+            std.stdio.writeln("*Messages* " ~ fmtmsg);
 
         if (_file.getFP() !is null)
         {

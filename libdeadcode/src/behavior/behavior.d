@@ -42,7 +42,7 @@ class NullBehavior : EditorBehavior
 	{
         import std.stdio;
 		version (linux)
-            writeln("NullBehavior got event ", event, " Window ID: ", event.windowID);
+            writeln("NullBehavior got event ", event);
 		return EventUsed.no;
 	}
 }

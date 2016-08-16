@@ -120,7 +120,10 @@ mixin template platformMain(alias customMain)
 }
 version (linux)
 {
-
+    void killProcessWithThisProcess(HANDLE hProcess)
+	{
+		
+	}
     // http://stackoverflow.com/questions/284325/how-to-make-child-process-die-after-parent-exits
 
     string getRunningExecutablePath()

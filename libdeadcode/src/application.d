@@ -1954,7 +1954,7 @@ class Application
             kill(*existingProcess);
             _runningExtensionProcesses.remove(path);
         }
-        auto pid = spawnProcess(path, stdin, stdout, stderr, null, Config.suppressConsole);
+        auto pid = spawnProcess(path, stdin, stdout, stderr, null, std.process.Config.suppressConsole);
         // Error check
         _runningExtensionProcesses[path] = pid;
     }

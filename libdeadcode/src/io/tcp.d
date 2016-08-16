@@ -33,7 +33,7 @@ class APICall
             auto rpcClass = extensionapi.rpc.lookupRPCClass(objectType);
             rpcClass.unpackAndCall(unpacker, lookup, obj, result);
             ubyte[] res = pack(callID) ~ pack(true) ~ result;
-            uint len = res.length;
+            uint len = cast(uint)res.length;
             ubyte* lenubyte = cast(ubyte*)&len;
             client.conn.send(lenubyte[0..4]);
             client.conn.send(res);
@@ -41,7 +41,7 @@ class APICall
         else
         {
             ubyte[] res = pack(callID) ~ pack(false);
-            uint len = res.length;
+            uint len = cast(uint)res.length;
             ubyte* lenubyte = cast(ubyte*)&len;
             client.conn.send(lenubyte[0..4]);
             client.conn.send(res);
@@ -223,7 +223,7 @@ class TCPClient
         import std.conv;
         string callID = (nextCallID++).to!string;
         ubyte[] res = pack(callID) ~ pack(name) ~ pack(params);
-        uint len = res.length;
+        uint len = cast(uint)res.length;
         ubyte* lenubyte = cast(ubyte*)&len;
         conn.send(lenubyte[0..4]);
         conn.send(res);

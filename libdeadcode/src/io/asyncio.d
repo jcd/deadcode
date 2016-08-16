@@ -219,29 +219,22 @@ class AsyncIO
         Tid _workerTid;
         EventLoop _eventLoop;
         shared AsyncSignal _signal;
-        uint _sdlCustomEventType;
     }
 
-    @property uint customEventType() const pure nothrow @safe
-    {
-        return _sdlCustomEventType;
-    }
-
-    this()
+    this(shared void delegate() wakeUpMainThreadDlg)
     {
         import derelict.sdl2.sdl;
-        _sdlCustomEventType = SDL_RegisterEvents(1);
         _eventLoop = new EventLoop();
-        _workerTid = spawn(&spawnWorker, thisTid, _sdlCustomEventType);
+        _workerTid = spawn(&spawnWorker, thisTid, wakeUpMainThreadDlg);
         _signal = receiveOnly!(shared AsyncSignal)();
     }
 
-    private static void spawnWorker(Tid parentTid, uint sdlCustomEventType)
+    private static void spawnWorker(Tid parentTid, shared void delegate() wakeUpMainThreadDlg)
     {
         import core.thread;
         Thread.getThis().name = "AsyncIO";
 
-        auto worker = new AsyncIOWorker(sdlCustomEventType);
+        auto worker = new AsyncIOWorker(wakeUpMainThreadDlg);
         // Need to share the signal between parent and worker
         parentTid.send(worker._signal);
         worker.run();
@@ -327,14 +320,14 @@ class AsyncIOWorker
         bool _shutdown = false;
         shared AsyncSignal _signal;
         AsyncDirectoryWatcher resourceDirWatcher;
-        uint _sdlCustomEventType;
+		shared void delegate() _wakeUpMainThreadDlg;
     }
 
-    this(uint sdlCustomEventType)
+    this(shared void delegate() wakeUpMainThreadDlg)
     {
         import std.stdio;
         import std.typecons;
-        _sdlCustomEventType = sdlCustomEventType;
+        _wakeUpMainThreadDlg = wakeUpMainThreadDlg;
         _eventLoop = new EventLoop();
         _signal = new shared AsyncSignal(_eventLoop);
         _signal.run({
@@ -371,11 +364,7 @@ class AsyncIOWorker
     // This will wake up the SDL loop
     private void signalOwnerThread()
     {
-        import derelict.sdl2.sdl;
-        SDL_Event event;
-        //   SDL_Zero(event); not needed since dlang does this
-        event.type = _sdlCustomEventType;
-        SDL_PushEvent(&event);
+        _wakeUpMainThreadDlg();
     }
 
     void kill()

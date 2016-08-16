@@ -50,7 +50,7 @@ private void dmp(Widget w, string prefix, ref CompletionEntry[] entries)
 	}
         else
         {
-		p = cn.findSplitAfter("extensions.base.BasicWidgetWrap!(");
+		p = cn.findSplitAfter("extensionapi.widget.BasicWidgetWrap!(");
 
             if (!p[0].empty)
             {
@@ -94,7 +94,7 @@ private void dmp2(Widget w, string match, ref WidgetNameRank[] entries)
 	}
     else
     {
-		p = cn.findSplitAfter("extensions.base.BasicWidgetWrap!(");
+		p = cn.findSplitAfter("extensionapi.widget.BasicWidgetWrap!(");
 
         if (!p[0].empty)
         {
@@ -133,10 +133,10 @@ class EditorShowWidgetCommand : Command
 	    }
 	}
 
-	CompletionEntry[] complete(Application app, CommandParameter[] data)
+	CompletionEntry[] complete(Application app, string match)
 	{
         import std.array;
-        string match = data[0].get!string();
+        // string match = data[0].get!string();
         WidgetNameRank[] entries;
         dmp2(app.activeWindow, match, entries);
 
@@ -164,10 +164,10 @@ class EditorHideWidgetCommand : Command
 	    }
 	}
 
-	CompletionEntry[] complete(Application app, CommandParameter[] data)
+	CompletionEntry[] complete(Application app, string match)
 	{
         import std.array;
-        string match = data[0].get!string();
+        //string match = data[0].get!string();
         WidgetNameRank[] entries;
         dmp2(app.activeWindow, match, entries);
 

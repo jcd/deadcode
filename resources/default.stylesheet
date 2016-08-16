@@ -102,7 +102,7 @@ PopupList > Button:focus {
 }
 
 Globals {
-	page-down-speed: 16.0;
+	page-down-speed: 5.0;
 }
 
 TestWidget {

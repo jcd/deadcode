@@ -132,7 +132,7 @@ class RenderWindow : RenderTarget
             {
                DWORD style = GetWindowLongA(info.info.win.window, GWL_STYLE);
                style = style | WS_BORDER | WS_GROUP;
-               style = style & ~WS_THICKFRAME;
+               //style = style & ~WS_THICKFRAME;
 	           style = style & ~WS_POPUP;
                SetWindowLongA(info.info.win.window, GWL_STYLE, style);
             }

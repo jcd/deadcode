@@ -3,7 +3,7 @@ module gui.widgetfeature.ninegridrenderer;
 import graphics.model;
 import gui.models;
 import gui.style;
-import gui.widget;
+import gui.widget : Widget;
 import gui.widgetfeature;
 import math;
 

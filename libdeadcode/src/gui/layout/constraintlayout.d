@@ -1,7 +1,7 @@
 module gui.layout.constraintlayout;
 
 import gui.event;
-import gui.widget;
+import gui.widget : Widget, WidgetID, NullWidgetID;
 import gui.layout;
 import math;
 

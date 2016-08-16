@@ -1,7 +1,7 @@
 module gui.widgetfeature;
 
-import gui.event;
-import gui.widget;
+import gui.event : Event;
+import gui.widget : Widget;
 import gui.style;
 
 class WidgetFeature

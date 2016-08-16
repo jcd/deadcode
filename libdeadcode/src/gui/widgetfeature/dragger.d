@@ -1,7 +1,7 @@
 module gui.widgetfeature.dragger;
 
 import gui.event;
-import gui.widget;
+import gui.widget : Widget;
 import gui.widgetfeature;
 import math;
 

@@ -1,7 +1,7 @@
 module gui.layout.directionallayout;
 
 import gui.event;
-import gui.widget;
+import gui.widget : Widget;
 import gui.layout;
 import math;
 

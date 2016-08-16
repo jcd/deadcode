@@ -8,12 +8,13 @@ import graphics;
 import gui.event;
 import gui.keycode;
 import gui.style;
-import gui.widget;
+import gui.widget : Widget, WidgetID, NullWidgetID;
 import math;
 import std.range;
-import dccore.signals;
 import std.stdio;
 import std.typecons;
+import std.variant;
+import dccore.signals;
 
 import util.profile;
 

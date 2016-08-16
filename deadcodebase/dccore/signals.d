@@ -44,6 +44,7 @@ mixin template Signal(T1...)
 {
     static import core.stdc.stdlib;
     static import core.exception;
+	static import core.sys.posix.stdlib;
     /***
      * A slot is implemented as a delegate.
      * The slot_t is the type of the delegate.
@@ -80,7 +81,7 @@ mixin template Signal(T1...)
             if (slots.length == 0)
             {
                 len = 4;
-                auto p = std.c.stdlib.calloc(slot_t.sizeof, len);
+                auto p = core.sys.posix.stdlib.calloc(slot_t.sizeof, len);
                 if (!p)
                     core.exception.onOutOfMemoryError();
                 slots = (cast(slot_t*)p)[0 .. len];
@@ -88,7 +89,7 @@ mixin template Signal(T1...)
             else
             {
                 len = len * 2 + 4;
-                auto p = std.c.stdlib.realloc(slots.ptr, slot_t.sizeof * len);
+                auto p = core.sys.posix.stdlib.realloc(slots.ptr, slot_t.sizeof * len);
                 if (!p)
                     core.exception.onOutOfMemoryError();
                 slots = (cast(slot_t*)p)[0 .. len];
@@ -178,7 +179,7 @@ mixin template Signal(T1...)
                     rt_detachDisposeEvent(o, &unhook);
                 }
             }
-            std.c.stdlib.free(slots.ptr);
+            core.sys.posix.stdlib.free(slots.ptr);
             slots = null;
         }
     }

@@ -4,6 +4,8 @@ import application;
 import edit.bufferview;
 import dccore.command;
 import dccore.commandparameter;
+import dccore.ctx;
+import dccore.event : MainEventSource;
 import graphics;
 import gui.event;
 import gui.keybinding;
@@ -25,6 +27,7 @@ class EmacsBehavior : EditorBehavior
 	RuleEnv ruleEnv;
 	CommandManager commandManager;
 	bool initialized = false;
+	CtxVar!MainEventSource eventSource;
 
 	private bool _skipNextTextEvent = false;
 
@@ -136,26 +139,27 @@ class EmacsBehavior : EditorBehavior
 		//    currentKeySequence = new KeySequence("");
 		//}
 
-		switch (event.type)
+		if (event.type == GUIEvents.text)
 		{
-			case EventType.KeyDown:
-				break;
-			case EventType.Text:
-				if (_skipNextTextEvent)
-				{
-					_skipNextTextEvent = false;
-					return EventUsed.yes;
-				}
-				break;
-			default:
-				return EventUsed.no; // event not used
+			if (_skipNextTextEvent)
+			{
+				_skipNextTextEvent = false;
+				return EventUsed.yes;
+			}
+		} 
+		else if (event.type != GUIEvents.keyPressed)
+		{
+			return EventUsed.no; // event not used
 		}
+		
 		_skipNextTextEvent = false;
 	//	auto widget = window.getKeyboardFocusWidget();
 	//	BufferView view = text!BufferView(widget); // There may be an attached bufferview on the widget
-		if (event.type == EventType.KeyDown)
+		if (event.type == GUIEvents.keyPressed)
 		{
-			currentKeySequence.add(event.keyCode, event.mod);
+			auto ev = cast(KeyPressedEvent)event;
+
+			currentKeySequence.add(ev.code, ev.modifiers);
 
 			//auto fn = (KeyBinding a) => { return a.command.canExecute(Variant(1u)); };
 			/*
@@ -212,9 +216,16 @@ class EmacsBehavior : EditorBehavior
 							// No command registered with this commandName
 							// We rewrite the event to a command event matching the keybinding command
 							// in order to let the callers further dispatching handle the command.
-							event.type = EventType.Command;
-							event.name = matchedBinding.command;
-							event.argument = matchedBinding.args;
+							
+							WindowID wid = 0;
+							auto guiEvent = cast(GUIEvent) event;
+							if (guiEvent !is null)
+								wid = guiEvent.windowID;
+							auto e = GUIEvents.create!CommandEvent(matchedBinding.command, matchedBinding.args, wid);
+							eventSource.put(e);
+							//event.type = EventType.Command;
+							//event.name = matchedBinding.command;
+							//event.argument = matchedBinding.args;
 							return EventUsed.no; // re-dispatch
 						}
 					}

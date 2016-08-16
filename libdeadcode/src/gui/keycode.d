@@ -1,30 +1,44 @@
 module gui.keycode;
 
-import derelict.sdl2.sdl; 
 import std.string; 
 
 // Directly mapped from SDL keymod
 enum KeyMod
 {
-	NONE = 0x0000,
-	LSHIFT = 0x0001,
-	RSHIFT = 0x0002,
-	LCTRL = 0x0040,
-	RCTRL = 0x0080,
-	LALT = 0x0100,
-	RALT = 0x0200,
-	LGUI = 0x0400,
-	RGUI = 0x0800,
-	NUM = 0x1000,
-	CAPS = 0x2000,
-	MODE = 0x4000,
-	RESERVED = 0x8000,
+	none = 0x0000,
+	leftShift = 0x0001,
+	rightShift = 0x0002,
+	leftCTRL = 0x0040,
+	rightCTRL = 0x0080,
+	leftALT = 0x0100,
+	rightALT = 0x0200,
+	leftGUI = 0x0400,
+	rightGUI = 0x0800,
+	num = 0x1000,
+	caps = 0x2000,
+	mode = 0x4000,
+	reserved = 0x8000,
 	
-	CTRL = (KMOD_LCTRL|KMOD_RCTRL),
-	SHIFT = (KMOD_LSHIFT|KMOD_RSHIFT),
-	ALT = (KMOD_LALT|KMOD_RALT),
-	GUI = (KMOD_LGUI|KMOD_RGUI)
+	ctrl = (leftCTRL|rightCTRL),
+	shift = (leftShift|rightShift),
+	alt = (leftALT|rightALT),
+	gui = (leftGUI|rightGUI)
 }
+
+bool isPressed(KeyMod state, KeyMod isThisDown) pure nothrow @safe @nogc
+{
+	return (state & isThisDown) != 0;
+}
+
+bool isExactlyPressed(KeyMod state, KeyMod isThisDown) pure nothrow @safe @nogc
+{
+	return (state & isThisDown) != isThisDown;
+}
+
+alias KeyCode = int;
+
+// version (none):
+import derelict.sdl2.sdl; 
 
 enum KKTMP
 {
@@ -291,7 +305,7 @@ enum KKTMP
 	SDLK_SLEEP = SDL_SCANCODE_TO_KEYCODE(SDL_SCANCODE_SLEEP)
 }
 
-string keycodes()
+private string keycodes()
 {
 	import std.traits;
 	string res = "SDL_Keycode[] allKeyCodes = [";

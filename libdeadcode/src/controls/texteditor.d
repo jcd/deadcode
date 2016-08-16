@@ -7,13 +7,14 @@ import graphics;
 import gui.event;
 import gui.style;
 import gui.text;
-import gui.widget;
+import gui.widget : Widget;
 import gui.widgetfeature;
 import gui.window;
 //import application;
 import math;
 
 import std.conv;
+import std.datetime : SysTime, Duration;
 import dccore.signals;
 import std.string;
 
@@ -38,6 +39,8 @@ class TextEditor : Widget
     // region set name -> decoration
     RegionSetDecoration[string] decorations;
 
+
+
     @property
     {
         TextStyler textStyler()
@@ -52,7 +55,7 @@ class TextEditor : Widget
     }
 
     mixin Signal!() onChanged;
-    mixin Signal!(Event, GlyphHit) onGlyphMouseUp;
+    mixin Signal!(MouseReleasedEvent, GlyphHit) onGlyphMouseUp;
 
     @property TextBuffer.CharType[] text() const
 	{
@@ -76,7 +79,16 @@ class TextEditor : Widget
 	// Child widget of TextEditor
 	TextEditorAnchorWidget[] visibleAnchorsChildWidgets;
 
-	private int _mouseStartSelectionIdx;
+	private 
+	{
+		int _mouseStartSelectionIdx;
+		SysTime _lastMouseWheelEventTimestamp;
+	}
+
+	private @property Duration timeSinceLastMouseWheel()
+	{
+		return Clock.currTime - _lastMouseWheelEventTimestamp;
+	}
 
 	this(BufferView buf)
 	{
@@ -95,6 +107,7 @@ class TextEditor : Widget
 		bufferView.onAnchorVisibilityChanged.connect(&onAnchorVisibilityChanged);
 
 		_mouseStartSelectionIdx = InvalidIndex;
+		_lastMouseWheelEventTimestamp = SysTime.min;
 
 		//onKeyboardFocusSignal.connect((Event ev) {
 		//    //window.mouseCursor(MouseCursor.iBeam);
@@ -144,13 +157,13 @@ class TextEditor : Widget
         rsd.mergeBorders = mergeBorders;
     }
 
-	override EventUsed onMouseOver(Event e)
+	override EventUsed onMouseOverEvent(MouseOverEvent e)
 	{
 		window.mouseCursor(MouseCursor.iBeam);
 		return EventUsed.no;
 	}
 
-	override EventUsed onMouseOut(Event e)
+	override EventUsed onMouseOutEvent(MouseOutEvent e)
 	{
 		window.mouseCursor(MouseCursor.arrow);
 		return EventUsed.no;
@@ -161,48 +174,44 @@ class TextEditor : Widget
 		renderer.toggleCursorVisibility();
 	}
 
-	override EventUsed onEvent(Event event)
+	override EventUsed onEvent(GUIEvent event)
 	{
-		if (event.type == EventType.Resize)
-			renderer.textDirty = true;
-
-        //if (!hasKeyboardFocus())
-        //{
-        //    return super.onEvent(event);
-        //    //return EventUsed.no;
-        //}
-
-		switch (event.type)
+		if (event.type == GUIEvents.windowResized)
 		{
-			case EventType.Text: // KeyBindings listen on KeyDown but here we listen on Text ie. last keybinding char gets here!! :(
-				bufferView.insert(event.ch); // put text at cursor
+			renderer.textDirty = true;
+		} 
+		else if (event.type == GUIEvents.text)
+		{
+			auto ev = cast(TextEvent)event;
+			// KeyBindings listen on KeyDown but here we listen on Text ie. last keybinding char gets here!! :(
+				bufferView.insert(ev.unicodeChar); // put text at cursor
 				//std.stdio.writeln(event.ch, " ", std.conv.to!string(event.mod));
 				return EventUsed.yes;
-			case EventType.Command:
-				switch (event.name)
-				{
-					case "navigate.left":
-						bufferView.cursorLeft(1);
-						renderer.cursorVisible = true;
-						return EventUsed.yes;
-					case "navigate.right":
-						bufferView.cursorRight(1);
-						renderer.cursorVisible = true;
-						return EventUsed.yes;
-					case "navigate.up":
-						bufferView.cursorUp();
-						renderer.cursorVisible = true;
-						return EventUsed.yes;
-					case "navigate.down":
-						bufferView.cursorDown();
-						renderer.cursorVisible = true;
-						return EventUsed.yes;
-					default:
-						break;
-				}
-				break;
-			default:
-				break;
+		}
+		else if (event.type == GUIEvents.command)
+		{
+			auto ev = cast(CommandEvent)event;
+			switch (ev.commandName)
+			{
+				case "navigate.left":
+					bufferView.cursorLeft(1);
+					renderer.cursorVisible = true;
+					return EventUsed.yes;
+				case "navigate.right":
+					bufferView.cursorRight(1);
+					renderer.cursorVisible = true;
+					return EventUsed.yes;
+				case "navigate.up":
+					bufferView.cursorUp();
+					renderer.cursorVisible = true;
+					return EventUsed.yes;
+				case "navigate.down":
+					bufferView.cursorDown();
+					renderer.cursorVisible = true;
+					return EventUsed.yes;
+				default:
+					break;
+			}
 		}
 
 		// TODO: isn't behavior just a event -> edit mapping e.g. command
@@ -233,7 +242,7 @@ class TextEditor : Widget
 
 	override void draw()
 	{
-		if (!visible)
+		if (!visible || w() == 0)
 			return;
 
         updateLineHighlight();
@@ -320,22 +329,25 @@ class TextEditor : Widget
         super.layoutRecurse(fit, positionReference);
     }
 
-	override EventUsed onMouseClick(Event event)
+	override EventUsed onMouseClickedEvent(MouseClickedEvent event)
 	{
         setKeyboardFocusWidget();
 		return EventUsed.yes;
 	}
 
-	override EventUsed onMouseScroll(Event event)
+	override EventUsed onMouseWheelEvent(MouseWheelEvent event)
 	{
 		int speed = 1;
 		int d = cast(int) event.scroll.y;
 		int maxScrollFreq = 300;
+		static maxD = 0;
+		maxD = d > maxD ? d : maxD;
 
-		if (event.msSinceLastScroll < maxScrollFreq)
+		auto msSinceLastMouseWheel = timeSinceLastMouseWheel.total!"msecs";
+		if (msSinceLastMouseWheel < maxScrollFreq)
 		{
 			// Scroll view
-			speed = cast(int)(d*d*(maxScrollFreq - event.msSinceLastScroll) / 30f);
+			speed = cast(int)(d*d*(maxScrollFreq - msSinceLastMouseWheel) / 30f);
 		}
 
 		if (speed == 0)
@@ -350,6 +362,9 @@ class TextEditor : Widget
 		{
 			bufferView.scrollUp(speed);
 		}
+
+		_lastMouseWheelEventTimestamp = event.timestamp;
+
 		return EventUsed.yes;
 	}
 
@@ -363,18 +378,18 @@ class TextEditor : Widget
         return renderer.getGlyphAt(this, pos);
     }
 
-	override EventUsed onMouseDown(Event event)
+	override EventUsed onMousePressedEvent(MousePressedEvent event)
 	{
-		auto info = getGlyphRect(event.mousePos);
+		auto info = getGlyphRect(event.position);
 		if (info.isValid)
-			return onGlyphMouseDown(event, info);
+			return onGlyphMousePressedEvent(event, info);
 
 		return EventUsed.yes;
 	}
 
-	override EventUsed onMouseDoubleClick(Event event)
+	override EventUsed onMouseDoubleClickedEvent(MouseDoubleClickedEvent event)
 	{
-		auto info = getGlyphRect(event.mousePos);
+		auto info = getGlyphRect(event.position);
 		if (info.isValid)
 		{
 			bufferView.cursorToWordBefore();
@@ -384,9 +399,9 @@ class TextEditor : Widget
 		return EventUsed.yes;
 	}
 
-	override EventUsed onMouseTripleClick(Event event)
+	override EventUsed onMouseTripleClickedEvent(MouseTripleClickedEvent event)
 	{
-		auto info = getGlyphRect(event.mousePos);
+		auto info = getGlyphRect(event.position);
 		if (info.isValid)
 		{
 			bufferView.cursorToBeginningOfLine();
@@ -397,35 +412,35 @@ class TextEditor : Widget
 		return EventUsed.yes;
 	}
 
-	override EventUsed onMouseMove(Event event)
+	override EventUsed onMouseMoveEvent(MouseMoveEvent event)
 	{
 		if (_mouseStartSelectionIdx == InvalidIndex)
-			return super.onMouseMove(event);
+			return super.onMouseMoveEvent(event);
 
-		auto info = getGlyphRect(event.mousePos);
+		auto info = getGlyphRect(event.position);
 		if (info.isValid)
-			_updateSelectionEnd(info, event.mousePos);
+			_updateSelectionEnd(info, event.position);
 
 		return EventUsed.yes;
 	}
 
-	override EventUsed onMouseUp(Event event)
+	override EventUsed onMouseReleasedEvent(MouseReleasedEvent event)
 	{
-		auto info = getGlyphRect(event.mousePos);
+		auto info = getGlyphRect(event.position);
 		if (info.isValid)
-			return _onGlyphMouseUp(event, info);
+			return _onGlyphMouseReleasedEvent(event, info);
 
 		_mouseStartSelectionIdx = InvalidIndex;
 
 		return EventUsed.yes;
 	}
 
-	EventUsed onGlyphMouseDown(Event event, GlyphHit hit)
+	private EventUsed onGlyphMousePressedEvent(MousePressedEvent event, GlyphHit hit)
 	{
         if (auto r = handleRegionActivation(event, hit))
             return r;
 
-        if (event.mouseMod.isShiftDown())
+        if (event.modifiers.isShiftDown())
 		{
 			if (_mouseStartSelectionIdx == InvalidIndex)
 			{
@@ -434,19 +449,19 @@ class TextEditor : Widget
 				else
 					_mouseStartSelectionIdx = bufferView.selection.a;
 			}
-			_updateSelectionEnd(hit, event.mousePos);
+			_updateSelectionEnd(hit, event.position);
 			bufferView.setPreferredCursorColumnFromIndex();
 		}
 		else
 		{
 			_mouseStartSelectionIdx = InvalidIndex;
-			_updateSelectionEnd(hit, event.mousePos);
+			_updateSelectionEnd(hit, event.position);
 			bufferView.setPreferredCursorColumnFromIndex();
 		}
 		return EventUsed.yes;
 	}
 
-	EventUsed _onGlyphMouseUp(Event event, GlyphHit hit)
+	private EventUsed _onGlyphMouseReleasedEvent(MouseReleasedEvent event, GlyphHit hit)
 	{
 		//_updateSelectionEnd(hit, event.mousePos);
 		_mouseStartSelectionIdx = InvalidIndex;
@@ -457,11 +472,11 @@ class TextEditor : Widget
 		return EventUsed.yes;
 	}
 
-	private EventUsed handleRegionActivation(Event event, GlyphHit hit)
+	private EventUsed handleRegionActivation(MousePressedEvent event, GlyphHit hit)
     {
         // Check if glyph is part of a region that can be activated
         return !hit.endOfLine && hit.isValid && bufferView.handleRegionActivation(hit.index) ?
-               EventUsed.yes : EventUsed.no;
+               EventUsed.no : EventUsed.no;
     }
 
 	private void _updateSelectionEnd(GlyphHit hit, Vec2f mousePos)
@@ -726,7 +741,7 @@ class TextEditorAnchorWidget : Widget
 
 	override void draw()
 	{
-		if (visible && inView)
+		if (visible && inView && w() > 0)
 			super.draw();
 	}
 

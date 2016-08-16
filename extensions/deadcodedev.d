@@ -52,7 +52,7 @@ void deadcodeSetupDevelopmentEnvironment(Application app)
         return;
 
     import platform.config;
-    string startDir = resourceURI("", ResourceBaseLocation.homeDir).uriString();
+    string startDir = resourceURI("", PathBase.homeDir).uriString();
 
     string devDir = selectDevelopmentEnvironmentFolder(app, startDir);
 

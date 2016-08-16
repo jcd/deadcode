@@ -462,7 +462,7 @@ class ErrorListWidget : BasicWidget
 			p.mode = StatusPanel.Mode.normal;
 	}
 
-	override EventUsed onMouseScroll(Event event)
+	override EventUsed onMouseWheelEvent(MouseWheelEvent event)
 	{
 		// Scroll view
 		int d = cast(int) event.scroll.y;
@@ -479,9 +479,9 @@ class ErrorListWidget : BasicWidget
 		return EventUsed.yes;
 	}
 
-	override EventUsed onMouseDoubleClick(Event event)
+	override EventUsed onMouseDoubleClickedEvent(MouseDoubleClickedEvent event)
 	{
-		auto posInfo = textRenderer.getGlyphAt(this, event.mousePos);
+		auto posInfo = textRenderer.getGlyphAt(this, event.position);
 		if (posInfo.isValid)
 		{
 			auto buf = textRenderer.text.buffer;

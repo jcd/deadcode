@@ -223,7 +223,7 @@ class Dub : Extension
             activePackage = p;
         }
 
-        app.onResourceBaseLocationChanged.connect(&updateResourceBaseLocations);
+        app.onPathBaseChanged.connect(&updatePathBases);
         app.onFileOpened.connect(&enableUnittest);
     }
 
@@ -239,13 +239,13 @@ class Dub : Extension
     }
 
     // Slot
-    private void updateResourceBaseLocations(uint changedLocations)
+    private void updatePathBases(uint changedLocations)
     {
         import platform.config;
 
-        if (changedLocations & ResourceBaseLocation.currentDir)
+        if (changedLocations & PathBase.currentDir)
         {
-            auto p = getPackageByRootPath(resourcesRoot);
+            auto p = getPackageByRootPath(paths.resource());
             if (p !is null)
                 activePackage = p;
         }

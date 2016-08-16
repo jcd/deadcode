@@ -237,7 +237,7 @@ class RenderWindow : RenderTarget
         import derelict.sdl2.image;
         import std.string;
 
-        surface = IMG_Load(resourceURI("icon.png", ResourceBaseLocation.resourceDir).toString().toStringz());
+        surface = IMG_Load(resourceURI("icon.png", PathBase.resourceDir).toString().toStringz());
 
         SDL_SetWindowIcon(win, surface);
 		// The icon is attached to the window pointer

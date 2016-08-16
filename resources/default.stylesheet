@@ -20,6 +20,22 @@ DebugHighlight {
 	background-sprite-border: 6 6 6 6;
 }
 
+
+#mover {
+	color: #d8d8d2;
+	font : url(fonts/RobotoCondensed-Light.ttf) 14;
+	background-color: #182224;
+	background: url(materials/white-small-nine-patch.png);
+	background-sprite: 0 0 16 16;
+	background-sprite-border: 6 6 6 6;
+	transition: background-color 1s;
+}
+
+#mover:hover {
+	background-color: #314447;	
+	transition: background-color 0.1s;
+}
+
 ScrollView {
 	color: #d8d8d2;
 	font : url(fonts/RobotoCondensed-Light.ttf) 14;

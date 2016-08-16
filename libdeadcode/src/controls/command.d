@@ -168,6 +168,15 @@ class CommandControl : Widget
 		return _mode;
 	}
 
+	@property void mode(Mode m)
+	{
+		if (_mode != m)
+		{
+			_mode = m;
+			recalculateStyle();
+		}
+	}
+
 	//private @property void mode(Mode m) pure
 	//{
 	//	_mode = m;

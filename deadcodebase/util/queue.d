@@ -131,7 +131,7 @@ shared struct RWQueue(T, size_t capacity = roundPow2!(PAGE_SIZE / T.sizeof))
         return length == capacity;
     }
 
-    void pushBusyWait(T t)
+    void pushBusyWait(shared(T) t)
     {
         while (full)
         {

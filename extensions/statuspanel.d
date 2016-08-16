@@ -25,13 +25,27 @@ class StatusPanel : BasicWidget
 		discrete,
 		normal
 	}
-	Mode mode = Mode.hidden;
+	private Mode _mode = Mode.hidden;
 
 	enum _classes = [["hidden"],["discrete"],[]];
 
+	@property void mode(Mode m)
+	{
+		if (_mode != m)
+		{
+			_mode = m;
+			recalculateStyle();
+		}
+	}
+
+	@property Mode mode() const
+	{
+		return _mode;
+	}
+
 	override protected @property const(string[]) classes() const pure nothrow @safe
 	{
-		return _classes[mode];
+		return _classes[_mode];
 	}
 
 	override void init()
@@ -41,9 +55,14 @@ class StatusPanel : BasicWidget
 		layout = new StackLayout();
 
 		app.scheduleWidgetPlacement(this, "main", RelativeLocation.bottomOf);
-		mode = Mode.hidden;
+		_mode = Mode.hidden;
 
 		// loadSession();
+	}
+
+	override void update()
+	{
+		super.update();
 	}
 
 	override void fini()

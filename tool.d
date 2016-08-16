@@ -265,12 +265,27 @@ void testFile(string[] args, bool showUsage = false)
         return;
     }
 
-	auto cmd = r"rdmd.exe -version=TestingByTool -version=Unicode --main -Ilibdeadcode\src -Ideadcodebase -IC:\Users\jonasd\AppData\Roaming\dub\packages\memutils-0.3.1\source " ~
-    r" -IC:\Users\jonasd\AppData\Roaming\dub\packages\libasync-0.7.1\source -Iexternal\d-libraries -unittest ";
+    string dubRoot = r"C:\Users\jonasd\AppData\Roaming\dub\packages";
+
+	auto cmd = r"rdmd.exe -version=TestingByTool -unittest -version=Unicode --main -Ilibdeadcode\src -Ideadcodebase -Iexternal\d-libraries ";
+	auto packs = [ r"memutils-0.3.1\source",
+    			   r"libasync-0.7.1\source",
+    			   r"derelict-gl3-1.0.10\source",
+    			   r"derelict-util-2.0.4\source",
+    			   r"derelict-sdl2-2.0.0\source",
+    			   r"tharsis-prof-0.5.4\source",
+    			   r"msgpack-d-0.9.6\src",
+    			   r"tinyendian-0.1.2\source"
+    			   ];
+
+    foreach (p; packs)
+    {
+    	cmd ~= " -I" ~ dubRoot ~ "\\" ~ p;
+    }
 
     foreach (p; args[2..$])
     {
-        auto runCmd = cmd ~ p;
+        auto runCmd = cmd ~ " " ~ p;
         writeln(runCmd);
         auto res = pipeShell(runCmd, Redirect.stdin | Redirect.stderrToStdout | Redirect.stdout);
         foreach (line; res.stdout.byLine)

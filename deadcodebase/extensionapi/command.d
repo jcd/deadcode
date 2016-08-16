@@ -4,7 +4,7 @@ import dccore.attr : hasAttribute, getAttributes, isType, isNotType;
 import extensionapi.common : Application, BufferView, TextEditor, MenuItem, Shortcut, Log, CompletionEntry, CommandParameter, CommandCall, Hints, Fiber;
 import dccore.command;
 
-import std.meta : anySatisfy, Filter, Replace, staticMap;
+import std.meta : AliasSeq, anySatisfy, Filter, Replace, staticIndexOf, staticMap;
 import std.traits : FieldNameTuple, isSomeFunction, Identity, ParameterIdentifierTuple, ParameterTypeTuple;
 
 import poodinis : Autowire, DependencyContainer;
@@ -143,6 +143,9 @@ class ExtensionCommandWrap(alias AttributeHolder, Base) : Base
 		Application app;
 	}
 
+	alias InjectedTypes = AliasSeq!(Application, TextEditor, BufferView, Fiber, Log);
+	alias InjectedObjects = AliasSeq!(app, currentTextEditor, currentBuffer, Fiber.getThis, dccore.log.log);
+
 	static if ( isSomeFunction!AttributeHolder )
 		alias Func = AttributeHolder;
 	else
@@ -177,16 +180,12 @@ class ExtensionCommandWrap(alias AttributeHolder, Base) : Base
 	this()
 	{
 		enum getDefaultValue(U) = U.init;
-
-		alias p1 = Filter!(isNotType!Application, ParameterTypeTuple!Func);
-		alias p2 = Filter!(isNotType!TextEditor, p1);
-		alias p3 = Filter!(isNotType!BufferView, p2);
-		alias p4 = Filter!(isNotType!Fiber, p3);
-        alias p5 = Filter!(isNotType!Log, p4);
-		alias p6 = staticMap!(getDefaultValue, p5);
+		 
+		alias p1 = Filter!(isNotType!InjectedTypes, ParameterTypeTuple!Func);
+		alias p2 = staticMap!(getDefaultValue, p1);
 
 		enum names = [ParameterIdentifierTuple!Func];
-		setCommandParameterDefinitions(createParams(names, p6));
+		setCommandParameterDefinitions(createParams(names, p2));
 	}
 	
 	private BufferView currentBuffer() { return app.getCurrentBuffer(); }
@@ -194,69 +193,52 @@ class ExtensionCommandWrap(alias AttributeHolder, Base) : Base
 
 	private auto call(alias F)(CommandParameter[] v)
 	{
-		enum count = Filter!(isType!BufferView, ParameterTypeTuple!F).length +
-			Filter!(isType!TextEditor, ParameterTypeTuple!F).length +
-			Filter!(isType!Application, ParameterTypeTuple!F).length +
-			Filter!(isType!Fiber, ParameterTypeTuple!F).length +
-            Filter!(isType!Log, ParameterTypeTuple!F).length;
+		enum count = Filter!(isType!InjectedTypes, ParameterTypeTuple!F).length;
+		enum nonInjectedArgsCount = ParameterTypeTuple!F.length - count;
+		
+		template _replaceWithObject(T)
+		{
+			enum idx = staticIndexOf!(T, InjectedTypes);
+			static if (idx == -1)
+			{
+				alias _replaceWithObject =  T; // Just put something there. It will not be used.
+			}
+			else
+			{
+				alias _replaceWithObject =  InjectedObjects[idx];
+			}
+		}
 
-		alias t1 = Replace!(BufferView, currentBuffer, ParameterTypeTuple!Func);
-		alias t2 = Replace!(TextEditor, currentTextEditor, t1);
-		alias t3 = Replace!(Application, app, t2);
-		alias t4 = Replace!(Fiber, Fiber.getThis, t3);
-		alias t5 = Replace!(Log, dccore.log.log, t4);
-		alias preparedArgs = t5[0..count];
-
-		enum missingArgCount = ParameterTypeTuple!F.length - count;
-		// pragma(msg, "CommandFunction args: ", fullyQualifiedName!Func, ParameterTypeTuple!Func, missingArgCount);
+		alias t5 = staticMap!(_replaceWithObject, ParameterTypeTuple!F);
+		alias injectedArgs = t5[0..count];
 
         // Save current active buffer since current buffer may be changed by the command
-        static if (Filter!(isType!BufferView, ParameterTypeTuple!F).length +
-                   Filter!(isType!TextEditor, ParameterTypeTuple!F).length != 0)
+        static if ( anySatisfy!(isType!(BufferView, TextEditor), ParameterTypeTuple!F) )
         {
             auto bv = app.getCurrentBuffer();
             bv.beginUndoGroup();
             scope (exit) bv.endUndoGroup();
         }
 
-        static if (missingArgCount == 0)
+		alias parameterType(int idx) = ParameterTypeTuple!F[$-nonInjectedArgsCount+idx];
+
+		static string _setupArgs(int count)
 		{
-			return F(preparedArgs);
+			import std.conv;
+			string res;
+			string delim = ",";
+			foreach (i; 0..count)
+			{
+				res ~= delim ~ "v[" ~ i.to!string ~ "].get!(parameterType!" ~ i.to!string ~ ")";
+				delim = ",";
+			}
+			return res;
 		}
-		else static if (missingArgCount == 1)
-		{
-			assert(v.length >= 1);
-			alias a1 = ParameterTypeTuple!F[$-1];
-			return F(preparedArgs, v[0].get!a1);
-		}
-		else static if (missingArgCount == 2)
-		{
-			assert(v.length >= 2);
-			alias a2 = ParameterTypeTuple!F[$-1];
-			alias a1 = ParameterTypeTuple!F[$-2];
-			return F(preparedArgs, v[0].get!a1, v[1].get!a2);
-		}
-		else static if (missingArgCount == 3)
-		{
-			assert(v.length >= 3);
-			alias a3 = ParameterTypeTuple!F[$-1];
-			alias a2 = ParameterTypeTuple!F[$-2];
-			alias a1 = ParameterTypeTuple!F[$-3];
-			return F(preparedArgs, v[0].get!a1, v[1].get!a2, v[2].get!a3);
-        }
-        else static if (missingArgCount == 4)
-        {
-            assert(v.length >= 3);
-            alias a4 = ParameterTypeTuple!F[$-1];
-            alias a3 = ParameterTypeTuple!F[$-2];
-            alias a2 = ParameterTypeTuple!F[$-3];
-            alias a1 = ParameterTypeTuple!F[$-4];
-            return F(preparedArgs, v[0].get!a1, v[1].get!a2, v[2].get!a3, v[2].get!a4);
-        }
-		else
-		{
-			pragma(msg, "Add support for more argments in CommandFunction. Only 4 supported now.");
-		}
+
+		assert(v.length >= nonInjectedArgsCount);
+
+		// Mixin magic to simply provide injected args and use v[0].get!parameterType!0 etc. for the rest or the args
+		mixin("return F(injectedArgs" ~ _setupArgs(nonInjectedArgsCount) ~ ");");
 	}
 
 	override void execute(CommandParameter[] v)

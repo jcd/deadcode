@@ -28,7 +28,11 @@ class Notice : Widget
 
     @property void mode(Mode m)
     {
-        _mode = m;
+        if (_mode != m)
+		{
+			_mode = m;
+			recalculateStyle();
+		}
     }
 
     @property void small(bool f)

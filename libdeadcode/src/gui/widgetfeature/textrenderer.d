@@ -141,7 +141,8 @@ class TextRenderer(Text) : WidgetFeature, Stylable
 	override EventUsed send(Event event, Widget widget)
 	{
 		// onTextDirty();
-		if (event.type == EventType.StyleSheetChanged)
+		import gui.event : GUIEvents;
+		if (event.type == GUIEvents.styleSheetChanged)
 			_textDirty = true;
 
 		return EventUsed.no;

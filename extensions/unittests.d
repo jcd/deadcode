@@ -93,13 +93,13 @@ class UnittestAnchor : GenericTextEditorAnchorWidget
 		this.app = app;
     }
 
-	override EventUsed onMouseOver(Event ev)
+	override EventUsed onMouseOverEvent(MouseOverEvent ev)
 	{
 		window.mouseCursor = MouseCursor.hand;
 		return EventUsed.yes;
 	}
 
-	override EventUsed onMouseDown(Event ev)
+	override EventUsed onMousePressedEvent(MousePressedEvent ev)
 	{
 		return EventUsed.yes;
 	}
@@ -127,7 +127,7 @@ class UnittestAnchor : GenericTextEditorAnchorWidget
 		return EventUsed.yes;
 	}
 
-	override EventUsed onMouseClick(Event ev)
+	override EventUsed onMouseClickedEvent(MouseClickedEvent ev)
 	{
 		app.pushCommandCall(CommandCall("dub.runModuleUnittests"));
 	    return EventUsed.yes;

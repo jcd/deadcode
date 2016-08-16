@@ -2,6 +2,7 @@ module gui.gui;
 
 import animation.timeline;
 import dccore.command;
+import dccore.ctx;
 import core.time;
 import gui;
 import gui.locations;
@@ -22,16 +23,20 @@ class GUI
 		bool running;
 		Window[WindowID] _windows;
 		GraphicsSystem _graphicsSystem;
-		EventQueue _eventQueue;
+		//EventQueue _eventQueue;
 		Uint32 _lastTick;
 		Uint32 _lastScrollTick;
-        Uint32[] _customEventTypes;
+		
+		CtxVar!(MainEventSource) eventSource;
 
         class Timeout
 		{
 			bool done;
 			int msNext;
             ulong id;
+			shared(TimeoutEvent) ev;
+			int msInit;
+
             static sNextID = 1;
             this()
             {
@@ -44,7 +49,6 @@ class GUI
 		{
 			Fn fn;
 			Args args;
-			int msInit;
 
 			this(int ms, Fn f, Args a)
 			{
@@ -92,7 +96,7 @@ class GUI
 
 	mixin Signal!string onFileDropped;
 	mixin Signal!() onActivity;
-	mixin Signal!(Event*) onEvent;
+	mixin Signal!Event onEvent;
 
 	/*
 	static @property GUI the()
@@ -109,6 +113,7 @@ class GUI
 		import platform.system;
 		import gui.resources;
 		auto g = new GUI(gs is null ? new graphics.graphicssystem.OpenGLSystem() : gs);
+        g._graphicsSystem.init();
         the = g;
 		g.ioManager = new io.iomanager.IOManager;
 		// g.ioManager.add(new io.iomanager.ScanProtocol);
@@ -147,7 +152,7 @@ class GUI
 	{
 		// _the = this;
 		_graphicsSystem = gs;
-		_eventQueue = new EventQueue();
+		//_eventQueue = new EventQueue();
 		timeline = new Timeline;
 	}
 
@@ -168,11 +173,6 @@ class GUI
 		SDL_StartTextInput();
 		running = true;
 	}
-
-    void registerCustomEventType(Uint32 t)
-    {
-        _customEventTypes ~= t;
-    }
 
     void run()
 	{
@@ -252,6 +252,19 @@ class GUI
                          zone.info, hnsToMS(zone.duration), hnsToS(zone.startTime), hnsToS(zone.endTime));
             }
         }
+    
+		foreach(var; profiler.profileData.variableRange.filter!(z => z.name == "drawCount"))
+		{
+			output("    drawCount : %s\n", var);
+		}
+		foreach(var; profiler.profileData.variableRange.filter!(z => z.name == "drawFeatureCount"))
+		{
+			output("    drawFeatureCount : %s\n", var);
+		}
+		foreach(var; profiler.profileData.variableRange.filter!(z => z.name == "eventCount"))
+		{
+			output("    eventCount : %s\n", var);
+		}
     }
 
 	void stop()
@@ -261,6 +274,7 @@ class GUI
 
     struct TimeoutHandle
     {
+        static ulong _nextID = 1;
         GUI gui;
         ulong id;
         bool abort()
@@ -273,23 +287,54 @@ class GUI
 
     TimeoutHandle timeout(Fn, Args...)(Duration d, Fn fn, Args args)
 	{
+		import std.variant;
 		auto to = new FnTimeout!(Fn,Args)(cast(int)d.total!"msecs", fn, args);
+		auto data = TimeoutHandle(this, to.id);
+		to.ev = eventSource.scheduleTimeout(d, Variant(data)); 
         _timeouts ~= to;
-        return TimeoutHandle(this, to.id);
+        return data;
 	}
 
-    bool abortTimeout(ulong id)
-    {
-        assumeSafeAppend(_timeouts);
+	void handleTimeout(ulong id)
+	{		
+		import std.variant;
 
 		for (size_t i = _timeouts.length; i > 0; --i)
 		{
             size_t idx = i - 1;
             if (_timeouts[idx].id == id)
 			{
+				bool rerun = _timeouts[idx].onTimeout();
+				if (rerun)
+				{
+					auto data = TimeoutHandle(this, id);
+					_timeouts[idx].ev = eventSource.scheduleTimeout(dur!"msecs"(_timeouts[idx].msInit), Variant(data));
+			    }
+				else
+    {
+					// Remove from list.
+					_timeouts[idx] = _timeouts[$-1];
+					_timeouts.length -= 1;
+        assumeSafeAppend(_timeouts);
+				}
+				break;
+            }
+        }
+	}
+
+    bool abortTimeout(ulong id)
+    {
+        assumeSafeAppend(_timeouts);
+		for (size_t i = _timeouts.length; i > 0; --i)
+		{
+            size_t idx = i - 1;
+            if (_timeouts[idx].id == id)
+			{
+				eventSource.abortTimeout(_timeouts[idx].ev);
                // Remove from list.
                _timeouts[idx] = _timeouts[$-1];
                _timeouts.length -= 1;
+			    assumeSafeAppend(_timeouts);
                 return true;
             }
         }
@@ -309,7 +354,6 @@ class GUI
         }
         else
         {
-            auto frameZone = Zone(profiler, "handleEvents");
             handleEvents(waitForEvents);
         }
 
@@ -334,6 +378,9 @@ class GUI
 
 		{
             auto frameZone = Zone(profiler, "draw");
+			//import graphics.mesh : Mesh;
+			//Mesh.numDrawCalls = 0;
+			//Mesh.numBufferUploads= 0;
 
 		    foreach (k, v; _windows)
 		    {
@@ -345,11 +392,57 @@ class GUI
                  //writeln("draw ", _lastTick, " ", k);
                 v.draw();
 		    }
+			import dccore.log;
+			//log.i("Draws %s BufferUploads %s", Mesh.numDrawCalls, Mesh.numBufferUploads);
         }
 	}
 
 	private void handleEvents(bool waitForEvents)
 	{
+		int eventsHandled = 0;
+		auto frameZonex = Zone(profiler, "handleEvents");
+		if (!eventSource.empty())
+		{
+			if (!waitForEvents && eventSource.nextWillBlock())
+				return;
+			do
+			{
+				Event e;
+				{
+					//auto frameZone = Zone(profiler, "popEvent");
+					e = eventSource.front;
+					eventSource.popFront();
+				}
+				{
+					//auto frameZone = Zone(profiler, "dispatchEvent");
+					bool doDispatch = true;
+					if (e.type == CoreEvents.timeout)
+					{
+						auto toev = cast(TimeoutEvent) e;
+						auto timeoutHandle = toev.userData.peek!TimeoutHandle;
+						if (timeoutHandle !is null)
+						{
+							handleTimeout(timeoutHandle.id);
+							doDispatch = false;
+						}
+					}
+	
+					if (doDispatch)
+						dispatchEvent(e);
+				}
+				{
+					//auto frameZone = Zone(profiler, "disposeEvent");
+					e.dispose();
+				}
+				++eventsHandled;
+			}
+			while (!eventSource.nextWillBlock());
+		}
+
+		frameZonex.variableEvent!"eventCount"(eventsHandled);
+
+		/+
+
 		static import std.algorithm;
         Uint32 curTick = SDL_GetTicks();
 		_lastTick = curTick;
@@ -423,12 +516,12 @@ class GUI
 
 
 		do {
-			Event queuedEvent = _eventQueue.dequeue();
-			while (queuedEvent.type != EventType.Invalid)
-			{
-				dispatchEvent(queuedEvent);
-				queuedEvent = _eventQueue.dequeue();
-			}
+			//Event queuedEvent = _eventQueue.dequeue();
+			//while (queuedEvent.type != EventType.Invalid)
+			//{
+			//    dispatchEvent(queuedEvent);
+			//    queuedEvent = _eventQueue.dequeue();
+			//}
 
 			if (!pollResult)
 				break;
@@ -483,7 +576,7 @@ class GUI
 					//    running = false;
 					ev.type = EventType.KeyDown;
 					ev.keyCode = e.key.keysym.sym;
-                    ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..std.c.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
+                    ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..core.stdc.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
                     {
                         static import core.stdc.string;
                     	ev.ch = SDL_GetKeyName(e.key.keysym.sym)[0..core.stdc.string.strlen(SDL_GetKeyName(e.key.keysym.sym))].front;
@@ -581,19 +674,41 @@ class GUI
 			pollResult = SDL_PollEvent(&e);
 
 		} while (count-- > 0);
+	+/
 	}
 
 	private void dispatchEvent(Event e)
 	{
-        onEvent.emit(&e);
+        onEvent.emit(e);
 
         if (e.used)
             return;
 
-		auto w = e.windowID in _windows;
+		auto ge = cast(GUIEvent)e;
+		if (ge !is null)
+		{
+			auto w = ge.windowID in _windows;
 		if (w !is null)
-			w.dispatchEvent(e);
-		else if (e.type != EventType.AsyncCompletion)
+			{
+				w.dispatch(e);
+				return;
+			}
+			else if (e.type == GUIEvents.mouseMove)
+			{
+				// Probably a non-client move event
+				auto mm = cast(MouseMoveEvent)ge;
+				Vec2f screenRelPos = mm.position;
+				foreach (k, v; _windows)
+				{
+					// TODO: use v.id to lookup hwnd and get the exact window to target
+					mm.position = screenRelPos - v.position;
+					v.dispatch(mm);
+				}
+				return;
+			}
+		}
+		
+		if (e.type != GUIEvents.completed)
         {
             import std.stdio;
             debug writeln("Event with no window target received ", e);
@@ -610,25 +725,15 @@ class GUI
 
 	Window createWindow(string name = "MainWindow", int width = 1280, int height = 720)
 	{
-		Window win = new Window(name, width, height);
+		auto renderWin = new RenderWindow(name, width, height, eventSource.sink);
+		Window win = new Window(name, width, height, renderWin);
 		win.timeline = timeline;
 		if (activeWindow is null)
 			activeWindow = win;
 		_windows[win.id] = win;
 
-		Event ev;
-		ev.type = EventType.Resize;
-		Vec2f sz = win.size;
-		ev.width = cast(int)sz.x;
-		ev.height = cast(int)sz.y;
-		ev.windowID = win.id;
-		postEvent(ev);
-
+		Event ev = GUIEvents.create!WindowResizedEvent(win.id, win.size);
+		eventSource.put(ev); // queue event to be sent to the window after everything has been proper initialized (e.g. stylesheet)
 		return win;
 	}
-
-    void postEvent(Event ev)
-    {
-		_eventQueue.enqueue(ev);
-    }
 }

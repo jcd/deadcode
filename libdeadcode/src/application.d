@@ -1166,6 +1166,12 @@ class Application
 		_resizerWidget.alignToWindow(Anchor.BottomRight, _resizerWidget.rect.size);
 		_resizerWidget.name = "resizer";
 
+		Widget _hoverMoveWidget = new Widget(win, 0, 0, 24, 24);
+        _hoverMoveWidget.zOrder = 90f;
+		_hoverMoveWidget.alignToWindow(Anchor.TopLeft);	
+		_hoverMoveWidget.alignToWindow(Anchor.TopRight, Vec2f(-1,24));
+		_hoverMoveWidget.name = "mover";
+
 		// Layout setting dragger widget fill top 20px of mainWidget
 		//_draggerWidget.alignToWindow(Anchor.TopLeft, Vec2f(220, 24), Vec2f(0,0f));
 		//_draggerWidget.name = "dragger";

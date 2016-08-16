@@ -112,6 +112,16 @@ class Widget : Stylable
 	mixin Signal!(Event) onKeyboardFocusSignal;
 	mixin Signal!(Event) onKeyboardUnfocusSignal;
 
+	@property Window window() pure nothrow @safe
+	{
+		return _parent is null ? null : _parent.window;
+	}
+
+	@property const(Window) window() const pure nothrow @safe
+	{
+		return _parent is null ? null : _parent.window;
+	}
+
 	// Move features to managers
 	auto featuresByType(T)()
 	{
@@ -227,6 +237,8 @@ class Widget : Stylable
 	{
         if (!_recalculateStyle)
             return _computedStyle;
+		import util.profile;
+		auto frameZonex = Zone(profiler, "CalcStyle");
 
         _recalculateStyle = false;
 
@@ -418,7 +430,7 @@ class Widget : Stylable
     {
         if (_visible == v)
             return;
-        _visible = v;
+		_visible = v;
 
         if (_computedStyle)
         {
@@ -463,12 +475,12 @@ class Widget : Stylable
 
     protected bool _visible;
 
-	private void eventCallbackHelper(EventType t, EventUsed delegate(Event, Widget) del)
+	private void eventCallbackHelper(EventT)(EventType t, EventUsed delegate(EventT, Widget) del)
 	{
 		if (del is null)
 			events.remove(t);
 		else
-			events[t] = del;
+			events[t] = (Event e, Widget w) { return del(cast(EventT)e, w); } ;
 	}
 
 	@property
@@ -805,19 +817,19 @@ class Widget : Stylable
 			return _sizeDirty;
 		}
 
-		void onMouseClickCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.MouseClick, del); }
-		void onMouseOverCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.MouseOver, del); }
-		void onMouseOutCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.MouseOut, del); }
-		void onMouseScrollCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.MouseScroll, del); }
-		void onKeyDownCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyDown, del); }
-		void onKeyUpCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyUp, del); }
-		void onTextCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.Text, del); }
-		void onCommandCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.Command, del); }
+		void onMouseClickCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(GUIEvents.mouseClicked, del); }
+		void onMouseOverCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(GUIEvents.mouseOver, del); }
+		void onMouseOutCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(GUIEvents.mouseOut, del); }
+		void onMouseWheelCallback(EventUsed delegate(MouseWheelEvent, Widget) del) { eventCallbackHelper(GUIEvents.mouseWheel, del); }
+		void onKeyPressedCallback(EventUsed delegate(KeyPressedEvent, Widget) del) { eventCallbackHelper(GUIEvents.keyPressed, del); }
+		void onKeyReleasedCallback(EventUsed delegate(KeyReleasedEvent, Widget) del) { eventCallbackHelper(GUIEvents.keyReleased, del); }
+		void onTextCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(GUIEvents.text, del); }
+		void onCommandCallback(EventUsed delegate(CommandEvent, Widget) del) { eventCallbackHelper(GUIEvents.command, del); }
 
 
 		/// XXX: Doing cursor shapes! But these callbacks need to be signals because several listeners must be possible!.
-		void onKeyboardFocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyboardFocus, del); }
-		void onKeyboardUnfocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(EventType.KeyboardUnfocus, del); }
+		void onKeyboardFocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(GUIEvents.inputFocus, del); }
+		void onKeyboardUnfocusCallback(EventUsed delegate(Event, Widget) del) { eventCallbackHelper(GUIEvents.inputUnfocus, del); }
 	}
 
     void setFlexSize(FlexSize flexSize)
@@ -868,15 +880,6 @@ class Widget : Stylable
 		_rect.h = y;
 	}
 
-	@property Window window() pure nothrow @safe
-	{
-		return _parent is null ? null : _parent.window;
-	}
-
-	@property const(Window) window() const pure nothrow @safe
-	{
-		return _parent is null ? null : _parent.window;
-	}
 
 	/*
 	@property Application app()
@@ -1127,32 +1130,43 @@ class Widget : Stylable
 		this(NullWidgetID, x, y, width, height);
 	}
 
-	final EventUsed send(Event event)
+	EventUsed capture(Event ev, Widget target)
 	{
-		switch (event.type) with (EventType)
+		return EventUsed.no;
+	}
+
+	EventUsed onEvent(GUIEvent event)
+	{
+		auto t = event.type;
+    	
+		if (event.targetWidget == this)
 		{
-    		case KeyboardFocus:
-                onKeyboardFocusSignal.emit(event);
-                recalculateStyle();
-                break;
-    		case KeyboardUnfocus:
-                onKeyboardUnfocusSignal.emit(event);
-                recalculateStyle();
-                break;
-            case MouseOver:
-                recalculateStyle();
-                break;
-            case MouseOut:
-                recalculateStyle();
-                break;
-            case MouseDown:
-                recalculateStyle();
-                break;
-            case MouseUp:
-                recalculateStyle();
-                break;
-            default:
-                break;
+			if (t == GUIEvents.inputFocus)
+			{
+				onKeyboardFocusSignal.emit(event);
+				recalculateStyle();
+			}
+    		else if (t == GUIEvents.inputUnfocus)
+			{
+				onKeyboardUnfocusSignal.emit(event);
+				recalculateStyle();
+			}
+			else if (t == GUIEvents.mouseOver)
+			{
+				recalculateStyle();
+			}
+			else if (t == GUIEvents.mouseOut)
+			{
+				recalculateStyle();
+			}
+			else if (t == GUIEvents.mousePressed)
+			{
+				recalculateStyle();
+			}
+			else if (t == GUIEvents.mouseReleased)
+			{
+				recalculateStyle();
+			}
 		}
 
 		//if (event.type == EventType.KeyDown)
@@ -1161,7 +1175,7 @@ class Widget : Stylable
 
 		EventUsed used = EventUsed.no;
 
-		if (event.type == EventType.MouseClick)
+		if (event.type == GUIEvents.mouseClicked)
 		{
 		//	std.stdio.writeln("fdsaf");
 		}
@@ -1172,9 +1186,9 @@ class Widget : Stylable
 		}
 		else
 		{
-			handler = EventType.Default in events;
-			if (handler)
-				used = (*handler)(event, this);
+			//handler = EventType.Default in events;
+			//if (handler)
+			//    used = (*handler)(event, this);
 		}
 
 		auto bg = background;
@@ -1189,24 +1203,85 @@ class Widget : Stylable
 		}
 
 		if (used == EventUsed.no)
-			used = onEvent(event);
-
-		// Bubble up through parents
-		if (used == EventUsed.no && _parent !is null)
-		{
-			//std.stdio.writeln("parent ev");
-			used = parent.send(event);
-		}
+			used = dispatchEventsToHandlerMethods(event);
 
 		return used;
 	}
 
-	EventUsed onEvent(Event event)
+	// Call overrided onXXXEvent where XXX is the event type on this 
+	// widget. In case you override Widget.onEvent() you probably want to
+	// call this dispatch method if you do not handle the event yourself.
+	// The default implementation of Widget.onEvent() will call this method.
+	EventUsed dispatchEventsToHandlerMethods(Event event)
 	{
-		mixin(ctGenerateEventCallbackSwitch());
+		//enum code = ctGenerateEventCallbackSwitch(); 
+		//enum code = 
+		//pragma (msg, code);
+		//mixin(code);
+		return GUIEvents.dispatch(this, event);
 	}
 
-	mixin(ctGenerateEventCallbacks());
+	EventUsed onMouseMoveEvent(MouseMoveEvent e)
+	{
+		return EventUsed.no;
+	}
+
+	EventUsed onMouseOverEvent(MouseOverEvent e)
+	{
+		return EventUsed.no;
+	}
+
+	EventUsed onMouseOutEvent(MouseOutEvent e)
+	{
+		return EventUsed.no;
+	}
+
+	EventUsed onMouseWheelEvent(MouseWheelEvent e)
+	{
+		return EventUsed.no;
+	}
+
+	EventUsed onMousePressedEvent(MousePressedEvent e)
+	{
+		return EventUsed.no;
+	}
+
+	EventUsed onMouseReleasedEvent(MouseReleasedEvent e)
+	{
+		return EventUsed.no;
+	}
+
+	EventUsed onMouseClickedEvent(MouseClickedEvent e)
+	{
+		return EventUsed.no;
+	}
+
+	EventUsed onMouseDoubleClickedEvent(MouseDoubleClickedEvent e)
+	{
+		return EventUsed.no;
+	}
+
+	EventUsed onMouseTripleClickedEvent(MouseTripleClickedEvent e)
+	{
+		return EventUsed.no;
+	}
+
+	EventUsed onKeyPressedEvent(KeyPressedEvent e)
+	{
+		return EventUsed.no;
+	}
+
+	EventUsed onKeyReleasedEvent(KeyReleasedEvent e)
+	{
+		return EventUsed.no;
+	}
+
+	EventUsed onCommandEvent(CommandEvent e)
+	{
+		return EventUsed.no;
+	}
+
+	// mixin(ctGenerateEventCallbacks());
 
 	protected void drawFeatures()
 	{
@@ -1217,6 +1292,7 @@ class Widget : Stylable
 		// Draw features
 		foreach (f; features)
 		{
+			drawFeatureCalls++;
 			f.draw(this);
 		}
 	}
@@ -1320,6 +1396,9 @@ class Widget : Stylable
 
 	void updateLayout(bool fit, Widget positionReference)
 	{
+		if (!visible || w() == 0)
+			return;
+
         import std.array;
 
         Style st = style;
@@ -1351,9 +1430,12 @@ class Widget : Stylable
 		layoutRecurse(fit, positionReference);
 	}
 
+	static int drawCalls;
+	static int drawFeatureCalls;
 	void draw()
 	{
-		if (!visible)
+		drawCalls++;
+		if (!visible || w() == 0)
 			return;
 
 		drawFeatures();

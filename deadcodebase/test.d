@@ -189,7 +189,7 @@ mixin template registerUnittests()
 			            //enum name = __traits(identifier, test)[11..$];
 			            //enum linen = name[0.. indexOf(name, "_")];
 			            //import std.stdio;
-                        writeln("Aggregate Unittest: " ~ __traits(identifier, tst));
+                        writeln("Aggregate Unittest: ", __traits(identifier, __traits(parent,__traits(parent, a))), " ", __traits(identifier, tst));
 
 			            //if (textAnchor.number+1 == linen.to!uint)
 			            //{
@@ -227,30 +227,62 @@ void Assert(T, V)(lazy T thisExp, lazy V isEqualToThisExp, string msg = "", stri
 
 void AssertRangesEqual(T, V)(lazy T thisExp, lazy V isEqualToThisExp, string msg = "", string file = __FILE__, int line = __LINE__, string func = __FUNCTION__)
 {
+	import std.range;
+	import std.array;
 	auto r1 = thisExp();
 	auto r2 = isEqualToThisExp();
 
+	static if (__traits(compiles, r1.length == r2.length))
+	{
+		if (r1.length != r2.length)
+		{
+			recordTestResult(false, text("length of ", r1, " == length of ", r2), msg ~ " " ~ func, file, line, func);
+			return;
+		}
+	}
+
     int count = 0;
-    while (!r1.empty && !r2.empty)
+    auto app1 = appender!string;
+	app1.put("[");
+    auto app2 = appender!string;
+	app2.put("[");
+	string testMsg = null;
+	while (!r1.empty || !r2.empty)
     {
-        count++;
-        recordTestResult(r1.front == r2.front, text(r1.front, " == ", r2.front), msg ~ " " ~ func, file, line, func);
-        r1.popFront();
-        r2.popFront();
+		if (testMsg is null && (r1.empty || r2.empty))
+		{
+			if (testMsg !is null)
+				testMsg = text("length of ", r1, " == length of ", r2, ". ");
     }
 
-    if (r1.empty != r2.empty)
+		if (testMsg is null && !r1.empty && !r2.empty && r1.front != r2.front)
     {
-        static if (__traits(compiles, r1.length == r2.length))
-            recordTestResult(false, text("length of ", r1, " == length of ", r2), msg ~ " " ~ func, file, line, func);
-        else
+			testMsg = text("ranges differs at index ", count, ". ");
+		}
+
+		if (!r1.empty)
         {
-            if (r1.empty)
-                recordTestResult(false, text("length of not equal. Got ", count, " prefix length in first"), msg ~ " " ~ func, file, line, func);
-            else
-                recordTestResult(false, text("length of not equal. Got ", count, " prefix length in latter"), msg ~ " " ~ func, file, line, func);
+			if (count != 0)
+				app1.put(", ");
+			app1.put(r1.front.to!string);
+			r1.popFront();
         }
+
+		if (!r2.empty)
+		{
+			if (count != 0)
+				app2.put(", ");
+			app2.put(r2.front.to!string);
+			r2.popFront();
     }
+		count++;
+    }
+	app1.put("]");
+	app2.put("]");
+
+	app1.put(" == ");
+	app1.put(app2.data);
+	recordTestResult(testMsg is null, testMsg ~ app1.data, msg ~ " " ~ func, file, line, func);
 }
 
 immutable string ANSI_RED = "\x1b[31m";

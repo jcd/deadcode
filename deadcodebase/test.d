@@ -125,11 +125,14 @@ void Assert(lazy bool expMustBeTrue, string msg = "", string file = __FILE__, in
 	// writeln("Test ", file, "@", line, " ", msg, ": ", res ? "OK" : "FAILED");
 }
 
+
+// Mixing in this will scan the module and its aggregates for unittests and register them
+// making it possible to run them at will later.
 mixin template registerUnittests()
 {
     version(unittest)
     {
-	    static this()
+	    shared static this()
 	    {
 		    import std.typetuple;
 		    int a;

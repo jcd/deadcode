@@ -89,12 +89,16 @@ class DirectionalLayout(bool isHorz) : ILayout
 				//    continue;
 
 				// no more room to in parent widget to layout children
-				w.visible = r.y < rect.y2;
+				// w.visible = r.y < rect.y2;
 
 				// r.h = w.preferredSize.y;
 				Vec2f childSizeStyled = w.size;
-				r.w = childSizeStyled.x;
 				r.h = childSizeStyled.y;
+
+				if (r.y < rect.y2)
+					r.w = childSizeStyled.x;
+				else
+					r.w = 0; // collapse to skip rendering this child
 
 				if (r.y2 > rect.y2)
 				{
@@ -112,7 +116,7 @@ class DirectionalLayout(bool isHorz) : ILayout
 				//if (w.id == 8)
 				//    std.stdio.writeln("w8 pos ", w.pos.y);
 
-				r.pos.y += r.h;
+				r.pos.y += r.h + 1.0; // 1 to prevent overlap
 			}
 
 			// If there is any space left then give it to the last widget

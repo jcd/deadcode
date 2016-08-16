@@ -72,8 +72,10 @@ class Tree : Widget
 	@property void hidden(bool b)
 	{
 		if (_hidden != b)
+		{
 			_hidden = b;
-
+			recalculateStyle();
+		}
 		if (!_hidden)
 			setKeyboardFocusWidget();
 	}

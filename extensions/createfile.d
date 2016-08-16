@@ -19,7 +19,7 @@ void newExtension(Application app)
 	import dccore.path;
 
 
-	//auto base = buildNormalizedPath(app.resourceURI("./", ResourceBaseLocation.currentDir).uriString, "extensions/myext.d");
+	//auto base = buildNormalizedPath(app.resourceURI("./", PathBase.currentDir).uriString, "extensions/myext.d");
 	//b.name = base;
 	// b.name = "New extension";
 	b.insert(q"{module extensions.myext;
@@ -48,7 +48,7 @@ void newWidget(Application app)
 	import dccore.path;
 
 
-	//auto base = buildNormalizedPath(app.resourceURI("./", ResourceBaseLocation.currentDir).uriString, "extensions/myext.d");
+	//auto base = buildNormalizedPath(app.resourceURI("./", PathBase.currentDir).uriString, "extensions/myext.d");
 	//b.name = base;
 	// b.name = "New extension";
 	b.insert(q"{module extensions.mywidget;

@@ -248,6 +248,7 @@ double rank( string a, string b, double fuzziness = 0.0 )
 
 unittest
 {
+	import dccore.log;
 	void t(string a, string b, double expected = -1)
 	{
 		import std.stdio;

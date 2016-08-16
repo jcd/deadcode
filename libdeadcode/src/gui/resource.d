@@ -790,6 +790,8 @@ version(unittest)
 
 	class DummySerializer : ResourceSerializer!Dummy
 	{
+		import std.array;
+
 		override bool canRead() pure const nothrow { return true; }
 
 		override bool canHandle(URI uri)

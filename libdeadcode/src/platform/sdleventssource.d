@@ -1,5 +1,6 @@
 module platform.sdleventssource;
 
+import core.time : Duration;
 import dccore.event : MainEventSource, Event;
 import gui.event;
 import gui.keycode;

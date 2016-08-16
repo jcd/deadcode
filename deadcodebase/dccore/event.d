@@ -1,6 +1,6 @@
 module dccore.event;
 
-import std.datetime : SysTime, Clock;
+import std.datetime : SysTime, Clock, Duration, dur;
 import std.typecons : Tuple, AliasSeq;
 import std.variant;
 
@@ -817,8 +817,9 @@ version (unittest)
 				bool gotSome = 
 					receiveTimeout(timeout_,
 						(immutable(Event) ev) { 
-							pollEvent = cast(EvBase)ev;
-							pollEvent.source = 1;
+							auto e = cast(EvBase)ev;
+							pollEvent = e;
+							e.source = 1;
 						},
 						(bool sig) {
 						}

@@ -65,6 +65,7 @@ auto filesystemCompletions(string path)
 
 
 @InFiber()
+@MenuItem("File/Save Quick")
 void fileSave(BufferView buf, Application app)
 {
 	import std.algorithm;
@@ -76,7 +77,7 @@ void fileSave(BufferView buf, Application app)
 	}
 	else
 	{
-		string defaultPath = app.resourceURI("./", ResourceBaseLocation.currentDir).uriString;
+		string defaultPath = app.resourceURI("./", PathBase.currentDir).uriString;
 		string dn = buf.name.dirName;
 		if (dn.length && dn != "." && exists(buf.name.dirName))
 		{
@@ -128,6 +129,72 @@ void fileSave(BufferView buf, Application app)
 	}
 }
 
+@InFiber()
+@MenuItem("File/Save")
+void fileSaveNativeDialog(BufferView buf, Application app)
+{
+	import std.algorithm;
+	import std.file;
+	import std.path;
+	if (buf.isPersistant)
+	{
+		fileSaveAs(buf, app, buf.name);
+	}
+	else
+	{
+		string defaultPath = app.resourceURI("./", PathBase.currentDir).uriString;
+		string dn = buf.name.dirName;
+		if (dn.length && dn != "." && exists(buf.name.dirName))
+		{
+			if (!buf.name.isAbsolute())
+				defaultPath = buildNormalizedPath(defaultPath, buf.name);
+			else
+				defaultPath = buf.name;
+		}
+		else if (auto h = buf.codeModel) // probably a d file so lets guess on that
+		{
+			import edit.language;
+			h.updateAST();
+			auto spath = h.getSuggestedPath();
+			if (spath.length)
+			{
+				if (!spath.isAbsolute())
+					defaultPath = buildNormalizedPath(defaultPath, spath);
+				else
+					defaultPath = spath;
+			}
+		}
+
+
+		auto p = app.yieldPrompt("Save as", defaultPath,
+                                 (string prefix) {
+									 import std.file;
+									 return !exists(prefix);
+                                 },
+								 (string prefix) {
+									 return filesystemCompletions(prefix);
+									 //CompletionEntry[] result;
+									 // result ~= CompletionEntry("foo1", "bar1");
+									 // result ~= CompletionEntry("foo2", "bar2");
+									 // result ~= CompletionEntry("foo3", "bar3");
+									 //return result;
+								 }
+								 );
+		if (p.success)
+        {
+			fileSaveAs(buf, app, p.answer);
+			if (buf.codeModel is null)
+            {
+				import edit.language;
+				auto dinfo = manager().lookupByFileExtension(extension(buf.name));
+				if (dinfo !is null)
+					buf.codeModel = dinfo.createModel(buf);
+            }
+        }
+	}
+}
+
+
 void fileSaveAs(BufferView buf, Application app, string filename)
 {
     static import std.stdio;
@@ -141,9 +208,10 @@ void fileSaveAs(BufferView buf, Application app, string filename)
 }
 
 @InFiber()
+@MenuItem("File/Open Quick")
 void fileOpen(Application app)
 {
-	auto filePath = app.resourceURI("./", ResourceBaseLocation.currentDir).uriString ~ "/";
+	auto filePath = app.resourceURI("./", PathBase.currentDir).uriString ~ "/";
 	auto p = app.yieldPrompt("Open", filePath,
 							 (string prefix) {
                                  import std.file;
@@ -155,4 +223,16 @@ void fileOpen(Application app)
 							 );
 	if (p.success)
 		app.openFile(p.answer);
+}
+
+@MenuItem("File/Open")
+void fileOpenNativeDialog(Application app)
+{
+	import platform.dialog;
+	import std.file;
+
+	auto filePath = app.resourceURI("./", PathBase.currentDir).uriString ~ "/";
+	auto p = showSelectFolderDialogBasic(filePath);
+	if (p !is null && exists(p) && isFile(p))
+		app.openFile(p);
 }

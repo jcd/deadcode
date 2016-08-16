@@ -265,7 +265,7 @@ class DCompletionExtension : Extension
 	{
         import extensions.dub;
         startServer();
-        app.onResourceBaseLocationChanged.connect(&updateResourceBaseLocations);
+        app.onPathBaseChanged.connect(&updatePathBases);
         getExtension!Dub.onActivePackageChanged.connect(&packageChanged);
     }
 
@@ -274,9 +274,9 @@ class DCompletionExtension : Extension
         stopServer();
     }
 
-    private void updateResourceBaseLocations(uint changedLocations)
+    private void updatePathBases(uint changedLocations)
     {
-        bool restart = (changedLocations & ResourceBaseLocation.binariesDir) != 0;
+        bool restart = (changedLocations & PathBase.binariesDir) != 0;
 
         if (restart)
         {
@@ -294,12 +294,12 @@ class DCompletionExtension : Extension
 	void startServer()
 	{
 		import platform.config;
-        string execPath = app.resourceURI("dcd-server", ResourceBaseLocation.binariesDir).uriString().defaultExecExtension();
+        string execPath = app.resourceURI("dcd-server", PathBase.binariesDir).uriString().defaultExecExtension();
         import std.file;
         if (!exists(execPath))
-            execPath = app.resourceURI("binaries/dcd-server", ResourceBaseLocation.binariesDir).uriString().defaultExecExtension();
+            execPath = app.resourceURI("binaries/dcd-server", PathBase.binariesDir).uriString().defaultExecExtension();
         
-		string cwd = app.resourceURI("", ResourceBaseLocation.currentDir).uriString();
+		string cwd = app.resourceURI("", PathBase.currentDir).uriString();
         try
         {
             // TODO: Fetch -I info from dub file
@@ -322,7 +322,7 @@ class DCompletionExtension : Extension
             }
             import std.stdio;
 
-            string completionLogPath = app.resourceURI("dcd-server.log", ResourceBaseLocation.userDataDir).uriString();
+            string completionLogPath = app.resourceURI("dcd-server.log", PathBase.userDataDir).uriString();
 		    if (_logFile.isOpen())
 		        _logFile.close();
 			import std.string;

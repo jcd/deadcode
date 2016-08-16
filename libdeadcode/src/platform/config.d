@@ -5,31 +5,174 @@ import dccore.path;
 static import dccore.uri;
 import std.format : format;
 
-private string _resourcesRoot;
-private string _binariesRoot;
-
 enum appName = "DeadCode";
+
+// DEPRECTATED APU. Use Paths instead.
+dccore.uri.URI resourceURI(string path, PathBase base = PathBase.userDataDir)
+{
+    return new dccore.uri.URI(paths.based(base, path));
+}
+
+/** The location that is use as base for relative paths/URIs.
+*/
+enum PathBase : uint
+{
+	currentDir = 1,    /// The current working directory
+	executableDir = 2, /// The dir of this executable
+	resourceDir = 4,   /// The default resources dir
+	binariesDir = 8,   /// The default binary helper executables dir
+	userDataDir = 16,  /// The user data dir which is platform specific
+	sessionDir = 32,   /// Session temporary dir. Is cleared upon start and stop of app.
+	homeDir = 64,      /// The user home dir which is platform specific
+}
+
+@CtxAutoCreate
+class Paths
+{
+	enum CtxAutoCreate = true; 
+
+	void setResourcesRoot(string r)
+	{
+		_resourcesRoot = r;
+	}
+
+	void setBinariesRoot(string r)
+	{
+		_binariesRoot = r;
+	}
+
+	string current(string relativePath = null) const 
+	{
+		return based(PathBase.currentDir, relativePath);
+	}
+
+	string executable(string relativePath = null) const 
+	{
+		return based(PathBase.executableDir, relativePath);
+	}
+
+	string resource(string relativePath = null) const 
+	{
+		return based(PathBase.resourceDir, relativePath);
+	}
+
+	string binary(string relativePath = null) const 
+	{
+		return based(PathBase.binariesDir, relativePath);
+	}
+
+	string userData(string relativePath = null) const 
+	{
+		return based(PathBase.userDataDir, relativePath);
+	}
+
+	string session(string relativePath = null) const 
+	{
+		return based(PathBase.sessionDir, relativePath);
+	}
+
+	string home(string relativePath = null) const 
+	{
+		return based(PathBase.homeDir, relativePath);
+	}
+
+	string based(PathBase base, string relativePath = null) const
+	{
+		if (isAbsolute(relativePath))
+		{
+			auto res = new dccore.uri.URI(relativePath);
+			res.normalize();
+			return res.uriString;
+		}
+
+		import core.stdc.string;
+		string basePath;
+		final switch (base)
+		{
+			case PathBase.currentDir:
+				basePath = absolutePath(std.file.getcwd());
+				break;
+			case PathBase.executableDir:
+				basePath = absolutePath(std.file.thisExePath().dirName());
+				break;
+			case PathBase.resourceDir:
+				basePath = _resourcesRoot;
+				break;
+			case PathBase.binariesDir:
+				basePath = _binariesRoot;
+				break;
+			case PathBase.sessionDir:
+				// TODO: implement
+				std.stdio.writeln("Error: Implement sessionDir");
+				break;
+			case PathBase.userDataDir:
+				version (Windows)
+				{
+					char[MAX_PATH] buffer;
+					auto CSIDL_APPDATA = 0x001a;
+					void* dummy;
+					if (SHGetSpecialFolderPathA(dummy, buffer.ptr, CSIDL_APPDATA, 0) == TRUE)
+						basePath = absolutePath(buildPath(buffer[0..strlen(buffer.ptr)].idup, appName));
+					else
+						throw new Exception("Cannot get APPDATA dir");
+				}
+				version (linux)
+				{
+					import std.process;
+					import dccore.path;
+
+					string home = environment.get("XDG_DATA_HOME", expandTilde("~/.local/share"));
+					basePath = absolutePath(buildPath(home, appName));
+				}
+				break;
+			case PathBase.homeDir:
+				version (Windows)
+				{
+					char[MAX_PATH] buffer;
+					auto CSIDL_PROFILE = 0x0028;
+					void* dummy;
+					if (SHGetSpecialFolderPathA(dummy, buffer.ptr, CSIDL_PROFILE, 0) == TRUE)
+						basePath = buildPath(buffer[0..strlen(buffer.ptr)].idup);
+					else
+						throw new Exception("Cannot get HOME dir");
+				}
+				version (linux)
+				{
+					string home = expandTilde("~");
+					basePath = absolutePath(home);
+				}
+				break;
+		}
+
+		auto u = new dccore.uri.URI(buildNormalizedPath(basePath, relativePath));
+		u.normalize();
+		return u.uriString;
+	}
+
+private:
+	string _resourcesRoot;
+	string _binariesRoot;
+}
+
+import dccore.ctx;
+
+// Convenience property for access cached Ctx.Get!Paths
+private CtxVar!Paths _paths;
+@property Paths paths()
+{
+	return _paths;
+}
 
 @property
 {
-    string resourcesRoot()
+    string resourcePath()
     {
-        return _resourcesRoot;
+        return paths.resource();
     }
 
-    void resourcesRoot(string r)
+    string binaryPath()
     {
-        _resourcesRoot = r;
-    }
-
-    string binariesRoot()
-    {
-        return _binariesRoot;
-    }
-
-    void binariesRoot(string r)
-    {
-        _binariesRoot = r;
+        return paths.binary();
     }
 }
 
@@ -185,91 +328,4 @@ version (linux)
     {
         return inPath;
     }
-}
-
-
-/** The location that is use as base for relative paths/URIs.
-*/
-enum ResourceBaseLocation : uint
-{
-	currentDir = 1,    /// The current working directory
-	executableDir = 2, /// The dir of this executable
-	resourceDir = 4,   /// The default resources dir
-	binariesDir = 8,   /// The default binary helper executables dir
-	userDataDir = 16,  /// The user data dir which is platform specific
-	sessionDir = 32,   /// Session temporary dir. Is cleared upon start and stop of app.
-	homeDir = 64,      /// The user home dir which is platform specific
-}
-
-dccore.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
-{
-    if (isAbsolute(path))
-    {
-        auto res = new dccore.uri.URI(path);
-        res.normalize();
-        return res;
-    }
-
-    import core.stdc.string;
-    string basePath;
-    final switch (base)
-    {
-        case ResourceBaseLocation.currentDir:
-            basePath = absolutePath(std.file.getcwd());
-            break;
-        case ResourceBaseLocation.executableDir:
-            basePath = absolutePath(std.file.thisExePath().dirName());
-            break;
-        case ResourceBaseLocation.resourceDir:
-            basePath = resourcesRoot;
-            break;
-        case ResourceBaseLocation.binariesDir:
-            basePath = binariesRoot;
-            break;
-        case ResourceBaseLocation.sessionDir:
-            // TODO: implement
-            std.stdio.writeln("Error: Implement sessionDir");
-            break;
-        case ResourceBaseLocation.userDataDir:
-            version (Windows)
-            {
-				char[MAX_PATH] buffer;
-				auto CSIDL_APPDATA = 0x001a;
-				void* dummy;
-				if (SHGetSpecialFolderPathA(dummy, buffer.ptr, CSIDL_APPDATA, 0) == TRUE)
-					basePath = absolutePath(buildPath(buffer[0..strlen(buffer.ptr)].idup, appName));
-				else
-					throw new Exception("Cannot get APPDATA dir");
-            }
-            version (linux)
-            {
-                import std.process;
-                import dccore.path;
-
-                string home = environment.get("XDG_DATA_HOME", expandTilde("~/.local/share"));
-                basePath = absolutePath(buildPath(home, appName));
-            }
-            break;
-        case ResourceBaseLocation.homeDir:
-            version (Windows)
-            {
-				char[MAX_PATH] buffer;
-				auto CSIDL_PROFILE = 0x0028;
-				void* dummy;
-				if (SHGetSpecialFolderPathA(dummy, buffer.ptr, CSIDL_PROFILE, 0) == TRUE)
-					basePath = buildPath(buffer[0..strlen(buffer.ptr)].idup);
-				else
-					throw new Exception("Cannot get HOME dir");
-            }
-            version (linux)
-            {
-                string home = expandTilde("~");
-                basePath = absolutePath(home);
-            }
-            break;
-    }
-
-    auto u = new dccore.uri.URI(buildNormalizedPath(basePath, path));
-    u.normalize();
-    return u;
 }

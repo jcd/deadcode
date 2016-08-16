@@ -16,7 +16,7 @@ version(unittest)
 {
     import test;
     mixin registerUnittests;
-	import dccore.copybuffer;
+	import edit.copybuffer;
 }
 
 // An action is reversible in regards to

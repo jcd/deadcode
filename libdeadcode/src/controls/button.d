@@ -24,8 +24,41 @@ class ButtonBase : Label
 
 	static ButtonBase isover;
 
+	override EventUsed onMousePressedEvent(MousePressedEvent e)
+	{
+		_state = State.loadedWithMouseOver;
+		return EventUsed.no;
+	}
+
+	override EventUsed onMouseReleasedEvent(MouseReleasedEvent e)
+	{
+		if (_state == State.loadedWithMouseOver)
+			activate();
+		_state = State.notLoaded;
+		return EventUsed.no;
+	}
+
+	override EventUsed onMouseOverEvent(MouseOverEvent e)
+	{
+		if (_state == State.loadedWithNoMouseOver)
+			_state = State.loadedWithMouseOver;
+		isover = this;
+		return EventUsed.no;
+	}
+
+	override EventUsed onMouseOutEvent(MouseOutEvent e)
+	{
+		if (_state == State.loadedWithMouseOver)
+			_state = State.loadedWithNoMouseOver;
+		return EventUsed.no;
+	}
+	
+	/*
 	override EventUsed onEvent(Event event)
 	{
+		if (super.onEvent(event) == EventUsed.yes)
+			return EventUsed.yes;
+
 		EventUsed used;
 		switch (event.type)
 		{
@@ -67,11 +100,13 @@ class ButtonBase : Label
 				break;
 		}
 
-		//if (!used)
+		//if (!used) 
+
+		// TODO: fix double call of onEvent in this method!!!
 			used = super.onEvent(event);
 		return used;
 	}
-
+*/
 	// TODO: This is a hack because std.signals does not support derived signals
 	protected void activate()
 	{
@@ -114,6 +149,7 @@ class ToggleButton : ButtonBase
 	override protected void activate()
 	{
 		isOn = !isOn;
+		recalculateStyle();
 		onToggled.emit(this);
 	}
 }

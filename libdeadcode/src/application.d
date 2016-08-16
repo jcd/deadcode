@@ -1341,9 +1341,15 @@ class Application
     private static string normalizePath(string path)
     {
         import platform.config;
-        auto de = statFilePathCase(path.absolutePath);
-		path = de.replace("\\", "/");
-        return path;
+        return statFilePathCase(path.absolutePath);
+    }
+
+	BufferView[] openFiles(Range)(Range paths, bool show = true)
+	{
+		BufferView[] result;
+		foreach (idx, p; paths)
+			result ~= openFile(p, show && idx == paths.length - 1);
+		return result;
     }
 
 	BufferView openFile(string path, bool show = true)

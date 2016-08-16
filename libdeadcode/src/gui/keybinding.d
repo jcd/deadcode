@@ -42,20 +42,20 @@ class KeySequence
 			// SHIFT     | yes    | yes    | yes   | no
 			// none      | no     | no     | no    | yes
 
-			auto shiftNeeded = mod & KeyMod.SHIFT;
-			auto shiftGotten = s.mod & KeyMod.SHIFT;
+			auto shiftNeeded = mod & KeyMod.shift;
+			auto shiftGotten = s.mod & KeyMod.shift;
 			auto shiftMatch = shiftNeeded & shiftGotten || shiftNeeded == shiftGotten;
 
-			auto ctrlNeeded = mod & KeyMod.CTRL;
-			auto ctrlGotten = s.mod & KeyMod.CTRL;
+			auto ctrlNeeded = mod & KeyMod.ctrl;
+			auto ctrlGotten = s.mod & KeyMod.ctrl;
 			auto ctrlMatch = ctrlNeeded & ctrlGotten || ctrlNeeded == ctrlGotten;
 
-			auto altNeeded = mod & KeyMod.ALT;
-			auto altGotten = s.mod & KeyMod.ALT;
+			auto altNeeded = mod & KeyMod.alt;
+			auto altGotten = s.mod & KeyMod.alt;
 			auto altMatch = altNeeded & altGotten || altNeeded == altGotten;
 
-			auto guiNeeded = mod & KeyMod.GUI;
-			auto guiGotten = s.mod & KeyMod.GUI;
+			auto guiNeeded = mod & KeyMod.gui;
+			auto guiGotten = s.mod & KeyMod.gui;
 			auto guiMatch = guiNeeded & guiGotten || guiNeeded == guiGotten;
 
 			return shiftMatch && ctrlMatch && altMatch && guiMatch;
@@ -110,32 +110,32 @@ class KeySequence
 	{
 		import std.array;
 		auto toks = split(strip(seq));
-		KeyMod mod = KeyMod.NONE;
+		KeyMod mod = KeyMod.none;
 
 		KeyMod stringToKeyMod(string s)
 		{
 			switch (s)
 			{
 			case "<ctrl>":
-				return KeyMod.CTRL;
+				return KeyMod.ctrl;
 			case "<lctrl>":
-				return KeyMod.RCTRL;
+				return KeyMod.rightCTRL;
 			case "<rctrl>":
-				return KeyMod.LCTRL;
+				return KeyMod.leftCTRL;
 			case "<alt>":
-				return KeyMod.ALT;
+				return KeyMod.alt;
 			case "<lalt>":
-				return KeyMod.LALT;
+				return KeyMod.leftALT;
 			case "<ralt>":
-				return KeyMod.RALT;
+				return KeyMod.rightALT;
 			case "<shift>":
-				return KeyMod.SHIFT;
+				return KeyMod.shift;
 			case "<lshift>":
-				return KeyMod.LSHIFT;
+				return KeyMod.leftShift;
 			case "<rshift>":
-				return KeyMod.RSHIFT;
+				return KeyMod.rightShift;
 			default:
-				return KeyMod.NONE;
+				return KeyMod.none;
 			}
 		}
 
@@ -147,7 +147,7 @@ class KeySequence
 				continue;
 
 			auto m = stringToKeyMod(tok);
-			if (m != KeyMod.NONE)
+			if (m != KeyMod.none)
 			{
 				mod = mod | m;
 
@@ -165,7 +165,7 @@ class KeySequence
 				tok = tok.chompPrefix("<").chomp(">");
 			}
 			sequence ~= Key(stringToKeyCode(tok), mod);
-			mod = KeyMod.NONE;
+			mod = KeyMod.none;
 		}
 		//std.stdio.writeln(sequence);
 	}

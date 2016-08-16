@@ -1,5 +1,6 @@
 module graphics.renderwindow;
 
+import dccore.event;
 import dccore.log;
 
 import derelict.opengl3.gl3;
@@ -93,20 +94,26 @@ class RenderWindow : RenderTarget
 		SDL_Window *win;
 		SDL_GLContext context;
 		Mat4f _MVP;
+		//EventOutputRange _eventSink;
+		//
+		//// TODO: make this non-static
+		//static FreeList!(Mallocator, __traits(classInstanceSize, MouseMoveEvent)) _mouseMoveEventAllocator;
 	}
 
-	override @property uint id() const
+	override @property uint id() const @nogc nothrow
 	{
 		return SDL_GetWindowID(cast(SDL_Window*)win);
 	}
 
-	this(const(char)[] name, Vec2i sz)
+	this(const(char)[] name, Vec2i sz, EventOutputRange es)
 	{
-		this(name, sz.x, sz.y);
+		this(name, sz.x, sz.y, es);
 	}
 
-	this(const(char)[] name, int width, int height)
+	this(const(char)[] name, int width, int height, EventOutputRange es)
 	{
+		// _eventSink = es;
+		
 		glViewSize = Vec2i(width, height);
 		SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
 		// SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);

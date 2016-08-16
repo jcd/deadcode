@@ -36,10 +36,13 @@ enum MouseCursor
 
 alias uint WindowID;
 
-class Window : Widget
+private T safeDeref(T)(T* d) if (is(T == class))
 {
-    private static import std.variant;
+	return d is null ? null : *d;
+}
 
+class Window : gui.widget.Widget
+{
 	// Return true if event has been used
 	alias EventUsed delegate(ref Event) OnEvent;
 	alias void delegate() OnUpdate;
@@ -48,8 +51,8 @@ class Window : Widget
 
 	private
 	{
-		OnEvent _onEvent;
-		OnUpdate _onUpdate;
+		//OnEvent _onEvent;
+		// 		OnUpdate _onUpdate;
 		RenderTarget _renderTarget;
 
 		Widget[WidgetID] widgets;
@@ -58,9 +61,10 @@ class Window : Widget
 		// to have name on all widgets and therefore the name is
 		// not a member of Widget.
 		Widget[string] widgetNameMap;
+		WidgetID _lastMouseWidgetID;
 	}
 
-	std.variant.Variant userData;
+	Variant userData;
 	WindowID id;
 	StyleSheet styleSheet;
 	Timeline timeline;
@@ -84,10 +88,10 @@ class Window : Widget
 
 	@property
 	{
-		void onEvent(OnEvent callback)
-		{
-			_onEvent = callback;
-		}
+		//void onEvent(OnEvent callback)
+		//{
+		//    _onEvent = callback;
+		//}
 
 		//void onUpdate(OnUpdate callback)
 		//{
@@ -146,7 +150,7 @@ class Window : Widget
 			return cast(MouseCursor) SDL_GetCursor();
 		}
 
-        private Uint32 windowFlags() const nothrow @trusted
+        private uint windowFlags() const nothrow @trusted
         {
             uint wid = 0;
             try
@@ -257,21 +261,17 @@ class Window : Widget
 
 	package void emitResizeEvent()
 	{
-		Event ev;
 		Vec2f sz = super.size;
-		ev.type = EventType.Resize;
-		ev.width = cast(int)sz.x;
-		ev.height = cast(int)sz.y;
-		ev.windowID = this.id;
-		dispatchEvent(ev);
+		Event ev = GUIEvents.create!WindowResizedEvent(this.id, sz);
+		dispatch(ev);
+		ev.dispose();
 	}
 
 	void onStyleSheetChanged()
 	{
-		Event ev;
-		ev.type = EventType.StyleSheetChanged;
-		ev.windowID = this.id;
-		dispatchEvent(ev);
+		Event ev = GUIEvents.create!StyleSheetChangedEvent(this.id);
+		dispatch(ev);
+		ev.dispose();
 	}
 
 	Rectf windowToWorld(Rectf r)
@@ -304,16 +304,16 @@ class Window : Widget
 		return _renderTarget.pixelHeightToWorld(y);
 	}
 
-	this(const(char)[] name, Vec2i sz)
-	{
-		this(name, sz.x, sz.y);
-	}
-
-	this(const(char)[] _name, int width, int height)
-	{
-		auto renderWin = new RenderWindow(_name, width, height);
-		this(_name, width, height, renderWin);
-	}
+	//this(const(char)[] name, Vec2i sz)
+	//{
+	//    this(name, sz.x, sz.y);
+	//}
+	//
+	//this(const(char)[] _name, int width, int height)
+	//{
+	//    auto renderWin = new RenderWindow(_name, width, height);
+	//    this(_name, width, height, renderWin);
+	//}
 
 	this(const(char)[] _name, int width, int height, RenderTarget _renderTarget)
 	{
@@ -322,7 +322,7 @@ class Window : Widget
 		setWidgetName(this, _name.idup);
 		id = _renderTarget.id;
 		register(this);
-		keyboardFocusWidget = this.id;
+		_keyboardFocusWidgetID = this.id;
 
 		// If there is no active window yet then activate this
 		if (Window.active is null)
@@ -338,8 +338,8 @@ class Window : Widget
 		//std.stdio.writeln("------------------------- ", p);
 		import std.typecons;
 
-		mouseWidgets.length = 0;
-		mouseWidgets.assumeSafeAppend();
+		_mouseWidgetStackIDs.length = 0;
+		_mouseWidgetStackIDs.assumeSafeAppend();
 
 		foreach (k; widgets.keys)
 		{
@@ -349,7 +349,7 @@ class Window : Widget
 			//if (w.visible && w.rectStyled.contains(p))
 			if (w.visible && w.rect.contains(p))
 			{
-				mouseWidgets ~= w.id;
+				_mouseWidgetStackIDs ~= w.id;
 
 				//std.stdio.writeln("hit ", w.name);
                 // TODO: make proper z-index stack order css property
@@ -399,27 +399,41 @@ class Window : Widget
 
 	override void draw()
 	{
-		_renderTarget.render(false);
-		super.draw();
-		_renderTarget.swapBuffers();
+		import util.profile;
+		{
+			auto frameZonex = Zone(profiler, "Draw1");
+			_renderTarget.render(false);
+		}
+		{
+			Widget.drawCalls = 0;
+			Widget.drawFeatureCalls = 0;
+			auto frameZonex = Zone(profiler, "Draw2");
+			super.draw();
+			frameZonex.variableEvent!"drawCount"(Widget.drawCalls);
+			frameZonex.variableEvent!"drawFeatureCount"(Widget.drawFeatureCalls);
+		}
+		{
+			auto frameZonex = Zone(profiler, "SwapBuffers");
+			_renderTarget.swapBuffers();
+		}
 	}
 
 	// The widget that the mouse left button has been clicked down on
-	private WidgetID downButtonWidget = NullWidgetID;
+	private WidgetID _downButtonWidgetID = NullWidgetID;
 
 	// The widget that has been clicked by the left mouse button
-	private WidgetID clickWidget = NullWidgetID;
+	private WidgetID _clickWidgetID = NullWidgetID;
 
 	// Number of times the click widget has been clicked. To detext double/triple... clicks
-	private int clickWidgetClicks = 0;
+	private int _clickWidgetClicks = 0;
 
-	private WidgetID mouseWidget = NullWidgetID; // top most
-	private WidgetID[] mouseWidgets = null; // all stack
-	private WidgetID mouseGrabbedBy = NullWidgetID;
-	private WidgetID keyboardFocusWidget = NullWidgetID;
+	private WidgetID _mouseWidgetID = NullWidgetID; // top most
+	private WidgetID[] _mouseWidgetStackIDs = null; // all stack
+	private WidgetID _mouseGrabbedByWidgetID = NullWidgetID;
+	private WidgetID _keyboardFocusWidgetID = NullWidgetID;
 
 	// The time of the last click on a widget in this window
-	private TickDuration clickWidgetTime;
+	private TickDuration _clickWidgetTime;
 
 	// The max time that can pass when another click
 	// is accepted as a double click
@@ -475,7 +489,7 @@ class Window : Widget
 		// send unfocus event only if any widget will accept the
 		// keyboard focus which is not always the case.
 
-		if (wid == keyboardFocusWidget)
+		if (wid == _keyboardFocusWidgetID)
 			return; // already in focus
 
 		auto wp = wid in widgets;
@@ -494,26 +508,32 @@ class Window : Widget
 			}
 		}
 
-		if ((keyboardFocusWidget == NullWidgetID && w is null) || wid == keyboardFocusWidget)
+		if ((_keyboardFocusWidgetID == NullWidgetID && w is null) || wid == _keyboardFocusWidgetID)
 			return; // Nothing to focus or unfocus OR already in focus
 
-		auto ow = keyboardFocusWidget in widgets;
+		auto ow = _keyboardFocusWidgetID in widgets;
 
 	    try
         {
             if (w !is null && w.acceptsKeyboardFocus)
 		    {
-			    keyboardFocusWidget = w.id;
+			    _keyboardFocusWidgetID = w.id;
 			    if (ow !is null)
                 {
-				    ow.send(Event(EventType.KeyboardUnfocus));
+					auto ufe = GUIEvents.create!InputUnfocusEvent(this.id);
+					propagateEvent(ufe, *ow);
+					ufe.dispose();
+				    //ow.send(ufe);
                 }
 
-			    w.send(Event(EventType.KeyboardFocus));
+				auto fe = GUIEvents.create!InputFocusEvent(this.id);
+			    propagateEvent(fe, w);
+				fe.dispose();
+				// w.send(fe);
 		    }
 		    else if (ow is null)
 		    {
-			    keyboardFocusWidget = id; // fallback to window as focus
+			    _keyboardFocusWidgetID = id; // fallback to window as focus
 		    }
         }
         catch (Exception e)
@@ -537,24 +557,24 @@ class Window : Widget
 
 	bool hasKeyboardFocus(const(Widget) w) const pure nothrow @safe
 	{
-		return keyboardFocusWidget == w.id;
+		return _keyboardFocusWidgetID == w.id;
 	}
 
 	WidgetID getKeyboardFocusWidgetID() nothrow
 	{
-		if (auto w = getWidget(keyboardFocusWidget))
+		if (auto w = getWidget(_keyboardFocusWidgetID))
             return w.id;
         return NullWidgetID;
 	}
 
 	Widget getKeyboardFocusWidget()
 	{
-		return getWidget(keyboardFocusWidget);
+		return getWidget(_keyboardFocusWidgetID);
 	}
 
 	bool isMouseOverWidget(const(Widget) w) const pure nothrow @safe
 	{
-		foreach (hitID; mouseWidgets)
+		foreach (hitID; _mouseWidgetStackIDs)
 			if (hitID == w.id)
 				return true;
 		return false;
@@ -563,69 +583,35 @@ class Window : Widget
 
 	bool isMouseDirectlyOverWidget(const(Widget) w) const pure nothrow @safe
 	{
-		return mouseWidget == w.id;
+		return _mouseWidgetID == w.id;
 	}
 
 	bool isMouseDownWidget(const(Widget) w) const pure nothrow @safe
 	{
-		return downButtonWidget != NullWidgetID && isMouseOverWidget(w);
+		return _downButtonWidgetID != NullWidgetID && isMouseOverWidget(w);
 	}
 
 	bool isMouseDirectlyDownWidget(const(Widget) w) const pure nothrow @safe
 	{
-		return downButtonWidget == w.id;
+		return _downButtonWidgetID == w.id;
 	}
 
 	void grabMouse(const(Widget) w) pure nothrow @safe
 	{
-		assert(mouseGrabbedBy == NullWidgetID);
-		mouseGrabbedBy = w.id;
+		assert(_mouseGrabbedByWidgetID == NullWidgetID);
+		_mouseGrabbedByWidgetID = w.id;
 	}
 
 	bool isGrabbingMouse(const(Widget) w) const pure nothrow @safe
 	{
-		return w.id == mouseGrabbedBy;
+		return w.id == _mouseGrabbedByWidgetID;
 	}
 
 	override void releaseMouse() pure nothrow @safe
 	{
-		// assert(mouseGrabbedBy != NullWidgetID);
-		mouseGrabbedBy = NullWidgetID;
+		// assert(_mouseGrabbedByWidgetID != NullWidgetID);
+		_mouseGrabbedByWidgetID = NullWidgetID;
 	}
-
-/*
-	package void dispatchEvent(Event ev)
-	{
-		assert(ev.windowID == id);
-		if (ev.type == EventType.Invalid)
-			return;
-
-		bool hasCallback = _onEvent !is null;
-		bool callbackUsedEvent = false;
-		if (hasCallback)
-			callbackUsedEvent = _onEvent(ev) == EventUsed.yes;
-
-		// Handle will be false if onEvent is not set or onEvent did not handle the event.
-		// In that case fall back.
-		if (!callbackUsedEvent)
-			dispatch(ev);
-	}
-*/
-
-	package void dispatchEvent(Event ev)
-	{
-		assert(ev.windowID == id);
-		if (ev.type == EventType.Invalid)
-			return;
-
-		if (_onEvent !is null && _onEvent(ev) == EventUsed.yes)
-			return;
-
-		auto eventUsed = dispatch(ev);
-		if (eventUsed == EventUsed.yes)
-			return;
-	}
-
 
 	/*
 TODO - Make event chains like osx in order to special handle "delete" and not only delete char but also update completions.
@@ -636,217 +622,389 @@ TODO:
 	/** Send an event to the GUI system
  	*
 	*  Returns: true if event is still valid ie. hasn't been used by an event handling function.
-	*/
-	EventUsed dispatch(Event event)
+	*/	
+
+	// Do event propagation towards the target widget w.
+	// First all ancestors of w have their captureEvent(Event e) method called
+	// which allow them to stop further event propagation by returning EventUsed.yes
+	// Then the w itself have its event(Even ev) method called. If it return EventUsed.no
+	// the event will bubble to its parent event(Event ev) method and so on.
+	private final EventUsed propagateEvent(GUIEvent ev, Widget w)
 	{
-		bool eventHasMousePos = event.type == EventType.MouseMove || event.type == EventType.MouseUp || event.type == EventType.MouseDown;
-		EventUsed used = EventUsed.no;
-		WidgetID lastMouseWidget = mouseWidget;
-
-		/*
-	static bool bubbleEvent(Widget* wi, Event ev)
-	{
-		Widget w = *wi;
-		bool valid = true;
-		do
+		static EventUsed capturePropagation(Event ev, Widget w, Widget target)
 		{
-			valid = w.send(ev);
-			w = w.parent;
-		}
-		while (valid && w !is null);
-		return valid;
-	}
-*/
-		if (event.type == EventType.MouseDown)
-		{
-            int a = 9;
-            a++;
-		}
-		if (event.type == EventType.MouseUp)
-		{
-			//std.stdio.writeln("Fdsa");
-		}
-
-		// !not all events have a mouse pos! remember last mouse pos if needed
-		if (eventHasMousePos)
-		{
-			auto _mouseWidget = getWidgetAtPos(event.mousePos);
-		//		if (event.mousePos.x < 0.0000001)
-		//			std.stdio.writeln("mousePos ", event.mousePos, " ", event.type); // Dbg only.
-			mouseWidget = _mouseWidget is null ? NullWidgetID : _mouseWidget.id;
-		}
-
-		if (mouseGrabbedBy)
-			mouseWidget = mouseGrabbedBy;
-
-		Widget * overWidget = null;
-		if (mouseWidget)
-			overWidget = mouseWidget in widgets;
-
-		// Send events to the found widget
-		//std.stdio.writeln(event.type);
-		switch (event.type)
-		{
-			case EventType.MouseMove:
-				if (lastMouseWidget != mouseWidget)
+			if (w is null)
+			{
+				return EventUsed.no;
+			}
+			else
+			{
+				if (capturePropagation(ev, w.parent, target) == EventUsed.no)
 				{
-					// If a click has been initiated by a mouse down and the mouse
-					// goes away from the widget the click is aborted.
-					downButtonWidget = NullWidgetID;
-					clickWidget = NullWidgetID;
-					clickWidgetClicks = 0;
-
-					// Handle mouse out events
-					if (lastMouseWidget != NullWidgetID)
-					{
-						Widget * outWidget = lastMouseWidget in widgets;
-
-						// Bubbling to parents lets a parent handle all out events for its children
-						// which can be convenient
-						if (outWidget)
-						{
-							event.type = EventType.MouseOut;
-							event.overWidgetID = overWidget is null ? NullWidgetID : overWidget.id;
-                            onDispatchEvent.emit(*outWidget, event);
-							outWidget.send(event);
-						}
-					}
-
-					// Handle mouse over event and mouse move event
-					if (overWidget)
-					{
-						event.type = EventType.MouseOver;
-						onDispatchEvent.emit(*overWidget, event);
-                        overWidget.send(event);
-						event.type = EventType.MouseMove;
-						used = overWidget.send(event);
-					}
-				}
-				else if (overWidget)
-				{
-					// Handle mouse move event
-					used = overWidget.send(event);
-				}
-				else
-				{
-					// If a click has been initiated by a mouse down and the mouse
-					// goes away from the widget the click is aborted.
-					downButtonWidget = NullWidgetID;
-					clickWidget = NullWidgetID;
-					clickWidgetClicks = 0;
-				}
-				break;
-			case EventType.MouseDown:
-				if (overWidget)
-				{
-					downButtonWidget = mouseWidget;
-					used = overWidget.send(event);
-					if (clickWidget != NullWidgetID)
-					{
-						// check for double and triple click
-						TickDuration tdur = TickDuration.currSystemTick;
-						float multiClickTime = tdur.to!("seconds",float)() - clickWidgetTime.to!("seconds",float)();
-						if (clickWidgetClicks == 1 && downButtonWidget == clickWidget && multiClickTime <= maxDoubleClickTime)
-						{
-							clickWidgetClicks++;
-						    event.type = EventType.MouseDoubleClick;
-							used = overWidget.send(event) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;
-						}
-						else if (clickWidgetClicks == 2 && downButtonWidget == clickWidget && multiClickTime <= maxDoubleClickTime*2f)
-						{
-	            			event.type = EventType.MouseTripleClick;
-							used = overWidget.send(event) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;
-
-							clickWidgetClicks = 0;
-                            clickWidget = NullWidgetID;
-						}
-						else
-						{
-							clickWidgetClicks = 0;
-							clickWidget = NullWidgetID;
-						}
-					}
-
-                    if (clickWidgetClicks == 0)
-                        clickWidgetTime = TickDuration.currSystemTick;
-				}
-				else
-				{
-					downButtonWidget = NullWidgetID;
-					clickWidget = NullWidgetID;
-					clickWidgetClicks = 0;
-				}
-				break;
-			case EventType.MouseUp:
-				if (overWidget)
-				{
-					used = overWidget.send(event);
-					// TickDuration tdur = TickDuration.currSystemTick;
-					// float doubleClickTime = tdur.to!("seconds",float)() - clickWidgetTime.to!("seconds",float)();
-					bool allowClick = clickWidgetClicks == 0; //  || (doubleClickTime > maxDoubleClickTime;
-
-					if (downButtonWidget == mouseWidget && allowClick)
-					{
-						clickWidgetClicks = 1;
-						event.type = EventType.MouseClick;
-						used = overWidget.send(event) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;
-						clickWidget = downButtonWidget;
-						setKeyboardFocusWidget(clickWidget);
-					}
-				}
-				downButtonWidget = NullWidgetID;
-				break;
-			case EventType.MouseScroll:
-				if (overWidget !is null)
-					overWidget.send(event);
-				break;
-			case EventType.KeyDown:
-			case EventType.KeyUp:
-			case EventType.Text:
-			case EventType.Command:
-
-				//std.stdio.writeln("dxx ", event.type, " ", keyboardFocusWidget);
-				if (keyboardFocusWidget != NullWidgetID)
-				{
-					Widget * w = keyboardFocusWidget in widgets;
-					if (w is null)
-						setKeyboardFocusWidget(NullWidgetID);
+					if (w is target)
+						return EventUsed.no; // target itself will get the event(Event ev) called. No need to capture.
 					else
-						used = w.send(event);
+						return w.capture(ev, target);
 				}
-				break;
-			case EventType.Resize:
-
-				updateLayout(false, this);
-
-				bool cont = false;
-				int maxIter = 5;
-				// Resize events will let widget do relayouts.
-				do
+				else
 				{
-					cont = false;
-					foreach (w; widgets)
-					{
-						cont |= w.send(event) == EventUsed.yes;
-					}
-				} while (cont && maxIter--);
+					return EventUsed.yes;
+				}
+			}
+		}
+		
+		ev.targetWidget = w;
 
-				break;
-			case EventType.StyleSheetChanged:
-				foreach (w; widgets)
-                {
-					w.send(event);
-                    w.recalculateStyle();
-                }
-				break;
-			default:
-				break;
+		if (capturePropagation(ev, w, w) ==  EventUsed.yes)
+			return EventUsed.yes;
+
+		onDispatchEvent.emit(w, ev);
+
+		// Bubble
+		while (w !is null && w.onEvent(ev) == EventUsed.no)
+			w = w.parent;
+
+		return w is null ? EventUsed.no : EventUsed.yes;
+	}
+
+	override EventUsed onEvent(GUIEvent event)
+	{
+		return EventUsed.no;
+	}
+
+	final EventUsed dispatch(Event event)
+	{
+		auto ev = cast(GUIEvent)event;
+		if (ev is null)
+			return EventUsed.no;
+
+		auto d = EventDispatcher(this);
+		return d.dispatch(ev);
+	}
+
+	// A separate EventDispatcher instance is used for the initial dispatching
+	// to onXXXEvent handlers for the window. This is because the events are initially
+	// processed here (possibly creating pseudo events like MouseOutEvent) and the the event
+	// is dispatched to the target widget (using capture/bubble). If the event ends up bubbling 
+	// back to the window it should not performt the same initial processing but simply ignore
+	// the event (or do whatever a class derived from window wants to do). Thus the need for
+	// an EventDispatcher.
+	private static struct EventDispatcher
+	{
+		private Window win;
+		alias win this;
+
+		this(Window w)
+		{
+			win = w;
 		}
 
-		// TODO: fix
-		// FIX: this
-		//if (Widget.keyboardFocusWidget == NullWidgetID && Widget.widgets.length != 0 ) {}
-		//Widget.setKeyboardFocusWidget(Widget.widgets[Widget.widgets.keys()[0]].id);
-		return used;
+		EventUsed dispatch(GUIEvent event)
+		{
+			//assert(event.windowID == win.id);
+			if (!event.isValid)
+				return EventUsed.no;
+
+			//if (_onEvent !is null && _onEvent(ev) == EventUsed.yes)
+			//    return EventUsed.yes;
+
+			static WidgetID getCurrentMouseWidgetID(T)(Window win, GUIEvent ev)
+			{
+				auto e = cast(T) ev;
+				auto mouseWidget = win.getWidgetAtPos(e.position);
+				e.atWidget = mouseWidget;
+				return mouseWidget is null ? NullWidgetID : mouseWidget.id;
+			}
+
+			bool hasPosition = false;
+			if (event.type == GUIEvents.mouseMove)
+			{
+				win._mouseWidgetID = getCurrentMouseWidgetID!MouseMoveEvent(win, event);
+				hasPosition = true;
+			}
+			else if (event.type == GUIEvents.mousePressed || event.type == GUIEvents.mouseReleased)
+			{
+				win._mouseWidgetID = getCurrentMouseWidgetID!MouseButtonEvent(win, event);
+				hasPosition = true;
+			}
+
+			if (win._mouseGrabbedByWidgetID != NullWidgetID)
+				win._mouseWidgetID = win._mouseGrabbedByWidgetID;
+
+			auto result = GUIEvents.dispatch(this, event);
+
+			if (hasPosition)
+				win._lastMouseWidgetID = win._mouseWidgetID;
+
+			return result;
+		}
+
+		EventUsed onMouseMoveEvent(MouseMoveEvent event)
+		{
+			EventUsed used = EventUsed.no;
+			if (win._lastMouseWidgetID != win._mouseWidgetID)
+			{
+				// If a click has been initiated by a mouse down and the mouse
+				// goes away from the widget the click is aborted.
+				win._downButtonWidgetID = NullWidgetID;
+				win._clickWidgetID = NullWidgetID;
+				win._clickWidgetClicks = 0;
+
+				// Handle mouse out events
+				Widget outWidget = null;
+				if (win._lastMouseWidgetID != NullWidgetID)
+				{
+					outWidget = safeDeref(win._lastMouseWidgetID in win.widgets);
+
+					// Bubbling to parents lets a parent handle all out events for its children
+					// which can be convenient
+					if (outWidget !is null)
+					{
+						event.lastWidget = outWidget;
+						auto w = win._mouseWidgetID in win.widgets;
+						auto mouseOutEvent = 
+							GUIEvents.create!MouseOutEvent(event.windowID, event.mouseID, event.modifiers,
+														   w is null ? null : *w, outWidget);
+						win.propagateEvent(mouseOutEvent, outWidget);
+						mouseOutEvent.dispose();
+					}
+				}
+
+				// Handle mouse over event and mouse move event
+				if (win._mouseWidgetID != NullWidgetID)
+				{
+					//if (win._lastMouseWidgetID == NullWidgetID)
+					//    win._lastMouseWidgetID = win._lastMouseWidgetID;
+					auto w = win._mouseWidgetID in win.widgets;
+					auto mouseOverEvent = 
+						GUIEvents.create!MouseOverEvent(event.windowID, event.mouseID, event.modifiers,
+													    w is null ? null : *w, outWidget);
+					used = win.propagateEvent(mouseOverEvent, *w);
+					mouseOverEvent.dispose();
+				}
+			}
+			else if (win._mouseWidgetID != NullWidgetID)
+			{
+				// Handle mouse move event
+				if (win._lastMouseWidgetID != NullWidgetID)
+				{
+					auto lw = win._lastMouseWidgetID in win.widgets;
+					if (lw !is null)
+						event.lastWidget = *lw;
+				}
+				auto w = win._mouseWidgetID in win.widgets;
+				used = win.propagateEvent(event, w is null ? null : *w);
+			}
+			else
+			{
+				// If a click has been initiated by a mouse down and the mouse
+				// goes away from the widget the click is aborted.
+				win._downButtonWidgetID = NullWidgetID;
+				win._clickWidgetID = NullWidgetID;
+				win._clickWidgetClicks = 0;
+			}
+			return used;
+		}
+
+		EventUsed onMouseOverEvent(MouseOverEvent event)
+		{
+			// mouse out events are created by this window itself and shouldn't be handled
+			return EventUsed.no;
+		}
+
+		EventUsed onMouseOutEvent(MouseOutEvent event)
+		{
+			// mouse over events are created by this window itself and shouldn't be handled
+			return EventUsed.no;
+		}
+
+		EventUsed onMousePressedEvent(MousePressedEvent event)
+		{
+			EventUsed used = EventUsed.no;
+			if (win._mouseWidgetID != NullWidgetID)
+			{
+				win._downButtonWidgetID = win._mouseWidgetID;
+				auto overWidget = safeDeref(win._downButtonWidgetID in win.widgets);
+				used = win.propagateEvent(event, overWidget);
+				if (win._clickWidgetID != NullWidgetID)
+				{
+					// check for double and triple click
+					TickDuration tdur = TickDuration.currSystemTick;
+					float multiClickTime = tdur.to!("seconds",float)() - win._clickWidgetTime.to!("seconds",float)();
+					if (win._clickWidgetClicks == 1 && win._downButtonWidgetID == win._clickWidgetID && multiClickTime <= maxDoubleClickTime)
+					{
+						win._clickWidgetClicks++;
+						auto mouseDoubleClickedEvent = 
+							GUIEvents.create!MouseDoubleClickedEvent(event.windowID, event.mouseID, event.modifiers,
+																	event.position, event.buttonChanged, event.buttons,
+																	overWidget);
+
+						used = win.propagateEvent(mouseDoubleClickedEvent, overWidget) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;
+						mouseDoubleClickedEvent.dispose();
+					}
+					else if (win._clickWidgetClicks == 2 && win._downButtonWidgetID == win._clickWidgetID && multiClickTime <= maxDoubleClickTime*2f)
+					{
+						auto mouseTripleClickedEvent = 
+							GUIEvents.create!MouseTripleClickedEvent(event.windowID, event.mouseID, event.modifiers,
+																	 event.position, event.buttonChanged, event.buttons,
+																	 overWidget);
+						used = win.propagateEvent(mouseTripleClickedEvent, overWidget) == EventUsed.yes || used == EventUsed.yes ? EventUsed.yes : EventUsed.no;
+						mouseTripleClickedEvent.dispose();
+						win._clickWidgetClicks = 0;
+						win._clickWidgetID = NullWidgetID;
+					}
+					else
+					{
+						win._clickWidgetClicks = 0;
+						win._clickWidgetID = NullWidgetID;
+					}
+				}
+
+				if (win._clickWidgetClicks == 0)
+					win._clickWidgetTime = TickDuration.currSystemTick;
+			}
+			else
+			{
+				win._downButtonWidgetID = NullWidgetID;
+				win._clickWidgetID = NullWidgetID;
+				win._clickWidgetClicks = 0;
+			}
+			return used;
+		}
+
+		EventUsed onMouseReleasedEvent(MouseReleasedEvent event)
+		{
+			EventUsed used = EventUsed.no;
+			if (win._mouseWidgetID != NullWidgetID)
+			{
+				auto overWidget = safeDeref(win._mouseWidgetID in win.widgets);
+				used = win.propagateEvent(event, overWidget);
+				// TickDuration tdur = TickDuration.currSystemTick;
+				// float doubleClickTime = tdur.to!("seconds",float)() - clickWidgetTime.to!("seconds",float)();
+				bool allowClick = win._clickWidgetClicks == 0; //  || (doubleClickTime > maxDoubleClickTime;
+
+				if (win._downButtonWidgetID == win._mouseWidgetID && allowClick)
+				{
+					win._clickWidgetClicks = 1;
+					auto mouseClickedEvent = 
+						GUIEvents.create!MouseClickedEvent(event.windowID, event.mouseID, event.modifiers,
+														   event.position, event.buttonChanged, event.buttons,
+														   overWidget);
+					used = 
+						win.propagateEvent(mouseClickedEvent, overWidget) == EventUsed.yes || 
+						used == EventUsed.yes ? EventUsed.yes : EventUsed.no;
+					mouseClickedEvent.dispose();
+					win._clickWidgetID = win._downButtonWidgetID;
+					win.setKeyboardFocusWidget(win._clickWidgetID);
+				}
+			}
+			win._downButtonWidgetID = NullWidgetID;
+			return used;
+		}
+	
+		EventUsed onMouseWheelEvent(MouseWheelEvent event)
+		{
+			EventUsed used = EventUsed.no;
+			if (win._mouseWidgetID != NullWidgetID)
+			{
+				auto overWidget = safeDeref(win._mouseWidgetID in win.widgets);
+				used = win.propagateEvent(event, overWidget);
+			}
+			return used;
+		}
+
+		private EventUsed dispatchToFocussedWidget(GUIEvent event)
+		{
+			EventUsed used = EventUsed.no;
+
+			//std.stdio.writeln("dxx ", event.type, " ", keyboardFocusWidget);
+			if (win._keyboardFocusWidgetID != NullWidgetID)
+			{
+				Widget * w = win._keyboardFocusWidgetID in win.widgets;
+				if (w is null)
+					win.setKeyboardFocusWidget(NullWidgetID);
+				else
+					used = win.propagateEvent(event, *w);
+			}
+			return used;
+		}
+
+		EventUsed onInputFocusEvent(InputFocusEvent event)
+		{
+			// input focus events are created by this window itself and shouldn't be handled
+			return EventUsed.no;
+		}
+
+		EventUsed onInputUnfocusEvent(InputUnfocusEvent event)
+		{
+			// input unfocus events are created by this window itself and shouldn't be handled
+			return EventUsed.no;
+		}
+
+		EventUsed onWindowFocussedEvent(WindowFocussedEvent event)
+		{
+			return EventUsed.no;
+		}
+
+		EventUsed onWindowUnfocussedEvent(WindowUnfocussedEvent event)
+		{
+			return EventUsed.no;
+		}
+
+		EventUsed onCommandEvent(CommandEvent event)
+		{
+			return dispatchToFocussedWidget(event);
+		}
+
+		EventUsed onKeyPressedEvent(KeyPressedEvent event)
+		{
+			return dispatchToFocussedWidget(event);
+		}
+
+		EventUsed onKeyReleasedEvent(KeyReleasedEvent event)
+		{
+			return dispatchToFocussedWidget(event);
+		}
+
+		EventUsed onTextEvent(TextEvent event)
+		{
+			return dispatchToFocussedWidget(event);
+		}
+
+		EventUsed onWindowResizedEvent(WindowResizedEvent event)
+		{
+			EventUsed used = EventUsed.no;
+			win.size = event.size;
+
+			if (win.styleSheet is null)
+				return used; // Cannot do styling without a stylesheet
+
+			win.updateLayout(false, this);
+
+			bool cont = false;
+			int maxIter = 5;
+		
+			// Resize events will let widget do relayouts.
+			do
+			{
+				cont = false;
+				foreach (w; win.widgets)
+				{
+					cont |= win.propagateEvent(event, w) == EventUsed.yes;
+				}
+			} while (cont && maxIter--);
+		
+			return used;
+		}
+
+		EventUsed onStyleSheetChangedEvent(StyleSheetChangedEvent event)
+		{
+			foreach (w; win.widgets)
+			{
+				win.propagateEvent(event, w);
+				w.recalculateStyle();
+			}
+			return EventUsed.yes; // we recalculated style for all widgets and thus used the event
+		}
 	}
 }

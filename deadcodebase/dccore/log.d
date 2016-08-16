@@ -1,23 +1,18 @@
 module dccore.log;
 
 import std.stdio;
+import dccore.ctx;
 import dccore.signals;
 
 import extensionapi.rpc;
 mixin registerRPC;
 
-@property
-{
-    Log log()
-    {
-        assert (Log._globalLogger !is null);
-        return Log._globalLogger;
-    }
-}
+CtxVar!Log _globalLogger;
 
-void setGlobalLog(Log l)
+// Convenience property for access cached Ctx.Get!Log
+@property ref CtxVar!Log log()
 {
-    Log._globalLogger = l;
+    return _globalLogger;
 }
 
 enum LogLevel : ubyte
@@ -35,7 +30,6 @@ class Log
 
     private
     {
-        static Log _globalLogger;
         File _file;
         static int sNextID = 1;
     }

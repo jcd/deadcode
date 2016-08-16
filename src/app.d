@@ -1,94 +1,116 @@
 module app;
 
-import application;
-import platform.system;
+import dccore.ctx;
+import dccore.log;
+import std.getopt;
 
-mixin platformMain!myMain;
-
-/** TODO:
- *
- * zOrder show be derived by children widgets
- *
- * Animating properties does not propagate changes to constraints
- *
- * Shortcut chain ie. app, window, widget in that order
- * Let component register shortcuts in one of the three categories
- * and for the last category some constraints on the widget types
- * it will act on. (need some kind of tagging of widgets?)
- */
-private int myMain(string[] args)
+int main(string[] args)
 {
+	import application;
 	import dccore.attr;
 
-    int result = 0;
+	// Command line options
+	string testsOutput = null;
+	string logPath = null;
+	bool noRedirect = false;
 
-	version (unittest)
+	auto helpInformation = getopt(args,
+								  "log",		   &logPath,
+								  "unittest|u",    &testsOutput,
+								  "noredirect|n",  &noRedirect);
+	
+	if (helpInformation.helpWanted)
 	{
-		import test;
-        import std.stdio;
-
-        File f = args.length > 1 ? File(args[1], "w") : stdout;
-        result = printStats(f, true) ? 0 : 1;
-        f.flush();
+		showHelp(helpInformation.options);
+		return 0;
 	}
+
+	// Show unit test report and exit - unittest are run before entering main
+	if (testsOutput.length != 0)
+		return reportUnittests(testsOutput);
+	
+    int exitCode = 0;
+	try
+	{
+        import platform.config;
+
+        if (Application.wakeExisting(args))
+            return 0;
+
+		ctx.set(new Log(logPath.length == 0 ? paths.userData("log.txt") : logPath));
+
+		Application app = Application.create();
+
+		app.queueWork(() {
+			import std.range;
+	        app.openFiles(args[].dropOne);
+		});
+
+		app.run();
+	}
+	catch (Throwable e)
+	{
+        exitCode = 1;
+		lastChanceLogging(e);
+	}
+
+	import libasync.threads;
+	destroyAsyncThreads(); // This shouldn't be necessary as libasync static ~this() does it. But it has a bug.
+	return exitCode;
+}
+
+private void showHelp(Option[] opts)
+{
+	string headerText = "Deadcode text editor - version x.y.z (C) Jonas Drewsen - Boost 1.0 License\n"
+		"Usage: deadcode [--unittest <output path>] [--nodirect] [paths...]";
+
+	version (linux)
+		defaultGetoptPrinter(headerText, opts);
 	else
 	{
-		Application app;
-        import dccore.log;
-
-		try
-		{
-            import platform.config;
-            auto l = new Log(resourceURI("log.txt", ResourceBaseLocation.userDataDir).uriString);
-            setGlobalLog(l);
-
-            if (Application.wakeExisting(args))
-                return 0;
-
-			app = Application.create();
-
-            // Create a text buffer and add show it in the mainWidget
-			//auto fileName = "testmath.d";
-			//app.mainWidget.content = std.file.readText(fileName);
-			app.pushMainFiberWork(() {
-               if (args.length > 1)
-               	app.openFile(args[1]);
-            });
-
-			app.run();
-		}
-		catch (Exception e)
-		{
-            static import std.stdio;
-            import std.string;
-			import platform.dialog;
-
-			version (linux)
-                std.stdio.writeln("Caught Exception: ", e);
-
-			string s = e.toString();
-			s ~= "\n" ~ "Help improve the editor by uploading this backtrace?";
-
-            try
-            {
-                log.e(s);
-            }
-            catch (Throwable)
-            {
-                // pass
-            }
-
-            int res = messageBox("Caught Exception", e.toString(),
-                                 MessageBoxStyle.error | MessageBoxStyle.yesNo | MessageBoxStyle.modal);
-			if (res)
-			{
-				app.analyticException(e.toString()[0..700], true);
-			}
-
-            result = 1;
-		}
+		import platform.dialog;
+		import std.array;
+		auto app = appender!string;
+		defaultGetoptFormatter(app, headerText, opts);
+		messageBox("Help on usage", app.data, MessageBoxStyle.modal);	
 	}
-	import libasync.threads;
-	destroyAsyncThreads();
+}
+
+private int reportUnittests(string testsOutput)
+{
+	import std.stdio;
+	File f =  testsOutput == "-" ? stdout : File(testsOutput, "w");
+	import test;
+	int result = printStats(f, true) ? 0 : 1;
+	f.flush();
 	return result;
+}
+
+// Something terrible has happened if this is called 
+private void lastChanceLogging(Throwable e)
+{
+	import std.string;
+	import platform.dialog;
+
+	version (linux)
+	{
+		static import std.stdio;
+		std.stdio.writeln("Caught Exception: ", e);
+	}
+
+	string s = e.toString();
+	s ~= "\n" ~ "Help improve the editor by uploading this backtrace?";
+
+	// Last attempt to log error
+	try { log.e(s); } catch (Throwable) { /* pass */ }
+
+	int res = messageBox("Caught Exception", e.toString(),
+						 MessageBoxStyle.error | MessageBoxStyle.yesNo | MessageBoxStyle.modal);
+	if (res)
+	{
+		import dccore.analytics;
+		auto a = ctx.query!Analytics();
+		if (a !is null)
+			a.addException(e.toString()[0..700], true);
+	}
 }

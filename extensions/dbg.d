@@ -116,6 +116,7 @@ class WidgetHierarchy : BasicWidget
         lo.add!Button("foo").onActivated.connect(&close);
 
         _scrollView = add!ScrollView(Vec2f(400, 3000));
+
         visible = false;
     }
 
@@ -129,13 +130,13 @@ class WidgetHierarchy : BasicWidget
         if (activeItem is null)
             return;
 
-        if (ev.type == EventType.MouseOver)
+        if (ev.type == GUIEvents.mouseOver)
         {
             activeItem.features ~= new DebugHighlightRenderer();
             auto l = cast(Label) activeItem.children[0].children[0];
             l.text = "--" ~ l.text;
         }
-        else if (ev.type == EventType.MouseOut)
+        else if (ev.type == GUIEvents.mouseOut)
         {
             activeItem.removeFeaturesByType!DebugHighlightRenderer();
             auto l = cast(Label) activeItem.children[0].children[0];

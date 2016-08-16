@@ -4,9 +4,8 @@ class ClientLoop
 {
 	import std.socket;
 	import dccore.signals;
-    import extensionapi.common : RemoteCommandRegistrar;
     import extensionapi.rpc : RPC;
-    import extensionapi.rpcapi : Application;
+    import extensionapi.rpcapi : Application, RemoteCommandRegistrar;
 
 	mixin Signal!ClientLoop onConnected;
 

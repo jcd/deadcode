@@ -120,11 +120,14 @@ mixin template platformMain(alias customMain)
 }
 version (linux)
 {
-    void killProcessWithThisProcess(HANDLE hProcess)
+    import core.sys.posix.sys.types : pid_t;
+	
+	void killProcessWithThisProcess(pid_t hProcess)
 	{
 		
 	}
-    // http://stackoverflow.com/questions/284325/how-to-make-child-process-die-after-parent-exits
+    
+	// http://stackoverflow.com/questions/284325/how-to-make-child-process-die-after-parent-exits
 
     string getRunningExecutablePath()
     {

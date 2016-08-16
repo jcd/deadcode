@@ -5,6 +5,8 @@ import dccore.analytics;
 import dccore.commandparameter;
 import dccore.command : CompletionEntry, CommandManager;
 import dccore.container;
+import dccore.ctx;
+import dccore.event;
 import dccore.future;
 
 import dccore.log;
@@ -22,7 +24,7 @@ import extensionapi.rpc;
 import extensionapi.types : MenuItem, Shortcut;
 import extensionapi.remotecommand : RemoteCommandRegistrar;
 
-public import platform.config : ResourceBaseLocation;
+public import platform.config : PathBase;
 
 import graphics;
 import gui;
@@ -100,17 +102,6 @@ class PromptQueryResult
 	bool success;
 }
 
-uint g_sdlCustomEventType;
-
-void wakeMainThread()
-{
-    import derelict.sdl2.sdl;
-    SDL_Event event;
-    //   SDL_Zero(event); not needed since dlang does this
-    event.type = g_sdlCustomEventType;
-    SDL_PushEvent(&event);
-}
-
 private Throwable.TraceInfo myTraceHandler( void* ptr = null )
 {
     import core.runtime;
@@ -164,8 +155,8 @@ class Application
     //shared GrowableCircularQueue!(shared TCPClient) _connectedTcpClientQueue;
     shared RWQueue!(shared TCPClient) _connectedTcpClientQueue;
 
-    // int is ResourceBaseLocation flags changed
-    mixin Signal!(uint) onResourceBaseLocationChanged;
+    // int is PathBase flags changed
+    mixin Signal!(uint) onPathBaseChanged;
     mixin Signal!(BufferView) onFileOpened;
 
 	private string _restartExecutable;
@@ -220,6 +211,7 @@ class Application
 
 	private Analytics analytics;
     private AsyncIO _asyncIO;
+	private MainEventSource _eventSource;
 
 	T getGlobalStyle(T)(string name)
 	{
@@ -250,23 +242,23 @@ class Application
 	}
 
     // TODO: move to ctx
-    dccore.uri.URI resourceURI(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+    dccore.uri.URI resourceURI(string path, PathBase base = PathBase.userDataDir)
     {
         static import platform.config;
         return platform.config.resourceURI(path, base);
     }
 
-	private this(GUI gui)
+	private this(GUI gui, MainEventSource eventSource)
 	{
-        setLog(dccore.log.log);
+		subscribeToLogMessages();
 
         // Make sure standard dirs exists
         {
-            auto d = resourceURI("extensions", ResourceBaseLocation.userDataDir).uriString;
+            auto d = resourceURI("extensions", PathBase.userDataDir).uriString;
             if (!exists(d))
                 mkdirRecurse(d);
 
-            d = resourceURI("", ResourceBaseLocation.sessionDir).uriString;
+            d = resourceURI("", PathBase.sessionDir).uriString;
             if (!exists(d))
                 mkdirRecurse(d);
         }
@@ -276,6 +268,12 @@ class Application
 
 		// This also sets up tracking keys for analytics
 		guiRoot = gui;
+		
+		//shared(MainEventSource) es = new shared SDLEventSource();
+		//ctx.set(es);
+		ctx.set(eventSource);
+		_eventSource = eventSource;
+
 		setupRegistryEntries();
 		_promptStack = new Stack!PromptQuery();
 
@@ -306,6 +304,21 @@ class Application
 
 	~this()
 	{
+	}
+
+	private void subscribeToLogMessages()
+	{
+		// Listen for info messages on log
+		log.onInfo.connect(&appendConsoleMessage);
+		
+		// log is a CtxVar!Log. If the log changes we want to 
+		// subscribe to the new log instead.
+		log.onCtxVarChanged.connectTo((Log oldl, Log newl) {
+			if (oldl !is null)
+				oldl.onInfo.disconnect(&appendConsoleMessage);
+			if (newl !is null)
+				newl.onInfo.connect(&appendConsoleMessage);
+		});
 	}
 
     static bool wakeExisting(string[] args)
@@ -346,7 +359,7 @@ class Application
         return bytesReceived >= 2 && "ok" == buf[0..2];
     }
 
-	static Application create(GUI gui = null)
+	static Application create(MainEventSource eventSource = null, GUI gui = null)
 	{
 		if (gui is null)
         {
@@ -361,7 +374,16 @@ class Application
             }
         }
 
-		auto app = new Application(gui);
+		auto _eventManager = new EventManager();
+		_eventManager.activateRegistrants();
+
+		if (eventSource is null)
+		{
+			import platform.sdleventssource;
+			eventSource = new SDLEventSource();
+		}
+
+		auto app = new Application(gui, eventSource);
 		app.guiRoot.onFileDropped.connect(&app.onFileDropped);
 		return app;
 	}
@@ -373,7 +395,7 @@ class Application
     void pushMainThreadWork(IWorker worker)
     {
         _mainThreadWorkQueue.pushBusyWait(cast(shared)worker);
-        wakeMainThread();
+        _eventSource.scheduleTimeoutNow();
     }
 
     void handleMainThreadWorkQueue()
@@ -476,18 +498,11 @@ class Application
         //return (new RelaySignal(this, dlg)).opCall;
     }
 
-    void setLog(Log l)
-    {
-        log.onInfo.disconnect(&appendConsoleMessage);
-        setGlobalLog(l);
-        log.onInfo.connect(&appendConsoleMessage);
-    }
-
     // super()
     @RPC
     void setLogFile(string path)
     {
-        setLog(new Log(path));
+        ctx.set(new Log(path));
     }
 
     @RPC
@@ -562,7 +577,7 @@ class Application
         string behavior; // emacs, vs, vim
     }
 
-    void loadKeyBindings(string fileName, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+    void loadKeyBindings(string fileName, PathBase base = PathBase.userDataDir)
     {
         static class Rule
         {
@@ -669,13 +684,13 @@ class Application
         Runtime.traceHandler = &myTraceHandler;
         registerCommandParameterPackHandlers();
 
-        setupResourcesRoot();
+        setupPathRoots();
 
 		// guiRoot.locationsManager.baseURI = "resources/";
 
 		scanResources();
 
-		auto styleSheetPath = resourceURI("default.stylesheet", ResourceBaseLocation.resourceDir);
+		auto styleSheetPath = resourceURI("default.stylesheet", PathBase.resourceDir);
         log.v("Using stylesheet %s", styleSheetPath);
         defaultStyleSheet = guiRoot.styleSheetManager.load(styleSheetPath);
 		guiRoot.styleSheetManager.onSourceChanged.connect(&styleSheetSourceChanged);
@@ -752,18 +767,12 @@ class Application
 
 		guiRoot.init();
 
-        _asyncIO = new AsyncIO();
-        guiRoot.registerCustomEventType(_asyncIO.customEventType);
-
-        import derelict.sdl2.sdl;
-        g_sdlCustomEventType = SDL_RegisterEvents(1);
-
-        guiRoot.registerCustomEventType(g_sdlCustomEventType);
+        _asyncIO = new AsyncIO( () {  _eventSource.scheduleTimeoutNow(); } );
 
 		import libasync : DWFileEvent;
         static import platform.config;
 
-        _asyncIO.watchDir(platform.config.resourcesRoot, DWFileEvent.ALL,  true).then( (WatchDirResult r) {
+        _asyncIO.watchDir(platform.config.paths.resource(), DWFileEvent.ALL,  true).then( (WatchDirResult r) {
             // log.i("Watching dir %s", r.success);
             resourceDirWatcherQueue = r.changesRange;
             //// TODO: append... do not just set the queue
@@ -775,7 +784,7 @@ class Application
         });
 
 
-        foreach (loc; [ ResourceBaseLocation.executableDir /* , ResourceBaseLocation.userDataDir */ ])
+        foreach (loc; [ PathBase.executableDir /* , PathBase.userDataDir */ ])
         {
             string extensionsDir = platform.config.resourceURI("extensions", loc).uriString;
             if (exists(extensionsDir))
@@ -857,6 +866,8 @@ class Application
 
 		guiRoot.onActivity.connect(&handleActivity);
 
+		// Main loop
+		// eventSource.each!onEvent();
 		guiRoot.run();
 
         guiRoot.outputProfile(log());
@@ -884,6 +895,22 @@ class Application
 		}
 
         _asyncIO.kill();
+	}
+
+	void onEvent(Event ev)
+	{
+		// Let the shortcut handler do its magic before event is dispatched to
+		// the widgets.
+		auto t = ev.type;
+		if (t == GUIEvents.windowFocussed)
+		{
+			//if (ev.on)
+				regularCheck();
+		} else if (t == GUIEvents.completed)
+		{
+			regularCheck();
+		}
+		ev.used = editorBehavior.onEvent(ev) == EventUsed.yes;
 	}
 
 	private void delegate(TCPEvent) acceptTcpConnection(AsyncTCPConnection conn)
@@ -917,7 +944,7 @@ class Application
             _connectedTcpClients ~= tcpClient;
 
             import std.functional;
-            tcpClient.onQueuesUpdated.connectTo(() { wakeMainThread(); });
+            tcpClient.onQueuesUpdated.connectTo(() { _eventSource.scheduleTimeoutNow(); });
         }
     }
 
@@ -1027,27 +1054,27 @@ class Application
         editorBehavior.keyBindings.setKeyBinding(keySequence, cmd);
     }
 
-	void setupResourcesRoot()
+	void setupPathRoots()
 	{
-        import platform.config : resourcesRoot, binariesRoot;
+        import platform.config : paths;
 
         version (portable)
         {
             import dccore.pack;
             string destDir = FilePack!"resources.pack"().unpack();
-            resourcesRoot = buildPath(destDir, "resources");
+            paths.setResourcesRoot(buildPath(destDir, "resources"));
             writeln("Unpack dir ", destDir);
             destDir = FilePack!"binaries.pack"().unpack();
-            binariesRoot = buildPath(destDir, "binaries");
+            paths.setBinariesRoot(buildPath(destDir, "binaries"));
             writeln("Unpack dir ", destDir);
         }
         else
         {
-            resourcesRoot = absolutePath("resources", thisExePath().dirName());
+            paths.setResourcesRoot(absolutePath("resources", thisExePath().dirName()));
             debug
-                binariesRoot = absolutePath("binaries", thisExePath().dirName());
+                paths.setBinariesRoot(absolutePath("binaries", thisExePath().dirName()));
             else
-                binariesRoot = absolutePath(thisExePath().dirName());
+                paths.setBinariesRoot(absolutePath(thisExePath().dirName()));
         }
 	}
 
@@ -1062,13 +1089,13 @@ class Application
 
 	void scanResources()
 	{
-		guiRoot.locationsManager.scan(resourceURI("*", ResourceBaseLocation.resourceDir));
+		guiRoot.locationsManager.scan(resourceURI("*", PathBase.resourceDir));
 	}
 
     void setCurrentDirectory(string path)
     {
         chdir(path);
-        onResourceBaseLocationChanged.emit(ResourceBaseLocation.currentDir);
+        onPathBaseChanged.emit(PathBase.currentDir);
     }
 
 	Window createWindow(string name = "mainWindow", int width = 854, int height = 900)
@@ -1237,24 +1264,26 @@ class Application
         auto n = new Notice();
         n.parent = win;
 
-        guiRoot.onEvent.connectTo((Event* ev) {
-			// Let the shortcut handler do its magic before event is dispatched to
-			// the widgets.
-			switch (ev.type) with (EventType)
-            {
-                case Focus:
-                    if (ev.on)
-                        regularCheck();
-                    break;
-                case AsyncCompletion:
-                    regularCheck();
-                    break;
-                default:
-                    break;
-            }
+        guiRoot.onEvent.connectTo(&onEvent);
 
-			ev.used = editorBehavior.onEvent(*ev) == EventUsed.yes;
-        });
+		//(Event* ev) {
+		//    // Let the shortcut handler do its magic before event is dispatched to
+		//    // the widgets.
+		//    switch (ev.type) with (EventType)
+		//    {
+		//        case Focus:
+		//            if (ev.on)
+		//                regularCheck();
+		//            break;
+		//        case AsyncCompletion:
+		//            regularCheck();
+		//            break;
+		//        default:
+		//            break;
+		//    }
+		//
+		//    ev.used = editorBehavior.onEvent(*ev) == EventUsed.yes;
+		//});
 
 		// Let text editor handle events before normal gui
         //win.onEvent = (ref Event ev) {
@@ -1267,12 +1296,12 @@ class Application
 
 
 
-	//GenericResource load(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+	//GenericResource load(string path, PathBase base = PathBase.userDataDir)
 	//{
 	//    return guiRoot.genericResourceManager.load(resourceURI(path, base));
 	//}
 
-    GenericResource getLoaded(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+    GenericResource getLoaded(string path, PathBase base = PathBase.userDataDir)
 	{
 		// predeclare to sure that unsuccessful loads return a valid resource anyway.
 		auto u = resourceURI(path, base);
@@ -1282,7 +1311,7 @@ class Application
         return null;
     }
 
-    GenericResource getUpdated(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+    GenericResource getUpdated(string path, PathBase base = PathBase.userDataDir)
 	{
         GenericResource res = getLoaded(path, base);
         if (res is null)
@@ -1299,7 +1328,7 @@ class Application
         return res;
     }
 
-    GenericResource get(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+    GenericResource get(string path, PathBase base = PathBase.userDataDir)
 	{
 		// predeclare to sure that unsuccessful loads return a valid resource anyway.
 		auto u = resourceURI(path, base);
@@ -1321,7 +1350,7 @@ class Application
 		return res;
 	}
 
-    U getConfig(U)(string path, ResourceBaseLocation base = ResourceBaseLocation.userDataDir)
+    U getConfig(U)(string path, PathBase base = PathBase.userDataDir)
     {
         auto resource = get(path, base);
 
@@ -1350,7 +1379,7 @@ class Application
 		foreach (idx, p; paths)
 			result ~= openFile(p, show && idx == paths.length - 1);
 		return result;
-    }
+	}
 
 	BufferView openFile(string path, bool show = true)
 	{
@@ -1550,7 +1579,7 @@ class Application
             {
                // std.signals doesn't support emitting from emitted signal that also disconnects something
                // unrelated. Weird... but work around it by delaying actual work a bit.
-               pushMainFiberWork(() {
+               queueWork(() {
                    b.codeModel = dinfo.createModel(b);
                    b.onChanged.disconnect(&detectCodeModel);
                });
@@ -1573,9 +1602,10 @@ class Application
         }
     }
 
-    private void textEditorGlyphClicked(Event event, GlyphHit info)
+    private void textEditorGlyphClicked(MouseReleasedEvent event, GlyphHit info)
     {
-		if ((event.mouseMod & KeyMod.CTRL) && (event.mouseButtonsChanged & Event.MouseButton.Left))
+		// TODO: buttons -> buttonChanged
+		if (isCtrlDown(event.modifiers) && isPressed(event.buttons, MouseButtonFlag.left))
         {
             // Hardcode this commmand for now until keymappings supports mouse presses
             // TODO: Fix
@@ -2030,7 +2060,7 @@ class Application
 			sessionData.add(s);
 		}
 
-        pushMainFiberWork(() {
+        queueWork(() {
 
 		    editors.focusOrderCounter = s.focusOrderCounter;
 
@@ -2114,7 +2144,7 @@ class Application
         registerCommandKeyBindings(this);
 
         // Load global key mappings
-        loadKeyBindings("key-mappings/key-mappings-global", ResourceBaseLocation.resourceDir);
+        loadKeyBindings("key-mappings/key-mappings-global", PathBase.resourceDir);
 
         // Load config
         GenericResource configResource = getUpdated("config");
@@ -2160,7 +2190,7 @@ class Application
 		enforce(Fiber.getThis() !is null);
 
         auto promise = new Promise!string();
-        pushMainFiberWork( () {
+        queueWork( () {
             static import platform.dialog;
             string res = platform.dialog.showSelectFolderDialogBasic(defaultDir);
             promise.setValue(res);
@@ -2178,11 +2208,7 @@ class Application
 
         auto thread = new Thread( () {
             promise.setValue(dlg(args));
-	        import derelict.sdl2.sdl;
-	        SDL_Event event;
-	        //   SDL_Zero(event); not needed since dlang does this
-	        event.type = g_sdlCustomEventType;
-	        SDL_PushEvent(&event);
+	        _eventSource.scheduleTimeoutNow();
         });
 
         thread.start();
@@ -2201,11 +2227,7 @@ class Application
         auto thread = new Thread( () {
 			dlg(args);
             promise.setValue(true);
-	        import derelict.sdl2.sdl;
-	        SDL_Event event;
-	        //   SDL_Zero(event); not needed since dlang does this
-	        event.type = g_sdlCustomEventType;
-	        SDL_PushEvent(&event);
+	        _eventSource.scheduleTimeoutNow();
         });
 
         thread.start();
@@ -2222,11 +2244,7 @@ class Application
 
         auto thread = new Thread( () {
             promise.setValue(dlg(args));
-            import derelict.sdl2.sdl;
-	        SDL_Event event;
-	        //   SDL_Zero(event); not needed since dlang does this
-	        event.type = g_sdlCustomEventType;
-	        SDL_PushEvent(&event);
+	        _eventSource.scheduleTimeoutNow();
         });
 
         thread.start();
@@ -2245,11 +2263,7 @@ class Application
         auto thread = new Thread( () {
 			dlg(args);
             promise.setValue(true);
-	        import derelict.sdl2.sdl;
-	        SDL_Event event;
-	        //   SDL_Zero(event); not needed since dlang does this
-	        event.type = g_sdlCustomEventType;
-	        SDL_PushEvent(&event);
+	        _eventSource.scheduleTimeoutNow();
         });
 
         thread.start();
@@ -2284,7 +2298,7 @@ class Application
         _commandCallList ~= c;
     }
 
-    void pushMainFiberWork(void delegate() dlg)
+    void queueWork(void delegate() dlg)
     {
         assumeSafeAppend(_mainFiberWorkList);
         _mainFiberWorkList ~= MainFiberWork(dlg);
@@ -2430,13 +2444,13 @@ class Application
     @RPC
     string getUserDataDir()
     {
-        return resourceURI(".", ResourceBaseLocation.userDataDir).uriString;
+        return resourceURI(".", PathBase.userDataDir).uriString;
     }
 
     @RPC
     string getExecutableDir()
     {
-        return resourceURI(".", ResourceBaseLocation.executableDir).uriString;
+        return resourceURI(".", PathBase.executableDir).uriString;
     }
 }
 

@@ -13,9 +13,9 @@
 		"derelict-ft": "1.0.0",
 		"libdparse": "0.2.1",
 		"msgpack-d": "~>0.9.5",
-		"libasync": "~>0.7.1",
+		"libasync": "~>0.8.0",
 		"tharsis-prof": "0.5.4",
-		"poodinis": "~>6.1.0"
+		"poodinis": "~>6.2.0"
 	},
 	"dependencies-posix": {
 	    "x11": "~>1.0.8"
